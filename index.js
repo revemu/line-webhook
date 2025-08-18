@@ -236,7 +236,7 @@ app.get('/webhook', async (req, res) => {
         const codes = await readQRCode(imageBuffer);
             
         if (codes && codes.length === 1) {
-            console.log('QR code detected:', qrData);
+            console.log('QR code detected:', codes[0].data);
             // Perform operations or execute code here
 
             let endTime = new Date();
