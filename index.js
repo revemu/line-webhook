@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const { exec } = require('child_process');
 const util = require('util');
+const axios = require('axios');
 
 const execPromise = util.promisify(exec);
 
@@ -19,27 +20,37 @@ const config = {
     channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
-const cur_config = {
-    channelAccessToken: process.env.CUR_CHANNEL_ACCESS_TOKEN,
-    channelSecret: process.env.CUR_CHANNEL_SECRET,
-};
 
 // Create LINE SDK client
 const client = new Client(cur_config);
-const cur_client = new Client(cur_config);
 
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(cur_config));
 
+// Function to get image content from LINE
+async function getImageContent2(messageId, type = 0) {
+    let access_token = CHANNEL_ACCESS_TOKEN ;
+    if (type == 1) {
+        access_token = CUR_CHANNEL_ACCESS_TOKEN ;
+    }
+    try {
+        const response = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+            headers: {
+                'Authorization': `Bearer ${access_token}`  
+            },
+            responseType: 'arraybuffer'
+        });
+        return Buffer.from(response.data);
+    } catch (error) {
+        console.error('Error getting image content:', error);
+        throw error;
+    }
+}
+
 // Function to get image content from LINE using SDK
 async function getImageContent(messageId, type = 0) {
     try {
-        let my_client ;
-        if (type == 0) {
-            my_client = client ;
-        } else {
-            my_client = client ;
-        }
+        let my_client = client ;
         const stream = await my_client.getMessageContent(messageId);
         const chunks = [];
         
@@ -247,7 +258,7 @@ app.get('/webhook', async (req, res) => {
             // Get image content from LINE
         let startTime = new Date() ;
         
-        const imageBuffer = await getImageContent(req.query.msgid, 1);
+        const imageBuffer = await getImageContent2(req.query.msgid, 1);
         //console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
         let endTime = new Date();
         let timeElapsed = endTime - startTime; // Difference in milliseconds
