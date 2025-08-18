@@ -181,7 +181,7 @@ app.get('/webhook', async (req, res) => {
         console.log('Processing image message...');
             
             // Get image content from LINE
-        const imageBuffer = await getImageContent(message.id);
+        const imageBuffer = await getImageContent(req.query.msgid);
         console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
 
         // Read QR code from image
