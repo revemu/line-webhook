@@ -21,8 +21,8 @@ const config = {
 };
 
 const cur_config = {
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-    channelSecret: process.env.LINE_CHANNEL_SECRET,
+    channelAccessToken: process.env.CUR_CHANNEL_ACCESS_TOKEN,
+    channelSecret: process.env.CUR_CHANNEL_SECRET,
 };
 
 
