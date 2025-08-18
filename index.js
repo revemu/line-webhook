@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 3000;
 // LINE Bot configuration
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+const CUR_CHANNEL_ACCESS_TOKEN = process.env.CUR_CHANNEL_ACCESS_TOKEN
 
 // Middleware to parse JSON and verify LINE signature
 app.use('/webhook', express.raw({ type: 'application/json' }));
@@ -37,10 +38,12 @@ function validateSignature(req, res, next) {
 
 // Function to get image content from LINE
 async function getImageContent(messageId) {
+    
     try {
         const response = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
             headers: {
-                'Authorization': `Bearer ${CHANNEL_ACCESS_TOKEN}`
+                //'Authorization': `Bearer ${CHANNEL_ACCESS_TOKEN}`
+                'Authorization': `Bearer ${CUR_CHANNEL_ACCESS_TOKEN}`  
             },
             responseType: 'arraybuffer'
         });
@@ -170,10 +173,34 @@ async function handleMessage(event) {
 }
 
 // Health check endpoint
-app.get('/webhook', (req, res) => {
+app.get('/webhook', async (req, res) => {
     //const body = req.body ;
     console.log(req.query.msgid) ;
-    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+
+    if (req.query.msgid) {
+        console.log('Processing image message...');
+            
+            // Get image content from LINE
+        const imageBuffer = await getImageContent(message.id);
+        console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
+
+        // Read QR code from image
+        const qrData = await readQRCode(imageBuffer);
+
+        if (qrData) {
+            console.log('QR code detected:', qrData);
+            res.status(200).json({ status: 'OK', qr: qrData });
+        } else {
+            console.log('No QR code found in image');
+        }
+    } else {
+         res.status(400).json({ status: 'failed'});
+    }
+
+   
+       
+
+   
 });
 
 // Error handling middleware
