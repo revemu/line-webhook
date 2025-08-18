@@ -185,6 +185,8 @@ app.get('/webhook', async (req, res) => {
         
         const imageBuffer = await getImageContent(req.query.msgid);
         console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
+        let endTime = new Date();
+        let timeElapsed = endTime - startTime; // Difference in milliseconds
         console.log(`Time load img elapsed: ${timeElapsed} ms`);
         // Read QR code from image
         const qrData = await readQRCode(imageBuffer);
