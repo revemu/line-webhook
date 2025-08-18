@@ -44,9 +44,9 @@ async function queryWeekID() {
 }
 
 async function getMemberWeek(type = 0) {
-    let header ;
-    let body ;
-    let query ;
+    let header = "";
+    let body = "";
+    let query = "";
     const res = await queryWeekID() ;
     
     if (res.length > 0) {
@@ -62,7 +62,7 @@ async function getMemberWeek(type = 0) {
             header = result.length + header + "\n\n";
             let i = 0;
             for (const member of result) {
-                body += i + ". " + member.name + "\n";
+                body += (i+1) + ". " + member.name + "\n";
                 i++ ;
             }
             console.log(header + body)
