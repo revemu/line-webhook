@@ -44,23 +44,35 @@ async function queryWeekID() {
 }
 
 async function getMemberWeek(type = 0) {
+     let header ;
+     let body ;
     if (type == 0) {
-        const res = await queryWeekID() ;
-        
+        header = " คนที่ยังไมได้จ่ายค่าสนาม"
+        const query = "select * from member_team_week_tbl where week_id=" + week_id;
+    }
+    const res = await queryWeekID() ;
+    
+    if (res.length > 0) {
         if (res.length > 0) {
-            if (res.length > 0) {
-                const week_id = res[0].id ;
-                const query = "select * from member_team_week_tbl where week_id=" + week_id;
-                const result = await executeQuery(query) ;
+            const week_id = res[0].id ;
+            
+            const result = await executeQuery(query) ;
+            if (result.length > 0) {
+                let header = result.length + header + "\n\n";
+                let i = 0;
                 for (const member of result) {
-                    console.log(member.id);
+                    body += i + ". " + member.name + "\n";
+                    i++ ;
                 }
-                
+                console.log(header + body)
             }
+            
             
         }
         
     }
+        
+    
 
 }
 
