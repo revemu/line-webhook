@@ -58,8 +58,8 @@ async function readQRCode(imageBuffer) {
     let tempFilePath = null;
     try {
         // Create temporary file
-        const tempDir = path.join(__dirname, 'temp');
-        await fs.mkdir(tempDir, { recursive: true });
+        const tempDir = "./temp"
+        //await fs.mkdir(tempDir, { recursive: true });
         
         tempFilePath = path.join(tempDir, `qr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`);
         
