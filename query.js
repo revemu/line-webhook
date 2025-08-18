@@ -46,8 +46,15 @@ async function queryWeekID() {
 async function getMemberWeek(type = 0) {
     if (type == 0) {
         const res = await queryWeekID() ;
+        
         if (res.length > 0) {
-            const query = "select * from memberteamweek" ;
+            if (res.length > 0) {
+                const week_id = res[0].id ;
+                const query = "select * from member_team_week_tbl where week_id=" +  week_id;
+                const res = await executeQuery(query) ;
+                console.log(res) ;
+            }
+            
         }
         
     }
