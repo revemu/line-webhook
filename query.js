@@ -47,12 +47,13 @@ async function getMemberWeek(type = 0) {
     let header ;
     let body ;
     const res = await queryWeekID() ;
-    if (type == 0) {
-        header = " คนที่ยังไมได้จ่ายค่าสนาม"
-        const query = "select * from member_team_week_tbl where week_id=" + week_id;
-    }
+    
     if (res.length > 0) {
             const week_id = res[0].id ;
+            if (type == 0) {
+                header = " คนที่ยังไมได้จ่ายค่าสนาม"
+                const query = "select * from member_team_week_tbl where week_id=" + week_id;
+            }
             
             const result = await executeQuery(query) ;
             if (result.length > 0) {
