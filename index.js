@@ -22,10 +22,10 @@ const config = {
 
 
 // Create LINE SDK client
-const client = new Client(cur_config);
+const client = new Client(config);
 
 // Use LINE SDK middleware for webhook handling
-app.use('/webhook', middleware(cur_config));
+app.use('/webhook', middleware(config));
 
 // Function to get image content from LINE
 async function getImageContent2(messageId, type = 0) {
