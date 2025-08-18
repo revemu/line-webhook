@@ -233,9 +233,9 @@ app.get('/webhook', async (req, res) => {
         console.log(`Time load img elapsed: ${timeElapsed} ms`);
         // Read QR code from image
         startTime = new Date() ;
-        const qr = await readQRCode(imageBuffer);
-
-        if (qr.data) {
+        const codes = await readQRCode(imageBuffer);
+            
+        if (codes && codes.length === 1) {
             console.log('QR code detected:', qrData);
             // Perform operations or execute code here
 
@@ -243,13 +243,13 @@ app.get('/webhook', async (req, res) => {
             let timeElapsed = endTime - startTime; // Difference in milliseconds
 
             console.log(`Time total elapsed: ${timeElapsed} ms`);
-            res.status(200).json({ status: 'OK', qr: qr.data });
+            res.status(200).json({ status: 1, qr: codes[0].data });
         } else {
-            res.status(400).json({ status: 'failed'});
+            res.status(200).json({ status: 0});
             console.log('No QR code found in image');
         }
     } else {
-         res.status(400).json({ status: 'failed'});
+         res.status(400).json({ status: 0});
     }
 
    
