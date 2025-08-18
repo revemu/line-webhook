@@ -20,12 +20,18 @@ const config = {
     channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
+const cur_config = {
+    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    channelSecret: process.env.LINE_CHANNEL_SECRET,
+};
+
 
 // Create LINE SDK client
 const client = new Client(config);
+const cur_client = new Client(cur_config);
 
 // Use LINE SDK middleware for webhook handling
-//app.use('/webhook', middleware(config));
+app.use('/webhook', middleware(config));
 
 // Function to get image content from LINE
 async function getImageContent2(messageId, type = 0) {
