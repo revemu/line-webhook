@@ -40,11 +40,16 @@ async function queryWeekID() {
     const query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY NUMBER DESC LIMIT 1" ;
     const res = await executeQuery(query) ;
     console.log(res) ;
+    return res ;
 }
 
 async function getMemberWeek(type = 0) {
     if (type == 0) {
-        const query = "select * from memberteamweek" ;
+        const res = await queryWeekID() ;
+        if (res.length > 0) {
+            const query = "select * from memberteamweek" ;
+        }
+        
     }
 
 }

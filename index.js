@@ -299,7 +299,10 @@ app.listen(PORT, async () => {
     }
     
     await db.testConnection() ;
-    await db.queryWeekID() ;
+    const res = await db.queryWeekID() ;
+    if (res.length > 0) {
+        console.log(res[0].id)
+    }
     //console.log(db_test);
     // Check if zbarimg is installed
     const zbarimgInstalled = await checkZbarimgInstalled();
