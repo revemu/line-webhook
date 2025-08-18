@@ -242,7 +242,7 @@ app.get('/webhook', async (req, res) => {
             let endTime = new Date();
             let timeElapsed = endTime - startTime; // Difference in milliseconds
 
-            console.log(`Time total elapsed: ${timeElapsed} ms`);
+            console.log(`Time read qr elapsed: ${timeElapsed} ms`);
             res.status(200).json({ status: 1, qr: codes[0].data });
         } else {
             res.status(200).json({ status: 0});
