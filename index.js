@@ -254,7 +254,7 @@ async function handleMessage(event) {
         }
     }
 
-app.get('/webhook', async (req, res) => {
+app.get('/hook', async (req, res) => {
     //const body = req.body ;
     console.log(req.query.msgid) ;
 
