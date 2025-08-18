@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
 const zbarimg = require('zbarimg');
+const fs = require('fs').promises;
 
 require('dotenv').config();
 
