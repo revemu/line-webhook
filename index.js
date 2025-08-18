@@ -189,6 +189,7 @@ app.get('/webhook', async (req, res) => {
         let timeElapsed = endTime - startTime; // Difference in milliseconds
         console.log(`Time load img elapsed: ${timeElapsed} ms`);
         // Read QR code from image
+        startTime = new Date() ;
         const qrData = await readQRCode(imageBuffer);
 
         if (qrData) {
