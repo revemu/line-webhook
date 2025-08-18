@@ -181,6 +181,8 @@ app.get('/webhook', async (req, res) => {
         console.log('Processing image message...');
             
             // Get image content from LINE
+        let startTime = new Date() ;
+        
         const imageBuffer = await getImageContent(req.query.msgid);
         console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
 
@@ -189,6 +191,12 @@ app.get('/webhook', async (req, res) => {
 
         if (qrData) {
             console.log('QR code detected:', qrData);
+            // Perform operations or execute code here
+
+            let endTime = new Date();
+            let timeElapsed = endTime - startTime; // Difference in milliseconds
+
+            console.log(`Time elapsed: ${timeElapsed} ms`);
             res.status(200).json({ status: 'OK', qr: qrData });
         } else {
             console.log('No QR code found in image');
