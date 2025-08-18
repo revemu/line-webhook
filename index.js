@@ -3,6 +3,10 @@ const crypto = require('crypto');
 const axios = require('axios');
 const zbarimg = require('zbarimg');
 const fs = require('fs').promises;
+const { exec } = require('child_process');
+const util = require('util');
+
+const execPromise = util.promisify(exec);
 
 require('dotenv').config();
 
@@ -59,28 +63,35 @@ async function readQRCode(imageBuffer) {
     let tempFilePath = null;
     try {
         // Create temporary file
-        const tempDir = "/home/kyne/sites/line-webhook/temp/"
+        const tempDir = "./temp/"
         //await fs.mkdir(tempDir, { recursive: true });
         
         tempFilePath =  tempDir + `qr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg` ;
-
-        console.log(tempFilePath) ;
         
         // Write buffer to temporary file
         await fs.writeFile(tempFilePath, imageBuffer);
         
         // Use zbarimg to scan for codes
-        const symbols = await zbarimg(tempFilePath);
+        const { stdout, stderr } = await execPromise(`zbarimg "${tempFilePath}"`);
         
         // Clean up temporary file
-        //await fs.unlink(tempFilePath);
+        await fs.unlink(tempFilePath);
         
-        if (symbols && symbols.length > 0) {
-            // Return all detected codes with their types
-            return symbols.map(symbol => ({
-                type: symbol.typeName,
-                data: symbol.data
-            }));
+        if (stdout && stdout.trim()) {
+            // Parse zbarimg output
+            const lines = stdout.trim().split('\n');
+            const codes = lines.map(line => {
+                // zbarimg output format: "CODE-TYPE:data"
+                const colonIndex = line.indexOf(':');
+                if (colonIndex > 0) {
+                    const type = line.substring(0, colonIndex);
+                    const data = line.substring(colonIndex + 1);
+                    return { type, data };
+                }
+                return { type: 'UNKNOWN', data: line };
+            }).filter(code => code.data); // Filter out empty results
+            
+            return codes.length > 0 ? codes : null;
         }
         
         return null;
@@ -88,7 +99,7 @@ async function readQRCode(imageBuffer) {
         // Clean up temporary file in case of error
         if (tempFilePath) {
             try {
-                //await fs.unlink(tempFilePath);
+                await fs.unlink(tempFilePath);
             } catch (unlinkError) {
                 console.error('Error cleaning up temp file:', unlinkError);
             }
@@ -147,20 +158,32 @@ async function handleMessage(event) {
             console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
 
             // Read QR code from image
-            const qrData = await readQRCode(imageBuffer);
-
+            const codes = await readQRCode(imageBuffer);
+            
             let replyMessages;
-            if (qrData) {
-                console.log('QR code detected:', qrData);
+            if (codes && codes.length > 0) {
+                console.log('Codes detected:', codes);
+                
+                // Format response for multiple codes
+                let responseText = '';
+                if (codes.length === 1) {
+                    responseText = `${codes[0].type} detected!\n\nContent: ${codes[0].data}`;
+                } else {
+                    responseText = `${codes.length} codes detected!\n\n`;
+                    codes.forEach((code, index) => {
+                        responseText += `${index + 1}. ${code.type}: ${code.data}\n`;
+                    });
+                }
+                
                 replyMessages = [{
                     type: 'text',
-                    text: `QR Code detected!\n\nContent: ${qrData}`
+                    text: responseText
                 }];
             } else {
-                console.log('No QR code found in image');
+                console.log('No QR codes or barcodes found in image');
                 replyMessages = [{
                     type: 'text',
-                    text: 'No QR code found in the image. Please make sure the QR code is clear and visible.'
+                    text: 'No QR codes or barcodes found in the image. Please make sure the code is clear and visible.'
                 }];
             }
 
