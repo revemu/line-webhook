@@ -211,6 +211,7 @@ app.get('/webhook', async (req, res) => {
             console.log(`Time total elapsed: ${timeElapsed} ms`);
             res.status(200).json({ status: 'OK', qr: qrData });
         } else {
+            res.status(400).json({ status: 'failed'});
             console.log('No QR code found in image');
         }
     } else {
