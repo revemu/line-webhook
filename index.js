@@ -29,7 +29,7 @@ const client = new Client(config);
 
 // Function to get image content from LINE
 async function getImageContent2(messageId, type = 0) {
-    let access_token = config.channelAccessToken ;
+    let access_token = process.env.LINE_CHANNEL_ACCESS_TOKEN ;
     if (type == 1) {
         access_token = process.env.CUR_CHANNEL_ACCESS_TOKEN ;
     }
