@@ -64,5 +64,6 @@ async function getMemberWeek(type = 0) {
 module.exports = {
   testConnection,
   executeQuery,
-  queryWeekID
+  queryWeekID,
+  getMemberWeek
 };
