@@ -171,8 +171,8 @@ async function handleMessage(event) {
 
 // Health check endpoint
 app.get('/webhook', (req, res) => {
-    const body = req.body ;
-    console.log(body) ;
+    //const body = req.body ;
+    console.log(req) ;
     res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
