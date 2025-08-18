@@ -41,8 +41,8 @@ async function getImageContent(messageId) {
     try {
         const response = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
             headers: {
-                //'Authorization': `Bearer ${CHANNEL_ACCESS_TOKEN}`
-                'Authorization': `Bearer ${CUR_CHANNEL_ACCESS_TOKEN}`  
+                'Authorization': `Bearer ${CHANNEL_ACCESS_TOKEN}`
+                //'Authorization': `Bearer ${CUR_CHANNEL_ACCESS_TOKEN}`  
             },
             responseType: 'arraybuffer'
         });
