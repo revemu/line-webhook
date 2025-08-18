@@ -62,15 +62,25 @@ async function readQRCode(imageBuffer) {
         const { data, width, height } = image.bitmap;
         
         // Convert RGBA to RGB for jsQR
+        /*
         const rgbData = new Uint8ClampedArray(width * height * 4);
         for (let i = 0; i < data.length; i += 4) {
             rgbData[i] = data[i];     // R
             rgbData[i + 1] = data[i + 1]; // G
             rgbData[i + 2] = data[i + 2]; // B
             rgbData[i + 3] = data[i + 3]; // A
-        }
+        }*/
+        const imageData = {
+            data: new Uint8ClampedArray(image.bitmap.data),
+            width: image.bitmap.width,
+            height: image.bitmap.height,
+        };
 
-        const qrCode = jsQR(rgbData, width, height);
+    // Decode the QR code
+        const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+
+
+        //const qrCode = jsQR(rgbData, width, height);
         return qrCode ? qrCode.data : null;
     } catch (error) {
         console.error('Error reading QR code:', error);
