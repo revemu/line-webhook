@@ -59,7 +59,7 @@ async function readQRCode(imageBuffer) {
     let tempFilePath = null;
     try {
         // Create temporary file
-        const tempDir = "./temp/"
+        const tempDir = "/home/kyne/sites/line-webhook/temp/"
         //await fs.mkdir(tempDir, { recursive: true });
         
         tempFilePath =  tempDir + `qr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg` ;
@@ -88,7 +88,7 @@ async function readQRCode(imageBuffer) {
         // Clean up temporary file in case of error
         if (tempFilePath) {
             try {
-                await fs.unlink(tempFilePath);
+                //await fs.unlink(tempFilePath);
             } catch (unlinkError) {
                 console.error('Error cleaning up temp file:', unlinkError);
             }
