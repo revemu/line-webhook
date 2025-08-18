@@ -73,7 +73,7 @@ async function readQRCode(imageBuffer) {
         const symbols = await zbarimg(tempFilePath);
         
         // Clean up temporary file
-        await fs.unlink(tempFilePath);
+        //await fs.unlink(tempFilePath);
         
         if (symbols && symbols.length > 0) {
             // Return all detected codes with their types
