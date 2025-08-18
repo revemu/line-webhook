@@ -42,7 +42,7 @@ async function getSlipInfo(payload) {
             },
             //responseType: 'arraybuffer'
         });
-        console.log(response.data) ;
+        //console.log(response.data) ;
         return response.data ;
     } catch (error) {
         console.error('Error getting image content:', error);
