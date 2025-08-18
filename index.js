@@ -63,6 +63,7 @@ async function readQRCode(imageBuffer) {
         //const { data, width, height } = image.bitmap;
         const qr = new QRReader();
         const qrCode = qr.decode(image.bitmap);
+        console.log(qrCode) ;
         // Convert RGBA to RGB for jsQR
         /*
         const rgbData = new Uint8ClampedArray(width * height * 4);
