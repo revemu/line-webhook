@@ -63,6 +63,8 @@ async function readQRCode(imageBuffer) {
         //await fs.mkdir(tempDir, { recursive: true });
         
         tempFilePath =  tempDir + `qr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg` ;
+
+        console.log(tempFilePath) ;
         
         // Write buffer to temporary file
         await fs.writeFile(tempFilePath, imageBuffer);
