@@ -1,9 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
-const jimp = require('jimp');
-const jsQR = require('jsqr');
-const QRReader = require('qrcode-reader');
+const zbarimg = require('zbarimg');
 
 require('dotenv').config();
 
@@ -57,32 +55,42 @@ async function getImageContent(messageId) {
 
 // Function to read QR code from image buffer
 async function readQRCode(imageBuffer) {
+    let tempFilePath = null;
     try {
+        // Create temporary file
+        const tempDir = path.join(__dirname, 'temp');
+        await fs.mkdir(tempDir, { recursive: true });
         
-        const image = await jimp.Jimp.read(imageBuffer);
-        //const { data, width, height } = image.bitmap;
-        const qr = new QRReader();
-        const qrCode = qr.decode(image.bitmap);
-        console.log(qrCode) ;
-        // Convert RGBA to RGB for jsQR
-        /*
-        const rgbData = new Uint8ClampedArray(width * height * 4);
-        for (let i = 0; i < data.length; i += 4) {
-            rgbData[i] = data[i];     // R
-            rgbData[i + 1] = data[i + 1]; // G
-            rgbData[i + 2] = data[i + 2]; // B
-            rgbData[i + 3] = data[i + 3]; // A
-        }*/
-
-
-        // Decode the QR code
-        //const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
-
-
-        //const qrCode = jsQR(rgbData, width, height);
-        return qrCode ? qrCode.data : null;
+        tempFilePath = path.join(tempDir, `qr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`);
+        
+        // Write buffer to temporary file
+        await fs.writeFile(tempFilePath, imageBuffer);
+        
+        // Use zbarimg to scan for codes
+        const symbols = await zbarimg(tempFilePath);
+        
+        // Clean up temporary file
+        await fs.unlink(tempFilePath);
+        
+        if (symbols && symbols.length > 0) {
+            // Return all detected codes with their types
+            return symbols.map(symbol => ({
+                type: symbol.typeName,
+                data: symbol.data
+            }));
+        }
+        
+        return null;
     } catch (error) {
-        console.error('Error reading QR code:', error);
+        // Clean up temporary file in case of error
+        if (tempFilePath) {
+            try {
+                await fs.unlink(tempFilePath);
+            } catch (unlinkError) {
+                console.error('Error cleaning up temp file:', unlinkError);
+            }
+        }
+        console.error('Error reading QR/barcode:', error);
         return null;
     }
 }
@@ -199,9 +207,9 @@ app.get('/webhook', async (req, res) => {
         console.log(`Time load img elapsed: ${timeElapsed} ms`);
         // Read QR code from image
         startTime = new Date() ;
-        const qrData = await readQRCode(imageBuffer);
+        const qr = await readQRCode(imageBuffer);
 
-        if (qrData) {
+        if (qr.data) {
             console.log('QR code detected:', qrData);
             // Perform operations or execute code here
 
@@ -209,7 +217,7 @@ app.get('/webhook', async (req, res) => {
             let timeElapsed = endTime - startTime; // Difference in milliseconds
 
             console.log(`Time total elapsed: ${timeElapsed} ms`);
-            res.status(200).json({ status: 'OK', qr: qrData });
+            res.status(200).json({ status: 'OK', qr: qr.data });
         } else {
             res.status(400).json({ status: 'failed'});
             console.log('No QR code found in image');
