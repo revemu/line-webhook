@@ -34,6 +34,21 @@ const cur_client = new Client(cur_config);
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
 
+async function getSlipInfo(payload) {
+    try {
+        const response = await axios.get(`https://developer.easyslip.com/api/v1/verify?payload=${payload}`, {
+            headers: {
+                'Authorization': `Bearer 196e73b3-6b1a-4a46-be07-5ef89dffa11b`  
+            },
+            //responseType: 'arraybuffer'
+        });
+        return response.data ;
+    } catch (error) {
+        console.error('Error getting image content:', error);
+        throw error;
+    }
+}
+
 // Function to get image content from LINE using SDK
 async function getImageContent(messageId, type = 0) {
     try {
@@ -269,7 +284,9 @@ app.get('/hook', async (req, res) => {
             let timeElapsed = endTime - startTime; // Difference in milliseconds
 
             console.log(`Time read qr elapsed: ${timeElapsed} ms`);
-            res.status(200).json({ status: 1, qr: codes[0].data });
+            let slipjson = '{"status":200,"data":{"payload":"0046000600000101030140225202508037HrwTcbtkWrmJwnIl5102TH9104F0E7","transRef":"202508037HrwTcbtkWrmJwnIl","date":"2025-08-03T09:01:22+07:00","countryCode":"TH","amount":{"amount":219,"local":{"amount":0,"currency":""}},"fee":0,"ref1":"","ref2":"","ref3":"","sender":{"bank":{"id":"014","name":"ธนาคารไทยพาณิชย์","short":"SCB"},"account":{"name":{"th":"นาย พิพัฒน์ บ"},"bank":{"type":"BANKAC","account":"xxxx-xx348-4"}}},"receiver":{"bank":{"id":"025","name":"ธนาคารกรุงศรีอยุธยา","short":"BAY"},"account":{"name":{"th":"นาย  ว"},"bank":{"type":"BANKAC","account":"XXXXX2389X"}}}}}' ;
+            //res.status(200).json({ status: 1, qr: codes[0].data });
+            res.status(200).json(slipjson);
         } else {
             res.status(200).json({ status: 0});
             console.log('No QR code found in image');
