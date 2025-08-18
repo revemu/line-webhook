@@ -32,9 +32,15 @@ const cur_client = new Client(cur_config);
 app.use('/webhook', middleware(config));
 
 // Function to get image content from LINE using SDK
-async function getImageContent(messageId) {
+async function getImageContent(messageId, type = 0) {
     try {
-        const stream = await client.getMessageContent(messageId);
+        let my_client ;
+        if (type == 0) {
+            my_client = client ;
+        } else {
+            my_client = cur_client ;
+        }
+        const stream = await my_client.getMessageContent(messageId);
         const chunks = [];
         
         return new Promise((resolve, reject) => {
