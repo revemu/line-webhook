@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const jimp = require('jimp');
 const jsQR = require('jsqr');
+const QRReader = require('qrcode-reader');
 
 require('dotenv').config();
 
@@ -59,8 +60,9 @@ async function readQRCode(imageBuffer) {
     try {
         
         const image = await jimp.Jimp.read(imageBuffer);
-        const { data, width, height } = image.bitmap;
-        
+        //const { data, width, height } = image.bitmap;
+        const qr = new QRReader();
+        const qrCode = qr.decode(image.bitmap);
         // Convert RGBA to RGB for jsQR
         /*
         const rgbData = new Uint8ClampedArray(width * height * 4);
@@ -70,14 +72,10 @@ async function readQRCode(imageBuffer) {
             rgbData[i + 2] = data[i + 2]; // B
             rgbData[i + 3] = data[i + 3]; // A
         }*/
-        const imageData = {
-            data: new Uint8ClampedArray(image.bitmap.data),
-            width: image.bitmap.width,
-            height: image.bitmap.height,
-        };
 
-    // Decode the QR code
-        const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+
+        // Decode the QR code
+        //const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
 
 
         //const qrCode = jsQR(rgbData, width, height);
