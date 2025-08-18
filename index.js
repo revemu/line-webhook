@@ -168,6 +168,8 @@ async function handleEvent(event) {
     }
 }
 
+ 
+
 // Handle incoming messages
 async function handleMessage(event) {
     const { replyToken, message, source } = event;
@@ -296,8 +298,9 @@ app.listen(PORT, async () => {
         console.log('✅ LINE Bot credentials loaded successfully');
     }
     
-    const db_test = await db.testConnection() ;
-    console.log(db_test);
+    await db.testConnection() ;
+    await db.queryWeekID() ;
+    //console.log(db_test);
     // Check if zbarimg is installed
     const zbarimgInstalled = await checkZbarimgInstalled();
     if (zbarimgInstalled) {
