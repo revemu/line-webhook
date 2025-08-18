@@ -54,7 +54,8 @@ async function getImageContent(messageId) {
 // Function to read QR code from image buffer
 async function readQRCode(imageBuffer) {
     try {
-        const image = await jimp.read(imageBuffer);
+        
+        const image = await jimp.Jimp.read(imageBuffer);
         const { data, width, height } = image.bitmap;
         
         // Convert RGBA to RGB for jsQR
