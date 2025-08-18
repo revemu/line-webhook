@@ -41,13 +41,15 @@ function validateSignature(req, res, next) {
 }
 
 // Function to get image content from LINE
-async function getImageContent(messageId) {
-    
+async function getImageContent(messageId, type = 0) {
+    let access_token = CHANNEL_ACCESS_TOKEN ;
+    if (type == 1) {
+        access_token = CUR_CHANNEL_ACCESS_TOKEN ;
+    }
     try {
         const response = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
             headers: {
-                //'Authorization': `Bearer ${CHANNEL_ACCESS_TOKEN}`
-                'Authorization': `Bearer ${CUR_CHANNEL_ACCESS_TOKEN}`  
+                'Authorization': `Bearer ${access_token}`  
             },
             responseType: 'arraybuffer'
         });
@@ -226,7 +228,7 @@ app.get('/webhook', async (req, res) => {
             // Get image content from LINE
         let startTime = new Date() ;
         
-        const imageBuffer = await getImageContent(req.query.msgid);
+        const imageBuffer = await getImageContent(req.query.msgid, 1);
         //console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
         let endTime = new Date();
         let timeElapsed = endTime - startTime; // Difference in milliseconds
