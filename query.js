@@ -44,16 +44,14 @@ async function queryWeekID() {
 }
 
 async function getMemberWeek(type = 0) {
-     let header ;
-     let body ;
+    let header ;
+    let body ;
+    const res = await queryWeekID() ;
     if (type == 0) {
         header = " คนที่ยังไมได้จ่ายค่าสนาม"
         const query = "select * from member_team_week_tbl where week_id=" + week_id;
     }
-    const res = await queryWeekID() ;
-    
     if (res.length > 0) {
-        if (res.length > 0) {
             const week_id = res[0].id ;
             
             const result = await executeQuery(query) ;
@@ -68,13 +66,10 @@ async function getMemberWeek(type = 0) {
             }
             
             
-        }
-        
     }
         
-    
-
 }
+        
 
 module.exports = {
   testConnection,
