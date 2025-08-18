@@ -297,7 +297,7 @@ app.listen(PORT, async () => {
     }
     
     const db_test = db.testConnection() ;
-    console.log(db_test) ;
+    console.log(db_test);
     // Check if zbarimg is installed
     const zbarimgInstalled = await checkZbarimgInstalled();
     if (zbarimgInstalled) {
