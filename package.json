@@ -10,12 +10,14 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@line/bot-sdk": "^9.9.0",
     "axios": "^1.11.0",
     "crypto": "^1.0.1",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "jimp": "^1.6.0",
     "jsqr": "^1.4.0",
+    "mysql2": "^3.14.3",
     "qrcode-reader": "^1.0.4",
     "zbarimg": "^1.1.1"
   }

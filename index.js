@@ -6,6 +6,7 @@ const path = require('path');
 const { exec } = require('child_process');
 const util = require('util');
 const axios = require('axios');
+const db = require('./query');
 
 const execPromise = util.promisify(exec);
 
@@ -32,26 +33,6 @@ const cur_client = new Client(cur_config);
 
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
-
-// Function to get image content from LINE
-async function getImageContent2(messageId, type = 0) {
-    let access_token = process.env.LINE_CHANNEL_ACCESS_TOKEN ;
-    if (type == 1) {
-        access_token = process.env.CUR_CHANNEL_ACCESS_TOKEN ;
-    }
-    try {
-        const response = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
-            headers: {
-                'Authorization': `Bearer ${access_token}`  
-            },
-            responseType: 'arraybuffer'
-        });
-        return Buffer.from(response.data);
-    } catch (error) {
-        console.error('Error getting image content:', error);
-        throw error;
-    }
-}
 
 // Function to get image content from LINE using SDK
 async function getImageContent(messageId, type = 0) {
@@ -315,6 +296,8 @@ app.listen(PORT, async () => {
         console.log('✅ LINE Bot credentials loaded successfully');
     }
     
+    const db_test = db.testConnection() ;
+    console.log(db_test) ;
     // Check if zbarimg is installed
     const zbarimgInstalled = await checkZbarimgInstalled();
     if (zbarimgInstalled) {
