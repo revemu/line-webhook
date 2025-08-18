@@ -29,9 +29,9 @@ const client = new Client(config);
 
 // Function to get image content from LINE
 async function getImageContent2(messageId, type = 0) {
-    let access_token = CHANNEL_ACCESS_TOKEN ;
+    let access_token = config.channelAccessToken ;
     if (type == 1) {
-        access_token = CUR_CHANNEL_ACCESS_TOKEN ;
+        access_token = process.env.CUR_CHANNEL_ACCESS_TOKEN ;
     }
     try {
         const response = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
