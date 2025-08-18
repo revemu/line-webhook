@@ -292,6 +292,13 @@ app.listen(PORT, async () => {
     } else {
         console.log('✅ LINE Bot credentials loaded successfully');
     }
+
+    if (!cur_config.channelSecret || !cur_config.channelAccessToken) {
+        console.warn('⚠️  Warning: CUR_CHANNEL_SECRET and CUR_CHANNEL_ACCESS_TOKEN environment variables are not set');
+        console.log('Please set these environment variables before using the bot');
+    } else {
+        console.log('✅ LINE Bot credentials loaded successfully');
+    }
     
     // Check if zbarimg is installed
     const zbarimgInstalled = await checkZbarimgInstalled();
