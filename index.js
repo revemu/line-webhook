@@ -56,7 +56,12 @@ async function getImageContent2(messageId, type = 0) {
 // Function to get image content from LINE using SDK
 async function getImageContent(messageId, type = 0) {
     try {
-        let my_client = client ;
+        let my_client ;
+        if (type == 1) {
+            my_client = cur_client ;
+        } else {
+            my_client = client ;
+        }
         const stream = await my_client.getMessageContent(messageId);
         const chunks = [];
         
@@ -264,7 +269,7 @@ app.get('/hook', async (req, res) => {
             // Get image content from LINE
         let startTime = new Date() ;
         
-        const imageBuffer = await getImageContent2(req.query.msgid, 1);
+        const imageBuffer = await getImageContent(req.query.msgid, 1);
         //console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
         let endTime = new Date();
         let timeElapsed = endTime - startTime; // Difference in milliseconds
