@@ -1,6 +1,6 @@
 const report_template = {  
     "type": "flex",
-    "altText": "$header",
+    "altText": "Test",
     "contents": {
         "type": "bubble",
         "hero": {
@@ -8,11 +8,7 @@ const report_template = {
             "url": "{{img_url}}",
             "size": "full",
             "aspectRatio": "21:18",
-            "aspectMode": "cover",
-            "action": {
-            "type": "uri",
-            "uri": "http://linecorp.com/"
-            }
+            "aspectMode": "cover"
         },
         "body": {
                 "type": "box",

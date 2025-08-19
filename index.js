@@ -258,7 +258,19 @@ async function handleMessage(event) {
                 header: 'https://example.com/coffee-maker.jpg',
                 content: 'Smart coffee maker with app control, programmable brewing, and thermal carafe.'
             };
-            const flexMessage = flex.replacePlaceholders(flex.report_template, data);
+
+            const productData = {
+                    PRODUCT_NAME: 'Premium Wireless Headphones',
+                    PRODUCT_IMAGE: 'https://example.com/headphones.jpg',
+                    PRICE: '$299.99',
+                    CATEGORY: 'Electronics',
+                    RATING: '4.8',
+                    DESCRIPTION: 'High-quality wireless headphones with noise cancellation and 30-hour battery life.',
+                    BUY_URL: 'https://example.com/buy/headphones',
+                    DETAILS_URL: 'https://example.com/product/headphones'
+                };
+            // const flexMessage = flex.replacePlaceholders(flex.report_template, data);
+            const flexMessage = flex.flexTemplate(flex.report_template, productData);
             await replyMessage(replyToken, flexMessage);
         }
     }
