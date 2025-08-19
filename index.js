@@ -259,19 +259,34 @@ async function handleMessage(event) {
                 content: 'Smart coffee maker with app control, programmable brewing, and thermal carafe.'
             };
 
-            const productData = {
-                    PRODUCT_NAME: 'Premium Wireless Headphones',
-                    PRODUCT_IMAGE: 'https://example.com/headphones.jpg',
-                    PRICE: '$299.99',
-                    CATEGORY: 'Electronics',
-                    RATING: '4.8',
-                    DESCRIPTION: 'High-quality wireless headphones with noise cancellation and 30-hour battery life.',
-                    BUY_URL: 'https://example.com/buy/headphones',
-                    DETAILS_URL: 'https://example.com/product/headphones'
-                };
-            // const flexMessage = flex.replacePlaceholders(flex.report_template, data);
+            const flexMessageJson = {
+                "type": "bubble",
+                "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                    "type": "text",
+                    "text": "Hello, Flex Message!",
+                    "weight": "bold",
+                    "size": "xl"
+                    },
+                    {
+                    "type": "text",
+                    "text": "This is a sample Flex Message.",
+                    "margin": "md"
+                    }
+                ]
+                }
+            };
+
+            const flexmsg = {
+                type: 'flex',
+                altText: 'This is a Flex Message',
+                contents: flexMessageJson,
+            };
             const flexMessage = flex.replacePlaceholders(flex.flexTemplate, productData);
-            await replyMessage(replyToken, [flexMessage]);
+            await replyMessage(replyToken, [flexmsg]);
         }
     }
 }
