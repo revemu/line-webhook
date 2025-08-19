@@ -7,6 +7,7 @@ const { exec } = require('child_process');
 const util = require('util');
 const axios = require('axios');
 const db = require('./query');
+const flex = require('./flex');
 
 const execPromise = util.promisify(exec);
 
@@ -245,18 +246,26 @@ async function handleMessage(event) {
         // Handle text messages
         const text = message.text.toLowerCase();
         
-        } else if (text.includes('hello') || text.includes('hi')) {
+        if (text.includes('hello') || text.includes('hi')) {
             await replyMessage(replyToken, [{
                 type: 'text',
                 text: 'Hello! Send me an image with a QR code or barcode and I\'ll read it for you! 📷📱'
             }]);
-        } else if (text.includes('help')) {
+   
+        } else {
+            const data = {
+                img_url: 'Smart Coffee Maker',
+                header: 'https://example.com/coffee-maker.jpg',
+                content: 'Smart coffee maker with app control, programmable brewing, and thermal carafe.'
+            };
+            const flexMessage = flex.replacePlaceholders(flex.report_template, data);
             await replyMessage(replyToken, [{
-                type: 'text',
-                text: 'I can help you read QR codes and barcodes from images!\n\nJust send me a photo containing a QR code or barcode and I\'ll decode it for you. I support various formats including QR codes, UPC, EAN, Code128, and more!'
+                    type: 'text',
+                    text: flexMessage
             }]);
         }
     }
+}
 
 app.get('/hook', async (req, res) => {
     //const body = req.body ;
