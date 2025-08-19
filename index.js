@@ -285,7 +285,7 @@ async function handleMessage(event) {
                 altText: 'This is a Flex Message',
                 contents: flexMessageJson,
             };
-            const flexMessage = flex.replacePlaceholders(flex.flexTemplate, productData);
+            //const flexMessage = flex.replacePlaceholders(flex.flexTemplate, productData);
             await replyMessage(replyToken, [flexmsg]);
         }
     }
