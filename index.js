@@ -254,38 +254,12 @@ async function handleMessage(event) {
    
         } else {
             const data = {
-                img_url: 'Smart Coffee Maker',
-                header: 'https://example.com/coffee-maker.jpg',
-                content: 'Smart coffee maker with app control, programmable brewing, and thermal carafe.'
+                img_url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+                header: 'Soccerbot',
+                content: 'Soccerbot test'
             };
-
-            const flexMessageJson = {
-                "type": "bubble",
-                hero: {
-                    type: 'image',
-                    url: 'https://www.234.in.th/images/2020/02/06/113834.jpg',
-                    size: 'full',
-                    aspectRatio: '20:13',
-                    aspectMode: 'cover'
-                },
-                "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                    "type": "text",
-                    "text": "Hello, Flex Message!",
-                    "weight": "bold",
-                    "size": "xl"
-                    },
-                    {
-                    "type": "text",
-                    "text": "This is a sample Flex Message.",
-                    "margin": "md"
-                    }
-                ]
-                }
-            };
+            
+            const flexMessageJson = flex.replacePlaceholders(flex.flexTemplate, data);
 
             const flexmsg = {
                 type: 'flex',
