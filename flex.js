@@ -13,13 +13,13 @@ const report_template = {
                 "contents": [
                     {
                     "type": "text",
-                    "text": "{{content}}",
+                    "text": "{{header}}",
                     "weight": "bold",
                     "size": "xl"
                     },
                     {
                     "type": "text",
-                    "text": "{{text}}",
+                    "text": "{{content}}",
                     "margin": "md"
                     }
                 ]
