@@ -259,7 +259,7 @@ async function handleMessage(event) {
                 content: 'Soccerbot test'
             };
             
-            const flexMessageJson = flex.replacePlaceholders(flex.flexTemplate, data);
+            const flexMessageJson = flex.replacePlaceholders(flex.report_template, data);
 
             const flexmsg = {
                 type: 'flex',
