@@ -259,10 +259,7 @@ async function handleMessage(event) {
                 content: 'Smart coffee maker with app control, programmable brewing, and thermal carafe.'
             };
             const flexMessage = flex.replacePlaceholders(flex.report_template, data);
-            await replyMessage(replyToken, [{
-                    type: 'text',
-                    text: flexMessage
-            }]);
+            await replyMessage(replyToken, flexMessage);
         }
     }
 }
