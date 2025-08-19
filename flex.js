@@ -41,6 +41,5 @@ function replacePlaceholders(template, data) {
 
 module.exports = {
   report_template,
-  flexTemplate,
   replacePlaceholders,
 };
