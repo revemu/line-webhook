@@ -157,7 +157,7 @@ async function checkZbarimgInstalled() {
 async function replyMessage(replyToken, messages) {
     try {
         await client.replyMessage(replyToken, messages);
-    } catch (error) {
+        } catch (error) {
         console.error('Error replying message:', error);
         throw error;
     }
@@ -271,7 +271,7 @@ async function handleMessage(event) {
                 };
             // const flexMessage = flex.replacePlaceholders(flex.report_template, data);
             const flexMessage = flex.replacePlaceholders(flex.flexTemplate, productData);
-            await replyMessage(replyToken, flexMessage);
+            await replyMessage(replyToken, [flexMessage]);
         }
     }
 }
