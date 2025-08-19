@@ -261,6 +261,13 @@ async function handleMessage(event) {
 
             const flexMessageJson = {
                 "type": "bubble",
+                hero: {
+                    type: 'image',
+                    url: 'https://www.234.in.th/images/2020/02/06/113834.jpg',
+                    size: 'full',
+                    aspectRatio: '20:13',
+                    aspectMode: 'cover'
+                },
                 "body": {
                 "type": "box",
                 "layout": "vertical",
