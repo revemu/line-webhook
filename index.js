@@ -270,7 +270,7 @@ async function handleMessage(event) {
                     DETAILS_URL: 'https://example.com/product/headphones'
                 };
             // const flexMessage = flex.replacePlaceholders(flex.report_template, data);
-            const flexMessage = flex.flexTemplate(flex.report_template, productData);
+            const flexMessage = flex.replacePlaceholders(flex.flexTemplate, productData);
             await replyMessage(replyToken, flexMessage);
         }
     }
