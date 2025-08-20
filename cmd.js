@@ -107,7 +107,7 @@ size: 'xl'
                 contents: msg,
         };
     }
-
+    console.log(replyMessages)
     return replyMessages ;
 }
     
