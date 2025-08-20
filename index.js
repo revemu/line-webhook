@@ -193,7 +193,7 @@ async function handleMessage(event) {
     const { replyToken, message, source } = event;
     const userId = source.userId;
 
-    const member = db.queryMemberbyLineID(userId) ;
+    const member = await db.queryMemberbyLineID(userId) ;
     console.log(member) ;
 
     console.log(`Message from user ${userId}: ${message.type}`);
