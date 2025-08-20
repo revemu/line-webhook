@@ -144,7 +144,13 @@ async function getTopStat(limit = 10, type = 0) {
     let status = "" ;
     if (type < 2) {
       status = "and match_goal_tbl.status < 2" ;
-      header = " Top Scorer    " ;
+      //header = " Top Scorer    " ;
+      header = `{
+                    "type": "text",
+                    "text": "Top Scorer",
+                    "weight": "bold",
+                    "size": "xl"
+                }` ;
     }
     query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, 
 match_goal_tbl.status as statusid, count(*) as goal 
