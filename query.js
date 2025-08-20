@@ -144,7 +144,7 @@ async function getTopStat(limit = 10, type = 0) {
     let status = "" ;
     if (type < 2) {
       status = "and match_goal_tbl.status < 2" ;
-      header = " Top Scorer\n\n" ;
+      header = " Top Scorer    " ;
     }
     query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, 
 match_goal_tbl.status as statusid, count(*) as goal 
@@ -159,7 +159,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
     if (result.length > 0) {
         let i = 0;
         for (const member of result) {
-            body += `${i+1}. ${member.name}\t  ${member.goal}\n`;
+            body += `${i+1}. ${member.name}  ${member.goal} `;
             i++ ;
         }
         //console.log(header + body) ;
