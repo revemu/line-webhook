@@ -1,4 +1,5 @@
 const db = require('./query');
+const flex = require('./flex');
 
 async function process_cmd(cmd_str, member) {
     const pos = cmd_str.indexOf(" ") ;
@@ -60,6 +61,14 @@ async function process_cmd(cmd_str, member) {
             break ;
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
+            const data = {
+                img_url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+                header: 'Soccerbot',
+                content: msg
+            };
+                        
+            const msg = flex.replacePlaceholders(flex.report_template, data) ;
+            msg_type = 1 ;
             break ;
         default:
             break ;
@@ -70,6 +79,12 @@ async function process_cmd(cmd_str, member) {
             type: 'text',
             text: msg
         }];
+    } else if (msg_type == 1) {
+        replyMessages = {
+                type: 'flex',
+                altText: 'This is a Flex Message',
+                contents: flexMessageJson,
+        };
     }
 
     return replyMessages ;
