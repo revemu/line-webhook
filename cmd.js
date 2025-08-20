@@ -12,18 +12,23 @@ async function process_cmd(cmd_str) {
     }
     console.log(`${cmd} - ${param}`) ;
     let replyMessages ;
+    let msg ;
+    let msg_type = 0 ;
     switch (cmd) {
         case '+1':
-            const replyMessage = await db.getMemberWeek() ;
-            replyMessages = [{
-                    type: 'text',
-                    text: replyMessage
-            }];
-
+            msg = await db.getMemberWeek(1) ;
             break ;
         default:
             break ;
     }
+
+    if (msg_type == 0) {
+        replyMessages = [{
+            type: 'text',
+            text: msg
+        }];
+    }
+
     return replyMessages ;
 }
     

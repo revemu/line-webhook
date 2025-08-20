@@ -47,19 +47,24 @@ async function getMemberWeek(type = 0) {
     let header = "";
     let body = "";
     let query = "";
+    let start = ""
     const res = await queryWeekID() ;
     
     if (res.length > 0) {
         const week_id = res[0].id ;
         query = "select * from member_team_week_tbl where week_id=" + week_id;
         if (type == 0) {
-            header = " คนที่ยังไมได้จ่ายค่าสนาม" ;
+            header = " คนที่ยังไมได้จ่ายค่าสนามเสาร์ที่ " ;
             query += " and pay=0" ; 
+        } else if (type == 1) {
+            header = " ลงชื่อเตะบอลเสาร์ที่ ";
+            query += " and pay=0" ; 
+            start = "+"
         }
         
         const result = await executeQuery(query) ;
         if (result.length > 0) {
-            header = result.length + header + "\n\n";
+            header = start + result.length + header + res[0].date + "\n\n";
             let i = 0;
             for (const member of result) {
                 body += (i+1) + ". " + member.name + "\n";
