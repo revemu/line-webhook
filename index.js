@@ -7,7 +7,7 @@ import { promisify } from 'util';
 import { get } from 'axios';
 import { testConnection } from './query.js';
 import { process_cmd } from './cmd.js';
-import { replacePlaceholders, report_template } from './flex';
+import { replacePlaceholders, report_template } from './flex.js';
 
 const execPromise = promisify(exec);
 
