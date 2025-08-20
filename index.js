@@ -194,7 +194,6 @@ async function manageMember(userId) {
         console.log(res) ;
         displayName = '@' + res.displayName ;
     }
-    
 
     const member = await db.queryMemberbyLineID(userId) ;
     if (member.length > 0) {
