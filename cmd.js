@@ -12,8 +12,8 @@ async function process_cmd(cmd_str, member) {
     }
     if (param.startsWith('@'))  {
         if (param.includes("'")) {
-            param = param.replaceAll("'","\'") ;
-            console.log(`member name has quoted- ${param}`) ;
+            param = param.replaceAll(/[']/g,"\'") ;
+            console.log(`member name has quoted - ${param}`) ;
         }
         console.log(`mentioned member - ${param}`) ;
     }
