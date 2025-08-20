@@ -7,7 +7,7 @@ async function process_cmd(cmd_str, member) {
     let is_mention = false ;
     let member_id = member.id ;
     let member_name = member.name ;
-    
+
     if (pos > 0) {
         cmd = cmd_str.substring(0,pos).trim() ;
         param = cmd_str.substring(pos).trim() ;
@@ -36,10 +36,10 @@ async function process_cmd(cmd_str, member) {
     let msg_type = 0 ;
     switch (cmd) {
         case '+1':
-            if (!await db.registerMember(member.id)) {
-                console.log(`${member.name} ลงทะเบียนแล้ว!`) ;
+            if (!await db.registerMember(member_id)) {
+                console.log(`${member_name} ลงทะเบียนแล้ว!`) ;
             } else {
-                console.log(`${member.name} ยังไม่ได้ลงทะเบียน`) ;
+                console.log(`${member_name} ยังไม่ได้ลงทะเบียน`) ;
             }
             msg = await db.getMemberWeek(1) ;
             break ;

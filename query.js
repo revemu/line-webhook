@@ -68,7 +68,7 @@ async function queryMemberbyLineID(lineId) {
 async function queryMemberbyName(name) {
     const query = `SELECT * FROM member_tbl where name='${name}'` ;
     const res = await executeQuery(query) ;
-    //console.log(res) ;
+    console.log(res) ;
     return res ;
 }
 
