@@ -1,4 +1,4 @@
-import * as db from './query.js';
+const db = require('./query');
 
 async function process_cmd(cmd_str) {
     const pos = cmd_str.indexOf(" ") ;
