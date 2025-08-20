@@ -23,19 +23,19 @@ const report_template = {
 
 const tpl_top = 
 `{
-type: 'bubble',
-hero: 
+'type': 'bubble',
+'hero': 
 {
-type: 'image',
-url: '{{img_url}}',
-size: 'full',
-aspectRatio: '20:13',
-aspectMode: 'cover'
+'type': 'image',
+'url': '{{img_url}}',
+'size': 'full',
+'aspectRatio': '20:13',
+'aspectMode': 'cover'
 },
-body: {
-type: 'box',
-layout: 'vertical',
-contents: [
+'body': {
+'type': 'box',
+'layout': 'vertical',
+'contents': [
 {{content}}
 ]
 }
