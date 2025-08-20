@@ -64,7 +64,7 @@ function replaceFlex(template, data) {
     const regex = new RegExp(placeholder, 'g');
     jsonString = jsonString.replace(regex, data[key]);
   });
-  jsonString = jsonString.replace("'",'"') ;
+  jsonString = jsonString.replaceAll("'",'"') ;
   console.log(jsonString) ;
   return JSON.parse(jsonString);
 }
