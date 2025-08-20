@@ -11,7 +11,7 @@ async function process_cmd(cmd_str, member) {
         cmd = cmd_str.trim() ;
     }
     if (param.startsWith('@'))  {
-        if ((param.indexOf("'")) > 0) {
+        if ((param.includes("'")) > 0) {
             param = param.replaceAll("'","\'") ;
         }
         console.log(`mentioned member - ${param}`) ;
