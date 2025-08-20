@@ -91,7 +91,7 @@ async function getMemberWeek(type = 0) {
                 body += (i+1) + ". " + member.name + "\n";
                 i++ ;
             }
-            console.log(header + body) ;
+            //console.log(header + body) ;
             return header + body ;
             
         }               
