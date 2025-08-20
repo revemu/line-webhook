@@ -27,7 +27,7 @@ const report_template = {
             };
 
 const tpl_top = `{
-                "type": "bubble",
+                type: 'bubble',
                 hero: {
                     type: 'image',
                     url: '{{img_url}}',
@@ -35,10 +35,10 @@ const tpl_top = `{
                     aspectRatio: '20:13',
                     aspectMode: 'cover'
                 },
-                "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
+                body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
                     {{content}}
                 ]
                 }
