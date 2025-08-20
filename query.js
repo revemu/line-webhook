@@ -43,7 +43,25 @@ async function queryWeekID() {
     return res ;
 }
 
-async function registerMember(member_id) {
+async function unregisterMember(member_id) {
+    const week = await queryWeekID() ;
+    if (week.length > 0) {
+      const week_id = week[0].id ;
+      const query = `SELECT * from member_team_week_tbl where week_id=${week_id} and member_id=${member_id}`  ;
+      const res = await executeQuery(query) ;
+      //console.log(`${res.length}`)
+      if (res.length > 0) {
+        //console.log(`${week_id}`)
+        return true ;
+      } else {
+        return false ;
+      }
+    }
+    //console.log(res) ;
+    return false ;
+}
+
+async function registerMember(member_id, member_name) {
     const week = await queryWeekID() ;
     if (week.length > 0) {
       const week_id = week[0].id ;
@@ -54,6 +72,9 @@ async function registerMember(member_id) {
         //console.log(`${week_id}`)
         return false ;
       } else {
+        query = `insert into member_team_week_tbl values('',${member_id}, '${member_name}', 0, ${week_id}, 0, 0)`
+        const reg_res = await executeQuery(query) ;
+        console.log(reg_res) ;
         return true ;
       }
     }
@@ -117,5 +138,6 @@ module.exports = {
   getMemberWeek,
   queryMemberbyLineID,
   queryMemberbyName,
-  registerMember
+  registerMember,
+  unregisterMember
 };

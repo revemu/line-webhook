@@ -43,6 +43,14 @@ async function process_cmd(cmd_str, member) {
             }
             msg = await db.getMemberWeek(1) ;
             break ;
+        case '-1':
+            if (await db.unregisterMember(member_id)) {
+                console.log(`${member_name} ลงทะเบียนแล้ว!`) ;
+            } else {
+                console.log(`${member_name} ยังไม่ได้ลงทะเบียน`) ;
+            }
+            msg = await db.getMemberWeek(1) ;
+            break ;
         default:
             break ;
     }
