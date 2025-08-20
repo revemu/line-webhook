@@ -74,7 +74,7 @@ async function registerMember(member_id, member_name) {
         return false ;
       } else {
         const query = `insert into member_team_week_tbl values('',${member_id}, '${member_name}', 0, ${week_id}, 0, 0)`
-        cconsole.log(query) ;
+        console.log(query) ;
         //const reg_res = await executeQuery(query) ;
         //console.log(reg_res) ;
         return true ;
