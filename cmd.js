@@ -1,6 +1,6 @@
 const db = require('./query');
 
-async function process_cmd(cmd_str) {
+async function process_cmd(cmd_str, member) {
     const pos = cmd_str.indexOf(" ") ;
     let cmd ;
     let param ;
@@ -17,6 +17,9 @@ async function process_cmd(cmd_str) {
     let msg_type = 0 ;
     switch (cmd) {
         case '+1':
+            if (!await db.registerMember(member.id)) {
+                console.log(`${member.name} ลงทะเบียนแล้ว!`)
+            }
             msg = await db.getMemberWeek(1) ;
             break ;
         default:

@@ -43,6 +43,21 @@ async function queryWeekID() {
     return res ;
 }
 
+async function registerMember(member_id) {
+    const week = await queryWeekID() ;
+    if (week.length > 0) {
+      const week_id = week[0].id ;
+      const query = `SELECT * from member_team_week_tbl where week_id=${week_id} and member_id=${member_id}`  ;
+      const res = await executeQuery(query) ;
+      if (res.length == 0) {
+        //console.log(`${week_id}`)
+        return false ;
+      }
+    }
+    //console.log(res) ;
+    return false ;
+}
+
 async function queryMemberbyLineID(lineId) {
     const query = `SELECT * FROM member_tbl where line_user_id='${lineId}'` ;
     const res = await executeQuery(query) ;
@@ -90,5 +105,6 @@ module.exports = {
   executeQuery,
   queryWeekID,
   getMemberWeek,
-  queryMemberbyLineID
+  queryMemberbyLineID,
+  registerMember
 };

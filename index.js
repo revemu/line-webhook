@@ -220,7 +220,9 @@ async function handleMessage(event) {
         await manageMember(source, member) ;
     //}
     
-    
+    if (member.length == 0) {
+        return ;
+    }
 
     if (message.type === 'image') {
         try {
@@ -276,17 +278,15 @@ async function handleMessage(event) {
         const op = text.substring(0,1) ;
         let index = 0 ;
         switch (op) {
-             case "/":
+            case "/":
                 index = 1 ;
             case '+':
             case '-':
-            case "/":
-                
                 /*if (op == "/") {
                     index = 1 ;
                 }*/
                 const cmd_str = text.substring(index) ;
-                const replyMessages = await cmd.process_cmd(cmd_str) ;
+                const replyMessages = await cmd.process_cmd(cmd_str, member[0]) ;
                 await replyMessage(replyToken, replyMessages);
                 break ;
             default:
