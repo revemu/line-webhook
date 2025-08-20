@@ -141,17 +141,19 @@ async function getTopStat(limit = 10, type = 0) {
     let body = "";
     let query = "";
     let start = ""
-    if (type == 0) {
-      query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, 
+    let status = "" ;
+    if (type < 2) {
+      status = "and match_goal_tbl.status < 2" ;
+      header = " Top Scorer\n\n" ;
+    }
+    query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, 
 match_goal_tbl.status as statusid, count(*) as goal 
 FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl , week_tbl
-WHERE match_goal_tbl.member_id = member_tbl.id 
+WHERE match_goal_tbl.member_id = member_tbl.id ${status}
 and match_goal_tbl.status=goal_status_tbl.id
 AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id 
 And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.id < 9000
 group by member_tbl.id order by goal DESC limit ${limit}` ;
-      header = " Top Scorer\n\n" ;
-    }
     
     const result = await executeQuery(query) ;
     if (result.length > 0) {
