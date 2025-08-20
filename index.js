@@ -189,17 +189,20 @@ async function handleEvent(event) {
  
 async function manageMember(userId) {
     const res = await client.getProfile(userId) ;
+    //client.getGroupMemberProfile() ;
     let displayName ;
     if (res) {
-        console.log(res) ;
+        //console.log(res) ;
         displayName = '@' + res.displayName ;
     }
 
     const member = await db.queryMemberbyLineID(userId) ;
     if (member.length > 0) {
-        console.log(member) ;
+        //console.log(member) ;
         if (displayName == member[0].name) {
             console.log(`existing member ${userId}: ${member[0].name}`);
+        } else {
+            console.log(`update existing member name ${userId}: ${member[0].name} => ${displayName}`);
         }
     }
     
@@ -209,10 +212,12 @@ async function manageMember(userId) {
 async function handleMessage(event) {
     const { replyToken, message, source } = event;
     const userId = source.userId;
-    await manageMember(userId) ;
-    
+    const groupId = source.groupId ;
+    console.log(source) ;
 
     console.log(`Message from user ${userId}: ${message.type}`);
+
+    await manageMember(userId, groupId) ;
 
     if (message.type === 'image') {
         try {
