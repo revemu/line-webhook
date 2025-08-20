@@ -52,6 +52,8 @@ async function registerMember(member_id) {
       if (res.length == 0) {
         //console.log(`${week_id}`)
         return false ;
+      } else {
+        return true ;
       }
     }
     //console.log(res) ;
