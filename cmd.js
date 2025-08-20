@@ -61,15 +61,7 @@ async function process_cmd(cmd_str, member) {
             break ;
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
-            console.log(msg) ;
-
-            let content = 
-`{
-'type': 'text',
-'text': 'SoccerBot',
-'weight': 'bold',
-'size': 'xl'
-}` ;
+            //console.log(msg) ;
             content = content.replace(/(\r\n|\n|\r)/gm, "");
             //console.log(content) ;
             const data = {
@@ -79,7 +71,7 @@ async function process_cmd(cmd_str, member) {
             const tpl =  flex.tpl_top.replace(/(\r\n|\n|\r)/gm, "");
             //console.log(tpl) ;
             msg = flex.replaceFlex(tpl, data) ;
-            console.log(msg) ;
+            //console.log(msg) ;
             msg_type = 1 ;
             break ;
         case 'test':
