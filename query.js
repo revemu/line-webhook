@@ -168,10 +168,25 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
         for (const member of result) {
             //body += `${i+1}. ${member.name}  ${member.goal} `;
             msg.push( {
-                    "type": "text",
-                    "text": `${i+1}. ${member.name}  ${member.goal}`,
-                    "weight": "bold",
-                    "size": "xl"
+                    "type": "box",
+                    "layout": "baseline",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "text",
+                        "text": `${i+1}. ${member.name}`,
+                        "weight": "regular",
+                        "size": "md",
+                        "align": "start"
+                      },
+                      {
+                        "type": "text",
+                        "text": `${member.goal}`,
+                        "weight": "regular",
+                        "size": "md",
+                        "align": "end"
+                      }
+                    ]
                 }) ;
             i++ ;
         }
