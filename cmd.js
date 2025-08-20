@@ -74,7 +74,7 @@ async function process_cmd(cmd_str, member) {
             //console.log(content) ;
             const data = {
                 img_url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-                content: msg
+                content: msg[0]
             };
             const tpl =  flex.tpl_top.replace(/(\r\n|\n|\r)/gm, "");
             //console.log(tpl) ;
