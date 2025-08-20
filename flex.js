@@ -41,26 +41,6 @@ contents: [
 }
 }`;
 
-const test =  {
-    "type": "flex",
-    "altText": "This is a Flex Message",
-    "contents": {
-                    type: 'bubble',
-                    hero: {type: 'image',url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-                    size: 'full',
-                    aspectRatio: '20:13',
-                    aspectMode: 'cover'
-                    },
-                    body: {
-                      type: 'box',
-                      layout: 'vertical',
-                      contents: [
-                        {type: 'text',text: 'SoccerBot',weight: 'bold',size: 'xl'}
-                      ]
-                    }
-                }
-  }
-
 function replacePlaceholders(template, data) {
   let jsonString = JSON.stringify(template);
   
@@ -76,6 +56,7 @@ function replacePlaceholders(template, data) {
 
 function replaceFlex(template, data) {
   let jsonString = template ;
+  console.log(jsonString) ;
   
   // Replace all placeholders with actual data
   Object.keys(data).forEach(key => {
