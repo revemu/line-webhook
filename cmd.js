@@ -62,16 +62,20 @@ async function process_cmd(cmd_str, member) {
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
 
-            const data = {
-                content: `{
-                    "type": "text",
+            let content = `{
+                    type": "text",
                     "text": "SoccerBot",
                     "weight": "bold",
                     "size": "xl"
-                    }`
+                    }` ;
+            content = content.replace(/(\r\n|\n|\r)/gm, "");
+            console.log(content) ;
+            const data = {
+                content: content
             };
-                        
-            msg = flex.replacePlaceholders(flex.tpl_top, data) ;
+            const tpl =  flex.tpl_top.replace(/(\r\n|\n|\r)/gm, "");
+            console.log(tpl) ;
+            msg = flex.replacePlaceholders(tpl, data) ;
             console.log(msg) ;
             msg_type = 1 ;
             break ;
