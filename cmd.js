@@ -74,7 +74,7 @@ async function process_cmd(cmd_str, member) {
             test = flex.tpl_top ;
             test.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
             //console.log(msg) ;
-            test.body.contents.push(JSON.parse(msg)) ;
+            test.body.contents = JSON.parse(msg) ;
             msg = test ;
             console.log(msg) ;
             msg_type = 1 ;
