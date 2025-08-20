@@ -5,8 +5,8 @@ import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { get } from 'axios';
-import { testConnection } from './query';
-import { process_cmd } from './cmd';
+import { testConnection } from './query.js';
+import { process_cmd } from './cmd.js';
 import { replacePlaceholders, report_template } from './flex';
 
 const execPromise = promisify(exec);
