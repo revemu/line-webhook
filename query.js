@@ -43,6 +43,13 @@ async function queryWeekID() {
     return res ;
 }
 
+async function queryMemberbyLineID(lineId) {
+    const query = `SELECT * FROM member_tbl where line_user_id='${lineId}'` ;
+    const res = await executeQuery(query) ;
+    //console.log(res) ;
+    return res ;
+}
+
 async function getMemberWeek(type = 0) {
     let header = "";
     let body = "";
@@ -54,17 +61,16 @@ async function getMemberWeek(type = 0) {
         const week_id = res[0].id ;
         query = "select * from member_team_week_tbl where week_id=" + week_id;
         if (type == 0) {
-            header = " คนที่ยังไมได้จ่ายค่าสนามเสาร์ที่ " ;
+            header = " คนที่ยังไมได้จ่ายค่าสนาม" ;
             query += " and pay=0" ; 
         } else if (type == 1) {
-            header = " ลงชื่อเตะบอลเสาร์ที่ ";
-            query += " and pay=0" ; 
+            header = " ลงชื่อเตะบอล" ; 
             start = "+"
         }
         
         const result = await executeQuery(query) ;
         if (result.length > 0) {
-            header = start + result.length + header + res[0].date + "\n\n";
+            header = start + result.length + header + " เสาร์ที่ " +res[0].date + "\n\n";
             let i = 0;
             for (const member of result) {
                 body += (i+1) + ". " + member.name + "\n";
@@ -83,5 +89,6 @@ module.exports = {
   testConnection,
   executeQuery,
   queryWeekID,
-  getMemberWeek
+  getMemberWeek,
+  queryMemberbyLineID
 };

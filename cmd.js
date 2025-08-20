@@ -13,6 +13,7 @@ async function process_cmd(cmd_str) {
     console.log(`${cmd} - ${param}`) ;
     let replyMessages ;
     let msg ;
+    let altText ;
     let msg_type = 0 ;
     switch (cmd) {
         case '+1':
