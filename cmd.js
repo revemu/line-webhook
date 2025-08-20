@@ -61,6 +61,7 @@ async function process_cmd(cmd_str, member) {
             break ;
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
+            console.log(msg) ;
 
             let content = 
 `{

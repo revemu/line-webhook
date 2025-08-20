@@ -142,15 +142,16 @@ async function getTopStat(limit = 10, type = 0) {
     let query = "";
     let start = ""
     let status = "" ;
+    let msg = [] ;
     if (type < 2) {
       status = "and match_goal_tbl.status < 2" ;
       //header = " Top Scorer    " ;
-      header = `{
+      msg.push( {
                     "type": "text",
                     "text": "Top Scorer",
                     "weight": "bold",
                     "size": "xl"
-                }` ;
+                }) ;
     }
     query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, 
 match_goal_tbl.status as statusid, count(*) as goal 
@@ -165,11 +166,17 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
     if (result.length > 0) {
         let i = 0;
         for (const member of result) {
-            body += `${i+1}. ${member.name}  ${member.goal} `;
+            //body += `${i+1}. ${member.name}  ${member.goal} `;
+            msg.push( {
+                    "type": "text",
+                    "text": `${i+1}. ${member.name}  ${member.goal}`,
+                    "weight": "bold",
+                    "size": "xl"
+                }) ;
             i++ ;
         }
         //console.log(header + body) ;
-        return header + body ;
+        return JSON.stringify(msg) ;
         
     }               
 
