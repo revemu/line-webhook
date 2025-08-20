@@ -32,6 +32,7 @@ async function executeQuery(query, params = []) {
     const [results] = await pool.execute(query, params);
     return results;
   } catch (error) {
+    console.log(error) ;
     throw error;
   }
 }
