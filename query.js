@@ -53,6 +53,10 @@ async function unregisterMember(member_id) {
       //console.log(`${res.length}`)
       if (res.length > 0) {
         //console.log(`${week_id}`)
+        const query = `delete from member_team_week_tbl where member_id=${member_id} and week_id=${week_id}` ;
+        console.log(query) ;
+        const reg_res = await executeQuery(query) ;
+        console.log(reg_res) ;
         return true ;
       } else {
         return false ;
@@ -75,8 +79,8 @@ async function registerMember(member_id, member_name) {
       } else {
         const query = `insert into member_team_week_tbl values('',${member_id}, '${member_name}', 0, ${week_id}, 0, 0)`
         console.log(query) ;
-        //const reg_res = await executeQuery(query) ;
-        //console.log(reg_res) ;
+        const reg_res = await executeQuery(query) ;
+        console.log(reg_res) ;
         return true ;
       }
     }
