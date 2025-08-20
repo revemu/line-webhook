@@ -21,7 +21,7 @@ const report_template = {
                 }
             };
 
-const tpl_top = 
+/*const tpl_top = 
 `{
 'type': 'bubble',
 'hero': 
@@ -39,7 +39,25 @@ const tpl_top =
 {{content}}
 
 }
-}`;
+}`;*/
+
+const tpl_top = 
+{
+  type: 'bubble',
+  hero: 
+  {
+    type: 'image',
+    url: '',
+    size: 'full',
+    aspectRatio: '20:13',
+    aspectMode: 'cover'
+  },
+  body: {
+    type: 'box',
+    layout: 'vertical',
+    contents: []
+  }
+}
 
 function replacePlaceholders(template, data) {
   let jsonString = JSON.stringify(template);
