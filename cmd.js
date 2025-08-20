@@ -84,7 +84,7 @@ async function process_cmd(cmd_str, member) {
         replyMessages = {
                 type: 'flex',
                 altText: 'This is a Flex Message',
-                contents: flexMessageJson,
+                contents: msg,
         };
     }
 
