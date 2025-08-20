@@ -11,15 +11,20 @@ async function process_cmd(cmd_str) {
         cmd = cmd_str.trim() ;
     }
     console.log(`${cmd} - ${param}`) ;
-    let replyMessage ;
+    let replyMessages ;
     switch (cmd) {
         case '+1':
-            replyMessage = await db.getMemberWeek() ;
+            const replyMessage = await db.getMemberWeek() ;
+            replyMessages = [{
+                    type: 'text',
+                    text: replyMessage
+            }];
+
             break ;
         default:
             break ;
     }
-    return replyMessage ;
+    return replyMessages ;
 }
     
 
