@@ -62,7 +62,7 @@ async function process_cmd(cmd_str, member) {
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
             //console.log(msg) ;
-            content = content.replace(/(\r\n|\n|\r)/gm, "");
+            //content = content.replace(/(\r\n|\n|\r)/gm, "");
             //console.log(content) ;
             const data = {
                 img_url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
