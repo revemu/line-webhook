@@ -14,6 +14,7 @@ async function process_cmd(cmd_str, member) {
         if ((param.indexOf("'")) > 0) {
             param = param.replaceAll("'","\'") ;
         }
+        console.log(`mentioned member - ${param}`) ;
     }
     console.log(`${cmd} - ${param}`) ;
     let replyMessages ;
