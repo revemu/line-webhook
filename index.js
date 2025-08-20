@@ -192,7 +192,7 @@ async function manageMember(userId) {
     let displayName ;
     if (res) {
         console.log(res) ;
-        displayName = res.displayName ;
+        displayName = '@' + res.displayName ;
     }
     
 
