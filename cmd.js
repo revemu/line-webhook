@@ -77,7 +77,7 @@ size: 'xl'
             };
             const tpl =  flex.tpl_top.replace(/(\r\n|\n|\r)/gm, "");
             console.log(tpl) ;
-            msg = flex.replacePlaceholders(tpl, data) ;
+            msg = flex.replaceFlex(tpl, data) ;
             console.log(msg) ;
             msg_type = 1 ;
             break ;
