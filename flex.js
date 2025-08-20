@@ -53,7 +53,7 @@ function replacePlaceholders(template, data) {
     const regex = new RegExp(placeholder, 'g');
     jsonString = jsonString.replace(regex, data[key]);
   });
-  
+  console.log(jsonString) ;
   return JSON.parse(jsonString);
 }
 
