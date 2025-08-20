@@ -75,7 +75,7 @@ function replacePlaceholders(template, data) {
 }
 
 function replaceFlex(template, data) {
-  jsonString = template ;
+  let jsonString = template ;
   
   // Replace all placeholders with actual data
   Object.keys(data).forEach(key => {
