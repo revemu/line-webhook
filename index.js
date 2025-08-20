@@ -247,14 +247,17 @@ async function handleMessage(event) {
         // Handle text messages
         const text = message.text.trim() ;
         const op = text.substring(0,1) ;
+        let index = 0 ;
         switch (op) {
+             case "/":
+                index = 1 ;
             case '+':
             case '-':
             case "/":
-                let index = 0 ;
-                if (op == "/") {
+                
+                /*if (op == "/") {
                     index = 1 ;
-                }
+                }*/
                 const cmd_str = text.substring(index) ;
                 const replyMessages = await cmd.process_cmd(cmd_str) ;
                 await replyMessage(replyToken, replyMessages);
