@@ -199,8 +199,8 @@ async function manageMember(userId) {
     const member = await db.queryMemberbyLineID(userId) ;
     if (member.length > 0) {
         console.log(member) ;
-        if (displayName == member.name) {
-            console.log(`existing member ${userId}: ${member.name}`);
+        if (displayName == member[0].name) {
+            console.log(`existing member ${userId}: ${member[0].name}`);
         }
     }
     
