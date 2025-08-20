@@ -251,8 +251,12 @@ async function handleMessage(event) {
             case '+':
             case '-':
             case "/":
-                const cmd_str = text.substring(1) ;
-                await cmd.process_cmd(cmd_str) ;
+                let index = 0 ;
+                if (op == "/") {
+                    index = 1 ;
+                }
+                const cmd_str = text.substring(index) ;
+                const replyMsg = await cmd.process_cmd(cmd_str) ;
                 break ;
             default:
                 break ;
