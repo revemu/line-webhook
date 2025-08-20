@@ -187,17 +187,31 @@ async function handleEvent(event) {
 }
 
  
+async function manageMember(userId) {
+    const res = await client.getProfile(userId) ;
+    let displayName ;
+    if (res) {
+        console.log(res) ;
+        displayName = res.displayName ;
+    }
+    
+
+    const member = await db.queryMemberbyLineID(userId) ;
+    if (member.length > 0) {
+        console.log(member) ;
+        if (displayName == member.name) {
+            console.log(`existing member ${userId}: ${member.name}`);
+        }
+    }
+    
+}
 
 // Handle incoming messages
 async function handleMessage(event) {
     const { replyToken, message, source } = event;
     const userId = source.userId;
-    const res = await client.getProfile(userId) ;
-    console.log(res) ;
-
-    const member = await db.queryMemberbyLineID(userId) ;
-    client.
-    console.log(member) ;
+    await manageMember(userId) ;
+    
 
     console.log(`Message from user ${userId}: ${message.type}`);
 
