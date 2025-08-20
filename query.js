@@ -170,5 +170,6 @@ module.exports = {
   queryMemberbyLineID,
   queryMemberbyName,
   registerMember,
-  unregisterMember
+  unregisterMember,
+  getTopStat
 };
