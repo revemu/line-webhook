@@ -16,11 +16,6 @@ const report_template = {
                     "text": "{{header}}",
                     "weight": "bold",
                     "size": "xl"
-                    },
-                    {
-                    "type": "text",
-                    "text": "{{content}}",
-                    "margin": "md"
                     }
                 ]
                 }
