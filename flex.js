@@ -56,7 +56,7 @@ function replacePlaceholders(template, data) {
 
 function replaceFlex(template, data) {
   let jsonString = template ;
-  console.log(jsonString) ;
+  
   
   // Replace all placeholders with actual data
   Object.keys(data).forEach(key => {
@@ -64,7 +64,7 @@ function replaceFlex(template, data) {
     const regex = new RegExp(placeholder, 'g');
     jsonString = jsonString.replace(regex, data[key]);
   });
-  
+  console.log(jsonString) ;
   return JSON.parse(jsonString);
 }
 
