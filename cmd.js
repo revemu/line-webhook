@@ -63,10 +63,10 @@ async function process_cmd(cmd_str, member) {
             msg = await db.getTopStat(10, 0) ;
 
             let content = `{
-                    type": "text",
-                    "text": "SoccerBot",
-                    "weight": "bold",
-                    "size": "xl"
+                    type: 'text',
+                    text: 'SoccerBot',
+                    weight: 'bold',
+                    size: 'xl'
                     }` ;
             content = content.replace(/(\r\n|\n|\r)/gm, "");
             console.log(content) ;
