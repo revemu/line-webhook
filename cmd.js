@@ -88,7 +88,7 @@ size: 'xl'
             };
                        
             msg = flex.replacePlaceholders(flex.report_template, data1);
-            console.log(msg) ;
+            //console.log(msg) ;
             msg_type = 1 ;
             break ;
         default:
