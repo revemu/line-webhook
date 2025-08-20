@@ -1,15 +1,16 @@
-import express from 'express';
-import { Client, middleware } from '@line/bot-sdk';
-import { promises as fs } from 'fs';
-import { join } from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { get } from 'axios';
-import { testConnection } from './query.js';
-import { process_cmd } from './cmd.js';
-import { replacePlaceholders, report_template } from './flex.js';
+const express = require('express');
+const crypto = require('crypto');
+const { Client, middleware } = require('@line/bot-sdk');
+const fs = require('fs').promises;
+const path = require('path');
+const { exec } = require('child_process');
+const util = require('util');
+const axios = require('axios');
+const db = require('./query');
+const flex = require('./flex');
+const cmd = require('./cmd');
 
-const execPromise = promisify(exec);
+const execPromise = util.promisify(exec);
 
 require('dotenv').config();
 
@@ -37,7 +38,7 @@ app.use('/webhook', middleware(config));
 
 async function getSlipInfo(payload) {
     try {
-        const response = await get(`https://developer.easyslip.com/api/v1/verify?payload=${payload}`, {
+        const response = await axios.get(`https://developer.easyslip.com/api/v1/verify?payload=${payload}`, {
             headers: {
                 'Authorization': `Bearer 196e73b3-6b1a-4a46-be07-5ef89dffa11b`  
             },
@@ -93,7 +94,7 @@ async function readQRCode(imageBuffer) {
         // Create temporary file with unique name
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substr(2, 9);
-        tempFilePath = join(tempDir, `qr_${timestamp}_${randomStr}.jpg`);
+        tempFilePath = path.join(tempDir, `qr_${timestamp}_${randomStr}.jpg`);
         
         // Write buffer to temporary file
         await fs.writeFile(tempFilePath, imageBuffer);
@@ -184,6 +185,7 @@ async function handleEvent(event) {
         await handleMessage(event);
     }
 }
+
  
 
 // Handle incoming messages
@@ -250,13 +252,14 @@ async function handleMessage(event) {
             case '-':
             case "/":
                 const cmd_str = text.substring(1) ;
-                await process_cmd(cmd_str) ;
+                await cmd.process_cmd(cmd_str) ;
                 break ;
             default:
                 break ;
         }
         console.log(text) ;
         return ;
+        
         if (text.includes('hello') || text.includes('hi')) {
             await replyMessage(replyToken, [{
                 type: 'text',
@@ -270,7 +273,7 @@ async function handleMessage(event) {
                 content: 'Soccerbot test'
             };
             
-            const flexMessageJson = replacePlaceholders(report_template, data);
+            const flexMessageJson = flex.replacePlaceholders(flex.report_template, data);
 
             const flexmsg = {
                 type: 'flex',
@@ -343,7 +346,7 @@ app.listen(PORT, async () => {
         console.log('✅ LINE Bot credentials loaded successfully');
     }
     
-    await testConnection() ;
+    await db.testConnection() ;
     //const res = await db.getMemberWeek() ;
     
     //console.log(db_test);
@@ -361,4 +364,4 @@ app.listen(PORT, async () => {
     }
 });
 
-export default app;
+module.exports = app;
