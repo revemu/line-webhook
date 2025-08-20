@@ -187,16 +187,16 @@ async function handleEvent(event) {
 }
 
  
-async function manageMember(source) {
-    const res = await client.getGroupMemberProfile(source.userId, source.groupId) ;
+async function manageMember(source, member) {
+    //const res = await client.getGroupMemberProfile(source.userId, source.groupId) ;
+    const res = await client.getProfile(source.userId) ;
     //client.getGroupMemberProfile() ;
     let displayName ;
     if (res) {
         //console.log(res) ;
         displayName = '@' + res.displayName ;
     }
-
-    const member = await db.queryMemberbyLineID(userId) ;
+    
     if (member.length > 0) {
         //console.log(member) ;
         if (displayName == member[0].name) {
@@ -214,11 +214,13 @@ async function handleMessage(event) {
     const userId = source.userId;
     //const groupId = source.groupId ;
     console.log(source) ;
-
+    const member = await db.queryMemberbyLineID(userId) ;
     console.log(`Message from user ${userId}: ${message.type}`);
-    if (source.groupId) {
-        await manageMember(source) ;
-    }
+    //if (source.groupId) {
+        await manageMember(source, member) ;
+    //}
+    
+    
 
     if (message.type === 'image') {
         try {
