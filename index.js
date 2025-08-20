@@ -200,9 +200,9 @@ async function manageMember(source, member) {
     if (member.length > 0) {
         //console.log(member) ;
         if (displayName == member[0].name) {
-            console.log(`existing member ${userId}: ${member[0].name}`);
+            console.log(`existing member ${source.userId}: ${member[0].name}`);
         } else {
-            console.log(`update existing member name ${userId}: ${member[0].name} => ${displayName}`);
+            console.log(`update existing member name ${source.userId}: ${member[0].name} => ${displayName}`);
         }
     }
     
