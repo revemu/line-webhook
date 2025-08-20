@@ -21,7 +21,7 @@ async function process_cmd(cmd_str, member) {
             //console.log(`member name has quoted - ${param}`) ;
         }
         is_mention = true ;
-        const mention = db.queryMemberbyName(param) ;
+        const mention = await db.queryMemberbyName(param) ;
         if (mention.length > 0) {
             console.log(`mentioned member - ${param}, id: ${mention[0].id}`) ;
             member_id = mention[0].id ;
