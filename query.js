@@ -54,9 +54,9 @@ async function unregisterMember(member_id) {
       if (res.length > 0) {
         //console.log(`${week_id}`)
         const query = `delete from member_team_week_tbl where member_id=${member_id} and week_id=${week_id}` ;
-        console.log(query) ;
+        //console.log(query) ;
         const reg_res = await executeQuery(query) ;
-        console.log(reg_res) ;
+        //console.log(reg_res) ;
         return true ;
       } else {
         return false ;
@@ -78,9 +78,9 @@ async function registerMember(member_id, member_name) {
         return false ;
       } else {
         const query = `insert into member_team_week_tbl values('',${member_id}, '${member_name}', 0, ${week_id}, 0, 0)`
-        console.log(query) ;
+        //console.log(query) ;
         const reg_res = await executeQuery(query) ;
-        console.log(reg_res) ;
+        //console.log(reg_res) ;
         return true ;
       }
     }
@@ -133,6 +133,31 @@ async function getMemberWeek(type = 0) {
             
         }               
     }
+        
+}
+
+async function getTopStat(type = 0) {
+    let header = "";
+    let body = "";
+    let query = "";
+    let start = ""
+    if (type == 0) {
+      query = "SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl WHERE match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status=goal_status_tbl.id AND match_goal_tbl.status < 2 AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id > 186 group by member_tbl.id order by goal DESC" ;
+      header = " Top Scorer\n\n" ;
+    }
+    
+    const result = await executeQuery(query) ;
+    if (result.length > 0) {
+        let i = 0;
+        for (const member of result) {
+            body += `${i+1}. ${member.name}\t  ${member.goal}\n`;
+            i++ ;
+        }
+        //console.log(header + body) ;
+        return header + body ;
+        
+    }               
+
         
 }
         

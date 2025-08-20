@@ -28,12 +28,19 @@ async function process_cmd(cmd_str, member) {
             member_name = param ;
         }
         
+    } else {
+
+         if (member_name.includes("'")) {
+            member_name = member_name.replaceAll(/[']/g,"\\'") ;
+            //console.log(`member name has quoted - ${param}`) ;
+        }
     }
     console.log(`${cmd} - ${param}`) ;
     let replyMessages ;
     let msg ;
     let altText ;
     let msg_type = 0 ;
+
     switch (cmd) {
         case '+1':
             if (!await db.registerMember(member_id, member_name)) {
@@ -50,6 +57,9 @@ async function process_cmd(cmd_str, member) {
                 console.log(`${member_name} ยังไม่ได้ลงทะเบียน`) ;
             }
             msg = await db.getMemberWeek(1) ;
+            break ;
+        case 'topscorer':
+            msg = await db.getTopStat(0) ;
             break ;
         default:
             break ;
