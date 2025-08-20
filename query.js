@@ -49,7 +49,7 @@ async function registerMember(member_id) {
       const week_id = week[0].id ;
       const query = `SELECT * from member_team_week_tbl where week_id=${week_id} and member_id=${member_id}`  ;
       const res = await executeQuery(query) ;
-      console.log(`${res.length}`)
+      //console.log(`${res.length}`)
       if (res.length > 0) {
         //console.log(`${week_id}`)
         return false ;
@@ -71,7 +71,7 @@ async function queryMemberbyLineID(lineId) {
 async function queryMemberbyName(name) {
     const query = `SELECT * FROM member_tbl where name='${name}'` ;
     const res = await executeQuery(query) ;
-    console.log(res) ;
+    //console.log(res) ;
     return res ;
 }
 
