@@ -10,9 +10,18 @@ async function process_cmd(cmd_str) {
     } else {
         cmd = cmd_str.trim() ;
     }
-    
     console.log(`${cmd} - ${param}`) ;
+    let replyMessage ;
+    switch (cmd) {
+        case '+1':
+            replyMessage = await db.getMemberWeek() ;
+            break ;
+        default:
+            break ;
+    }
+    return replyMessage ;
 }
+    
 
 module.exports = {
   process_cmd,
