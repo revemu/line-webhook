@@ -81,6 +81,16 @@ size: 'xl'
             console.log(msg) ;
             msg_type = 1 ;
             break ;
+        case 'test':
+            const data1 = {
+                img_url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+                header: 'Soccerbot'
+            };
+                       
+            msg = flex.replacePlaceholders(flex.report_template, data1);
+            console.log(msg) ;
+            msg_type = 1 ;
+            break ;
         default:
             break ;
     }
