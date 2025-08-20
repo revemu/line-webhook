@@ -35,9 +35,9 @@ const tpl_top =
 'body': {
 'type': 'box',
 'layout': 'vertical',
-'contents': [
+'contents': 
 {{content}}
-]
+
 }
 }`;
 
