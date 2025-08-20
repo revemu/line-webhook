@@ -187,8 +187,8 @@ async function handleEvent(event) {
 }
 
  
-async function manageMember(userId) {
-    const res = await client.getProfile(userId) ;
+async function manageMember(source) {
+    const res = await client.getGroupMemberProfile(source.userId, source.groupId) ;
     //client.getGroupMemberProfile() ;
     let displayName ;
     if (res) {
@@ -212,12 +212,13 @@ async function manageMember(userId) {
 async function handleMessage(event) {
     const { replyToken, message, source } = event;
     const userId = source.userId;
-    const groupId = source.groupId ;
+    //const groupId = source.groupId ;
     console.log(source) ;
 
     console.log(`Message from user ${userId}: ${message.type}`);
-
-    await manageMember(userId, groupId) ;
+    if (source.groupId) {
+        await manageMember(source) ;
+    }
 
     if (message.type === 'image') {
         try {
