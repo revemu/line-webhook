@@ -59,7 +59,7 @@ async function process_cmd(cmd_str, member) {
             msg = await db.getMemberWeek(1) ;
             break ;
         case 'topscorer':
-            msg = await db.getTopStat(0) ;
+            msg = await db.getTopStat(10, 0) ;
             break ;
         default:
             break ;
