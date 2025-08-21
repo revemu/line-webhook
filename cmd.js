@@ -78,7 +78,8 @@ async function process_cmd(cmd_str, member) {
             msg = test ;
             
             let carousel = flex.tpl_carousel ;
-            carousel.contents = msg ;
+            carousel.contents.push(msg) ;
+            carousel.contents.push(msg) ;
             msg = carousel ;
             console.log(msg) ;
             
