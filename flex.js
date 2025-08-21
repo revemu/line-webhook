@@ -40,8 +40,12 @@ const report_template = {
 
 }
 }`;*/
+const tpl_carousel =
+{
+  type: "carousel",
+}
 
-const tpl_top = 
+const tpl_bubble = 
 {
   type: 'bubble',
   hero: 
@@ -54,8 +58,7 @@ const tpl_top =
   },
   body: {
     type: 'box',
-    layout: 'vertical',
-    contents: []
+    layout: 'vertical'
   }
 }
 
@@ -89,7 +92,8 @@ function replaceFlex(template, data) {
 
 module.exports = {
   report_template,
-  tpl_top,
+  tpl_bubble,
+  tpl_carousel,
   replacePlaceholders,
   replaceFlex
 };

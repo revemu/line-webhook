@@ -71,12 +71,17 @@ async function process_cmd(cmd_str, member) {
             const tpl =  flex.tpl_top.replace(/(\r\n|\n|\r)/gm, "");
             //console.log(tpl) ;
             msg = flex.replaceFlex(tpl, data) ;*/
-            test = flex.tpl_top ;
+            let test = flex.tpl_bubble ;
             test.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
             //console.log(msg) ;
             test.body.contents = JSON.parse(msg) ;
             msg = test ;
+            
+            let carousel = flex.tpl_carousel ;
+            carousel.contents = msg ;
+            msg = carousel ;
             console.log(msg) ;
+            
             msg_type = 1 ;
             break ;
         case 'test':
@@ -99,6 +104,12 @@ async function process_cmd(cmd_str, member) {
             text: msg
         }];
     } else if (msg_type == 1) {
+        replyMessages = {
+                type: 'flex',
+                altText: 'This is a Flex Message',
+                contents: msg,
+        };
+    } else if (msg_type == 2) {
         replyMessages = {
                 type: 'flex',
                 altText: 'This is a Flex Message',
