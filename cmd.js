@@ -141,7 +141,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 contents: msg,
         };
     }
-    //console.log(replyMessages)
+    console.log(replyMessages)
     return replyMessages ;
 }
     

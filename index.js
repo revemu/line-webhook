@@ -348,9 +348,9 @@ async function handleMessage(event) {
                     index = 1 ;
                 }*/
                 const cmd_str = text.substring(index) ;
-                let replyMessages = await cmd.process_cmd(cmd_str, member[0]) ;
-                replyMessage.quoteToken = await message.quoteToken ;
-                console.log(replyMessage) ;
+                let replyMessages = await cmd.process_cmd(cmd_str, member[0], message.quoteToken) ;
+                //replyMessage.quoteToken = await message.quoteToken ;
+                //console.log(replyMessage) ;
                 await replyMessage(replyToken, replyMessages);
                 break ;
             default:
