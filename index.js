@@ -256,7 +256,7 @@ async function handleMessage(event) {
                 slipjson = JSON.parse(slipjson) ;
                 console.log(slipjson) ;
 
-                const msg = db.getMemberWeek(0) ;
+                const msg = await db.getMemberWeek(0) ;
                 console.log(msg) ;
             //res.status(200).json({ status: 1, qr: codes[0].data });
                 
