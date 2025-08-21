@@ -318,6 +318,7 @@ async function handleMessage(event) {
                 
                 replyMessages = [{
                     type: 'text',
+                    quoteToken: message.quoteToken,
                     text: header + msg
                 }];
                 await replyMessage(replyToken, replyMessages);
