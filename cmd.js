@@ -41,7 +41,7 @@ async function process_cmd(cmd_str, member) {
     let msg ;
     let altText ;
     let msg_type = 0 ;
-
+    let obj ;
     switch (cmd) {
         case '+1':
             if (!await db.registerMember(member_id, member_name)) {
@@ -71,16 +71,36 @@ async function process_cmd(cmd_str, member) {
             const tpl =  flex.tpl_top.replace(/(\r\n|\n|\r)/gm, "");
             //console.log(tpl) ;
             msg = flex.replaceFlex(tpl, data) ;*/
-            let test = flex.tpl_bubble ;
-            test.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+            obj = flex.tpl_bubble ;
+            obj.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
             //console.log(msg) ;
             test.body.contents = JSON.parse(msg) ;
-            msg = test ;
+            msg = obj ;
+            
+            msg_type = 1 ;
+            break ;
+        case 'teamweek':
+            msg = await db.getTopStat(10, 0) ;
+            //console.log(msg) ;
+            //content = content.replace(/(\r\n|\n|\r)/gm, "");
+            //console.log(content) ;
+            /*const data = {
+                img_url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+                content: msg
+            };
+            const tpl =  flex.tpl_top.replace(/(\r\n|\n|\r)/gm, "");
+            //console.log(tpl) ;
+            msg = flex.replaceFlex(tpl, data) ;*/
+            obj = flex.tpl_bubble ;
+            obj.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+            //console.log(msg) ;
+            obj.body.contents = JSON.parse(msg) ;
+            //msg = test ;
             
             let carousel = flex.tpl_carousel ;
             carousel.contents = [] ;
-            carousel.contents.push(msg) ;
-            carousel.contents.push(msg) ;
+            carousel.contents.push(obj) ;
+            carousel.contents.push(obj) ;
             msg = carousel ;
             console.log(msg) ;
             
