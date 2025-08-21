@@ -1,7 +1,7 @@
 const db = require('./query');
 const flex = require('./flex');
 
-async function process_cmd(cmd_str, member) {
+async function process_cmd(cmd_str, member, quoteToken) {
     const pos = cmd_str.indexOf(" ") ;
     let cmd ;
     let param = "" ;
@@ -125,6 +125,7 @@ async function process_cmd(cmd_str, member) {
     if (msg_type == 0) {
         replyMessages = [{
             type: 'text',
+            quoteToken: quoteToken,
             text: msg
         }];
     } else if (msg_type == 1) {
