@@ -12,7 +12,7 @@ const dbConfig = {
 };
 
 // Create connection pool
-const pool = mysql.createPool(dbConfig);
+const pool = mysql.createPool(dbConfig)
 
 // Test database connection
 async function testConnection() {

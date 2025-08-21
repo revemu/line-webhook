@@ -36,6 +36,16 @@ const cur_client = new Client(cur_config);
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
 
+function formatDate(curDate) {
+    const d = ('0' + curDate.getDate()).slice(-2);
+    const m = ('0' + (curDate.getMonth()+1)).slice(-2);
+    const y = curDate.getFullYear();
+    const h = ('0' + curDate.getHours()).slice(-2);
+    const min = ('0' + curDate.getMinutes()).slice(-2);
+    const s = ('0' + curDate.getSeconds()).slice(-2);
+    return (`${y}-${m}-${d} ${h}:${min}:${s}`)
+}
+
 async function getSlipInfo(payload) {
     try {
         const response = await axios.get(`https://developer.easyslip.com/api/v1/verify?payload=${payload}`, {
@@ -281,7 +291,7 @@ async function handleMessage(event) {
                 console.log(slipjson) ;
                 let header ;
                 if (slipjson.status == 200) {
-                    
+
                     const amount = slipjson.data.amount.amount ;
                     const date = new Date(slipjson.data.date) ;
                     let recv ;
