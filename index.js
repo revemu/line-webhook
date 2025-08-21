@@ -308,7 +308,7 @@ async function handleMessage(event) {
                     }
                     
                     const bank = slipjson.data.sender.bank.short ;
-                    header = `⌚ - ${formatDate(date)}\n💸 - ${bank} - ${sender} \n💵 - Kyne \n💰 จำนวนเงิน ${amount} บาท\n\n🙏 ${member[0].name} ได้รับ เงินโอนแล้ว\n\n` ;
+                    header = `⌚ - ${formatDate(date)}\n💸 - ${bank} - ${sender} \n💵 - Kyne \n💰 -🙏 ${member[0].name} ได้รับ เงินโอนจำนวน ${amount} บาท\n\n` ;
 
                 }
 
