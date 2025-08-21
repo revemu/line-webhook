@@ -237,33 +237,33 @@ async function handleMessage(event) {
 
             let replyMessages;
             if (codes && codes.length > 0) {
-                console.log('Codes detected:', codes);
+                console.log('QR code detected:', codes[0].data);
+            // Perform operations or execute code here
+
+                let endTime = new Date();
+                let timeElapsed = endTime - startTime; // Difference in milliseconds
+
+                console.log(`Time read qr elapsed: ${timeElapsed} ms`);
                 
-                // Format response for multiple codes
-                let responseText = '';
-                if (codes.length === 1) {
-                    responseText = `${codes[0].type} detected!\n\nContent: ${codes[0].data}`;
-                } else {
-                    responseText = `${codes.length} codes detected!\n\n`;
-                    codes.forEach((code, index) => {
-                        responseText += `${index + 1}. ${code.type}: ${code.data}\n`;
-                    });
-                }
+                //let slipjson = JSON.stringify(await getSlipInfo(codes[0].data))
+                
+                let slipjson = '{"status":200,"data":{"payload":"004600060000010103002022520250816210339240054672085102TH9104D5EB","transRef":"2025081621033924005467208","date":"2025-08-16T21:03:39+07:00","countryCode":"","amount":{"amount":249,"local":{"amount":0,"currency":""}},"fee":0,"ref1":"","ref2":"","ref3":"","sender":{"bank":{"id":"002","name":"ธนาคารกรุงเทพ","short":"BBL"},"account":{"name":{"en":"PYSIT P"},"bank":{"type":"BANKAC","account":"086-0-xxx588"}}},"receiver":{"bank":{},"account":{"name":{"th":"นาย เศรษฐ ว","en":"SAGE"},"proxy":{"type":"MSISDN","account":"085-xxx-5894"}}}}}' ;
+
+                slipjson = JSON.stringify(slipjson) ;
+                console.log(slipjson) ;
+
+                const msg = db.getMemberWeek(0) ;
+            //res.status(200).json({ status: 1, qr: codes[0].data });
                 
                 replyMessages = [{
                     type: 'text',
-                    text: responseText
+                    text: msg
                 }];
-            } else {
-                console.log('No QR codes or barcodes found in image');
-                replyMessages = [{
-                    type: 'text',
-                    text: 'No QR codes or barcodes found in the image. Please make sure the code is clear and visible.'
-                }];
-            }
+                await replyMessage(replyToken, replyMessages);
+            } 
 
             // Reply with result
-            await replyMessage(replyToken, replyMessages);
+            
 
         } catch (error) {
             console.error('Error processing image:', error);
