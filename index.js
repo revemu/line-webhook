@@ -226,13 +226,17 @@ async function handleMessage(event) {
 
     if (message.type === 'image') {
         try {
-            console.log('Processing image message...');
-            
+            //console.log('Processing image message...');
+            let startTime = new Date() ;
             // Get image content from LINE
             const imageBuffer = await getImageContent(message.id);
             console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
+            let endTime = new Date();
+            let timeElapsed = endTime - startTime; // Difference in milliseconds
+            console.log(`Time load img elapsed: ${timeElapsed} ms`);
 
             // Read QR/barcodes from image
+            startTime = new Date() ;
             const codes = await readQRCode(imageBuffer);
 
             let replyMessages;
@@ -240,8 +244,8 @@ async function handleMessage(event) {
                 console.log('QR code detected:', codes[0].data);
             // Perform operations or execute code here
 
-                let endTime = new Date();
-                let timeElapsed = endTime - startTime; // Difference in milliseconds
+                endTime = new Date();
+                timeElapsed = endTime - startTime; // Difference in milliseconds
 
                 console.log(`Time read qr elapsed: ${timeElapsed} ms`);
                 
