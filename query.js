@@ -208,7 +208,7 @@ async function getMatchWeek(type = 0) {
                 
                 //console.log(JSON.stringify(carousel)) ;
                 i++ ;
-                //break ;
+                break ;
             }
             console.log(JSON.stringify(bubble)) ;
             return bubble ;
