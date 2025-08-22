@@ -140,7 +140,7 @@ async function getTeamWeek(type = 0) {
         const team_colors = await getTeamColorWeek(week_id) ;
         //let bubble = flex.tpl_bubble ;
         let carousel = flex.tpl_carousel ;
-        var bubble ;
+        let bubble ;
         if (team_colors.length > 0) {
             carousel.contents = [] ;
             
@@ -180,11 +180,12 @@ async function getTeamWeek(type = 0) {
                     bubble.contents = msg ; 
                 }*/
                 //bubble.contents = msg ;
-                console.log(bubble.body.contents) ; 
+                //console.log(bubble.body.contents) ; 
                 carousel.contents.push(bubble) ; 
+                console.log(JSON.stringify(carousel)) ;
                 //break ;
             }
-            console.log(JSON.stringify(carousel)) ;
+            
             return carousel ;
         }
                    
