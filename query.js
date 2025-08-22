@@ -175,7 +175,7 @@ async function getMatchWeek(type = 0) {
                 weight: "bold",
                 size: "lg",
                 align: "center",
-                color: teamColor.code
+                //color: teamColor.code
               }, {
                 type: "separator",
                 margin: "none",
