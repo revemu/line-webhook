@@ -161,16 +161,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
     } else if (msg_type == 1) {
         replyMessages = {
                 type: 'flex',
-                altText: 'This is a Flex Message',
+                altText: altText ,
                 contents: msg,
         };
-    } else if (msg_type == 2) {
-        replyMessages = {
-                type: 'flex',
-                altText: 'This is a Flex Message',
-                contents: msg,
-        };
-    }
+    } 
     //console.log(replyMessages)
     return replyMessages ;
 }
