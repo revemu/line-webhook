@@ -298,7 +298,7 @@ async function getMatchWeek(type = 0) {
                     bubble.body.contents.push(await queryMatchGoal(match.id, 3)) ;
                 }
                 i++ ;
-                if (i > 2) break ;
+                //if (i > 2) break ;
             }  
             //console.log(JSON.stringify(bubble)) ; 
             return bubble ;
