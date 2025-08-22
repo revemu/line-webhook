@@ -196,8 +196,8 @@ async function getMatchWeek(type = 0) {
             for (const match of matches) {
                 //const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
-                const team_a_color = team_colors.filter(team => team.id == match.team_a_id).color ;
-                const team_b_color = team_colors.filter(team => team.id == match.team_b_id).color ;
+                const team_a_color = team_colors.filter(team => team.id === match.team_a_id).color ;
+                const team_b_color = team_colors.filter(team => team.id === match.team_b_id).color ;
                 console.log(`${match.team_a_id} a: ${team_a_color}, ${match.team_a_id} b: ${team_b_color}`)
                 console.log(match) ;
                
