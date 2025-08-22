@@ -119,8 +119,6 @@ async function queryMemberbyName(name) {
 
 async function getTeamColorWeek(week_id) {
 
-
-    const week_id = res[0].id ;
     query = "select * from team_color_week_tbl where week_id=" + week_id;
     
     const result = await executeQuery(query) ;
