@@ -120,7 +120,7 @@ async function queryMemberbyName(name) {
 
 async function getTeamColorWeek(week_id) {
 
-    query = "select * from team_color_week_tbl where week_id=" + week_id;
+    query = `select * from team_color_week_tbl, template_tpl where week_id=${week_id} and team_color_week_tbl.color = template_tpl.value`;
     
     const result = await executeQuery(query) ;
     if (result.length > 0) {
@@ -156,9 +156,6 @@ async function getMatchWeek(type = 0) {
         //const week_id = res[0].id ;
         const week_id = 271 ;
         const matches = await queryMatchWeek(week_id) ;
-       
-        //let bubble = flex.tpl_bubble ;
-        let carousel = flex.tpl_carousel ;
         
         if (matches.length > 0) {
             const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
@@ -196,14 +193,57 @@ async function getMatchWeek(type = 0) {
             for (const match of matches) {
                 //const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
-                const team_a_color = team_colors.filter(team => team.id === match.team_a_id) ;
-                const team_b_color = team_colors.filter(team => team.id === match.team_b_id) ;
-                console.log(team_a_color) ;
-                console.log(team_b_color) ;
-                console.log(`${match.team_a_id} a: ${team_a_color}, ${match.team_b_id} b: ${team_b_color}`)
+                const team_a = team_colors.filter(team => team.id === match.team_a_id)[0] ;
+                const team_b = team_colors.filter(team => team.id === match.team_b_id)[0] ;
+                console.log(team_a) ;
+                console.log(team_b) ;
+                console.log(`${match.team_a_id} a: ${team_a.color}, ${match.team_b_id} b: ${team_b.color}`)
                 console.log(match) ;
+
+                const match_box = {
+                    "type": "box",
+                    "layout": "baseline",
+                    "margin": "md",
+                    "contents": [
+                    {
+                      "type": "text",
+                      "text": `Match [${match.match_num}]`,
+                      "flex": 0,
+                      "weight": "bold",
+                      "align": "center",
+                      "size": "sm"
+                    },
+                            {
+                      "type": "text",
+                      "text": team_a.color,
+                      "color": team_a.code,
+                      "weight": "bold",
+                      "align": "center",
+                      "flex": 1,
+                      "size": "sm"
+                    },
+                    {
+                      "type": "text",
+                      "text": `${match.team_a_goal} - ${match.team_b_goal}`,
+                      "flex": 1,
+                      "align": "center",
+                      "size": "sm"
+                      
+                    },
+                    {
+                      "type": "text",
+                      "text": team_b.color,
+                      "color": team_b.code,
+                      "weight": "bold",
+                      "flex": 1,
+                      "align": "center",
+                      "size": "sm"
+                    }
+                    ],
+                    "spacing": "xl"
+                  }
                
-                
+                bubble.body.contents.push(match_box) ;
                 //let msg = [] ;
                 
                  
