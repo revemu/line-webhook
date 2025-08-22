@@ -137,17 +137,43 @@ async function getTeamWeek(type = 0) {
         //const week_id = res[0].id ;
         const week_id = 271 ;
         const team_colors = await getTeamColorWeek(week_id) ;
+        //let bubble = flex.tpl_bubble ;
+        let carousel = flex.tpl_carousel ;
         if (team_colors.length > 0) {
-            for (const team_color of team_colors) {
-
-                query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team_color.team_id}`;
-                console.log(team_color) ;
-                /*const result = await executeQuery(query) ;
-                if (result.length > 0) {
-                    
-                }*/   
+            carousel.contents = [] ;
+            for (const team of team_colors) {
+                let bubble = flex.tpl_bubble ;
+                bubble.size = "nano" ;
+                bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+                bubble.hero.aspectRatio = "12:6"
+                let msg = [] ;
+                msg.push( 
+                {
+                    "type": "text",
+                    "text": `${team.color}`,
+                    "weight": "bold",
+                    "size": "xl",
+                    "align": "center"
+                }) ;
+                query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team_color.id}`;
+                //console.log(team_color) ;
+                const team_members = await executeQuery(query) ;
+                if (team_members.length > 0) {
+                    for (const member of team_members) {
+                        msg.push( 
+                        {
+                            "type": "text",
+                            "text": `${member.name}`,
+                            "weight": "bold",
+                            "size": "xl",
+                            "align": "center"
+                        }) ;
+                    }
+                    bubble.contents = msg ; 
+                }
+                carousel.contents.push(bubble) ; 
             }
-            
+            console.log(carousel) ;
         }
                    
     }
