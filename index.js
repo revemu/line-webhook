@@ -282,7 +282,7 @@ async function handleMessage(event) {
                 const alphanumericRegex = /^[A-Za-z0-9]+$/;
                 const qrCode = codes[0].data ;
                 console.log('QR code detected:', qrCode) ;
-                if (alphanumericRegex.test(qrCode)) {
+                if (alphanumericRegex.test(qrCode) && qrCode.includes("60000010103")) {
                     
                     //let slipjson = JSON.stringify(await getSlipInfo(codes[0].data))
                 
