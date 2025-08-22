@@ -61,7 +61,7 @@ const cur_client = new Client(cur_config);
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
 
-function checkSlip(slipjson) {
+function checkSlip(slipjson, name) {
     
     const amount = slipjson.data.amount.amount ;
     const date = new Date(slipjson.data.date) ;
@@ -80,10 +80,10 @@ function checkSlip(slipjson) {
     let tail ;
     if (recv.includes("เศรษฐ") || recv.includes("SAGE")) {
         recv = "Kyne" ;
-        tail = `💰 -🙏 ${member[0].name} ได้รับ เงินโอนจำนวน ${amount} บาท\n\n` ;
+        tail = `💰 -🙏 ${name} ได้รับ เงินโอนจำนวน ${amount} บาท\n\n` ;
     } else {
         recv +=  " * ชื่อผู้รับไม่ตรง"
-        tail = `💰 - {sender} เงินโอนจำนวน ${amount} บาท\n\n` ;
+        tail = `💰 - ${name} เงินโอนจำนวน ${amount} บาท\n\n` ;
     }
     const bank = slipjson.data.sender.bank.short ;
 
@@ -323,7 +323,7 @@ async function handleMessage(event) {
                     console.log(slipjson) ;
                     
                     if (slipjson.hasOwnProperty('status')) {
-                        let header = checkSlip(slipjson)
+                        let header = checkSlip(slipjson, member[0].name) ;
                     }
 
                     const msg = await db.getMemberWeek(0) ;
