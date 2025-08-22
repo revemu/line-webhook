@@ -129,12 +129,12 @@ async function getTeamColorWeek(week_id) {
         
 }
 
-async function getTeamColorUrl(color) {
+async function getTeamColor(color) {
   query = `select * from template_tpl where name='team_color' and value='${color}'`  ;
     
     const result = await executeQuery(query) ;
     if (result.length > 0) {
-        return result[0].url ;
+        return result[0] ;
     }
 }
 
@@ -156,11 +156,12 @@ async function getTeamWeek(type = 0) {
             var i = 0 ;
             for (const team of team_colors) {
                 const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
+                const teamColor = await getTeamColorUrl(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
                 console.log(team.color) ;
                 bubble.size = "micro" ;
                 //bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
-                bubble.hero.url = await getTeamColorUrl(team.color) ;
+                bubble.hero.url = teamColor.url ;
                 bubble.hero.aspectRatio = "12:6"
                 
                 //let msg = [] ;
@@ -172,7 +173,8 @@ async function getTeamWeek(type = 0) {
                     text: `${team.color}`,
                     weight: "bold",
                     size: "lg",
-                    align: "center"
+                    align: "center",
+                    color: teamColor.code
                   }, {
                     type: "separator",
                     margin: "none",
