@@ -690,6 +690,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
             "align": "center"
         }
       ) ;
+        return bubble ;
         for (const member of result) {
             //body += `${i+1}. ${member.name}  ${member.goal} `;
             bubble.body.contents.push( {
