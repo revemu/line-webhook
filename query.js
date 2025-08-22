@@ -129,6 +129,15 @@ async function getTeamColorWeek(week_id) {
         
 }
 
+async function getTeamColorUrl(color) {
+  query = `select * from template_tpl where name='team_color' and value='color'`  ;
+    
+    const result = await executeQuery(query) ;
+    if (result.length > 0) {
+        return result[0].url ;
+    }
+}
+
 async function getTeamWeek(type = 0) {
 
     let query = "";
@@ -150,7 +159,8 @@ async function getTeamWeek(type = 0) {
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
                 console.log(team.color) ;
                 bubble.size = "micro" ;
-                bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+                //bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+                bubble.hero.url = getTeamColorUrl(team.color) ;
                 bubble.hero.aspectRatio = "12:6"
                 
                 //let msg = [] ;
