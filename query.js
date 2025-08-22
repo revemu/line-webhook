@@ -147,8 +147,9 @@ async function getTeamWeek(type = 0) {
                 bubble.size = "nano" ;
                 bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
                 bubble.hero.aspectRatio = "12:6"
-                let msg = [] ;
-                msg.push( 
+                bubble.contents = [] ; 
+                //let msg = [] ;
+                bubble.contents.push( 
                 {
                     "type": "text",
                     "text": `${team.color}`,
@@ -172,7 +173,7 @@ async function getTeamWeek(type = 0) {
                     }
                     bubble.contents = msg ; 
                 }*/
-                bubble.contents = msg ; 
+                //bubble.contents = msg ; 
                 carousel.contents.push(bubble) ; 
             }
             console.log(carousel) ;
