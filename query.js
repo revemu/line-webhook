@@ -156,6 +156,7 @@ async function getMatchWeek(type = 0) {
         //const week_id = res[0].id ;
         const week_id = 271 ;
         const matches = await queryMatchWeek(week_id) ;
+       
         //let bubble = flex.tpl_bubble ;
         let carousel = flex.tpl_carousel ;
         
@@ -189,9 +190,14 @@ async function getMatchWeek(type = 0) {
             ) ;
             //var bubble = new Array(team_colors.length) ;
             var i = 0 ;
+            let team_colors = await getTeamColorWeek(week_id) ;
+            team_colors = team_colors[0] ;
             for (const match of matches) {
                 //const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
+                const team_a_color = team_colors.filter(team => team.id == match.team_a_id).coclor ;
+                const team_b_color = team_colors.filter(team => team.id == match.team_b_id).color ;
+                console.log(`a${team_a_color} b${team_b_color}`)
                 console.log(match) ;
                
                 
