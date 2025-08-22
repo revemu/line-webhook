@@ -368,7 +368,7 @@ async function handleMessage(event) {
                 let replyMessages = await cmd.process_cmd(cmd_str, member[0], message.quoteToken) ;
                 //replyMessage.quoteToken = await message.quoteToken ;
                 //console.log(replyMessage) ;
-                //await replyMessage(replyToken, replyMessages);
+                await replyMessage(replyToken, replyMessages);
                 break ;
             default:
                 break ;
