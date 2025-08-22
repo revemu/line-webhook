@@ -323,6 +323,7 @@ async function handleMessage(event) {
                     console.log(slipjson) ;
                     let header ;
                     if (slipjson.hasOwnProperty('status')) {
+                        await db.updateMemberWeek(1, 0) ;
                         header = checkSlip(slipjson, member[0].name) ;
                     }
 

@@ -37,6 +37,21 @@ async function executeQuery(query, params = []) {
   }
 }
 
+async function updateMemberWeek(value, type = 0) {
+  const week = await queryWeekID() ;
+  if (week.length > 0) {
+    const week_id = week[0].id ;
+    let query ;
+    if (type == 0) {
+      query = `update member_team_week_tbl set pay=${value} where member_id=${member_id} and week_id=${week_id}`
+    }
+
+    const res = await executeQuery(query) ;
+    //console.log(res) ;
+    return res ;
+  }
+}
+
 async function queryWeekID() {
     const query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY NUMBER DESC LIMIT 1" ;
     const res = await executeQuery(query) ;
@@ -210,6 +225,7 @@ module.exports = {
   executeQuery,
   queryWeekID,
   getMemberWeek,
+  updateMemberWeek,
   queryMemberbyLineID,
   queryMemberbyName,
   registerMember,
