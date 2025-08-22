@@ -128,12 +128,14 @@ async function queryMatchGoal(match_id, goal_status = 0) {
 
   const match_goals = await executeQuery(query) ;
   if (match_goals.length > 0) {
-    let member_list ;
-    let i = 0
+    let member_list = "" ;
+    let i = 0 ;
     for (const member of match_goals) {
-      if (i > 0) member_list += ", "
+      if (i > 0) {
+        member_list += ", "
+      }
       if (member.goal > 1) {
-        member_list += `+${member.goal}`
+        member_list += `+${member.goal}` ;
       }
       if (member.alias == '') {
         member_list += member.name ;
@@ -141,8 +143,8 @@ async function queryMatchGoal(match_id, goal_status = 0) {
         member_list += member.alias ;
       }
       console.log(member) ;
-      return member_list ;
     }
+    return member_list ;
   }
 }
 
