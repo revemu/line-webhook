@@ -220,9 +220,9 @@ async function getTableWeek(week_id = 0) {
          if (week_id == 0) {
           week_id = res[0].id ;
         }
-        const tables = await queryTableWeek(week_id) ;
+        const week_tables = await queryTableWeek(week_id) ;
         
-        if (tables.length > 0) {
+        if (week_tables.length > 0) {
             const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
             bubble.size = "mega" ;
             bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
@@ -317,16 +317,76 @@ async function getTableWeek(week_id = 0) {
             ]
             }) ;
             //console.log(tables[0]) ;
-            return tables ;
+            //return tables ;
             //var bubble = new Array(team_colors.length) ;
             var i = 0 ;
             let team_colors = await getTeamColorWeek(week_id) ;
             //team_colors = team_colors[0] ;
             //console.log(team_colors) ;
-            for (const table of tables) {
+            for (const table of week_tables) {
                 //const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
-                console.log(table) ;
+                const table_box =  {
+                  "type": "box",
+                  "layout": "baseline",
+                  "margin": "xs",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": table.name,
+                      "color": "#000000",
+                      "size": "xs",
+                      "weight": "bold",
+                      "align": "center",
+                      "flex": 1
+                    },
+                    {
+                      "type": "text",
+                      "text": table.w,
+                      "wrap": true,
+                      "align": "center",
+                      "size": "sm",
+                      "flex": 1
+                    },
+                    {
+                      "type": "text",
+                      "text": table.d,
+                      "size": "sm",
+                      "align": "center",
+                      "flex": 1
+                    },
+                    {
+                      "type": "text",
+                      "text": table.l,
+                      "size": "sm",
+                      "align": "center",
+                      "flex": 1
+                    },
+                    {
+                      "type": "text",
+                      "text": table.G,
+                      "size": "sm",
+                      "align": "center",
+                      "flex": 1
+                    },
+                    {
+                      "type": "text",
+                      "text": table.A,
+                      "size": "sm",
+                      "align": "center",
+                      "flex": 1
+                    },
+                    {
+                      "type": "text",
+                      "text": table.pts,
+                    "size": "sm",
+                    "align": "center",
+                      "flex": 1
+                    }
+                  ]
+                }
+                //console.log(table) ;
+                tables.push(table_box) ;
                 i++ ;
                 //if (i > 2) break ;
             }  
