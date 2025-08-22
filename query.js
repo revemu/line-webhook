@@ -144,6 +144,7 @@ async function getTeamWeek(type = 0) {
             carousel.contents = [] ;
             for (const team of team_colors) {
                 let bubble = flex.tpl_bubble ;
+                console.log(team) ;
                 bubble.size = "nano" ;
                 bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
                 bubble.hero.aspectRatio = "12:6"
