@@ -316,8 +316,8 @@ async function getTableWeek(week_id = 0) {
               }
             ]
             }) ;
-
-            return tables ;
+            console.log(tables[0]) ;
+            return tables[0] ;
             //var bubble = new Array(team_colors.length) ;
             var i = 0 ;
             let team_colors = await getTeamColorWeek(week_id) ;
