@@ -139,20 +139,20 @@ async function getTeamWeek(type = 0) {
         const week_id = 271 ;
         const team_colors = await getTeamColorWeek(week_id) ;
         //let bubble = flex.tpl_bubble ;
-        let carousel = new flex.tpl_carousel ;
+        let carousel = flex.tpl_carousel ;
         let bubble ;
         if (team_colors.length > 0) {
             carousel.contents = [] ;
             
             for (const team of team_colors) {
-                bubble = new flex.tpl_bubble ;
+                bubble = flex.tpl_bubble ;
                 console.log(team.color) ;
                 bubble.size = "nano" ;
                 bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
                 bubble.hero.aspectRatio = "12:6"
                 
                 //let msg = [] ;
-                bubble.body.contents = [] ;
+                bubble.body.contents = new [] ;
                 bubble.body.contents.push( 
                 {
                     "type": "text",
