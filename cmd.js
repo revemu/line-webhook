@@ -72,6 +72,11 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg_type = 1 ;
             //msg = "teamweek" ;
             break ;
+        case 'matchweek':
+            msg = await db.getMatchWeek() ;
+            msg_type = 1 ;
+            //msg = "teamweek" ;
+            break ;
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
             //console.log(msg) ;
