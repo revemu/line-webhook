@@ -144,7 +144,7 @@ async function getTeamWeek(type = 0) {
             carousel.contents = [] ;
             for (const team of team_colors) {
                 const bubble = flex.tpl_bubble ;
-                console.log(team) ;
+                console.log(team.color) ;
                 bubble.size = "nano" ;
                 bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
                 bubble.hero.aspectRatio = "12:6"
@@ -178,10 +178,10 @@ async function getTeamWeek(type = 0) {
                     bubble.contents = msg ; 
                 }*/
                 //bubble.contents = msg ;
-                //console.log(bubble) ; 
+                console.log(bubble) ; 
                 carousel.contents.push(bubble) ; 
             }
-            console.log(carousel) ;
+           //console.log(carousel) ;
             return carousel ;
         }
                    
