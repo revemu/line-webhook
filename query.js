@@ -324,6 +324,10 @@ async function getTableWeek(week_id = 0) {
             //team_colors = team_colors[0] ;
             //console.log(team_colors) ;
             for (const table of week_tables) {
+              let top="" ;
+              if (i == 0) {
+                top = "🏆" ;
+              }
                 //const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
                 const team = team_colors.filter(team => team.id === table.team_week_id)[0] ;
@@ -335,7 +339,7 @@ async function getTableWeek(week_id = 0) {
                   "contents": [
                     {
                       "type": "text",
-                      "text": `${table.color}`,
+                      "text": `${top}${table.color}`,
                       "color": `${team.code}`,
                       "size": "sm",
                       "weight": "bold",
