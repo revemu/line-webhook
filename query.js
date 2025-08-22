@@ -140,19 +140,20 @@ async function getTeamWeek(type = 0) {
         const team_colors = await getTeamColorWeek(week_id) ;
         //let bubble = flex.tpl_bubble ;
         let carousel = flex.tpl_carousel ;
-        let bubble ;
+        
         if (team_colors.length > 0) {
             carousel.contents = [] ;
-            
+            var bubble = new Array(team_colors.length) ;
+            var i = 0 ;
             for (const team of team_colors) {
-                bubble = flex.tpl_bubble ;
+                bubble[i] = flex.tpl_bubble ;
                 console.log(team.color) ;
-                bubble.size = "nano" ;
-                bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
-                bubble.hero.aspectRatio = "12:6"
+                bubble[i].size = "nano" ;
+                bubble[i].hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+                bubble[i].hero.aspectRatio = "12:6"
                 
                 //let msg = [] ;
-                bubble.body.contents = [] ;
+                bubble[i].body.contents = [] ;
                 const msg = {
                     "type": "text",
                     "text": `${team.id}`,
@@ -160,7 +161,7 @@ async function getTeamWeek(type = 0) {
                     "size": "xl",
                     "align": "center"
                 } ;
-                bubble.body.contents.push(msg) ;
+                bubble[i].body.contents.push(msg) ;
                  
                 /*
                 query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team.id}`;
@@ -181,8 +182,10 @@ async function getTeamWeek(type = 0) {
                 }*/
                 //bubble.contents = msg ;
                 //console.log(bubble.body.contents) ; 
-                carousel.contents.push(bubble) ; 
+
+                carousel.contents.push(bubble[i]) ; 
                 console.log(JSON.stringify(carousel)) ;
+                i++ ;
                 //break ;
             }
             
