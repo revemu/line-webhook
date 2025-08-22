@@ -130,7 +130,7 @@ async function getTeamColorWeek(week_id) {
 }
 
 async function getTeamColorUrl(color) {
-  query = `select * from template_tpl where name='team_color' and value='color'`  ;
+  query = `select * from template_tpl where name='team_color' and value='${color}'`  ;
     
     const result = await executeQuery(query) ;
     if (result.length > 0) {
