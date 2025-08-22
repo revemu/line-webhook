@@ -202,6 +202,119 @@ async function queryMatchWeek(week_id) {
     }
 }
 
+async function queryTableWeek(week_id) {
+
+  let query = `SELECT team_color_week_tbl.color, table_week_tbl.* FROM table_week_tbl , team_color_week_tbl where table_week_tbl.week_id = ${week_id} AND table_week_tbl.team_week_id = team_color_week_tbl.id order by table_week_tbl.pts DESC, (table_week_tbl.g - table_week_tbl.a) DESC`  ;
+    
+  const result = await executeQuery(query) ;
+  if (result.length > 0) {
+      return result ;
+  }
+}
+
+async function getTableWeek(week_id = 0) {
+
+    res = await queryWeekID(week_id) ;
+    
+    if (res.length > 0) {
+         if (week_id == 0) {
+          week_id = res[0].id ;
+        }
+        const tables = await queryTableWeek(week_id) ;
+        
+        if (tables.length > 0) {
+            const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
+            bubble.size = "mega" ;
+            bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+            //bubble.hero.url = teamColor.url ;
+            bubble.hero.aspectRatio = "12:6"
+
+            bubble.body.contents = [] ;
+                
+            bubble.body.contents.push({
+            "type": "box",
+            "layout": "baseline",
+			      "margin": "xs",
+            "contents": [
+              {
+                "type": "text",
+                "text": "Team",
+                "weight": "bold",
+                "size": "sm",
+                "align": "center",
+                "flex": 1
+              },
+              {
+                "type": "text",
+                "text": "W",
+                "wrap": true,
+                "weight": "bold",
+                "size": "sm",
+                "align": "center",
+                "flex": 1
+              },
+              {
+                "type": "text",
+                "text": "D",
+                "weight": "bold",
+                "size": "sm",
+                "align": "center",
+                "flex": 1
+              },
+              {
+                "type": "text",
+                "text": "L",
+                "weight": "bold",
+                "size": "sm",
+                "align": "center",
+                "flex": 1
+              },
+			        {
+                "type": "text",
+                "text": "G",
+                "weight": "bold",
+                "size": "sm",
+                "align": "center",
+                "flex": 1
+              },
+			        {
+                "type": "text",
+                "text": "A",
+                "weight": "bold",
+                "size": "sm",
+                "align": "center",
+                "flex": 1
+              },
+              {
+                "type": "text",
+                "text": "PTS",
+                "weight": "bold",
+                "size": "sm",
+                "align": "center",
+                "flex": 1
+              }
+            ]
+            }) ;
+            //var bubble = new Array(team_colors.length) ;
+            var i = 0 ;
+            let team_colors = await getTeamColorWeek(week_id) ;
+            //team_colors = team_colors[0] ;
+            //console.log(team_colors) ;
+            for (const table of tables) {
+                //const teamColor = await getTeamColor(team.color) ;
+                //const bubble =  Object.assign({}, flex.tpl_bubble);
+                console.log(table) ;
+                i++ ;
+                //if (i > 2) break ;
+            }  
+            //console.log(JSON.stringify(bubble)) ; 
+            return bubble ;
+        }
+            
+            
+      }
+}
+
 async function getMatchWeek(week_id = 0) {
 
     res = await queryWeekID(week_id) ;
@@ -513,6 +626,7 @@ module.exports = {
   getTeamWeek,
   getMemberWeek,
   getMatchWeek,
+  getTableWeek,
   updateMemberWeek,
   queryMemberbyLineID,
   queryMemberbyName,
