@@ -675,7 +675,13 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
         let i = 0;
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
-        msg.push( 
+        const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
+        bubble.size = "giga" ;
+        bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+        //bubble.hero.url = teamColor.url ;
+        bubble.hero.aspectRatio = "12:6" ;
+        bubble.body.contents = [] ;
+        bubble.body.contents.push( 
         {
             "type": "text",
             "text": `${currentYear} Top Scorer`,
@@ -686,7 +692,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
       ) ;
         for (const member of result) {
             //body += `${i+1}. ${member.name}  ${member.goal} `;
-            msg.push( {
+            bubble.body.contents.push( {
                     "type": "box",
                     "layout": "baseline",
                     "margin": "xs",
@@ -710,7 +716,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
             i++ ;
         }
         //console.log(header + body) ;
-        return JSON.stringify(msg) ;
+        return bubble ;
         
     }               
 
