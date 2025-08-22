@@ -91,7 +91,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             //msg = "teamweek" ;
             break ;*/
         case 'topscorer':
-            msg = await db.getTopStat(10, 0) ;
+            msg = [] ;
+            msg.push( await db.getTopStat(10, 0) );
             console.log(JSON.stringify(msg)) ;
             //content = content.replace(/(\r\n|\n|\r)/gm, "");
             //console.log(content) ;
