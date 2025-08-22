@@ -154,14 +154,14 @@ async function getTeamWeek(type = 0) {
                 
                 //let msg = [] ;
                 bubble[i].body.contents = [] ;
-                const msg = {
+                
+                bubble[i].body.contents.push({
                     "type": "text",
                     "text": `${team.id}`,
                     "weight": "bold",
                     "size": "xl",
                     "align": "center"
-                } ;
-                bubble[i].body.contents.push(msg) ;
+                }) ;
                  
                 /*
                 query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team.id}`;
