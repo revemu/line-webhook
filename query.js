@@ -262,7 +262,7 @@ async function getTableWeek(week_id = 0) {
                 "text": "Team",
                 "weight": "bold",
                 "size": "sm",
-                "align": "center",
+                "align": "end",
                 "flex": 1
               },
               {
