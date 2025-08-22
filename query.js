@@ -230,8 +230,9 @@ async function getTableWeek(week_id = 0) {
             bubble.hero.aspectRatio = "12:6"
 
             bubble.body.contents = [] ;
+            let tables = [];
                 
-            bubble.body.contents.push({
+            tables.push({
             "type": "box",
             "layout": "baseline",
 			      "margin": "xs",
@@ -295,6 +296,8 @@ async function getTableWeek(week_id = 0) {
               }
             ]
             }) ;
+
+            return tables ;
             //var bubble = new Array(team_colors.length) ;
             var i = 0 ;
             let team_colors = await getTeamColorWeek(week_id) ;
@@ -333,6 +336,8 @@ async function getMatchWeek(week_id = 0) {
             bubble.hero.aspectRatio = "12:6"
 
             bubble.body.contents = [] ;
+
+            bubble.body.contents.push(await getTableWeek(week_id)) ;
                 
             bubble.body.contents.push(
               {
