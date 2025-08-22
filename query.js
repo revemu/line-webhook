@@ -120,7 +120,7 @@ async function queryMemberbyName(name) {
 
 async function getTeamColorWeek(week_id) {
 
-    query = `select * from team_color_week_tbl, template_tpl where week_id=${week_id} and team_color_week_tbl.color = template_tpl.value`;
+    query = `select team_color_week_tbl.id, team_color_week_tbl.color,  template_tpl.url, template_tpl.code from team_color_week_tbl, template_tpl where week_id=${week_id} and team_color_week_tbl.color = template_tpl.value`;
     
     const result = await executeQuery(query) ;
     if (result.length > 0) {
