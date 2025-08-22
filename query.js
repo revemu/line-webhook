@@ -343,7 +343,7 @@ async function getTableWeek(week_id = 0) {
                       "color": `${team.code}`,
                       "size": "sm",
                       "weight": "bold",
-                      "align": "center",
+                      "align": "end",
                       "flex": 1
                     },
                     {
