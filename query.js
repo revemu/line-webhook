@@ -231,6 +231,26 @@ async function getTableWeek(week_id = 0) {
 
             bubble.body.contents = [] ;
             let tables = [];
+
+            tables.push(
+              {
+                type: "text",
+                text: `Table Week`,
+                weight: "bold",
+                size: "lg",
+                align: "center",
+                //color: teamColor.code
+              }, {
+                type: "separator",
+                margin: "none",
+                color: "#000000"
+              },
+              {
+                type: "separator",
+                color: "#FFFFFF",
+                margin: "md"
+              }
+            ) ;
                 
             tables.push({
             "type": "box",
