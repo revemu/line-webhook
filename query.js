@@ -175,7 +175,7 @@ async function getTeamWeek(type = 0) {
                             "type": "text",
                             "text": `${member.name}`,
                             "weight": "regular",
-                            "size": "lg",
+                            "size": "md",
                             "align": "center"
                         }) ;
                     }
