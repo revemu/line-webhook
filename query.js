@@ -192,6 +192,7 @@ async function getMatchWeek(type = 0) {
             var i = 0 ;
             let team_colors = await getTeamColorWeek(week_id) ;
             team_colors = team_colors[0] ;
+            console.log(team_colors) ;
             for (const match of matches) {
                 //const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
