@@ -679,7 +679,8 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
         bubble.size = "giga" ;
         bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
         //bubble.hero.url = teamColor.url ;
-        bubble.hero.aspectRatio = "12:6" ;
+        bubble.hero.aspectRatio = "12:6"
+
         bubble.body.contents = [] ;
         bubble.body.contents.push( 
         {
