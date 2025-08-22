@@ -363,6 +363,11 @@ async function getMatchWeek(week_id = 0) {
                 
             bubble.body.contents.push(
               {
+                type: "separator",
+                margin: "none",
+                color: "#000000"
+              },
+              {
                 type: "text",
                 text: `Match Week`,
                 weight: "bold",
