@@ -61,6 +61,37 @@ const cur_client = new Client(cur_config);
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
 
+function checkSlip(slipjson) {
+    
+    const amount = slipjson.data.amount.amount ;
+    const date = new Date(slipjson.data.date) ;
+    let recv ;
+    let sender ;
+    if ('en' in slipjson.data.receiver.account.name) {
+        recv = slipjson.data.receiver.account.name.en ;
+    } else {
+        recv = slipjson.data.receiver.account.name.th ;
+    }
+    if ('en' in slipjson.data.sender.account.name) {
+        sender = slipjson.data.sender.account.name.en ;
+    } else {
+        sender = slipjson.data.sender.account.name.th ;
+    }
+    let tail ;
+    if (recv.includes("เศรษฐ") || recv.includes("SAGE")) {
+        recv = "Kyne" ;
+        tail = `💰 -🙏 ${member[0].name} ได้รับ เงินโอนจำนวน ${amount} บาท\n\n` ;
+    } else {
+        recv +=  " * ชื่อผู้รับไม่ตรง"
+        tail = `💰 - {sender} เงินโอนจำนวน ${amount} บาท\n\n` ;
+    }
+    const bank = slipjson.data.sender.bank.short ;
+
+    return `⌚ - ${formatDate(date)}\n💸 - ${bank} - ${sender} \n💵 - ${recv} \n` + tail ;
+
+
+}
+
 function formatDate(curDate) {
     const d = ('0' + curDate.getDate()).slice(-2);
     const m = ('0' + (curDate.getMonth()+1)).slice(-2);
@@ -290,27 +321,9 @@ async function handleMessage(event) {
 
                     //slipjson = JSON.parse(slipjson) ;
                     console.log(slipjson) ;
-                    let header ;
+                    
                     if (slipjson.hasOwnProperty('status')) {
-
-                        const amount = slipjson.data.amount.amount ;
-                        const date = new Date(slipjson.data.date) ;
-                        let recv ;
-                        let sender ;
-                        if ('en' in slipjson.data.receiver.account.name) {
-                            recv = slipjson.data.receiver.account.name.en ;
-                        } else {
-                            recv = slipjson.data.receiver.account.name.th ;
-                        }
-                        if ('en' in slipjson.data.sender.account.name) {
-                            sender = slipjson.data.sender.account.name.en ;
-                        } else {
-                            sender = slipjson.data.sender.account.name.th ;
-                        }
-                        
-                        const bank = slipjson.data.sender.bank.short ;
-                        header = `⌚ - ${formatDate(date)}\n💸 - ${bank} - ${sender} \n💵 - Kyne \n💰 -🙏 ${member[0].name} ได้รับ เงินโอนจำนวน ${amount} บาท\n\n` ;
-
+                        let header = checkSlip(slipjson)
                     }
 
                     const msg = await db.getMemberWeek(0) ;
