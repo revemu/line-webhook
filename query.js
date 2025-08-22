@@ -334,7 +334,7 @@ async function getTableWeek(week_id = 0) {
                   "contents": [
                     {
                       "type": "text",
-                      "text": table.name,
+                      "text": table.color,
                       "color": "#000000",
                       "size": "xs",
                       "weight": "bold",
@@ -387,7 +387,7 @@ async function getTableWeek(week_id = 0) {
                   ]
                 }
                 console.log(table_box) ;
-                //tables.push(table_box) ;
+                tables.push(table_box) ;
                 i++ ;
                 //if (i > 2) break ;
             }  
