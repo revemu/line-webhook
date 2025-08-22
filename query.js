@@ -202,14 +202,14 @@ async function queryMatchWeek(week_id) {
     }
 }
 
-async function getMatchWeek(type = 0) {
+async function getMatchWeek(week_id = 0) {
 
-    let query = "";
-    const res = await queryWeekID() ;
+    res = await queryWeekID(week_id) ;
     
     if (res.length > 0) {
-        //const week_id = res[0].id ;
-        const week_id = 271 ;
+         if (week_id == 0) {
+          week_id = res[0].id ;
+        }
         const matches = await queryMatchWeek(week_id) ;
         
         if (matches.length > 0) {
@@ -319,7 +319,7 @@ async function getTeamWeek(week_id = 0) {
 
     let query = "";
     let res ;
-    week_id = 271 ;
+
     res = await queryWeekID(week_id) ;
     
     if (res.length > 0) {
