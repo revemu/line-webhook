@@ -156,7 +156,7 @@ async function getTeamWeek(type = 0) {
             var i = 0 ;
             for (const team of team_colors) {
                 const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
-                const teamColor = await getTeamColorUrl(team.color) ;
+                const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
                 console.log(team.color) ;
                 bubble.size = "micro" ;
