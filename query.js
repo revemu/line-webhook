@@ -689,7 +689,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
             "size": "xl",
             "align": "center"
         }
-      ) ;
+        ) ;
         return bubble ;
         for (const member of result) {
             //body += `${i+1}. ${member.name}  ${member.goal} `;
