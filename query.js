@@ -144,7 +144,19 @@ async function queryMatchGoal(match_id, goal_status = 0) {
       }
       console.log(member) ;
     }
-    return member_list ;
+    const box = 
+    {
+      type: "box",
+      layout: "baseline",
+      contents: [
+      {
+        type: "text",
+        text: `⚽ ${member_list}`,
+        size: "xs"
+      }
+      ]
+    }
+    return box ;
   }
 }
 
@@ -276,21 +288,7 @@ async function getMatchWeek(type = 0) {
                 bubble.body.contents.push(match_box) ;           
             
                 if (match.team_a_goal > 0 || match.team_b_goal > 0) {
-                    const scorer = await queryMatchGoal(match.id, 0) ;
-                    const score_box = 
-                      {
-                        type: "box",
-                        layout: "baseline",
-                        contents: [
-                        {
-                          type: "text",
-                          text: `⚽ ${scorer}`,
-                          size: "xs"
-                        }
-                        ]
-                      }
-                    
-                    bubble.body.contents.push(score_box) ;
+                    bubble.body.contents.push(await queryMatchGoal(match.id, 0)) ;
                 }
                 i++ ;
                 if (i > 2) break ;
