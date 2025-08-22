@@ -160,7 +160,7 @@ async function getTeamWeek(type = 0) {
                 console.log(team.color) ;
                 bubble.size = "micro" ;
                 //bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
-                bubble.hero.url = getTeamColorUrl(team.color) ;
+                bubble.hero.url = await getTeamColorUrl(team.color) ;
                 bubble.hero.aspectRatio = "12:6"
                 
                 //let msg = [] ;
