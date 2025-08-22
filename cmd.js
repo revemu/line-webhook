@@ -5,7 +5,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     const pos = cmd_str.indexOf(" ") ;
     let cmd ;
     let param = "" ;
-    let is_mention = false ;
+    var is_mention = false ;
     let member_id = member.id ;
     let member_name = member.name ;
 
@@ -39,9 +39,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
     console.log(`${cmd} - ${param}`) ;
     let replyMessages ;
     let msg ;
-    let altText ;
+    var altText ;
     let msg_type = 0 ;
     let obj ;
+    let week ;
     switch (cmd) {
         case '+1':
             if (!await db.registerMember(member_id, member_name)) {
@@ -68,20 +69,25 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = await db.getMemberWeek(0) ;
             break ;
         case 'teamweek':
-            msg = await db.getTeamWeek(0) ;
+            week = db.queryWeekID(0)
+            msg = await db.getTeamWeek(week[0].id) ;
+            altText = `Team Week ${week[0].date}` ;
             msg_type = 1 ;
             //msg = "teamweek" ;
             break ;
         case 'matchweek':
+            week = db.queryWeekID(0)
             msg = await db.getMatchWeek(271) ;
+            altText = `Match Week ${week[0].date}` ;
             msg_type = 1 ;
             //msg = "teamweek" ;
             break ;
-        case 'tableweek':
+        /*case 'tableweek':
             msg = await db.getTableWeek(271) ;
+            altText = "Table Week"
             msg_type = 1 ;
             //msg = "teamweek" ;
-            break ;
+            break ;*/
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
             //console.log(msg) ;
