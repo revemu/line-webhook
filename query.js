@@ -37,7 +37,7 @@ async function executeQuery(query, params = []) {
   }
 }
 
-async function updateMemberWeek(value, type = 0) {
+async function updateMemberWeek(member_id, value, type = 0) {
   const week = await queryWeekID() ;
   if (week.length > 0) {
     const week_id = week[0].id ;
