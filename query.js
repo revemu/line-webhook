@@ -380,13 +380,13 @@ async function getTableWeek(week_id = 0) {
                     {
                       "type": "text",
                       "text": table.pts,
-                    "size": "sm",
-                    "align": "center",
+                      "size": "sm",
+                      "align": "center",
                       "flex": 1
                     }
                   ]
                 }
-                //console.log(table) ;
+                console.log(table_box) ;
                 //tables.push(table_box) ;
                 i++ ;
                 //if (i > 2) break ;
