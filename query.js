@@ -615,7 +615,7 @@ async function getTeamWeek(week_id = 0) {
         
 }
 
-async function getMemberWeek() {
+async function getMemberWeek(type = 0) {
     let header = "";
     let body = "";
     let query = "";
