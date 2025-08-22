@@ -327,8 +327,8 @@ async function handleMessage(event) {
                     }
 
                     const msg = await db.getMemberWeek(0) ;
-                    console.log(msg) ;
-                //res.status(200).json({ status: 1, qr: codes[0].data });
+                    //console.log(msg) ;
+                    //res.status(200).json({ status: 1, qr: codes[0].data });
                     
                     replyMessages = [{
                         type: 'text',
