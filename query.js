@@ -337,7 +337,7 @@ async function getTableWeek(week_id = 0) {
                       "type": "text",
                       "text": `${table.color}`,
                       "color": `${team.code}`,
-                      "size": "xs",
+                      "size": "sm",
                       "weight": "bold",
                       "align": "center",
                       "flex": 1
