@@ -152,15 +152,15 @@ async function getTeamWeek(type = 0) {
                 bubble.hero.aspectRatio = "12:6"
                 
                 //let msg = [] ;
-                bubble.body.contents = new [] ;
-                bubble.body.contents.push( 
-                {
+                bubble.body.contents = [] ;
+                const msg = {
                     "type": "text",
                     "text": `${team.id}`,
                     "weight": "bold",
                     "size": "xl",
                     "align": "center"
-                }) ;
+                } ;
+                bubble.body.contents.push(msg) ;
                  
                 /*
                 query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team.id}`;
