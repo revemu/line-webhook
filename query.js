@@ -149,6 +149,7 @@ async function getTeamWeek(type = 0) {
                 bubble.hero.aspectRatio = "12:6"
                 
                 //let msg = [] ;
+                bubble.body.contents = [] ;
                 bubble.body.contents.push( 
                 {
                     "type": "text",
