@@ -101,11 +101,12 @@ async function process_cmd(cmd_str, member, quoteToken) {
             const tpl =  flex.tpl_top.replace(/(\r\n|\n|\r)/gm, "");
             //console.log(tpl) ;
             msg = flex.replaceFlex(tpl, data) ;*/
-            obj = flex.tpl_bubble ;
+            
+            /*obj = flex.tpl_bubble ;
             obj.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
             //console.log(msg) ;
             obj.body.contents = JSON.parse(msg) ;
-            msg = obj ;
+            msg = obj ;*/
             
             msg_type = 1 ;
             break ;
