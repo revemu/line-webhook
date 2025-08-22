@@ -138,6 +138,79 @@ async function getTeamColor(color) {
     }
 }
 
+async function queryMatchWeek(week_id) {
+  query = `SELECT * FROM match_stat_tbl where week_id = ${week_id} order by match_num`  ;
+    
+    const result = await executeQuery(query) ;
+    if (result.length > 0) {
+        return result ;
+    }
+}
+
+async function getMatchWeek(type = 0) {
+
+    let query = "";
+    const res = await queryWeekID() ;
+    
+    if (res.length > 0) {
+        //const week_id = res[0].id ;
+        const week_id = 271 ;
+        const matches = await queryMatchWeek(week_id) ;
+        //let bubble = flex.tpl_bubble ;
+        let carousel = flex.tpl_carousel ;
+        
+        if (matches.length > 0) {
+            const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
+            bubble.size = "mega" ;
+            bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+            //bubble.hero.url = teamColor.url ;
+            bubble.hero.aspectRatio = "12:6"
+
+            bubble.body.contents = [] ;
+                
+            bubble.body.contents.push(
+              {
+                type: "text",
+                text: `Match Week`,
+                weight: "bold",
+                size: "lg",
+                align: "center",
+                color: teamColor.code
+              }, {
+                type: "separator",
+                margin: "none",
+                color: "#000000"
+              },
+              {
+                type: "separator",
+                color: "#FFFFFF",
+                margin: "md"
+              }
+            ) ;
+            //var bubble = new Array(team_colors.length) ;
+            var i = 0 ;
+            for (const match of matches) {
+                //const teamColor = await getTeamColor(team.color) ;
+                //const bubble =  Object.assign({}, flex.tpl_bubble);
+                console.log(match) ;
+               
+                
+                //let msg = [] ;
+                
+                 
+                
+                //console.log(JSON.stringify(carousel)) ;
+                i++ ;
+                //break ;
+            }
+            console.log(JSON.stringify(bubble)) ;
+            return bubble ;
+        }
+                   
+    }
+        
+}
+
 async function getTeamWeek(type = 0) {
 
     let query = "";
