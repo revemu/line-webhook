@@ -676,7 +676,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
         const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
-        bubble.size = "giga" ;
+        bubble.size = "mega" ;
         bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
         //bubble.hero.url = teamColor.url ;
         bubble.hero.aspectRatio = "12:6"
@@ -691,7 +691,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
             "align": "center"
         }
         ) ;
-        return bubble ;
+        //return bubble ;
         for (const member of result) {
             //body += `${i+1}. ${member.name}  ${member.goal} `;
             bubble.body.contents.push( {
