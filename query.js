@@ -155,7 +155,7 @@ async function getTeamWeek(type = 0) {
                 //let msg = [] ;
                 bubble[i].body.contents = [] ;
                 
-                bubble[i].body.contents.push({
+                bubble[i].body.contents.push( new {
                     "type": "text",
                     "text": `${team.id}`,
                     "weight": "bold",
