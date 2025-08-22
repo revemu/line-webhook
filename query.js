@@ -183,7 +183,7 @@ async function getTeamWeek(type = 0) {
                 //bubble.contents = msg ;
                 //console.log(bubble.body.contents) ; 
 
-                carousel.contents.push(bubble[i]) ; 
+                carousel.contents.push(bubble[0]) ; 
                 console.log(JSON.stringify(carousel)) ;
                 i++ ;
                 //break ;
