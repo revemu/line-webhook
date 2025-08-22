@@ -607,7 +607,7 @@ async function getTeamWeek(week_id = 0) {
                 i++ ;
                 //break ;
             }
-            console.log(JSON.stringify(carousel)) ;
+            //console.log(JSON.stringify(carousel)) ;
             return carousel ;
         }
                    
