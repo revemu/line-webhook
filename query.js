@@ -180,7 +180,7 @@ async function getTeamWeek(type = 0) {
                 //bubble.contents = msg ;
                 console.log(bubble.body.contents) ; 
                 carousel.contents.push(bubble) ; 
-                break ;
+                //break ;
             }
             console.log(JSON.stringify(carousel)) ;
             return carousel ;
