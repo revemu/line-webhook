@@ -53,8 +53,14 @@ async function updateMemberWeek(member_id, value, type = 0) {
   }
 }
 
-async function queryWeekID() {
-    const query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY NUMBER DESC LIMIT 1" ;
+async function queryWeekID(week_id = 0) {
+    let query = "" ;
+    if (week_id == 0) {
+      query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY NUMBER DESC LIMIT 1" ;
+    } else {
+      query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl where week_id=wekk_id" ;
+    }
+    
     const res = await executeQuery(query) ;
     //console.log(res) ;
     return res ;
@@ -309,14 +315,19 @@ async function getMatchWeek(type = 0) {
       }
 }
 
-async function getTeamWeek(type = 0) {
+async function getTeamWeek(week_id = 0) {
 
     let query = "";
-    const res = await queryWeekID() ;
+    let res ;
+    week_id = 271 ;
+    res = await queryWeekID(week_id) ;
     
     if (res.length > 0) {
+        if (week_id == 0) {
+          week_id = res[0].id ;
+        }
         //const week_id = res[0].id ;
-        const week_id = 271 ;
+        
         const team_colors = await getTeamColorWeek(week_id) ;
         //let bubble = flex.tpl_bubble ;
         let carousel = flex.tpl_carousel ;
@@ -412,7 +423,7 @@ async function getMemberWeek() {
         
         const result = await executeQuery(query) ;
         if (result.length > 0) {
-            header = start + result.length + header + " เสาร์ที่ " +res[0].date + "\n\n";
+            header = start + result.length + header + " เสาร์ที่ " + res[0].date + "\n\n";
             let i = 0;
             for (const member of result) {
                 body += (i+1) + ". " + member.name + "\n";
