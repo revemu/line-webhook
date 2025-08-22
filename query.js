@@ -326,7 +326,7 @@ async function getTableWeek(week_id = 0) {
             for (const table of week_tables) {
                 //const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
-                const team = team_colors.filter(team => team.id === table.id)[0] ;
+                const team = team_colors.filter(team => team.id === table.team_week_id)[0] ;
                 console.log(table) ;
                 const table_box =  {
                   "type": "box",
