@@ -386,7 +386,7 @@ async function getTableWeek(week_id = 0) {
                   ]
                 }
                 //console.log(table) ;
-                tables.push(table_box) ;
+                //tables.push(table_box) ;
                 i++ ;
                 //if (i > 2) break ;
             }  
