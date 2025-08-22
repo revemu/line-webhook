@@ -278,11 +278,12 @@ async function handleMessage(event) {
             console.log(`Time read qr elapsed: ${timeElapsed} ms`) ;
 
             let replyMessages;
-            if (codes.hasOwnProperty('data')) {
+            if (codes.length > 0) {
                 const alphanumericRegex = /^[A-Za-z0-9]+$/;
-
-                if (alphanumericRegex.test(codes[0].data)) {
-                    console.log('QR code detected:', codes[0].data) ;
+                const qrCode = codes[0].data ;
+                console.log('QR code detected:', qrCode) ;
+                if (alphanumericRegex.test(qrCode)) {
+                    
                     //let slipjson = JSON.stringify(await getSlipInfo(codes[0].data))
                 
                     let slipjson = tpl_slipjson ;
