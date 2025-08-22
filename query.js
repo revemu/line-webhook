@@ -123,9 +123,7 @@ async function queryMatchGoal(match_id, goal_status = 0) {
   if (goal_status == 0) {
     status = " < 2"
   }
-  query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl" ;
-	$sql .= " WHERE match_goal_tbl.match_id=${match_id} and match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status}";
-	$sql .= " and match_goal_tbl.status=goal_status_tbl.id group by member_tbl.id`
+  query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status,match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl WHERE match_goal_tbl.match_id=${match_id} and match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id group by member_tbl.id`
   const match_goals = await executeQuery(query) ;
   if (res.length > 0) {
     for (const member of match_goals) {
