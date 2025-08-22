@@ -267,7 +267,7 @@ async function getMatchWeek(type = 0) {
                 i++ ;
                 if (i > 2) break ;
             }
-            console.log(JSON.stringify(bubble)) ;
+            //console.log(JSON.stringify(bubble)) ;
             return bubble ;
         }
                    
