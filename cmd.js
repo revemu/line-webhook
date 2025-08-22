@@ -68,7 +68,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = await db.getMemberWeek(0) ;
             break ;
         case 'teamweek':
-            msg = await db.getTeamWeek(271) ;
+            msg = await db.getTeamWeek(0) ;
             msg_type = 1 ;
             //msg = "teamweek" ;
             break ;
