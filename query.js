@@ -422,9 +422,10 @@ async function getMatchWeek(week_id = 0) {
             }
                 
             bubble.body.contents.push(
+
               {
                 type: "separator",
-                margin: "none",
+                margin: "md",
                 color: "#000000"
               },
               {
