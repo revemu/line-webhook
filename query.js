@@ -143,24 +143,24 @@ async function getTeamWeek(type = 0) {
         
         if (team_colors.length > 0) {
             carousel.contents = [] ;
-            var bubble = new Array(team_colors.length) ;
+            //var bubble = new Array(team_colors.length) ;
             var i = 0 ;
             for (const team of team_colors) {
-                bubble[i] = flex.tpl_bubble ;
+                const bubble = flex.tpl_bubble ;
                 console.log(team.color) ;
-                bubble[i].size = "nano" ;
-                bubble[i].hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
-                bubble[i].hero.aspectRatio = "12:6"
+                bubble.size = "nano" ;
+                bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+                bubble.hero.aspectRatio = "12:6"
                 
                 //let msg = [] ;
-                bubble[i].body.contents = [] ;
+                bubble.body.contents = [] ;
                 
-                bubble[i].body.contents.push( new {
-                    "type": "text",
-                    "text": `${team.id}`,
-                    "weight": "bold",
-                    "size": "xl",
-                    "align": "center"
+                bubble.body.contents.push({
+                    type: "text",
+                    text: `${team.id}`,
+                    weight: "bold",
+                    size: "xl",
+                    align: "center"
                 }) ;
                  
                 /*
@@ -183,12 +183,12 @@ async function getTeamWeek(type = 0) {
                 //bubble.contents = msg ;
                 //console.log(bubble.body.contents) ; 
 
-                carousel.contents.push(bubble[0]) ; 
+                carousel.contents.push(bubble) ; 
                 //console.log(JSON.stringify(carousel)) ;
                 i++ ;
                 //break ;
             }
-            console.log(JSON.stringify(bubble[0])) ;
+            //console.log(JSON.stringify(bubble[0])) ;
             return carousel ;
         }
                    
