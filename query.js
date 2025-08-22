@@ -156,13 +156,24 @@ async function getTeamWeek(type = 0) {
                 //let msg = [] ;
                 bubble.body.contents = [] ;
                 
-                bubble.body.contents.push({
+                bubble.body.contents.push(
+                  {
                     type: "text",
                     text: `${team.color}`,
                     weight: "bold",
                     size: "lg",
                     align: "center"
-                }) ;
+                  }, {
+                    type: "separator",
+                    margin: "none",
+                    color: "#000000"
+                  },
+                  {
+                    type: "separator",
+                    color: "#FFFFFF",
+                    margin: "md"
+                  }
+                ) ;
                  
                 
                 query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team.id}`;
@@ -173,9 +184,9 @@ async function getTeamWeek(type = 0) {
                         bubble.body.contents.push( 
                         {
                             "type": "text",
-                            "text": `${member.name}`,
+                            "text": `${member.name.replace('@','')}`,
                             "weight": "regular",
-                            "size": "md",
+                            "size": "sm",
                             "align": "center"
                         }) ;
                     }
