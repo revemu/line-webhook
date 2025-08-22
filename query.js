@@ -131,10 +131,8 @@ async function getTeamColorWeek(week_id) {
 }
 
 async function getTeamWeek(type = 0) {
-    let header = "";
-    let body = "";
+
     let query = "";
-    let start = ""
     const res = await queryWeekID() ;
     
     if (res.length > 0) {
@@ -144,7 +142,7 @@ async function getTeamWeek(type = 0) {
         if (team_colors.length > 0) {
             for (const team_color in team_colors) {
                 query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team_color.team_id}`;
-        
+                console.log(query) ;
                 /*const result = await executeQuery(query) ;
                 if (result.length > 0) {
                     
@@ -157,7 +155,7 @@ async function getTeamWeek(type = 0) {
         
 }
 
-async function getMemberWeek(type = 0) {
+async function getMemberWeek() {
     let header = "";
     let body = "";
     let query = "";

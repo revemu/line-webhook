@@ -67,6 +67,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
             await db.updateMemberWeek(member_id, 0, 0) ;
             msg = await db.getMemberWeek(0) ;
             break ;
+        case 'teamweek':
+            await db.getTeamWeek() ;
+            msg = "teamweek" ;
+            break ;
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
             //console.log(msg) ;
