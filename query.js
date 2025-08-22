@@ -181,7 +181,8 @@ async function getTeamWeek(type = 0) {
                     }
                     bubble.contents = msg ; 
                 }*/
-                //bubble.contents = msg ; 
+                //bubble.contents = msg ;
+                console.log(bubble) ; 
                 carousel.contents.push(bubble) ; 
             }
             console.log(carousel) ;
