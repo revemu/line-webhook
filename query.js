@@ -158,19 +158,19 @@ async function getTeamWeek(type = 0) {
                 
                 bubble.body.contents.push({
                     type: "text",
-                    text: `${team.id}`,
+                    text: `${team.color}`,
                     weight: "bold",
                     size: "xl",
                     align: "center"
                 }) ;
                  
-                /*
+                
                 query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team.id}`;
                 //console.log(team_color) ;
                 const team_members = await executeQuery(query) ;
                 if (team_members.length > 0) {
                     for (const member of team_members) {
-                        msg.push( 
+                        bubble.body.contents.push( 
                         {
                             "type": "text",
                             "text": `${member.name}`,
@@ -179,8 +179,9 @@ async function getTeamWeek(type = 0) {
                             "align": "center"
                         }) ;
                     }
-                    bubble.contents = msg ; 
-                }*/
+                }
+                    //bubble.contents = msg ; 
+                
                 //bubble.contents = msg ;
                 //console.log(bubble.body.contents) ; 
 
@@ -189,7 +190,7 @@ async function getTeamWeek(type = 0) {
                 i++ ;
                 //break ;
             }
-            //console.log(JSON.stringify(bubble[0])) ;
+            console.log(JSON.stringify(carousel)) ;
             return carousel ;
         }
                    
