@@ -123,11 +123,25 @@ async function queryMatchGoal(match_id, goal_status = 0) {
   if (goal_status == 0) {
     status = " < 2"
   }
+
   query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status,match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl WHERE match_goal_tbl.match_id=${match_id} and match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id group by member_tbl.id`
+
   const match_goals = await executeQuery(query) ;
   if (match_goals.length > 0) {
+    let member_list ;
+    let i = 0
     for (const member of match_goals) {
+      if (i > 0) member_list += ", "
+      if (member.goal > 1) {
+        member_list += `+${member.goal}`
+      }
+      if (member.alias == '') {
+        member_list += member.name ;
+      } else {
+        member_list += member.alias ;
+      }
       console.log(member) ;
+      return member_list ;
     }
   }
 }
@@ -255,24 +269,34 @@ async function getMatchWeek(type = 0) {
                     }
                     ],
                     "spacing": "xl"
-                  }
-                await queryMatchGoal(match.id, 0) ;
-                bubble.body.contents.push(match_box) ;
-                
-                //let msg = [] ;
-                
-                 
-                
-                //console.log(JSON.stringify(carousel)) ;
+                }
+
+                bubble.body.contents.push(match_box) ;           
+            
+                if (match.team_a_goal > 0 || match.team_b_goal > 0) {
+                    const scorer = await queryMatchGoal(match.id, 0) ;
+                    const score_box = 
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                        {
+                          type: "text",
+                          text: `⚽ ${scorer}`,
+                          size: "xs"
+                        }
+                        ]
+                      }
+                    
+                    bubble.body.contents.push(score_box) ;
+                }
                 i++ ;
                 if (i > 2) break ;
-            }
+            }   
+        }
             //console.log(JSON.stringify(bubble)) ;
             return bubble ;
-        }
-                   
-    }
-        
+      }
 }
 
 async function getTeamWeek(type = 0) {
