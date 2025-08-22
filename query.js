@@ -334,7 +334,7 @@ async function getTableWeek(week_id = 0) {
                   "contents": [
                     {
                       "type": "text",
-                      "text": table.color,
+                      "text": `${table.color}`,
                       "color": "#000000",
                       "size": "xs",
                       "weight": "bold",
@@ -343,42 +343,42 @@ async function getTableWeek(week_id = 0) {
                     },
                     {
                       "type": "text",
-                      "text": table.w,
+                      "text": `${table.w}`,
                       "align": "center",
                       "size": "sm",
                       "flex": 1
                     },
                     {
                       "type": "text",
-                      "text": table.d,
+                      "text": `${table.d}`,
                       "size": "sm",
                       "align": "center",
                       "flex": 1
                     },
                     {
                       "type": "text",
-                      "text": table.l,
+                      "text": `${table.l}`,
                       "size": "sm",
                       "align": "center",
                       "flex": 1
                     },
                     {
                       "type": "text",
-                      "text": table.G,
+                      "text": `${table.G}`,
                       "size": "sm",
                       "align": "center",
                       "flex": 1
                     },
                     {
                       "type": "text",
-                      "text": table.A,
+                      "text": `${table.A}`,
                       "size": "sm",
                       "align": "center",
                       "flex": 1
                     },
                     {
                       "type": "text",
-                      "text": table.pts,
+                      "text": `${table.pts}`,
                       "size": "sm",
                       "align": "center",
                       "flex": 1
