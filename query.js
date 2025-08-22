@@ -140,13 +140,14 @@ async function queryMatchGoal(match_id, goal_status = 0) {
         member_list += ", "
       }
       if (member.goal > 1) {
-        member_list += `+${member.goal}` ;
+        member_list += `+(${member.goal})` ;
       }
       if (member.alias == '') {
         member_list += member.name ;
       } else {
         member_list += member.alias ;
       }
+      i++ ;
       //console.log(member) ;
     }
     
