@@ -70,6 +70,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             break ;
         case 'teamweek':
             week = db.queryWeekID(0)
+            console.log(week) ;
             msg = await db.getTeamWeek(week[0].id) ;
             altText = `Team Week ${week[0].date}` ;
             msg_type = 1 ;
