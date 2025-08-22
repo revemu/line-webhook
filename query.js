@@ -120,15 +120,20 @@ async function queryMemberbyName(name) {
 
 async function queryMatchGoal(match_id, goal_status = 0) {
   let status ;
+  let icon = ""
   if (goal_status == 0) {
-    status = " < 2"
+    status = " < 2" ;
+    icon = "⚽" ;
+  } else if (goal_status == 3){
+    status = " = 3" ;
+    icon = "👟" ;
   }
 
   query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status,match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl WHERE match_goal_tbl.match_id=${match_id} and match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id group by member_tbl.id`
-
+  let member_list = "" ;
   const match_goals = await executeQuery(query) ;
   if (match_goals.length > 0) {
-    let member_list = "" ;
+    
     let i = 0 ;
     for (const member of match_goals) {
       if (i > 0) {
@@ -144,20 +149,21 @@ async function queryMatchGoal(match_id, goal_status = 0) {
       }
       console.log(member) ;
     }
-    const box = 
+    
+  }
+  const box = 
     {
       type: "box",
       layout: "baseline",
       contents: [
       {
         type: "text",
-        text: `⚽ ${member_list}`,
+        text: `${icon} ${member_list}`,
         size: "xs"
       }
       ]
     }
-    return box ;
-  }
+  return box ;
 }
 
 async function getTeamColorWeek(week_id) {
@@ -289,6 +295,7 @@ async function getMatchWeek(type = 0) {
             
                 if (match.team_a_goal > 0 || match.team_b_goal > 0) {
                     bubble.body.contents.push(await queryMatchGoal(match.id, 0)) ;
+                    bubble.body.contents.push(await queryMatchGoal(match.id, 3)) ;
                 }
                 i++ ;
                 if (i > 2) break ;
