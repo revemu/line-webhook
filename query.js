@@ -156,7 +156,7 @@ async function getTeamWeek(type = 0) {
                     "size": "xl",
                     "align": "center"
                 }) ;
-                query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team_color.id}`;
+                query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team.id}`;
                 //console.log(team_color) ;
                 const team_members = await executeQuery(query) ;
                 if (team_members.length > 0) {
