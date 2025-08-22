@@ -146,7 +146,8 @@ async function getTeamWeek(type = 0) {
             //var bubble = new Array(team_colors.length) ;
             var i = 0 ;
             for (const team of team_colors) {
-                const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
+                //const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
+                const bubble =  { ...flex.tpl_bubble };
                 console.log(team.color) ;
                 bubble.size = "nano" ;
                 bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
