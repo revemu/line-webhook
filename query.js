@@ -147,16 +147,24 @@ async function getTeamWeek(type = 0) {
                 bubble.size = "nano" ;
                 bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
                 bubble.hero.aspectRatio = "12:6"
-                bubble.contents = [] ; 
+                bubble.contents = {
+                    "type": "text",
+                    "text": `${team.color}`,
+                    "weight": "bold",
+                    "size": "xl",
+                    "align": "center"
+                }  ;
                 //let msg = [] ;
-                bubble.contents.push( 
+                /*bubble.contents.push( 
                 {
                     "type": "text",
                     "text": `${team.color}`,
                     "weight": "bold",
                     "size": "xl",
                     "align": "center"
-                }) ;/*
+                }) ;*/
+                 
+                /*
                 query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team.id}`;
                 //console.log(team_color) ;
                 const team_members = await executeQuery(query) ;
