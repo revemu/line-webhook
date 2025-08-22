@@ -68,8 +68,9 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = await db.getMemberWeek(0) ;
             break ;
         case 'teamweek':
-            await db.getTeamWeek() ;
-            msg = "teamweek" ;
+            msg = await db.getTeamWeek() ;
+            msg_type = 1 ;
+            //msg = "teamweek" ;
             break ;
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
@@ -91,7 +92,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             
             msg_type = 1 ;
             break ;
-        case 'teamweek':
+        case 'testcarousel':
             msg = await db.getTopStat(10, 0) ;
             //console.log(msg) ;
             //content = content.replace(/(\r\n|\n|\r)/gm, "");
