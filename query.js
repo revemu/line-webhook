@@ -138,7 +138,7 @@ async function getTeamWeek(type = 0) {
         const week_id = 271 ;
         const team_colors = await getTeamColorWeek(week_id) ;
         if (team_colors.length > 0) {
-            for (const team_color in team_colors) {
+            for (const team_color of team_colors) {
 
                 query = `select * from member_team_week_tbl where week_id=${ week_id} and team_id=${team_color.team_id}`;
                 console.log(team_color) ;
