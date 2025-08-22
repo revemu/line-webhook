@@ -28,6 +28,31 @@ const cur_config = {
     channelSecret: process.env.CUR_CHANNEL_SECRET,
 };
 
+const tpl_slipjson = {
+                    "status": 200,
+                    "data": {
+                        "payload": "004600060000010103002022520250816210339240054672085102TH9104D5EB", 
+                        "transRef": "2025081621033924005467208", 
+                        "date": "2025-08-16T21:03:39+07:00", 
+                        "countryCode": "", 
+                        "amount": { 
+                            "amount": 249, 
+                            "local": { "amount": 0, "currency": "" } 
+                        }, 
+                        "fee": 0, "ref1": "", "ref2": "", "ref3": "", 
+                        "sender": { 
+                            "bank": { "id": "002", "name": "ธนาคารกรุงเทพ", "short": "BBL" }, 
+                            "account": { "name": { "en": "PYSIT P" }, "bank": { "type": "BANKAC", "account": "086-0-xxx588" } } 
+                        }, 
+                        "receiver": { 
+                            "bank": {}, 
+                            "account": { 
+                                "name": { "th": "นาย เศรษฐ ว", "en": "SAGE" }, 
+                                "proxy": { "type": "MSISDN", "account": "085-xxx-5894" } 
+                            } 
+                        }
+                    }
+                };
 
 // Create LINE SDK client
 const client = new Client(config);
@@ -248,80 +273,57 @@ async function handleMessage(event) {
             // Read QR/barcodes from image
             startTime = new Date() ;
             const codes = await readQRCode(imageBuffer);
+            endTime = new Date();
+            timeElapsed = endTime - startTime; // Difference in milliseconds
+            console.log(`Time read qr elapsed: ${timeElapsed} ms`) ;
 
             let replyMessages;
-            if (codes && codes.length > 0) {
-                console.log('QR code detected:', codes[0].data);
-            // Perform operations or execute code here
+            if (codes.hasOwnProperty('data')) {
+                const alphanumericRegex = /^[A-Za-z0-9]+$/;
 
-                endTime = new Date();
-                timeElapsed = endTime - startTime; // Difference in milliseconds
+                if (alphanumericRegex.test(codes[0].data)) {
+                    console.log('QR code detected:', codes[0].data) ;
+                    //let slipjson = JSON.stringify(await getSlipInfo(codes[0].data))
+                
+                    let slipjson = tpl_slipjson ;
 
-                console.log(`Time read qr elapsed: ${timeElapsed} ms`);
-                
-                //let slipjson = JSON.stringify(await getSlipInfo(codes[0].data))
-                
-                let slipjson = {
-                    "status": 200,
-                    "data": {
-                        "payload": "004600060000010103002022520250816210339240054672085102TH9104D5EB", 
-                        "transRef": "2025081621033924005467208", 
-                        "date": "2025-08-16T21:03:39+07:00", 
-                        "countryCode": "", 
-                        "amount": { 
-                            "amount": 249, 
-                            "local": { "amount": 0, "currency": "" } 
-                        }, 
-                        "fee": 0, "ref1": "", "ref2": "", "ref3": "", 
-                        "sender": { 
-                            "bank": { "id": "002", "name": "ธนาคารกรุงเทพ", "short": "BBL" }, 
-                            "account": { "name": { "en": "PYSIT P" }, "bank": { "type": "BANKAC", "account": "086-0-xxx588" } } 
-                        }, 
-                        "receiver": { 
-                            "bank": {}, 
-                            "account": { 
-                                "name": { "th": "นาย เศรษฐ ว", "en": "SAGE" }, 
-                                "proxy": { "type": "MSISDN", "account": "085-xxx-5894" } 
-                            } 
+                    //slipjson = JSON.parse(slipjson) ;
+                    console.log(slipjson) ;
+                    let header ;
+                    if (slipjson.hasOwnProperty('status')) {
+
+                        const amount = slipjson.data.amount.amount ;
+                        const date = new Date(slipjson.data.date) ;
+                        let recv ;
+                        let sender ;
+                        if ('en' in slipjson.data.receiver.account.name) {
+                            recv = slipjson.data.receiver.account.name.en ;
+                        } else {
+                            recv = slipjson.data.receiver.account.name.th ;
                         }
-                    }
-                };
+                        if ('en' in slipjson.data.sender.account.name) {
+                            sender = slipjson.data.sender.account.name.en ;
+                        } else {
+                            sender = slipjson.data.sender.account.name.th ;
+                        }
+                        
+                        const bank = slipjson.data.sender.bank.short ;
+                        header = `⌚ - ${formatDate(date)}\n💸 - ${bank} - ${sender} \n💵 - Kyne \n💰 -🙏 ${member[0].name} ได้รับ เงินโอนจำนวน ${amount} บาท\n\n` ;
 
-                //slipjson = JSON.parse(slipjson) ;
-                console.log(slipjson) ;
-                let header ;
-                if (slipjson.status == 200) {
+                    }
 
-                    const amount = slipjson.data.amount.amount ;
-                    const date = new Date(slipjson.data.date) ;
-                    let recv ;
-                    let sender ;
-                    if ('en' in slipjson.data.receiver.account.name) {
-                        recv = slipjson.data.receiver.account.name.en ;
-                    } else {
-                        recv = slipjson.data.receiver.account.name.th ;
-                    }
-                    if ('en' in slipjson.data.sender.account.name) {
-                        sender = slipjson.data.sender.account.name.en ;
-                    } else {
-                        sender = slipjson.data.sender.account.name.th ;
-                    }
+                    const msg = await db.getMemberWeek(0) ;
+                    console.log(msg) ;
+                //res.status(200).json({ status: 1, qr: codes[0].data });
                     
-                    const bank = slipjson.data.sender.bank.short ;
-                    header = `⌚ - ${formatDate(date)}\n💸 - ${bank} - ${sender} \n💵 - Kyne \n💰 -🙏 ${member[0].name} ได้รับ เงินโอนจำนวน ${amount} บาท\n\n` ;
-
-                }
-
-                const msg = await db.getMemberWeek(0) ;
-                console.log(msg) ;
-            //res.status(200).json({ status: 1, qr: codes[0].data });
+                    replyMessages = [{
+                        type: 'text',
+                        quoteToken: message.quoteToken,
+                        text: header + msg
+                    }];
+                    await replyMessage(replyToken, replyMessages);
+                    }
                 
-                replyMessages = [{
-                    type: 'text',
-                    quoteToken: message.quoteToken,
-                    text: header + msg
-                }];
-                await replyMessage(replyToken, replyMessages);
             } 
 
             // Reply with result
