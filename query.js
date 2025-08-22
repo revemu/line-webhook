@@ -403,6 +403,7 @@ module.exports = {
   queryWeekID,
   getTeamWeek,
   getMemberWeek,
+  getMatchWeek,
   updateMemberWeek,
   queryMemberbyLineID,
   queryMemberbyName,
