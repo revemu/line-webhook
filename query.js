@@ -147,7 +147,7 @@ async function queryMatchGoal(match_id, goal_status = 0) {
       } else {
         member_list += member.alias ;
       }
-      console.log(member) ;
+      //console.log(member) ;
     }
     
   }
@@ -237,7 +237,7 @@ async function getMatchWeek(type = 0) {
             var i = 0 ;
             let team_colors = await getTeamColorWeek(week_id) ;
             //team_colors = team_colors[0] ;
-            console.log(team_colors) ;
+            //console.log(team_colors) ;
             for (const match of matches) {
                 //const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
