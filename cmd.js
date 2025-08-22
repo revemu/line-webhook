@@ -110,7 +110,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             obj.hero.aspectRatio = "12:6"
             //console.log(msg) ;
             obj.body.contents = JSON.parse(msg) ;
-            //console.log(obj) ;
+            console.log(obj) ;
             //msg = test ;
             
             let carousel = flex.tpl_carousel ;
