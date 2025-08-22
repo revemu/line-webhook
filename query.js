@@ -118,6 +118,22 @@ async function queryMemberbyName(name) {
     return res ;
 }
 
+async function queryMatchGoal(match_id, goal_status = 0) {
+  let status ;
+  if (goal_status == 0) {
+    status = " < 2"
+  }
+  query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl" ;
+	$sql .= " WHERE match_goal_tbl.match_id=${match_id} and match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status}";
+	$sql .= " and match_goal_tbl.status=goal_status_tbl.id group by member_tbl.id`
+  const match_goals = await executeQuery(query) ;
+  if (res.length > 0) {
+    for (const member of match_goals) {
+      console.log(member) ;
+    }
+  }
+}
+
 async function getTeamColorWeek(week_id) {
 
     query = `select team_color_week_tbl.id, team_color_week_tbl.color,  template_tpl.url, template_tpl.code from team_color_week_tbl, template_tpl where week_id=${week_id} and team_color_week_tbl.color = template_tpl.value`;
@@ -242,8 +258,9 @@ async function getMatchWeek(type = 0) {
                     ],
                     "spacing": "xl"
                   }
-               
+                await queryMatchGoal(match.id, 0) ;
                 bubble.body.contents.push(match_box) ;
+                
                 //let msg = [] ;
                 
                  
