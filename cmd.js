@@ -92,7 +92,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             break ;*/
         case 'topscorer':
             msg = await db.getTopStat(10, 0) ;
-            console.log(msg) ;
+            console.log(JSON.stringify(msg)) ;
             //content = content.replace(/(\r\n|\n|\r)/gm, "");
             //console.log(content) ;
             /*const data = {
