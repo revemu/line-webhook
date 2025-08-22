@@ -344,7 +344,6 @@ async function getTableWeek(week_id = 0) {
                     {
                       "type": "text",
                       "text": table.w,
-                      "wrap": true,
                       "align": "center",
                       "size": "sm",
                       "flex": 1
