@@ -154,7 +154,7 @@ async function getTeamWeek(type = 0) {
                 bubble.body.contents.push( 
                 {
                     "type": "text",
-                    "text": `${team.color}`,
+                    "text": `${team.id}`,
                     "weight": "bold",
                     "size": "xl",
                     "align": "center"
