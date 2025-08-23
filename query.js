@@ -738,7 +738,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
                 }) ;
             i++ ;
         }
-        console.log(JSON.stringify(bubble)) ;
+        //console.log(JSON.stringify(bubble)) ;
         return bubble ;
         
     }               
