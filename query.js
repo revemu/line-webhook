@@ -38,6 +38,21 @@ async function executeQuery(query, params = []) {
   }
 }
 
+async function updateMember(member_id, value, type = 0) {
+
+  let query ;
+  if (type == 0) {
+    query = `update member_tbl set name=${value} where member_id=${member_id}`
+  } else if (type == 1) {
+    //query = `update member_team_week_tbl set team_id=${value} where member_id=${member_id} and week_id=${week_id}`
+  }
+
+  const res = await executeQuery(query) ;
+  //console.log(res) ;
+  return res ;
+
+}
+
 async function updateMemberWeek(member_id, value, type = 0) {
   const week = await queryWeekID() ;
   if (week.length > 0) {
@@ -756,6 +771,7 @@ module.exports = {
   getMemberWeek,
   getMatchWeek,
   getTableWeek,
+  updateMember,
   updateMemberWeek,
   queryMemberbyLineID,
   queryMemberbyName,
