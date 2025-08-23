@@ -5,6 +5,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     const pos = cmd_str.indexOf(" ") ;
     let cmd ;
     let param = "" ;
+    let msg ;
     var is_mention = false ;
     let member_id = member.id ;
     let member_name = member.name ;
@@ -27,6 +28,9 @@ async function process_cmd(cmd_str, member, quoteToken) {
             console.log(`mentioned member - ${param}, id: ${mention[0].id}`) ;
             member_id = mention[0].id ;
             member_name = param ;
+        } else {
+            cmd = "" ;
+            msg = "ไม่พบสมาชิก param"
         }
         
     } else {
@@ -38,7 +42,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     }
     console.log(`${cmd} - ${param}`) ;
     let replyMessages ;
-    let msg ;
+    
     var altText ;
     let msg_type = 0 ;
     let obj ;
