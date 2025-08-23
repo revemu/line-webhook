@@ -396,7 +396,9 @@ async function getTableWeek(week_id = 0) {
                     {
                       "type": "icon",
                       "size": "xs",
-                      "url": "https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png"
+                      "url": "https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png",
+                      "align": "end",
+                      "flex": 1
                     }
                   ) ;
                 }
