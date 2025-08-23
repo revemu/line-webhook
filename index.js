@@ -254,7 +254,8 @@ async function handleEvent(event) {
 
  
 async function manageMember(source, member) {
-    const res = await client.getGroupMemberProfile(source.userId, source.groupId) ;
+    const res = await client.getGroupMemberProfile(source.groupId, source.userId) ;
+    //client.getGroupMemberProfile()
     //const res = await client.getProfile(source.userId) ;
     //client.getGroupMemberProfile() ;
     let displayName ;
