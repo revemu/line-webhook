@@ -383,8 +383,10 @@ async function getTableWeek(week_id = 0) {
             //console.log(team_colors) ;
             for (const table of week_tables) {
               let top="" ;
+              let top_url = "https://commons.wikimedia.org/wiki/File:BLANK_ICON.png"
               if (i == 0) {
                 top = "🏆" ;
+                top_url = "https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png"
               }
                 //const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
@@ -397,43 +399,21 @@ async function getTableWeek(week_id = 0) {
                   "flex": 1
                 } ;
                 table_box.contents = [] ;
-                if (i==0) {
-                  const tmp_box =  {
-                    "type": "box",
-                    "layout": "baseline",
-                    "margin": "xs"
-                  } ;
-                  tmp_box.contents = [] ;
-                  table_box.contents.push(
+                
+                table_box.contents.push(
                     {
                       "type": "icon",
                       "size": "xs",
-                      "url": "https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png"
+                      "url": top_url
                     },
-                    {
+                   {
                       "type": "text",
                       "text": `${table.color}`,
                       "color": `${team.code}`,
                       "size": "sm",
                       "weight": "bold",
                       "flex": 1
-                    }
-                    
-                  ) ;
-                  //table_box.contents.push(tmp_box) ;
-                } else {
-                   table_box.contents.push(
-                    {
-                      "type": "text",
-                      "text": `${table.color}`,
-                      "color": `${team.code}`,
-                      "size": "sm",
-                      "weight": "bold",
-                      "flex": 1
-                    }
-                  ) ;
-                }
-                table_box.contents.push(
+                    },
                     {
                       "type": "text",
                       "text": `${table.w}`,
