@@ -483,7 +483,7 @@ async function getTableWeek(week_id = 0) {
                 i++ ;
                 //if (i > 2) break ;
             }  
-            //console.log(JSON.stringify(bubble)) ; 
+            console.log(JSON.stringify(bubble)) ; 
             return tables ;
         }
             
