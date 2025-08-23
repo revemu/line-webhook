@@ -430,15 +430,6 @@ async function getTableWeek(week_id = 0) {
                 table_box.contents.push(
                     {
                       "type": "text",
-                      "text": `${table.color}`,
-                      "color": `${team.code}`,
-                      "size": "sm",
-                      "weight": "bold",
-                      "align": "end",
-                      "flex": 1
-                    },
-                    {
-                      "type": "text",
                       "text": `${table.w}`,
                       "align": "center",
                       "size": "sm",
