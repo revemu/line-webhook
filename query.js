@@ -64,7 +64,7 @@ async function queryWeekID(week_id = 0) {
     }
     
     const res = await executeQuery(query) ;
-    //console.log(res) ;
+    console.log(res) ;
     return res ;
 }
 

@@ -83,11 +83,11 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case '+team2':
         case '+team3':
             if (is_mention) {
-                let team_num = Number(cmd.slice(-1)) ;
+                let team_num = Number(cmd.slice(-1)) - 1 ;
                 let week = await db.queryWeekID(0)
                 let team_colors = await db.getTeamColorWeek(week[0].id) ;
-                console.log(team_colors[team_num]) ;
-                //await db.updateMemberWeek(member_id, team_colors[0].id, 1) ;
+                //console.log(team_colors[team_num]) ;
+                await db.updateMemberWeek(member_id, team_colors[team_num].id, 1) ;
                 msg = `${member_name} อยู่ทีม ${team_colors[team_num].color}` ;
             } else {
                 msg = `ต้องระบุชื่อสมาชิกด้วย` ;
