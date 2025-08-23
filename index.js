@@ -292,7 +292,7 @@ async function handleMessage(event) {
     if (member.length == 0) {
         return ;
     }
-    
+
     console.log(`${member[0].name}: ${message.text}`);
 
     if (message.type === 'image') {
@@ -378,7 +378,7 @@ async function handleMessage(event) {
             default:
                 break ;
         }
-        console.log(text) ;
+        //console.log(text) ;
         return ;
         
         if (text.includes('hello') || text.includes('hi')) {
