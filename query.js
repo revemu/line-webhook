@@ -390,8 +390,8 @@ async function getTableWeek(week_id = 0) {
                   "layout": "baseline",
                   "margin": "xs"
                 } ;
-                table_box.contens = [] ;
-                table_box.contens.push(
+                table_box.contents = [] ;
+                table_box.contents.push(
                     {
                       "type": "text",
                       "text": `${top}${table.color}`,
