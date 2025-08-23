@@ -317,7 +317,7 @@ async function handleMessage(event) {
             endTime = new Date();
             timeElapsed = endTime - startTime; // Difference in milliseconds
             console.log(`Time read qr elapsed: ${timeElapsed} ms`) ;
-
+            console.log(codes) ;
             let replyMessages;
             if (codes.length > 0) {
                 const alphanumericRegex = /^[A-Za-z0-9]+$/;
