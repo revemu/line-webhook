@@ -704,12 +704,12 @@ async function getMemberWeek(type = 0) {
 
 async function getTopStat(limit = 10, type = 0) {
     let header = "";
-    let url = "";
     let query = "";
     let start = ""
     let status = "" ;
     let msg = [] ;
     const res = await getTemplate('top', type) ;
+    let url = res.url ;
     console.log(res) ;
     if (type == 0) {
       status = "< 2" ;
@@ -740,7 +740,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
         const currentYear = currentDate.getFullYear();
         const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
         bubble.size = "hecto" ;
-        bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
+        bubble.hero.url = url ;
         //bubble.hero.url = teamColor.url ;
         bubble.hero.aspectRatio = "12:6"
 
