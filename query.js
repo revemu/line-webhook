@@ -53,6 +53,17 @@ async function updateMember(member_id, value, type = 0) {
 
 }
 
+async function newMember(lineID, name) {
+
+  let query = `insert into member_tbl values('', '${name}', 0, 0, 0, '', '${lineID}', 0)` ;
+ 
+
+  const res = await executeQuery(query) ;
+  //console.log(res) ;
+  return res ;
+
+}
+
 async function updateMemberWeek(member_id, value, type = 0) {
   const week = await queryWeekID() ;
   if (week.length > 0) {
@@ -775,6 +786,7 @@ module.exports = {
   updateMemberWeek,
   queryMemberbyLineID,
   queryMemberbyName,
+  newMember,
   registerMember,
   unregisterMember,
   getTopStat,
