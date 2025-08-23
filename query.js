@@ -226,7 +226,7 @@ async function queryMatchGoal(match_id, goal_status = 0) {
         size: "xs"
       }
       ],
-      "spacing": "xl"
+      "spacing": "sm"
     }
   return box ;
 }
