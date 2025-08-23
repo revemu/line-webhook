@@ -124,6 +124,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg_type = 1 ;
             //msg = "teamweek" ;
             break ;*/
+        case 'topscorer':
+        case 'topassist':
+            msg = "ให้ใช้ /top แทน" ;
+            break ;
         case 'top':
     
             msg = await db.getTopStat(10, 0);
@@ -131,6 +135,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             carousel.contents = [] ;
             carousel.contents.push(msg) ;
             msg = await db.getTopStat(10, 1);
+            carousel.contents.push(msg) ;
+            msg = await db.getTopStat(10, 2);
             carousel.contents.push(msg) ;
             altText = `Top Stat` ;
             msg = carousel ;

@@ -701,17 +701,21 @@ async function getTopStat(limit = 10, type = 0) {
     let status = "" ;
     let msg = [] ;
     if (type == 0) {
-      status = "and match_goal_tbl.status < 2" ;
+      status = "< 2" ;
       header = "Top Scorer" ;
       
     } else if (type == 1) {
-      status = "and match_goal_tbl.status = 3" ;
+      status = "= 3" ;
       header = "Top Assist" ;
+    } else if (type == 2) {
+      status = "= 2" ;
+      header = "Top Owned Goal" ;
     }
+
     query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, 
 match_goal_tbl.status as statusid, count(*) as goal 
 FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl , week_tbl
-WHERE match_goal_tbl.member_id = member_tbl.id ${status}
+WHERE match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status}
 and match_goal_tbl.status=goal_status_tbl.id
 AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id 
 And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.id < 9000
