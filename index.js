@@ -289,7 +289,7 @@ async function handleMessage(event) {
     //const groupId = source.groupId ;
     //console.log(source) ;
     const member = await db.queryMemberbyLineID(userId) ;
-    console.log(`Message from user ${userId}: ${message.type}`);
+    //console.log(`Message from user ${userId}: ${message.type}`);
     if (source.groupId) {
         await manageMember(source, member) ;
     }
