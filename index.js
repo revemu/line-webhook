@@ -254,8 +254,8 @@ async function handleEvent(event) {
 
  
 async function manageMember(source, member) {
-    //const res = await client.getGroupMemberProfile(source.userId, source.groupId) ;
-    const res = await client.getProfile(source.userId) ;
+    const res = await client.getGroupMemberProfile(source.userId, source.groupId) ;
+    //const res = await client.getProfile(source.userId) ;
     //client.getGroupMemberProfile() ;
     let displayName ;
     if (res) {
@@ -269,6 +269,7 @@ async function manageMember(source, member) {
             console.log(`existing member ${source.userId}: ${member[0].name}`);
         } else {
             console.log(`update existing member name ${source.userId}: ${member[0].name} => ${displayName}`);
+            await db.updateMember(member[0].id, displayName, 0) ;
         }
     } else {
         console.log(`add new member ${source.userId}: ${displayName}`);
@@ -284,9 +285,9 @@ async function handleMessage(event) {
     console.log(source) ;
     const member = await db.queryMemberbyLineID(userId) ;
     console.log(`Message from user ${userId}: ${message.type}`);
-    //if (source.groupId) {
+    if (source.groupId) {
         await manageMember(source, member) ;
-    //}
+    }
     
     if (member.length == 0) {
         return ;
