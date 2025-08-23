@@ -270,6 +270,8 @@ async function manageMember(source, member) {
         } else {
             console.log(`update existing member name ${source.userId}: ${member[0].name} => ${displayName}`);
         }
+    } else {
+        console.log(`add new member ${source.userId}: ${displayName}`);
     }
     
 }
