@@ -69,8 +69,15 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = await db.getMemberWeek(0) ;
             break ;
         case '-team':
-            await db.updateMemberWeek(member_id, 0, 1) ;
-            msg = `${member_name} ยังไม่มีทีม` ;
+            if (is_mention) {
+                week = await db.queryWeekID(0)
+                let team_colors = await db.getTeamColorWeek(week_id) ;
+                console.log(team_colors) ;
+                //await db.updateMemberWeek(member_id, 0, 1) ;
+                msg = `${member_name} ยังไม่มีทีม` ;
+            } else {
+                msg = `ต้องระบุชื่อสมาชิกด้วย` ;
+            }
             break ;
         case '+team1':
         case '+team2':
