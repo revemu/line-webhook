@@ -199,6 +199,7 @@ async function queryMatchGoal(match_id, goal_status = 0) {
     let i = 0 ;
     for (const member of match_goals) {
       console.log(`${member.name} ${match_id}`) ;
+      console.log(`${member}`) ;
       if (i > 0) {
         member_list += ", "
       }
