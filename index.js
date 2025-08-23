@@ -450,7 +450,7 @@ app.use((error, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
+app.listen(3001, async () => {
     console.log(`LINE Webhook server running on port ${PORT}`);
     console.log(`Webhook URL: http://localhost:${PORT}/webhook`);
     
