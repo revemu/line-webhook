@@ -308,7 +308,7 @@ async function getTableWeek(week_id = 0) {
             tables.push({
             "type": "box",
             "layout": "baseline",
-			      "margin": "xs",
+			      "margin": "xxs",
             "contents": [
               {
                 "type": "text",
@@ -388,8 +388,10 @@ async function getTableWeek(week_id = 0) {
                 const table_box =  {
                   "type": "box",
                   "layout": "baseline",
-                  "margin": "xs",
-                  "contents": [
+                  "margin": "xxs"
+                } ;
+                table_box.contens = [] ;
+                table_box.contens.push(
                     {
                       "type": "text",
                       "text": `${top}${table.color}`,
@@ -441,8 +443,7 @@ async function getTableWeek(week_id = 0) {
                       "align": "center",
                       "flex": 1
                     }
-                  ]
-                }
+                  ) ;
                 //console.log(table_box) ;
                 tables.push(table_box) ;
                 i++ ;
