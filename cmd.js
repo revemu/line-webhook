@@ -85,7 +85,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             if (is_mention) {
                 week = await db.queryWeekID(0)
                 let team_colors = await db.getTeamColorWeek(week[0].id) ;
-                console.log(team_colors) ;
+                console.log(team_colors[0]) ;
                 //await db.updateMemberWeek(member_id, 0, 1) ;
                 msg = `${member_name} ยังไม่มีทีม` ;
             } else {
