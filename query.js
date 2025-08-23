@@ -674,10 +674,13 @@ async function getTopStat(limit = 10, type = 0) {
     let start = ""
     let status = "" ;
     let msg = [] ;
-    if (type < 2) {
+    if (type == 0) {
       status = "and match_goal_tbl.status < 2" ;
-      //header = " Top Scorer    " ;
+      header = "Top Scorer" ;
       
+    } else if (type == 1) {
+      status = "and match_goal_tbl.status = 3" ;
+      header = "Top Assist" ;
     }
     query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, 
 match_goal_tbl.status as statusid, count(*) as goal 
@@ -703,7 +706,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
         bubble.body.contents.push( 
         {
             "type": "text",
-            "text": `${currentYear} Top Scorer`,
+            "text": `${currentYear} ${header}`,
             "weight": "bold",
             "size": "md",
             "align": "center"

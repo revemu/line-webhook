@@ -127,7 +127,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'topscorer':
     
             msg = await db.getTopStat(10, 0);
-            altText = `Top Scorer` ;
+            let carousel = flex.tpl_carousel ;
+            carousel.contents = [] ;
+            carousel.contents.push(msg) ;
+            msg = await db.getTopStat(10, 1);
+            carousel.contents.push(msg) ;
+            altText = `Top Stat` ;
+            msg = carousel ;
             msg_type = 1 ;
             break ;
         case 'testcarousel':
@@ -151,7 +157,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             console.log(obj) ;
             //msg = test ;
             
-            let carousel = flex.tpl_carousel ;
+            carousel = flex.tpl_carousel ;
             carousel.contents = [] ;
             carousel.contents.push(obj) ;
             carousel.contents.push(obj) ;
