@@ -391,10 +391,19 @@ async function getTableWeek(week_id = 0) {
                   "margin": "xs"
                 } ;
                 table_box.contents = [] ;
+                if (i==0) {
+                  table_box.contents.push(
+                    {
+                      "type": "icon",
+                      "size": "xs",
+                      "url": "https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png"
+                    }
+                  ) ;
+                }
                 table_box.contents.push(
                     {
                       "type": "text",
-                      "text": `${top}${table.color}`,
+                      "text": `${table.color}`,
                       "color": `${team.code}`,
                       "size": "sm",
                       "weight": "bold",
