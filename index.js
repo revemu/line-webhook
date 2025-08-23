@@ -331,11 +331,12 @@ async function handleMessage(event) {
                     //let slipjson = tpl_slipjson ;
 
                     //slipjson = JSON.parse(slipjson) ;
-                    console.log(slipjson) ;
+                    //console.log(slipjson) ;
                     let header ;
                     if (slipjson.hasOwnProperty('status')) {
                         await db.updateMemberWeek(member[0].id, 1, 0) ;
                         header = checkSlip(slipjson, member[0].name) ;
+                        console.log(header) ;
                     }
 
                     const msg = await db.getMemberWeek(0) ;
