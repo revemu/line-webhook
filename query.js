@@ -209,6 +209,8 @@ async function queryMatchGoal(match_id, goal_status = 0) {
     {
       type: "box",
       layout: "baseline",
+      "margin": "xs",
+      "flex": 1,
       contents: [
       {
         "type": "icon",
