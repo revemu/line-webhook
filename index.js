@@ -319,7 +319,7 @@ async function handleMessage(event) {
             console.log(`Time read qr elapsed: ${timeElapsed} ms`) ;
             console.log(codes) ;
             let replyMessages;
-            if (codes.length > 0) {
+            if (codes != null) {
                 const alphanumericRegex = /^[A-Za-z0-9]+$/;
                 const qrCode = codes[0].data ;
                 console.log('QR code detected:', qrCode) ;
