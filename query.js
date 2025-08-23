@@ -778,7 +778,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
         bubble.size = "hecto" ;
         bubble.hero.url = url ;
         //bubble.hero.url = teamColor.url ;
-        bubble.hero.aspectRatio = "12:6"
+        bubble.hero.aspectRatio = "6:2"
 
         bubble.body.contents = [] ;
         bubble.body.contents.push( 
