@@ -177,6 +177,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg_type = 1 ;
             break ;
         default:
+            msg = "ไม่รู้จักคำสั่งนี้"
             break ;
     }
 
