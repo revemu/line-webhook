@@ -710,7 +710,7 @@ async function getTopStat(limit = 10, type = 0) {
     let msg = [] ;
     const res = await getTemplate('top', type) ;
     let url = res.url ;
-    console.log(res) ;
+    //console.log(res) ;
     if (type == 0) {
       status = "< 2" ;
       header = "Top Scorer" ;
