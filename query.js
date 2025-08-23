@@ -90,6 +90,22 @@ async function unregisterMember(member_id) {
     return false ;
 }
 
+async function IsMemberWeek(member_id) {
+  const week = await queryWeekID() ;
+  if (week.length > 0) {
+    const week_id = week[0].id ;
+    const query = `SELECT * from member_team_week_tbl where week_id=${week_id} and member_id=${member_id}`  ;
+    const res = await executeQuery(query) ;
+    //console.log(`${res.length}`)
+    if (res.length > 0) {
+      //console.log(`${week_id}`)
+      return true ;
+    } else {
+      return false ;
+    }
+  }
+}
+
 async function registerMember(member_id, member_name) {
     const week = await queryWeekID() ;
     if (week.length > 0) {
@@ -742,5 +758,6 @@ module.exports = {
   queryMemberbyName,
   registerMember,
   unregisterMember,
-  getTopStat
+  getTopStat,
+  IsMemberWeek
 };
