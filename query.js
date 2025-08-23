@@ -178,11 +178,13 @@ async function queryMatchGoal(match_id, goal_status = 0) {
     icon = "⚽" ;
     url = "https://api.revemu.org/ball_ico.png" ;
     size = "md" ;
+    offsetTop = "xs" ;
   } else if (goal_status == 3){
     status = " = 3" ;
     icon = "👟" ;
     url = "https://api.revemu.org/boot_ico.png" ;
     size = "lg" ;
+    offsetTop = "sm" ;
   }
 
   query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status,match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl WHERE match_goal_tbl.match_id=${match_id} and match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id group by member_tbl.id`
@@ -218,7 +220,8 @@ async function queryMatchGoal(match_id, goal_status = 0) {
       {
         "type": "icon",
         "size": size,
-        "url": url
+        "url": url,
+        "offsetTop": offsetTop 
       },
       {
         type: "text",
