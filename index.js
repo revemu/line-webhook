@@ -356,10 +356,10 @@ async function handleMessage(event) {
 
         } catch (error) {
             console.error('Error processing image:', error);
-            await replyMessage(replyToken, [{
+            /*await replyMessage(replyToken, [{
                 type: 'text',
                 text: 'Sorry, I encountered an error while processing your image. Please try again.'
-            }]);
+            }]);*/
         }
     } else if (message.type === 'text') {
         // Handle text messages
