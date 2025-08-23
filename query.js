@@ -530,7 +530,7 @@ async function getMatchWeek(week_id = 0) {
                 margin: "md"
               }
             ) ;
-            //return bubble ;
+            return bubble ;
             //var bubble = new Array(team_colors.length) ;
             var i = 0 ;
             let team_colors = await getTeamColorWeek(week_id) ;
