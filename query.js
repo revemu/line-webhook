@@ -392,12 +392,37 @@ async function getTableWeek(week_id = 0) {
                 } ;
                 table_box.contents = [] ;
                 if (i==0) {
-                  table_box.contents.push(
+                  const tmp_box =  {
+                    "type": "box",
+                    "layout": "baseline",
+                    "margin": "xs"
+                  } ;
+                  tmp_box.contents = [] ;
+                  tmp_box.contents.push(
                     {
                       "type": "icon",
                       "size": "xs",
-                      "url": "https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png",
-                      "align": "end",
+                      "url": "https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png"
+                    },
+                    {
+                      "type": "text",
+                      "text": `${table.color}`,
+                      "color": `${team.code}`,
+                      "size": "sm",
+                      "weight": "bold",
+                      "flex": 1
+                    }
+                    
+                  ) ;
+                  table_box.contents.push(tmp_box) ;
+                } else {
+                   table_box.contents.push(
+                    {
+                      "type": "text",
+                      "text": `${table.color}`,
+                      "color": `${team.code}`,
+                      "size": "sm",
+                      "weight": "bold",
                       "flex": 1
                     }
                   ) ;
