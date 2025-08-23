@@ -311,6 +311,11 @@ async function getTableWeek(week_id = 0) {
 			      "margin": "xs",
             "contents": [
               {
+                      "type": "icon",
+                      "size": "xs",
+                      "url": "https://commons.wikimedia.org/wiki/File:BLANK_ICON.png"
+              },
+              {
                 "type": "text",
                 "text": "Team",
                 "weight": "bold",
@@ -388,7 +393,8 @@ async function getTableWeek(week_id = 0) {
                 const table_box =  {
                   "type": "box",
                   "layout": "baseline",
-                  "margin": "xs"
+                  "margin": "xs",
+                  "flex": 1
                 } ;
                 table_box.contents = [] ;
                 if (i==0) {
