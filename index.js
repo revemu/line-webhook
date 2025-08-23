@@ -292,6 +292,8 @@ async function handleMessage(event) {
     if (member.length == 0) {
         return ;
     }
+    
+    console.log(`${member[0].name}: ${message.text}`);
 
     if (message.type === 'image') {
         try {
