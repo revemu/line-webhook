@@ -113,8 +113,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             break ;
         case 'matchweek':
             week = await db.queryWeekID(0)
-            msg = await db.getMatchWeek(week[0].id) ;
-            //msg = await db.getMatchWeek(271) ;
+            //msg = await db.getMatchWeek(week[0].id) ;
+            msg = await db.getMatchWeek(271) ;
             altText = `Match Week ${week[0].date}` ;
             msg_type = 1 ;
             //msg = "teamweek" ;
