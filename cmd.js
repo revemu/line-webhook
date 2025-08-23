@@ -68,6 +68,19 @@ async function process_cmd(cmd_str, member, quoteToken) {
             await db.updateMemberWeek(member_id, 0, 0) ;
             msg = await db.getMemberWeek(0) ;
             break ;
+        case '-team':
+            await db.updateMemberWeek(member_id, 0, 1) ;
+            msg = `${member_name} ยังไม่มีทีม` ;
+            break ;
+        case '+team1':
+        case '+team2':
+        case '+team3':
+            week = await db.queryWeekID(0)
+            let team_colors = await db.getTeamColorWeek(week_id) ;
+            console.log(team_colors) ;
+            //await db.updateMemberWeek(member_id, 0, 1) ;
+            msg = `${member_name} ยังไม่มีทีม` ;
+            break ;
         case 'teamweek':
             week = await db.queryWeekID(0)
             console.log(week) ;
