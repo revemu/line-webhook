@@ -28,7 +28,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             console.log(`mentioned member - ${param}, id: ${mention[0].id}`) ;
             member_id = mention[0].id ;
             member_name = param ;
-            if (cmd != '+1' || cmd != '-1') {
+            if (cmd != '+1' && cmd != '-1') {
                 if (!await db.IsMemberWeek(member_id)) {
                     cmd = "" ;
                     msg = `สมาชิก ${param} ไม่ได้ลงชื่อในสัปดาห์นี้`
