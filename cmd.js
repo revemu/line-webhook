@@ -124,7 +124,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg_type = 1 ;
             //msg = "teamweek" ;
             break ;*/
-        case 'topscorer':
+        case 'top':
     
             msg = await db.getTopStat(10, 0);
             let carousel = flex.tpl_carousel ;
