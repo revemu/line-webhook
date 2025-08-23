@@ -308,7 +308,7 @@ async function getTableWeek(week_id = 0) {
             tables.push({
             "type": "box",
             "layout": "baseline",
-			      "margin": "xxs",
+			      "margin": "xs",
             "contents": [
               {
                 "type": "text",
@@ -388,7 +388,7 @@ async function getTableWeek(week_id = 0) {
                 const table_box =  {
                   "type": "box",
                   "layout": "baseline",
-                  "margin": "xxs"
+                  "margin": "xs"
                 } ;
                 table_box.contens = [] ;
                 table_box.contens.push(
