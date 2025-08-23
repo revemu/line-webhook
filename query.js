@@ -228,6 +228,15 @@ async function getTeamColorWeek(week_id) {
         
 }
 
+async function getTemplate(name, value) {
+  query = `select * from template_tpl where name='${name}' and value='${value}'`  ;
+    
+    const result = await executeQuery(query) ;
+    if (result.length > 0) {
+        return result[0] ;
+    }
+}
+
 async function getTeamColor(color) {
   query = `select * from template_tpl where name='team_color' and value='${color}'`  ;
     
@@ -695,14 +704,17 @@ async function getMemberWeek(type = 0) {
 
 async function getTopStat(limit = 10, type = 0) {
     let header = "";
-    let body = "";
+    let url = "";
     let query = "";
     let start = ""
     let status = "" ;
     let msg = [] ;
+    const res = await getTemplate('top', type) ;
+    console.log(res) ;
     if (type == 0) {
       status = "< 2" ;
       header = "Top Scorer" ;
+      
       
     } else if (type == 1) {
       status = "= 3" ;
