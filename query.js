@@ -474,10 +474,7 @@ async function getMatchWeek(week_id = 0) {
             bubble.hero.aspectRatio = "12:6"
 
             bubble.body.contents = [] ;
-            const tables = await getTableWeek(week_id)
-            for (const table of tables) {
-                bubble.body.contents.push(table) ;
-            }
+            
                 
             bubble.body.contents.push(
 
@@ -573,6 +570,10 @@ async function getMatchWeek(week_id = 0) {
                 //if (i > 2) break ;
             }  
             //console.log(JSON.stringify(bubble)) ; 
+            const tables = await getTableWeek(week_id)
+            for (const table of tables) {
+                bubble.body.contents.push(table) ;
+            }
             return bubble ;
         }
             
