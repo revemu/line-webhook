@@ -198,6 +198,7 @@ async function queryMatchGoal(match_id, goal_status = 0) {
     
     let i = 0 ;
     for (const member of match_goals) {
+      console.log(member) ;
       if (i > 0) {
         member_list += ", "
       }
@@ -608,7 +609,7 @@ async function getMatchWeek(week_id = 0) {
             for (const table of tables) {
                 bubble.body.contents.push(table) ;
             }
-            console.log(JSON.stringify(bubble)) ;
+            //console.log(JSON.stringify(bubble)) ;
             return bubble ;
         }
             
