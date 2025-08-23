@@ -500,7 +500,7 @@ async function getMatchWeek(week_id = 0) {
           week_id = res[0].id ;
         }
         const matches = await queryMatchWeek(week_id) ;
-        
+        console.log(matches) ;
         if (matches.length > 0) {
             const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
             bubble.size = "giga" ;
