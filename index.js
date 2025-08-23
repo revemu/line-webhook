@@ -245,10 +245,13 @@ app.post('/webhook', (req, res) => {
 
 // Handle incoming events
 async function handleEvent(event) {
-    console.log('Received event:', event.type);
+    //console.log('Received event:', event.type);
 
     if (event.type === 'message') {
         await handleMessage(event);
+    } else {
+        console.log('Received event:', event.type);
+        console.log(event) ;
     }
 }
 
@@ -267,7 +270,7 @@ async function manageMember(source, member) {
     if (member.length > 0) {
         //console.log(member) ;
         if (displayName == member[0].name) {
-            console.log(`existing member ${source.userId}: ${member[0].name}`);
+            //console.log(`existing member ${source.userId}: ${member[0].name}`);
         } else {
             console.log(`update existing member name ${source.userId}: ${member[0].name} => ${displayName}`);
             await db.updateMember(member[0].id, displayName, 0) ;
@@ -284,7 +287,7 @@ async function handleMessage(event) {
     const { replyToken, message, source } = event;
     const userId = source.userId;
     //const groupId = source.groupId ;
-    console.log(source) ;
+    ฝฝconsole.log(source) ;
     const member = await db.queryMemberbyLineID(userId) ;
     console.log(`Message from user ${userId}: ${message.type}`);
     if (source.groupId) {
@@ -295,7 +298,7 @@ async function handleMessage(event) {
         return ;
     }
 
-    console.log(`${member[0].name}: ${message.text}`);
+    
 
     if (message.type === 'image') {
         try {
@@ -360,6 +363,7 @@ async function handleMessage(event) {
         }
     } else if (message.type === 'text') {
         // Handle text messages
+        console.log(`${member[0].name}: ${message.text}`);
         const text = message.text.trim() ;
         const op = text.substring(0,1) ;
         let index = 0 ;
