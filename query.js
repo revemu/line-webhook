@@ -391,14 +391,14 @@ async function getTableWeek(week_id = 0) {
                   "margin": "xs"
                 } ;
                 table_box.contents = [] ;
-                if (i==-1) {
+                if (i==0) {
                   const tmp_box =  {
                     "type": "box",
                     "layout": "baseline",
                     "margin": "xs"
                   } ;
                   tmp_box.contents = [] ;
-                  tmp_box.contents.push(
+                  table_box.contents.push(
                     {
                       "type": "icon",
                       "size": "xs",
@@ -414,7 +414,7 @@ async function getTableWeek(week_id = 0) {
                     }
                     
                   ) ;
-                  table_box.contents.push(tmp_box) ;
+                  //table_box.contents.push(tmp_box) ;
                 } else {
                    table_box.contents.push(
                     {
