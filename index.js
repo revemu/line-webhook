@@ -303,6 +303,7 @@ async function handleMessage(event) {
     if (message.type === 'image') {
         try {
             //console.log('Processing image message...');
+            console.log(`${member[0].name}: sent image! need processing...`);
             let startTime = new Date() ;
             // Get image content from LINE
             const imageBuffer = await getImageContent(message.id);
@@ -317,7 +318,7 @@ async function handleMessage(event) {
             endTime = new Date();
             timeElapsed = endTime - startTime; // Difference in milliseconds
             console.log(`Time read qr elapsed: ${timeElapsed} ms`) ;
-            console.log(codes) ;
+            //console.log(codes) ;
             let replyMessages;
             if (codes) {
                 const alphanumericRegex = /^[A-Za-z0-9]+$/;
