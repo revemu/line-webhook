@@ -721,7 +721,7 @@ async function getTopStat(limit = 10, type = 0) {
       header = "Top Assist" ;
     } else if (type == 2) {
       status = "= 2" ;
-      header = "Top Owned Goal" ;
+      header = "Top Own Goal" ;
     }
 
     query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, 
