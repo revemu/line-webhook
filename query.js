@@ -391,7 +391,7 @@ async function getTableWeek(week_id = 0) {
                   "margin": "xs"
                 } ;
                 table_box.contents = [] ;
-                if (i==0) {
+                if (i==-1) {
                   const tmp_box =  {
                     "type": "box",
                     "layout": "baseline",
