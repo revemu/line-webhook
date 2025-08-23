@@ -584,7 +584,7 @@ async function getMatchWeek(week_id = 0) {
                     bubble.body.contents.push(await queryMatchGoal(match.id, 3)) ;
                 }
                 i++ ;
-                //if (i > 2) break ;
+                if (i > 2) break ;
             }  
             //console.log(JSON.stringify(bubble)) ; 
             bubble.body.contents.push({
@@ -596,6 +596,7 @@ async function getMatchWeek(week_id = 0) {
             for (const table of tables) {
                 bubble.body.contents.push(table) ;
             }
+            console.log(JSON.stringify(bubble)) ;
             return bubble ;
         }
             
