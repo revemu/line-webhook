@@ -287,7 +287,7 @@ async function handleMessage(event) {
     const { replyToken, message, source } = event;
     const userId = source.userId;
     //const groupId = source.groupId ;
-    ฝฝconsole.log(source) ;
+    //console.log(source) ;
     const member = await db.queryMemberbyLineID(userId) ;
     console.log(`Message from user ${userId}: ${message.type}`);
     if (source.groupId) {
