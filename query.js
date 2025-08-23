@@ -477,12 +477,6 @@ async function getMatchWeek(week_id = 0) {
             
                 
             bubble.body.contents.push(
-
-              {
-                type: "separator",
-                margin: "md",
-                color: "#000000"
-              },
               {
                 type: "text",
                 text: `Match Week`,
@@ -570,6 +564,11 @@ async function getMatchWeek(week_id = 0) {
                 //if (i > 2) break ;
             }  
             //console.log(JSON.stringify(bubble)) ; 
+            bubble.body.contents.push({
+                type: "separator",
+                margin: "md",
+                color: "#000000"
+            }) ;
             const tables = await getTableWeek(week_id)
             for (const table of tables) {
                 bubble.body.contents.push(table) ;
