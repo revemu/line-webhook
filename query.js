@@ -460,7 +460,7 @@ async function getTableWeek(week_id = 0) {
 async function getMatchWeek(week_id = 0) {
 
     res = await queryWeekID(week_id) ;
-    
+    console.log(res) ;
     if (res.length > 0) {
          if (week_id == 0) {
           week_id = res[0].id ;
