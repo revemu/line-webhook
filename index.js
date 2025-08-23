@@ -273,6 +273,7 @@ async function manageMember(source, member) {
         }
     } else {
         console.log(`add new member ${source.userId}: ${displayName}`);
+        await db.newMember(source.userId, displayName) ;
     }
     
 }
