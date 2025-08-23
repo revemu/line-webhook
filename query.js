@@ -214,7 +214,7 @@ async function queryMatchGoal(match_id, goal_status = 0) {
       contents: [
       {
         "type": "icon",
-        "size": "xs",
+        "size": "md",
         "url": url
       },
       {
