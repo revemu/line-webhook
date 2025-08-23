@@ -320,7 +320,6 @@ async function getTableWeek(week_id = 0) {
                 "text": "Team",
                 "weight": "bold",
                 "size": "sm",
-                "align": "end",
                 "flex": 1
               },
               {
