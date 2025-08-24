@@ -67,17 +67,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
     switch (cmd) {
         case '+1':
             if (!await db.registerMember(member_id, member_name)) {
-                console.log(`${member_name} ลงทะเบียนแล้ว!`) ;
-            } else {
-                console.log(`${member_name} ยังไม่ได้ลงทะเบียน`) ;
-            }
+                console.log(`${member_name} ลงทะเบียนไปแล้ว!`) ;
+            } 
             msg = await db.getMemberWeek(1) ;
             break ;
         case '-1':
             if (await db.unregisterMember(member_id)) {
-                console.log(`${member_name} ลงทะเบียนแล้ว!`) ;
-            } else {
-                console.log(`${member_name} ยังไม่ได้ลงทะเบียน`) ;
+                console.log(`${member_name} พบข้อมูลลงทะเบียน!`) ;
             }
             msg = await db.getMemberWeek(1) ;
             break ;
