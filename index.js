@@ -318,13 +318,14 @@ async function handleMessage(event) {
             endTime = new Date();
             timeElapsed = endTime - startTime; // Difference in milliseconds
             console.log(`Time read qr elapsed: ${timeElapsed} ms`) ;
-            //console.log(codes) ;
+            console.log(codes) ;
+            
             let replyMessages;
             if (codes) {
                 const alphanumericRegex = /^[A-Za-z0-9]+$/;
                 const qrCode = codes[0].data ;
                 console.log('QR code detected:', qrCode) ;
-                if (alphanumericRegex.test(qrCode) && qrCode.includes("60000010103")) {
+                //if (alphanumericRegex.test(qrCode) && qrCode.includes("60000010103")) {
                     
                     let slipjson = await getSlipInfo(codes[0].data) ;
                 
@@ -349,7 +350,7 @@ async function handleMessage(event) {
                         text: header + msg
                     }];
                     await replyMessage(replyToken, replyMessages);
-                    }
+                //}
                 
             } 
 
