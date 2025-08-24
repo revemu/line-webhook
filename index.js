@@ -260,7 +260,7 @@ async function handleEvent(event) {
 
  
 async function manageMember(source, member, line_name) {
-    const res = await client.getGroupMemberProfile(source.groupId, source.userId) ;
+    //const res = await client.getGroupMemberProfile(source.groupId, source.userId) ;
     //client.getGroupMemberProfile()
     //const res = await client.getProfile(source.userId) ;
     //client.getGroupMemberProfile() ;
