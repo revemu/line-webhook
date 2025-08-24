@@ -759,7 +759,7 @@ async function getMemberWeek(type = 0) {
         if (result.length > 0) {
             const date = new Date(res[0].date) ;
             
-            header = `${start}${result.length} ${header} เสาร์ที่ ${getFormatDate(date)}\n\n`;
+            header = `${start}${result.length} ${header} เสาร์ที่ ${await getFormatDate(date)}\n\n`;
             let i = 0;
             for (const member of result) {
                 body += (i+1) + ". " + member.name + "\n";
