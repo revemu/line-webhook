@@ -401,30 +401,9 @@ async function handleMessage(event) {
         }
         //console.log(text) ;
         return ;
-        
-        if (text.includes('hello') || text.includes('hi')) {
-            await replyMessage(replyToken, [{
-                type: 'text',
-                text: 'Hello! Send me an image with a QR code or barcode and I\'ll read it for you! 📷📱'
-            }]);
-   
-        } else {
-            const data = {
-                img_url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-                header: 'Soccerbot',
-                content: 'Soccerbot test'
-            };
-            
-            const flexMessageJson = flex.replacePlaceholders(flex.report_template, data);
 
-            const flexmsg = {
-                type: 'flex',
-                altText: 'This is a Flex Message',
-                contents: flexMessageJson,
-            };
-            //const flexMessage = flex.replacePlaceholders(flex.flexTemplate, productData);
-            await replyMessage(replyToken, [flexmsg]);
-        }
+    } else {
+        console.log(`${member[0].name}: sent ${message.type}`);
     }
 }
 
