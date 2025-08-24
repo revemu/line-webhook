@@ -64,6 +64,20 @@ async function newMember(lineID, name) {
 
 }
 
+async function newWeek(week_date) {
+  const week = await queryWeekID() ;
+  const pos = week_date.indexOf('-') ;
+  const year = week_date.substring(0,pos)
+  let query = `insert into week_tbl values('', '${week[0].number + 1}', '${week_date}', 2, ${year}` ;
+  console.log(query) ;
+ 
+
+  //const res = await executeQuery(query) ;
+  //console.log(res) ;
+  //return res ;
+
+}
+
 async function updateMemberWeek(member_id, value, type = 0) {
   const week = await queryWeekID() ;
   if (week.length > 0) {
@@ -849,5 +863,6 @@ module.exports = {
   registerMember,
   unregisterMember,
   getTopStat,
-  IsMemberWeek
+  IsMemberWeek,
+  newWeek
 };
