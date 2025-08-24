@@ -150,11 +150,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'newweek':
             const next_sat = getNextSaturday() ;
             await db.newWeek(next_sat) ;
-            const y = next_sat.getFullYear();
-            const d = ('0' + next_sat.getDate()).slice(-2);
-            const month = await db.getMonthName(next_sat.getMonth())
-            console.log(next_sat) ;
-            msg = `ลงชื่อเตะบอล เสาร์ที่ ${d} ${month} ${y} ได้` ;
+            msg = `ลงชื่อเตะบอล เสาร์ที่ ${db.getFormatDate(next_sat)} ได้` ;
             break ;
         case 'top':
     
