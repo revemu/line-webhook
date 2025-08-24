@@ -815,7 +815,7 @@ async function getTopStat(limit = 10, type = 0) {
         bubble.size = "hecto" ;
         bubble.hero.url = url ;
         //bubble.hero.url = teamColor.url ;
-        bubble.hero.aspectRatio = "6:2"
+        bubble.hero.aspectRatio = "6:3"
 
         bubble.body.contents = [] ;
         bubble.body.contents.push( 
@@ -868,7 +868,7 @@ async function getTopStat(limit = 10, type = 0) {
                 }) ;
             i++ ;
         }
-        console.log(JSON.stringify(bubble)) ;
+        //console.log(JSON.stringify(bubble)) ;
         return bubble ;
         
     }               
