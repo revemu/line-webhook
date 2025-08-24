@@ -15,7 +15,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     const pos = cmd_str.indexOf(" ") ;
     let cmd ;
     let param = "" ;
-    let msg ;
+    let msg = "";
     var is_mention = false ;
     let member_id = member.id ;
     let member_name = member.name ;
