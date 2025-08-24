@@ -339,11 +339,12 @@ async function getTableWeek(week_id = 0) {
 
             bubble.body.contents = [] ;
             let tables = [];
-
+            const date = new Date(res[0].date) ;
+            const date_str = await getFormatDate(date) ;
             tables.push(
               {
                 type: "text",
-                text: `Table Week`,
+                text: `Table Week - ${date_str}`,
                 weight: "bold",
                 size: "lg",
                 align: "center",
@@ -543,11 +544,12 @@ async function getMatchWeek(week_id = 0) {
 
             bubble.body.contents = [] ;
             
-                
+            const date = new Date(res[0].date) ;
+            const date_str = await getFormatDate(date) ;
             bubble.body.contents.push(
               {
                 type: "text",
-                text: `Match Week`,
+                text: `Match Week - ${date_str}`,
                 weight: "bold",
                 size: "lg",
                 align: "center",
