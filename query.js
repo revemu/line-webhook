@@ -812,7 +812,7 @@ and match_goal_tbl.status=goal_status_tbl.id
 AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id 
 And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.id < 9000
 group by member_tbl.id order by goal DESC limit ${limit}` ;
-    
+    console.log(query) ;
     const result = await executeQuery(query) ;
     if (result.length > 0) {
         let i = 0;
@@ -875,7 +875,7 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
                 }) ;
             i++ ;
         }
-        console.log(JSON.stringify(bubble)) ;
+        //console.log(JSON.stringify(bubble)) ;
         return bubble ;
         
     }               
