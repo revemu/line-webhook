@@ -748,7 +748,7 @@ async function getMemberWeek(type = 0) {
             header = " คนที่ยังไมได้จ่ายค่าสนาม" ;
             query += " and pay=0" ; 
         } else if (type == 1) {
-            header = " ลงชื่อเตะบอล" ; 
+            header = " ที่ลงชื่อเตะบอล" ; 
             start = "+"
         }
         
@@ -758,7 +758,7 @@ async function getMemberWeek(type = 0) {
             const y = date.getFullYear();
             const d = ('0' + date.getDate()).slice(-2);
             const month = await getMonthName(date.getMonth())
-            header = `${start}${result.length} ${header} เสาร์ที่ ${d} ${month} ${y} ได้\n\n`;
+            header = `${start}${result.length} ${header} เสาร์ที่ ${d} ${month} ${y}\n\n`;
             let i = 0;
             for (const member of result) {
                 body += (i+1) + ". " + member.name + "\n";
