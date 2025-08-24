@@ -81,9 +81,9 @@ async function newWeek(week_date) {
   console.log(query) ;
  
 
-  //const res = await executeQuery(query) ;
+  const res = await executeQuery(query) ;
   //console.log(res) ;
-  //return res ;
+  return res ;
 
 }
 
