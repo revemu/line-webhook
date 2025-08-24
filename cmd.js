@@ -164,7 +164,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             carousel.contents.push(msg) ;
             altText = `Top Stat` ;
             msg = carousel ;
-            console.log(JSON.stringify(msg))
+            //console.log(JSON.stringify(msg))
             msg_type = 1 ;
             break ;
         case 'testcarousel':
