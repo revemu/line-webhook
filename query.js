@@ -828,13 +828,24 @@ group by member_tbl.id order by goal DESC limit ${limit}` ;
         }
         ) ;
         //return bubble ;
+        let top_url = ""
         for (const member of result) {
             //body += `${i+1}. ${member.name}  ${member.goal} `;
+            if (i==0) {
+              top_url = "https://api.revemu.org/g_medal_ico.png" ;
+            } else {
+              top_url = "https://commons.wikimedia.org/wiki/File:BLANK_ICON.png"
+            }
             bubble.body.contents.push( {
                     "type": "box",
                     "layout": "baseline",
                     "margin": "xs",
                     "contents": [
+                      {
+                      "type": "icon",
+                      "size": "xs",
+                      "url": top_url
+                      },
                       {
                         "type": "text",
                         "text": `${i+1}. ${member.name.replace("@",'')}`,
