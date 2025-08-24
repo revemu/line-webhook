@@ -149,16 +149,6 @@ async function getImageContent(messageId, type = 0) {
     }
 }
 
-function getNextSaturdaySimple() {
-    const date = new Date();
-    date.setDate(date.getDate() + (6 - date.getDay() + 7) % 7 || 7);
-    const d = ('0' + date.getDate()).slice(-2);
-    const m = ('0' + (date.getMonth()+1)).slice(-2);
-    const y = date.getFullYear();
-
-    return date;
-}
-
 // Function to read QR code from image buffer using zbarimg CLI
 async function readQRCode(imageBuffer) {
     let tempFilePath = null;

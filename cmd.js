@@ -1,6 +1,16 @@
 const db = require('./query');
 const flex = require('./flex');
 
+function getNextSaturday() {
+    const date = new Date();
+    date.setDate(date.getDate() + (6 - date.getDay() + 7) % 7 || 7);
+    const d = ('0' + date.getDate()).slice(-2);
+    const m = ('0' + (date.getMonth()+1)).slice(-2);
+    const y = date.getFullYear();
+
+    return `${y}-${m}-${d}`;
+}
+
 async function process_cmd(cmd_str, member, quoteToken) {
     const pos = cmd_str.indexOf(" ") ;
     let cmd ;
@@ -136,6 +146,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'topscorer':
         case 'topassist':
             msg = "ให้ใช้ /top แทน" ;
+            break ;
+        case 'newweek':
+            const next_sat = getNextSaturday()() ;
+            msg = next_sat
             break ;
         case 'top':
     
