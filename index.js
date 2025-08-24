@@ -327,17 +327,19 @@ async function handleMessage(event) {
                 console.log('QR code detected:', qrCode) ;
                 //if (alphanumericRegex.test(qrCode) && qrCode.includes("60000010103")) {
                     
-                    let slipjson = await getSlipInfo(codes[0].data) ;
+                    let slipjson = await getSlipInfo(qrCode) ;
                 
                     //let slipjson = tpl_slipjson ;
 
                     //slipjson = JSON.parse(slipjson) ;
-                    //console.log(slipjson) ;
+                    console.log(slipjson) ;
                     let header ;
                     if (slipjson.hasOwnProperty('status')) {
                         await db.updateMemberWeek(member[0].id, 1, 0) ;
                         header = checkSlip(slipjson, member[0].name) ;
                         console.log(header) ;
+                    } else {
+                        console.log("slipjson hasn't status") ;
                     }
 
                     const msg = await db.getMemberWeek(0) ;
