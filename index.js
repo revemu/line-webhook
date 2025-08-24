@@ -114,7 +114,7 @@ async function getSlipInfo(payload) {
         return response.data ;
     } catch (error) {
         console.error('Error getting image content:', error);
-        throw error;
+        //throw error;
     }
 }
 
