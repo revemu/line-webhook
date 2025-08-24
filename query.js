@@ -64,12 +64,15 @@ async function newMember(lineID, name) {
 
 }
 
-async function getMonthName(month) {
+async function getFormatDate(date) {
   const thaiMonths = [
     'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
 ];
-  return thaiMonths[month] ;
+  const y = date.getFullYear();
+  const d = ('0' + date.getDate()).slice(-2);
+  const month = thaiMonths[date.getMonth()] ;
+  return `${d} ${month} ${y}` ;
 }
 
 async function newWeek(week_date) {
@@ -755,10 +758,8 @@ async function getMemberWeek(type = 0) {
         const result = await executeQuery(query) ;
         if (result.length > 0) {
             const date = new Date(res[0].date) ;
-            const y = date.getFullYear();
-            const d = ('0' + date.getDate()).slice(-2);
-            const month = await getMonthName(date.getMonth())
-            header = `${start}${result.length} ${header} เสาร์ที่ ${d} ${month} ${y}\n\n`;
+            
+            header = `${start}${result.length} ${header} เสาร์ที่ ${getFormatDate(date)}\n\n`;
             let i = 0;
             for (const member of result) {
                 body += (i+1) + ". " + member.name + "\n";
@@ -878,5 +879,5 @@ module.exports = {
   getTopStat,
   IsMemberWeek,
   newWeek,
-  getMonthName
+  getFormatDate
 };
