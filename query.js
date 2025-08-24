@@ -1,5 +1,5 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+require('dotenv').config(quite = true);
 const flex = require('./flex');
 
 const dbConfig = {
