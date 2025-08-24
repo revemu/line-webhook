@@ -751,7 +751,7 @@ async function getMemberWeek(type = 0) {
             header = " คนที่ยังไมได้จ่ายค่าสนาม" ;
             query += " and pay=0" ; 
         } else if (type == 1) {
-            header = " ที่ลงชื่อเตะบอล" ; 
+            header = " ลงชื่อเตะบอล" ; 
             start = "+"
         }
         
