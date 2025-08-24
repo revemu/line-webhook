@@ -113,7 +113,10 @@ async function getSlipInfo(payload) {
         //console.log(response.data) ;
         return response.data ;
     } catch (error) {
-        console.error('Error getting image content:', error);
+        if (error.response.data) {
+            console.error('api slip error:', error.response.data);
+        }
+        return { "success": false } ;
         //throw error;
     }
 }
@@ -325,7 +328,7 @@ async function handleMessage(event) {
                 const alphanumericRegex = /^[A-Za-z0-9]+$/;
                 const qrCode = codes[0].data ;
                 console.log('QR code detected:', qrCode) ;
-                //if (alphanumericRegex.test(qrCode) && qrCode.includes("60000010103")) {
+                if (qrCode.includes("60000010103")) {
                     
                     let slipjson = await getSlipInfo(qrCode) ;
                 
@@ -333,15 +336,16 @@ async function handleMessage(event) {
 
                     //slipjson = JSON.parse(slipjson) ;
                     console.log(slipjson) ;
-                    let header ;
+                    let header = '' ;
                     if (slipjson.hasOwnProperty('status')) {
-                        await db.updateMemberWeek(member[0].id, 1, 0) ;
                         header = checkSlip(slipjson, member[0].name) ;
                         console.log(header) ;
                     } else {
-                        console.log("slipjson hasn't status") ;
+                        header = `🙏 ${member[0].name} ได้รับสลิปโอนแล้ว`;
+                        //console.log("qrCode") ;
                     }
 
+                    await db.updateMemberWeek(member[0].id, 1, 0) ;
                     const msg = await db.getMemberWeek(0) ;
                     //console.log(msg) ;
                     //res.status(200).json({ status: 1, qr: codes[0].data });
@@ -352,7 +356,7 @@ async function handleMessage(event) {
                         text: header + msg
                     }];
                     await replyMessage(replyToken, replyMessages);
-                //}
+                }
                 
             } 
 
