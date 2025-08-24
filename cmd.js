@@ -57,7 +57,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             //console.log(`member name has quoted - ${param}`) ;
         }
     }
-    console.log(`${cmd} - ${param}`) ;
+    let chat_type= "[cmd] -" ;
+    console.log(`${chat_type} command:${cmd} - param: ${param}`) ;
     let replyMessages ;
     
     var altText ;
@@ -67,13 +68,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
     switch (cmd) {
         case '+1':
             if (!await db.registerMember(member_id, member_name)) {
-                console.log(`${member_name} ลงทะเบียนไปแล้ว!`) ;
+                console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`) ;
             } 
             msg = await db.getMemberWeek(1) ;
             break ;
         case '-1':
             if (await db.unregisterMember(member_id)) {
-                console.log(`${member_name} พบข้อมูลลงทะเบียน!`) ;
+                console.log(`${chat_type} ${member_name} พบข้อมูลลงทะเบียน!`) ;
             }
             msg = await db.getMemberWeek(1) ;
             break ;
@@ -96,7 +97,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             if (is_mention) {
                 week = await db.queryWeekID(0)
                 let team_colors = await db.getTeamColorWeek(week[0].id) ;
-                console.log(team_colors) ;
+                //console.log(team_colors) ;
                 //await db.updateMemberWeek(member_id, 0, 1) ;
                 msg = `${member_name} ยังไม่มีทีม` ;
             } else {
@@ -122,7 +123,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             week = await db.queryWeekID(0)
             console.log(week) ;
             msg = await db.getTeamWeek(week[0].id) ;
-            console.log(msg) ;
+            //console.log(msg) ;
             altText = `Team Week ${week[0].date}` ;
             msg_type = 1 ;
             //msg = "teamweek" ;
