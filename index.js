@@ -266,7 +266,7 @@ async function manageMember(source, member) {
     //client.getGroupMemberProfile() ;
     let displayName ;
     if (res) {
-        //console.log(res) ;
+        console.log(res) ;
         displayName = '@' + res.displayName ;
     }
     
@@ -276,7 +276,7 @@ async function manageMember(source, member) {
             //console.log(`existing member ${source.userId}: ${member[0].name}`);
         } else {
             console.log(`update existing member name ${source.userId}: ${member[0].name} => ${displayName}`);
-            await db.updateMember(member[0].id, displayName, 0) ;
+            //await db.updateMember(member[0].id, displayName, 0) ;
         }
     } else {
         console.log(`add new member ${source.userId}: ${displayName}`);
@@ -294,6 +294,8 @@ async function handleMessage(event) {
     const member = await db.queryMemberbyLineID(userId) ;
     //console.log(`Message from user ${userId}: ${message.type}`);
     if (source.groupId) {
+        const res = await client.getGroupMemberProfile(source.groupId, source.userId) ;
+        console.log(res) ;
         await manageMember(source, member) ;
     }
     
