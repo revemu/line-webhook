@@ -754,7 +754,11 @@ async function getMemberWeek(type = 0) {
         
         const result = await executeQuery(query) ;
         if (result.length > 0) {
-            header = start + result.length + header + " เสาร์ที่ " + res[0].date + "\n\n";
+            const date = new Date(res[0]) ;
+            const y = date.getFullYear();
+            const d = ('0' + date.getDate()).slice(-2);
+            const month = await db.getMonthName(date.getMonth())
+            header = `${start}${result.length} ${header} เสาร์ที่ ${d} ${month} ${y} ได้\n\n`;
             let i = 0;
             for (const member of result) {
                 body += (i+1) + ". " + member.name + "\n";
