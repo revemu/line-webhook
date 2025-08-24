@@ -193,15 +193,16 @@ async function queryMatchGoal(match_id, goal_status = 0) {
 
   query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status,match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl WHERE match_goal_tbl.match_id=${match_id} and match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id group by member_tbl.id`
   
-  let member_list = "" ;
+  let member_list = " " ;
   const match_goals = await executeQuery(query) ;
+  let i = 0 ;
   if (match_goals.length > 0) {
     
-    let i = 0 ;
+    member_list = "" ;
     for (const member of match_goals) {
       console.log(`${member.name} ${match_id}`) ;
       console.log(member) ;
-      console.log(query) ;
+      
       if (i > 0) {
         member_list += ", "
       }
@@ -217,7 +218,7 @@ async function queryMatchGoal(match_id, goal_status = 0) {
       i++ ;
       //console.log(member) ;
     }
-    if (i==0) member_list = "-" ;
+    //if (i == 0) member_list = "-" ;
     
   }
   const box = 
