@@ -615,7 +615,7 @@ async function getMatchWeek(week_id = 0) {
             for (const table of tables) {
                 bubble.body.contents.push(table) ;
             }
-            console.log(JSON.stringify(bubble)) ;
+            //console.log(JSON.stringify(bubble)) ;
             return bubble ;
         }
             
