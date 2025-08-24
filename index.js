@@ -295,7 +295,7 @@ async function handleMessage(event) {
     //console.log(`Message from user ${userId}: ${message.type}`);
     if (source.groupId) {
         const res = await client.getGroupMemberProfile(source.groupId, source.userId) ;
-        console.log(res) ;
+        //console.log(res) ;
         if (res.displayName != '') {
             const line_name = res.displayName
             await manageMember(source, member, line_name) ;
@@ -306,8 +306,6 @@ async function handleMessage(event) {
     if (member.length == 0) {
         return ;
     }
-
-    
 
     if (message.type === 'image') {
         try {
@@ -365,9 +363,6 @@ async function handleMessage(event) {
                 }
                 
             } 
-
-            // Reply with result
-            
 
         } catch (error) {
             console.error('Error processing image:', error);
