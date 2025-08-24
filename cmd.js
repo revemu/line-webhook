@@ -148,8 +148,9 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = "ให้ใช้ /top แทน" ;
             break ;
         case 'newweek':
-            const next_sat = getNextSaturday()() ;
-            msg = next_sat
+            const next_sat = getNextSaturday() ;
+            console.log(next_sat) ;
+            msg = `${next_sat}` ;
             break ;
         case 'top':
     
