@@ -160,7 +160,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             carousel.contents.push(msg) ;
             msg = await db.getTopStat(limit, 2);
             carousel.contents.push(msg) ;
-            altText = `Top Stat` ;
+            const date = new Date() ; 
+            altText = `${date.getFullYear()} Top ${limit} Stat` ;
             msg = carousel ;
             //console.log(JSON.stringify(msg))
             msg_type = 1 ;
