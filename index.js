@@ -12,7 +12,7 @@ const cmd = require('./cmd');
 
 const execPromise = util.promisify(exec);
 
-require('dotenv').config();
+require('dotenv').config(quite = true);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
