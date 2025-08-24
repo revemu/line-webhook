@@ -124,7 +124,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             console.log(week) ;
             msg = await db.getTeamWeek(week[0].id) ;
             //console.log(msg) ;
-            altText = `Team Week ${week[0].date}` ;
+            altText = `Team Week - ${week[0].date}` ;
             msg_type = 1 ;
             //msg = "teamweek" ;
             break ;
@@ -132,7 +132,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             week = await db.queryWeekID(0)
             msg = await db.getMatchWeek(week[0].id) ;
             //msg = await db.getMatchWeek(272) ;
-            altText = `Match Week ${week[0].date}` ;
+            altText = `Match Week - ${week[0].date}` ;
             msg_type = 1 ;
             //msg = "teamweek" ;
             break ;
@@ -150,14 +150,15 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = `ลงชื่อเตะบอล เสาร์ที่ ${await db.getFormatDate(next_sat)} ได้` ;
             break ;
         case 'top':
-    
-            msg = await db.getTopStat(10, 0);
+            let limit = 10 ;
+            if (param != '') limit = Number(param) ;
+            msg = await db.getTopStat(limit, 0);
             let carousel = flex.tpl_carousel ;
             carousel.contents = [] ;
             carousel.contents.push(msg) ;
-            msg = await db.getTopStat(10, 1);
+            msg = await db.getTopStat(limit, 1);
             carousel.contents.push(msg) ;
-            msg = await db.getTopStat(10, 2);
+            msg = await db.getTopStat(limit, 2);
             carousel.contents.push(msg) ;
             altText = `Top Stat` ;
             msg = carousel ;
@@ -219,9 +220,9 @@ async function process_cmd(cmd_str, member, quoteToken) {
         }];
     } else if (msg_type == 1) {
         replyMessages = {
-                type: 'flex',
-                altText: altText ,
-                contents: msg,
+            type: 'flex',
+            altText: altText ,
+            contents: msg,
         };
     } 
     //console.log(replyMessages)
