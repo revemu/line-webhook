@@ -341,7 +341,7 @@ async function handleMessage(event) {
                         header = checkSlip(slipjson, member[0].name) ;
                         console.log(header) ;
                     } else {
-                        header = `🙏 ${member[0].name} ได้รับสลิปโอนแล้ว`;
+                        header = `🙏 ${member[0].name} ได้รับสลิปโอนแล้ว\n\n`;
                         //console.log("qrCode") ;
                     }
 
