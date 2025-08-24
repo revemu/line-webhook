@@ -66,9 +66,10 @@ async function newMember(lineID, name) {
 
 async function newWeek(week_date) {
   const week = await queryWeekID() ;
-  const pos = week_date.indexOf('-') ;
-  const year = week_date.substring(0,pos)
-  let query = `insert into week_tbl values('', '${week[0].number + 1}', '${week_date}', 2, ${year}` ;
+  const y = week_date.getFullYear();
+  const m = ('0' + (week_date.getMonth()+1)).slice(-2);
+  const d = ('0' + week_date.getDate()).slice(-2);
+  let query = `insert into week_tbl values('', '${week[0].number + 1}', '${y}-${m}-${d}', 2, ${y}` ;
   console.log(query) ;
  
 

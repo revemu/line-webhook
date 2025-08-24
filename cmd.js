@@ -8,7 +8,7 @@ function getNextSaturday() {
     const m = ('0' + (date.getMonth()+1)).slice(-2);
     const y = date.getFullYear();
 
-    return `${y}-${m}-${d}`;
+    return date ;
 }
 
 async function process_cmd(cmd_str, member, quoteToken) {
@@ -149,8 +149,12 @@ async function process_cmd(cmd_str, member, quoteToken) {
             break ;
         case 'newweek':
             const next_sat = getNextSaturday() ;
+            await db.newWeek(next_sat) ;
+            const y = next_sat.getFullYear();
+            const d = ('0' + next_sat.getDate()).slice(-2);
+            const month = next_sat.toLocaleString('default', { month: 'long' });
             console.log(next_sat) ;
-            msg = `${next_sat}` ;
+            msg = `ลงชื่อเตะบอล เสาร์ที่ ${d} ${month} ${y} ได้` ;
             break ;
         case 'top':
     
