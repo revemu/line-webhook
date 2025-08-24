@@ -58,7 +58,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
         }
     }
     let chat_type= "[cmd] -" ;
-    console.log(`${chat_type} command:${cmd} - param: ${param}`) ;
+    console.log(`${chat_type} command: ${cmd} - param: ${param}`) ;
     let replyMessages ;
     
     var altText ;
