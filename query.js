@@ -821,7 +821,7 @@ async function getTopStat(limit = 10, type = 0) {
         bubble.body.contents.push( 
         {
             "type": "text",
-            "text": `${currentYear} ${header}`,
+            "text": `${header} (${currentYear})`,
             "weight": "bold",
             "size": "md",
             "align": "center"
