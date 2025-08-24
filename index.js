@@ -259,28 +259,28 @@ async function handleEvent(event) {
 }
 
  
-async function manageMember(source, member) {
+async function manageMember(source, member, line_name) {
     const res = await client.getGroupMemberProfile(source.groupId, source.userId) ;
     //client.getGroupMemberProfile()
     //const res = await client.getProfile(source.userId) ;
     //client.getGroupMemberProfile() ;
-    let displayName ;
+    /*let displayName ;
     if (res) {
         console.log(res) ;
         displayName = '@' + res.displayName ;
-    }
-    
+    }*/
+    line_name = `@${line_name}` ;
     if (member.length > 0) {
         //console.log(member) ;
-        if (displayName == member[0].name) {
+        if (line_name == member[0].name) {
             //console.log(`existing member ${source.userId}: ${member[0].name}`);
         } else {
             console.log(`update existing member name ${source.userId}: ${member[0].name} => ${displayName}`);
             //await db.updateMember(member[0].id, displayName, 0) ;
         }
     } else {
-        console.log(`add new member ${source.userId}: ${displayName}`);
-        await db.newMember(source.userId, displayName) ;
+        console.log(`add new member ${source.userId}: ${line_name}`);
+        await db.newMember(source.userId, line_name) ;
     }
     
 }
@@ -296,7 +296,11 @@ async function handleMessage(event) {
     if (source.groupId) {
         const res = await client.getGroupMemberProfile(source.groupId, source.userId) ;
         console.log(res) ;
-        await manageMember(source, member) ;
+        if (res.displayName != '') {
+            const line_name = res.displayName
+            await manageMember(source, member, line_name) ;
+        }
+        
     }
     
     if (member.length == 0) {
