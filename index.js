@@ -397,9 +397,14 @@ async function handleMessage(event) {
         //console.log(text) ;
         return ;
 
-    } else {
-        console.log(`${member[0].name}: sent ${message.type}`);
+    } else if (message.type == 'sticker'){
+        const keywords = message.keywords ;
+        console.log(`${member[0].name}: sent sticker ${randomItem(keywords)}`);
     }
+}
+
+function randomItem(items) {
+    return items[Math.floor(Math.random() * items.length)];
 }
 
 app.get('/hook', async (req, res) => {
