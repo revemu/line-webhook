@@ -754,7 +754,7 @@ async function getMemberWeek(type = 0) {
         
         const result = await executeQuery(query) ;
         if (result.length > 0) {
-            const date = new Date(res[0]) ;
+            const date = new Date(res[0].date) ;
             const y = date.getFullYear();
             const d = ('0' + date.getDate()).slice(-2);
             const month = await getMonthName(date.getMonth())
