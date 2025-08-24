@@ -208,15 +208,16 @@ async function queryMatchGoal(match_id, goal_status = 0) {
       if (member.goal > 1) {
         member_list += `+(${member.goal})` ;
       }
-      /*if (member.alias == '') {
+      if (member.alias == '') {
         member_list += member.name ;
       } else {
         member_list += member.alias ;
-      }*/
-      member_list += member.name ;
+      }
+      //member_list += member.name ;
       i++ ;
       //console.log(member) ;
     }
+    if (i==0) member_list = " " ;
     
   }
   const box = 
