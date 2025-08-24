@@ -771,6 +771,13 @@ async function getMemberWeek(type = 0) {
             return header + body ;
             
         }               
+    } else {
+        if (type == 0) {
+            header = `จ่ายครบหมดแล้ว เสาร์ที่ ${await getFormatDate(date)}` ; 
+        } else if (type == 1) {
+            header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้` ; 
+        }
+        return header ;
     }
         
 }
