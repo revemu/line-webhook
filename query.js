@@ -106,13 +106,16 @@ async function addTeamColorWeek(count = 3) {
 async function addTeamMemberWeek() {
 
   const week = await queryWeekID() ;
-  let query = `select * from member_team_week_tbl where week_id=${week[0].id} and team_id=0` ;
+  let query = `select * from member_team_week_tbl where week_id=${week[0].id}` ;
   let team_colors = await getTeamColorWeek(week[0].id) ;
   const members = await executeQuery(query) ;
   //console.log(res) ;
   //return res ;
   if (members.length > 0) {
     let num = 0 ;
+    if (members.filter(member => member.team_id !=0)[0].length > 0) {
+      console.log(`Team already created!`)
+    }
     for (let i=0 ; i < members.length; i++) {
       //newTeamColorWeek(colors[i], i+1, week[0].id)
 
@@ -124,11 +127,8 @@ async function addTeamMemberWeek() {
       }
         
     }
-    return true ;
-  } else {
     return false ;
   }
-  
 }
 
 async function getFormatDate(date) {
