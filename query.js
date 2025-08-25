@@ -72,12 +72,33 @@ function shuffleArray(array) {
     return array ;
 }
 
+async function newTeamColorWeek(color, index, week_id) {
+  query = `insert team_color_week_tbl values('', ${index}, ${week_id}, '${color}')` ;
+  console.log(query) ;
+  
+
+    //const res = await executeQuery(query) ;
+    //console.log(res) ;
+    //return res ;
+}
+
 async function addTeamColorWeek(count = 3) {
   let colors = [
       'Red', 'White', 'Black'
   ];
-  colors = shuffleArray(colors) ;
-  console.log(colors) ;
+  const week = await queryWeekID() ;
+  let query = `select * from team_color_week_tbl where week_id=${week[0].id}` ;
+  const res = await executeQuery(query) ;
+  console.log(res) ;
+    //return res ;
+  if (res.length == 0) {
+    colors = shuffleArray(colors) ;
+  //console.log(colors) ;
+    for (const i=0 ; i < colors.length; i++) {
+      newTeamColorWeek(colors[i], i+1, week[0].id)
+    }
+  }
+  
 }
 
 async function getFormatDate(date) {
@@ -103,10 +124,11 @@ async function newWeek(week_date) {
   const y = week_date.getFullYear();
   const date_str = await getShortDate(week_date) ;
   const last_week = await getShortDate(new Date(week[0].date)) ;
+  let new_week_num = week[0].number ;
   console.log(last_week + " === " + date_str) ;
   if (last_week != date_str) {
-  
-    query = `insert into week_tbl values('', '${week[0].number + 1}', '${date_str}', 2, '${y}')` ;
+    new_week_num = week[0].number + 1;
+    query = `insert into week_tbl values('', '${new_week_num}', '${date_str}', 2, '${y}')` ;
     console.log(query) ;
   
 
