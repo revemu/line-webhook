@@ -94,7 +94,7 @@ async function addTeamColorWeek(count = 3) {
   if (res.length == 0) {
     colors = shuffleArray(colors) ;
   //console.log(colors) ;
-    for (const i=0 ; i < colors.length; i++) {
+    for (let i=0 ; i < colors.length; i++) {
       newTeamColorWeek(colors[i], i+1, week[0].id)
     }
   }
