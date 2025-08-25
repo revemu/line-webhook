@@ -888,7 +888,7 @@ async function getMemberWeek(type = 0) {
               }
               i++ ;
             }
-            //console.log(header + body) ;
+            console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
             let str = header + body ;
             if (reserve > 0) str += reserve_str ;
             if (goal > 0) str += goal_str ;
