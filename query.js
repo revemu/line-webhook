@@ -874,7 +874,7 @@ async function getMemberWeek(type = 0) {
                   goal_str += (goal) + ". " + member.name + "\n";
                 } else {
                   
-                  index = player ;
+                  //index = player ;
                   if (player < 25) {
                     player++ ;
                     body += (player) + ". " + member.name + "\n"; 
