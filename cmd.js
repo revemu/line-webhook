@@ -119,6 +119,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             
             break ;
+        case 'resetteam':
+            await db.resetMemberTeam() ;
+            msg = `ปรับให้ทุกคนไม่มีทีมแล้ว` ;
+            break ;
         case 'randomteam':
             const team_res = await db.addTeamMemberWeek() ;
             if (team_res == 0) {

@@ -53,6 +53,16 @@ async function updateMember(member_id, value, type = 0) {
 
 }
 
+async function resetMemberTeam() {
+  const week = await queryWeekID() ;
+  let query = `update member_team_week_tbl set team_id=0 where week_id=${week[0].id}` ;
+
+  const res = await executeQuery(query) ;
+  //console.log(res) ;
+  return res ;
+
+}
+
 async function newMember(lineID, name) {
 
   let query = `insert into member_tbl values('', '${name}', 0, 0, 0, '', '${lineID}', 0)` ;
@@ -981,6 +991,7 @@ module.exports = {
   newMember,
   registerMember,
   unregisterMember,
+  resetMemberTeam,
   getTopStat,
   IsMemberWeek,
   newWeek,
