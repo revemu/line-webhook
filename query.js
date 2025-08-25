@@ -148,7 +148,7 @@ async function addTeamMemberWeek() {
   }
 }
 
-async function getFormatDate(date, format = 'full') {
+async function getFormatDate(date, format = 'short') {
   const thaiMonths = [
     'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
@@ -166,7 +166,7 @@ async function getFormatDate(date, format = 'full') {
       break ;
     case 'short':
       month = thaiMonthsShort[date.getMonth()] ;
-      y = `'${y.slice(-2)}`;
+      y = `${y.slice(-2)}`;
       break ;
   }
   
