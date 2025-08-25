@@ -166,7 +166,7 @@ async function getFormatDate(date, format = 'full') {
       break ;
     case 'short':
       month = thaiMonthsShort[date.getMonth()] ;
-      y = `'${y.slice(-2)}`;
+      y = `'${y.string().slice(-2)}`;
       break ;
   }
   
