@@ -875,7 +875,7 @@ async function getMemberWeek(type = 0) {
                 } else {
                   
                   //index = player ;
-                  if (player < 25) {
+                  if (player < 24) {
                     player++ ;
                     body += (player) + ". " + member.name + "\n"; 
                   } else {
