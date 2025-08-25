@@ -120,8 +120,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
             
             break ;
         case 'randomteam':
-            await db.addTeamMemberWeek()
-            msg = "randomteam" ;
+            if (await db.addTeamMemberWeek()) {
+
+            } else {
+                msg = "ทำการสุ่มไปแล้วใช้ /teamweek เพื่อดูทีม" ;
+                msg_type = 0 ;
+            }
+            
             break ;
         case 'teamweek':
             week = await db.queryWeekID(0)
