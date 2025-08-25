@@ -94,7 +94,7 @@ async function getFormatDate(date) {
 async function getShortDate(date) {
   const y = date.getFullYear();
   const d = ('0' + date.getDate()).slice(-2);
-  const m = ('0' + (week_date.getMonth()+1)).slice(-2);
+  const m = ('0' + (date.getMonth()+1)).slice(-2);
   return `${d} ${m} ${y}` ;
 
 }
