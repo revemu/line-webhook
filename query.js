@@ -96,14 +96,21 @@ async function newWeek(week_date) {
   const y = week_date.getFullYear();
   const m = ('0' + (week_date.getMonth()+1)).slice(-2);
   const d = ('0' + week_date.getDate()).slice(-2);
-  let query = `insert into week_tbl values('', '${week[0].number + 1}', '${y}-${m}-${d}', 2, '${y}')` ;
-  console.log(query) ;
- 
+  const date_str = `${y}-${m}-${d}` ;
+  console.log(week[0].date + " === " + date_str) ;
+  if (week[0].date != date_str) {
+  
+    query = `insert into week_tbl values('', '${week[0].number + 1}', '${date_str}', 2, '${y}')` ;
+    console.log(query) ;
+  
 
-  const res = await executeQuery(query) ;
-  //console.log(res) ;
-  return res ;
-
+    //const res = await executeQuery(query) ;
+    //console.log(res) ;
+    //return res ;
+  } else {
+    console.log(date_str + " already exist!") ;
+  }
+  await addTeamColorWeek() ;
 }
 
 async function updateMemberWeek(member_id, value, type = 0) {
