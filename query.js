@@ -846,7 +846,7 @@ async function getMemberWeek(type = 0) {
     
     if (res.length > 0) {
         const week_id = res[0].id ;
-        query = "select * from member_team_week_tbl where week_id=" + week_id;
+        query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.atk, member_team_week_tbl.pay, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week[0].id}`;
         if (type == 0) {
             header = " คนที่ยังไมได้จ่ายค่าสนาม" ;
             query += " and pay=0" ; 
@@ -860,14 +860,38 @@ async function getMemberWeek(type = 0) {
             const date = new Date(res[0].date) ;
             
             header = `${start}${result.length} ${header} เสาร์ที่ ${await getFormatDate(date)}\n\n`;
-            let i = 0;
+            let i = 0 ;
+            let player = 0 ;
+            let reserve = 0 ;
+            let reserve_str = "\nรายชื่อสำรอง\n" ;
+            let goal = 0 ;
+            let goal_str = "\nรายชื่อโกล์\n" ;
+            let index = 0 ;
             for (const member of result) {
-                body += (i+1) + ". " + member.name + "\n";
-                i++ ;
+              if (type == 1) {
+                if (member.power == 1000) {
+                  goal++ ;
+                  goal_str += (goal) + ". " + member.name + "\n";
+                } else {
+                  player++ ;
+                  index = player ;
+                  if (player < 25) {
+                      body += (player) + ". " + member.name + "\n"; 
+                  } else {
+                      reserve++ ;
+                      reserve_str += (reserve) + ". " + member.name + "\n"; 
+                  }  
+                }  
+              } else {
+                body += (i+1) + ". " + member.name + "\n"; 
+              }
+              i++ ;
             }
             //console.log(header + body) ;
-            return header + body ;
-            
+            let str = header + body ;
+            if (reserve > 0) str += reserve_str ;
+            if (goal > 0) str += goal_str ;
+            return str ;  
         }               
     } else {
         if (type == 0) {
