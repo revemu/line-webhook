@@ -314,18 +314,18 @@ async function handleMessage(event) {
             let startTime = new Date() ;
             // Get image content from LINE
             const imageBuffer = await getImageContent(message.id);
-            console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
-            let endTime = new Date();
-            let timeElapsed = endTime - startTime; // Difference in milliseconds
-            console.log(`Time load img elapsed: ${timeElapsed} ms`);
+            //console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
+            //let endTime = new Date();
+            //let timeElapsed = endTime - startTime; // Difference in milliseconds
+            //console.log(`Time load img elapsed: ${timeElapsed} ms`);
 
             // Read QR/barcodes from image
-            startTime = new Date() ;
+            //startTime = new Date() ;
             const codes = await readQRCode(imageBuffer);
             endTime = new Date();
             timeElapsed = endTime - startTime; // Difference in milliseconds
-            console.log(`Time read qr elapsed: ${timeElapsed} ms`) ;
-            console.log(codes) ;
+            console.log(`Time processed qr elapsed: ${timeElapsed} ms`) ;
+            //console.log(codes) ;
             
             let replyMessages;
             if (codes) {
