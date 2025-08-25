@@ -148,14 +148,30 @@ async function addTeamMemberWeek() {
   }
 }
 
-async function getFormatDate(date) {
+async function getFormatDate(date, format = 'full') {
   const thaiMonths = [
     'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-];
-  const y = date.getFullYear();
-  const d = ('0' + date.getDate()).slice(-2);
-  const month = thaiMonths[date.getMonth()] ;
+  ];
+  const thaiMonthsShort = [
+    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+  ];
+  const d = ('0' + date.getDate()).slice(-2) ;
+  let y = date.getFullYear() ;
+  let month ;
+  switch(format) {
+    case 'full':
+      month = thaiMonths[date.getMonth()] ;
+      break ;
+    case 'short':
+      month = thaiMonthsShort[date.getMonth()] ;
+      y = `'${y.slice(-2)}`;
+      break ;
+  }
+  
+  
+ 
   return `${d} ${month} ${y}` ;
 }
 
@@ -859,7 +875,7 @@ async function getMemberWeek(type = 0) {
         if (result.length > 0) {
             const date = new Date(res[0].date) ;
             
-            header = `${header} เสาร์ที่ ${await getFormatDate(date)}\n\n`;
+            header = `${header} เสาร์ที่ ${await getFormatDate(date,'short')}\n\n`;
             let i = 0 ;
             let player = 0 ;
             let reserve = 0 ;
