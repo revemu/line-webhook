@@ -106,7 +106,7 @@ async function addTeamColorWeek(count = 3) {
 async function addTeamMemberWeek() {
 
   const week = await queryWeekID() ;
-  let query = `select * from member_team_week_tbl where week_id=${week[0].id}` ;
+  let query = `select * from member_team_week_tbl where week_id=${week[0].id} and team_id=0` ;
   let team_colors = await getTeamColorWeek(week[0].id) ;
   const members = await executeQuery(query) ;
   //console.log(res) ;
@@ -124,8 +124,9 @@ async function addTeamMemberWeek() {
       }
         
     }
+    return true ;
   } else {
-    console.log("No member week!") ;
+    return false ;
   }
   
 }
