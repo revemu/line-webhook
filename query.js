@@ -77,9 +77,9 @@ async function newTeamColorWeek(color, index, week_id) {
   console.log(query) ;
   
 
-    //const res = await executeQuery(query) ;
-    //console.log(res) ;
-    //return res ;
+  const res = await executeQuery(query) ;
+  //console.log(res) ;
+  return res ;
 }
 
 async function addTeamColorWeek(count = 3) {
