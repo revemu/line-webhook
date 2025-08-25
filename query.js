@@ -111,7 +111,7 @@ async function addTeamMemberWeek() {
   const members = await executeQuery(query) ;
   //console.log(res) ;
   //return res ;
-  if (members.length == 0) {
+  if (members.length > 0) {
     let num = 0 ;
     for (let i=0 ; i < members.length; i++) {
       //newTeamColorWeek(colors[i], i+1, week[0].id)
