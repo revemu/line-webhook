@@ -101,8 +101,9 @@ async function getShortDate(date) {
 async function newWeek(week_date) {
   const week = await queryWeekID() ;
   const y = week_date.getFullYear();
-  const date_str = getShortDate(week_date) ;
-  console.log(getShortDate(week[0].date) + " === " + date_str) ;
+  const date_str = await getShortDate(week_date) ;
+  const last_week = await getShortDate(week[0].date) ;
+  console.log(last_week + " === " + date_str) ;
   if (getShortDate(week[0].date) != date_str) {
   
     query = `insert into week_tbl values('', '${week[0].number + 1}', '${date_str}', 2, '${y}')` ;
