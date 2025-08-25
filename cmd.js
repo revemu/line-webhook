@@ -119,6 +119,9 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             
             break ;
+        case 'randomteam':
+            await db.addTeamMemberWeek()
+            break ;
         case 'teamweek':
             week = await db.queryWeekID(0)
             console.log(week) ;
