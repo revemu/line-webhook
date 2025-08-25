@@ -97,6 +97,8 @@ async function addTeamColorWeek(count = 3) {
     for (let i=0 ; i < colors.length; i++) {
       newTeamColorWeek(colors[i], i+1, week[0].id)
     }
+  } else {
+    console.log("Team color week already exist!") ;
   }
   
 }
