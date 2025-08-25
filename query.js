@@ -133,7 +133,7 @@ async function addTeamMemberWeek() {
       }
         
     }
-    return false ;
+    return 2 ;
   }
 }
 

@@ -120,10 +120,19 @@ async function process_cmd(cmd_str, member, quoteToken) {
             
             break ;
         case 'randomteam':
-            if (await db.addTeamMemberWeek()) {
-
-            } else {
+            const team_res = await db.addTeamMemberWeek() ;
+            if (team_res == 0) {
+                week = await db.queryWeekID(0)
+                console.log(week) ;
+                msg = await db.getTeamWeek(week[0].id) ;
+                //console.log(msg) ;
+                altText = `Team Week - ${week[0].date}` ;
+                msg_type = 1 ;
+            } else if (team_res == 1) {
                 msg = "ทำการสุ่มไปแล้วใช้ /teamweek เพื่อดูทีม" ;
+                msg_type = 0 ;
+            } else if (team_res == 2) {
+                msg = "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม" ;
                 msg_type = 0 ;
             }
             
