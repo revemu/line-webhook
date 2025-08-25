@@ -158,7 +158,7 @@ async function getFormatDate(date, format = 'full') {
     'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
   ];
   const d = ('0' + date.getDate()).slice(-2) ;
-  let y = date.getFullYear() ;
+  let y = date.getFullYear().toString() ;
   let month ;
   switch(format) {
     case 'full':
@@ -166,7 +166,7 @@ async function getFormatDate(date, format = 'full') {
       break ;
     case 'short':
       month = thaiMonthsShort[date.getMonth()] ;
-      y = `'${y.string().slice(-2)}`;
+      y = `'${y.slice(-2)}`;
       break ;
   }
   
