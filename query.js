@@ -103,6 +103,33 @@ async function addTeamColorWeek(count = 3) {
   
 }
 
+async function addTeamMemberWeek() {
+
+  const week = await queryWeekID() ;
+  let query = `select * from member_team_week_tbl where week_id=${week[0].id}` ;
+  let team_colors = await db.getTeamColorWeek(week[0].id) ;
+  const members = await executeQuery(query) ;
+  //console.log(res) ;
+  //return res ;
+  if (members.length == 0) {
+    let num = 0 ;
+    for (let i=0 ; i < members.length; i++) {
+      //newTeamColorWeek(colors[i], i+1, week[0].id)
+
+      if (members[i].team > 0) {
+          num = members[i].team - 1;
+          console.log(`${members[i].name} => ${team_colors[num].color}`)
+      } else {
+          console.log(`${members[i].name} no team assigned`)
+      }
+        
+    }
+  } else {
+    console.log("No member week!") ;
+  }
+  
+}
+
 async function getFormatDate(date) {
   const thaiMonths = [
     'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -950,5 +977,6 @@ module.exports = {
   IsMemberWeek,
   newWeek,
   getFormatDate,
-  addTeamColorWeek
+  addTeamColorWeek,
+  addTeamMemberWeek
 };
