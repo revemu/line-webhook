@@ -121,6 +121,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             break ;
         case 'randomteam':
             await db.addTeamMemberWeek()
+            msg = "randomteam" ;
             break ;
         case 'teamweek':
             week = await db.queryWeekID(0)
@@ -215,20 +216,22 @@ async function process_cmd(cmd_str, member, quoteToken) {
 
             break ;
     }
-
-    if (msg_type == 0) {
-        replyMessages = [{
-            type: 'text',
-            quoteToken: quoteToken,
-            text: msg
-        }];
-    } else if (msg_type == 1) {
-        replyMessages = {
-            type: 'flex',
-            altText: altText ,
-            contents: msg,
-        };
-    } 
+    if (msg != '') {
+        if (msg_type == 0) {
+            replyMessages = [{
+                type: 'text',
+                quoteToken: quoteToken,
+                text: msg
+            }];
+        } else if (msg_type == 1) {
+            replyMessages = {
+                type: 'flex',
+                altText: altText ,
+                contents: msg,
+            };
+        } 
+    }
+    
     //console.log(replyMessages)
     return replyMessages ;
 }
