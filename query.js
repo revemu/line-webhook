@@ -859,7 +859,7 @@ async function getMemberWeek(type = 0) {
         if (result.length > 0) {
             const date = new Date(res[0].date) ;
             
-            header = `${start}${result.length} ${header} เสาร์ที่ ${await getFormatDate(date)}\n\n`;
+            header = `${header} เสาร์ที่ ${await getFormatDate(date)}\n\n`;
             let i = 0 ;
             let player = 0 ;
             let reserve = 0 ;
@@ -891,6 +891,9 @@ async function getMemberWeek(type = 0) {
             let str = header + body ;
             if (reserve > 0) str += reserve_str ;
             if (goal > 0) str += goal_str ;
+            if (reserve + goal > 0) header += `+${player}(${reserve + goal}) ${header}` ;
+            else header +=`+${player} ${header}` ;
+            
             return str ;  
         }               
     } else {
