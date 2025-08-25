@@ -113,9 +113,8 @@ async function addTeamMemberWeek() {
   //return res ;
   if (members.length > 0) {
     let num = 0 ;
-    if (members.filter(member => member.team_id !=0)[0].length > 0) {
-      console.log(`Team already created!`)
-    }
+    const test = members.filter(member => member.team_id !=0) ;
+    console.log(test) ;
     for (let i=0 ; i < members.length; i++) {
       //newTeamColorWeek(colors[i], i+1, week[0].id)
 
