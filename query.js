@@ -91,14 +91,19 @@ async function getFormatDate(date) {
   return `${d} ${month} ${y}` ;
 }
 
+async function getShortDate(date) {
+  const y = date.getFullYear();
+  const d = ('0' + date.getDate()).slice(-2);
+  const m = ('0' + (week_date.getMonth()+1)).slice(-2);
+  return `${d} ${m} ${y}` ;
+
+}
 async function newWeek(week_date) {
   const week = await queryWeekID() ;
   const y = week_date.getFullYear();
-  const m = ('0' + (week_date.getMonth()+1)).slice(-2);
-  const d = ('0' + week_date.getDate()).slice(-2);
-  const date_str = `${y}-${m}-${d}` ;
-  console.log(week[0].date + " === " + week_date) ;
-  if (week[0].date != date_str) {
+  const date_str = getShortDate(week_date) ;
+  console.log(getShortDate(week[0].date) + " === " + date_str) ;
+  if (getShortDate(week[0].date) != date_str) {
   
     query = `insert into week_tbl values('', '${week[0].number + 1}', '${date_str}', 2, '${y}')` ;
     console.log(query) ;
