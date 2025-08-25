@@ -128,12 +128,13 @@ async function addTeamMemberWeek() {
       if (members[i].team > 0) {
           num = members[i].team - 1;
           console.log(`${members[i].name} => ${team_colors[num].color}`)
+          await updateMemberWeek(members[i].member_id, team_colors[num].id, 1) ;
       } else {
           console.log(`${members[i].name} no team assigned`)
       }
         
     }
-    return 2 ;
+    return 0 ;
   }
 }
 
