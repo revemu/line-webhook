@@ -774,7 +774,7 @@ async function getTeamWeek(week_id = 0) {
                 const bubble =  JSON.parse(JSON.stringify(flex.tpl_bubble)) ;
                 const teamColor = await getTeamColor(team.color) ;
                 //const bubble =  Object.assign({}, flex.tpl_bubble);
-                console.log(team.color) ;
+                //console.log(team.color) ;
                 bubble.size = "micro" ;
                 //bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
                 bubble.hero.url = teamColor.url ;
