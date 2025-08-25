@@ -89,7 +89,7 @@ async function addTeamColorWeek(count = 3) {
   const week = await queryWeekID() ;
   let query = `select * from team_color_week_tbl where week_id=${week[0].id}` ;
   const res = await executeQuery(query) ;
-  console.log(res) ;
+  //console.log(res) ;
     //return res ;
   if (res.length == 0) {
     colors = shuffleArray(colors) ;
