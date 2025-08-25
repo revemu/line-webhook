@@ -873,13 +873,14 @@ async function getMemberWeek(type = 0) {
                   goal++ ;
                   goal_str += (goal) + ". " + member.name + "\n";
                 } else {
-                  player++ ;
+                  
                   index = player ;
                   if (player < 25) {
-                      body += (player) + ". " + member.name + "\n"; 
+                    player++ ;
+                    body += (player) + ". " + member.name + "\n"; 
                   } else {
-                      reserve++ ;
-                      reserve_str += (reserve) + ". " + member.name + "\n"; 
+                    reserve++ ;
+                    reserve_str += (reserve) + ". " + member.name + "\n"; 
                   }  
                 }  
               } else {
