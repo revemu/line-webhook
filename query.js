@@ -107,7 +107,7 @@ async function addTeamMemberWeek() {
 
   const week = await queryWeekID() ;
   let query = `select * from member_team_week_tbl where week_id=${week[0].id}` ;
-  let team_colors = await db.getTeamColorWeek(week[0].id) ;
+  let team_colors = await getTeamColorWeek(week[0].id) ;
   const members = await executeQuery(query) ;
   //console.log(res) ;
   //return res ;
