@@ -258,13 +258,18 @@ app.post('/webhook', async (req, res) => {
 // Handle incoming events
 async function handleEvent(event) {
     //console.log('Received event:', event.type);
-
-    if (event.type === 'message') {
-        await handleMessage(event);
-    } else {
-        console.log('Received event:', event.type);
+    try {
+        if (event.type === 'message') {
+            await handleMessage(event);
+        } else {
+            console.log('Received event:', event.type);
+            console.log(event) ;
+        }
+    } catch (error) {
+        console.error('Error processing events');
         console.log(event) ;
     }
+
 }
 
  
