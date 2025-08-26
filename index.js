@@ -88,8 +88,8 @@ const tpl_slipjson = {
                 };
 
 // Create LINE SDK client
+config = await loadConfig() ;
 const client = new Client(config);
-const cur_client = new Client(cur_config);
 
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
@@ -466,7 +466,7 @@ app.use((error, req, res, next) => {
 app.listen(3001, async () => {
     //console.log(`LINE Webhook server running on port ${PORT}`);
     //console.log(`Webhook URL: http://localhost:${PORT}/webhook`);
-    config = await loadConfig() ;
+    
     // Check if environment variables are set
     if (!config.channelSecret || !config.channelAccessToken) {
         console.warn('⚠️  Warning: LINE_CHANNEL_SECRET and LINE_CHANNEL_ACCESS_TOKEN environment variables are not set');
