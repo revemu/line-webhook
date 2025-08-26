@@ -12,21 +12,54 @@ const cmd = require('./cmd');
 
 const execPromise = util.promisify(exec);
 
-require('dotenv').config(quite = true);
+//require('dotenv').config(quite = true);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// LINE Bot configuration
-const config = {
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-    channelSecret: process.env.LINE_CHANNEL_SECRET,
-};
+class EnvLoader {
+    static async load(envPath = '.env') {
+        try {
+            const envFile = await fs.readFile(envPath, 'utf8');
+            const lines = envFile.split('\n');
+            
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine && !trimmedLine.startsWith('#')) {
+                    const [key, ...valueParts] = trimmedLine.split('=');
+                    if (key && valueParts.length > 0) {
+                        const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove quotes
+                        process.env[key.trim()] = value;
+                    }
+                }
+            }
+        } catch (error) {
+            throw new Error(`Failed to load .env file: ${error.message}`);
+        }
+    }
+}
 
-const cur_config = {
-    channelAccessToken: process.env.CUR_CHANNEL_ACCESS_TOKEN,
-    channelSecret: process.env.CUR_CHANNEL_SECRET,
-};
+// Load environment variables
+async function loadConfig() {
+    const envPath = path.join(__dirname, '.env');
+    
+    try {
+        await EnvLoader.load(envPath);
+    } catch (error) {
+        console.error(`Error loading .env file: ${error.message}`);
+        console.error('Please create a .env file in the same directory as this script');
+        process.exit(1);
+    }
+    
+    // Configuration with environment variables and defaults
+    return {
+        channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+        channelSecret: process.env.LINE_CHANNEL_SECRET,
+    };
+}
+
+// LINE Bot configuration
+var config ;
 
 const tpl_slipjson = {
                     "status": 200,
@@ -423,47 +456,6 @@ function randomItem(items) {
     return items[Math.floor(Math.random() * items.length)];
 }
 
-app.get('/hook', async (req, res) => {
-    //const body = req.body ;
-    console.log(req.query.msgid) ;
-
-    if (req.query.msgid) {
-        console.log('Processing image message...');
-            
-            // Get image content from LINE
-        let startTime = new Date() ;
-        
-        const imageBuffer = await getImageContent(req.query.msgid, 1);
-        //console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
-        let endTime = new Date();
-        let timeElapsed = endTime - startTime; // Difference in milliseconds
-        console.log(`Time load img elapsed: ${timeElapsed} ms`);
-        // Read QR code from image
-        startTime = new Date() ;
-        const codes = await readQRCode(imageBuffer);
-            
-        if (codes && codes.length === 1) {
-            console.log('QR code detected:', codes[0].data);
-            // Perform operations or execute code here
-
-            let endTime = new Date();
-            let timeElapsed = endTime - startTime; // Difference in milliseconds
-
-            console.log(`Time read qr elapsed: ${timeElapsed} ms`);
-            //let slipjson = '{"status":200,"data":{"payload":"004600060000010103002022520250816210339240054672085102TH9104D5EB","transRef":"2025081621033924005467208","date":"2025-08-16T21:03:39+07:00","countryCode":"","amount":{"amount":249,"local":{"amount":0,"currency":""}},"fee":0,"ref1":"","ref2":"","ref3":"","sender":{"bank":{"id":"002","name":"ธนาคารกรุงเทพ","short":"BBL"},"account":{"name":{"en":"PYSIT P"},"bank":{"type":"BANKAC","account":"086-0-xxx588"}}},"receiver":{"bank":{},"account":{"name":{"th":"นาย เศรษฐ ว","en":"SAGE"},"proxy":{"type":"MSISDN","account":"085-xxx-5894"}}}}}' ;
-            //res.status(200).json({ status: 1, qr: codes[0].data });
-            let slipjson = JSON.stringify(await getSlipInfo(codes[0].data))
-            console.log(slipjson) ;
-            res.status(200).json(slipjson);
-        } else {
-            res.status(200).json({ status: 0});
-            console.log('No QR code found in image');
-        }
-    } else {
-         res.status(400).json({ status: 0});
-    }
-});
-
 // Error handling middleware
 app.use((error, req, res, next) => {
     console.error('Server error:', error);
@@ -474,7 +466,7 @@ app.use((error, req, res, next) => {
 app.listen(3001, async () => {
     //console.log(`LINE Webhook server running on port ${PORT}`);
     //console.log(`Webhook URL: http://localhost:${PORT}/webhook`);
-    
+    config = await loadConfig() ;
     // Check if environment variables are set
     if (!config.channelSecret || !config.channelAccessToken) {
         console.warn('⚠️  Warning: LINE_CHANNEL_SECRET and LINE_CHANNEL_ACCESS_TOKEN environment variables are not set');
