@@ -251,7 +251,7 @@ app.post('/webhook', async (req, res) => {
         const events = req.body.events;
         res.status(200).send('OK') ;
         for (const event of events) {
-            await handleEvent(event) ;
+            handleEvent(event) ;
         }
         
             
