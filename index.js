@@ -234,7 +234,7 @@ async function replyMessage(replyToken, messages) {
 }
 
 // Webhook endpoint - LINE SDK middleware handles signature validation
-app.post('/webhook', (req, res) => {
+/*app.post('/webhook', (req, res) => {
     const events = req.body.events;
 
     // Process each event
@@ -244,6 +244,19 @@ app.post('/webhook', (req, res) => {
             console.error('Error processing events:', error);
             res.status(500).send('Internal Server Error');
         });
+});*/
+
+app.post('/webhook', (req, res) => {
+    try {
+        const events = req.body.events;
+        res.status(200).send('OK') ;
+        handleEvent(events) ;
+            
+    } catch (error) {
+        console.error('Error processing events:', error);
+            res.status(500).send('Internal Server Error');
+
+    }
 });
 
 // Handle incoming events
