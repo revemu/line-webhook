@@ -12,7 +12,7 @@ const cmd = require('./cmd');
 
 const execPromise = util.promisify(exec);
 
-require('dotenv').config(quiet = true);
+require('dotenv').config({ quiet: true });
 
 const app = express();
 
