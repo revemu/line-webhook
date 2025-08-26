@@ -879,9 +879,9 @@ async function getMemberWeek(type = 0) {
             let i = 0 ;
             let player = 0 ;
             let reserve = 0 ;
-            let reserve_str = "\nรายชื่อสำรอง\n" ;
+            let reserve_str = "\n=== รายชื่อสำรอง ===\n" ;
             let goal = 0 ;
-            let goal_str = "\nรายชื่อโกล์\n" ;
+            let goal_str = "\n=== รายชื่อโกล์ ===\n" ;
             let index = 0 ;
             for (const member of result) {
               if (type == 1) {
