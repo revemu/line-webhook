@@ -250,7 +250,10 @@ app.post('/webhook', async (req, res) => {
     try {
         const events = req.body.events;
         res.status(200).send('OK') ;
-        await handleEvent(events) ;
+        for (const event of events) {
+            await handleEvent(event) ;
+        }
+        
             
     } catch (error) {
         console.error('Error processing events:', error);
