@@ -15,36 +15,26 @@ const execPromise = util.promisify(exec);
 //require('dotenv').config(quite = true);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-class EnvLoader {
-    static async load(envPath = '.env') {
-        try {
-            const envFile = await fs.readFile(envPath, 'utf8');
-            const lines = envFile.split('\n');
-            
-            for (const line of lines) {
-                const trimmedLine = line.trim();
-                if (trimmedLine && !trimmedLine.startsWith('#')) {
-                    const [key, ...valueParts] = trimmedLine.split('=');
-                    if (key && valueParts.length > 0) {
-                        const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove quotes
-                        process.env[key.trim()] = value;
-                    }
-                }
-            }
-        } catch (error) {
-            throw new Error(`Failed to load .env file: ${error.message}`);
-        }
-    }
-}
 
 // Load environment variables
 async function loadConfig() {
     const envPath = path.join(__dirname, '.env');
     
     try {
-        await EnvLoader.load(envPath);
+        //await EnvLoader.load(envPath);
+        const envFile = await fs.readFile(envPath, 'utf8');
+        const lines = envFile.split('\n');
+        
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (trimmedLine && !trimmedLine.startsWith('#')) {
+                const [key, ...valueParts] = trimmedLine.split('=');
+                if (key && valueParts.length > 0) {
+                    const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove quotes
+                    process.env[key.trim()] = value;
+                }
+            }
+        }
     } catch (error) {
         console.error(`Error loading .env file: ${error.message}`);
         console.error('Please create a .env file in the same directory as this script');
@@ -59,7 +49,7 @@ async function loadConfig() {
 }
 
 // LINE Bot configuration
-var config ;
+var config = await loadConfig() ;
 
 const tpl_slipjson = {
                     "status": 200,
@@ -88,7 +78,6 @@ const tpl_slipjson = {
                 };
 
 // Create LINE SDK client
-config = await loadConfig() ;
 const client = new Client(config);
 
 // Use LINE SDK middleware for webhook handling
