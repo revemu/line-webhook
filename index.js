@@ -88,7 +88,7 @@ const tpl_slipjson = {
                 };
 
 // Create LINE SDK client
-config = loadConfig() ;
+config = await loadConfig() ;
 const client = new Client(config);
 
 // Use LINE SDK middleware for webhook handling
