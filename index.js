@@ -246,15 +246,15 @@ async function replyMessage(replyToken, messages) {
         });
 });*/
 
-app.post('/webhook', (req, res) => {
+app.post('/webhook', async (req, res) => {
     try {
         const events = req.body.events;
         res.status(200).send('OK') ;
-        handleEvent(events) ;
+        await handleEvent(events) ;
             
     } catch (error) {
         console.error('Error processing events:', error);
-            res.status(500).send('Internal Server Error');
+        res.status(500).send('Internal Server Error');
 
     }
 });
