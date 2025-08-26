@@ -204,7 +204,7 @@ async function readQRCode(imageBuffer) {
         
         // Check if error is due to no codes found (zbarimg exits with code 4)
         if (error.code === 4) {
-            console.log('No barcodes/QR codes found in image');
+            //console.log('No barcodes/QR codes found in image');
             return null;
         }
         
@@ -340,7 +340,7 @@ async function handleMessage(event) {
             const codes = await readQRCode(imageBuffer);
             endTime = new Date();
             timeElapsed = endTime - startTime; // Difference in milliseconds
-            console.log(`Time processed qr elapsed: ${timeElapsed} ms`) ;
+            console.log(`Time processed image elapsed: ${timeElapsed} ms`) ;
             //console.log(codes) ;
             
             let replyMessages;
