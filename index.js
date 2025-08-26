@@ -12,44 +12,15 @@ const cmd = require('./cmd');
 
 const execPromise = util.promisify(exec);
 
-//require('dotenv').config(quite = true);
+require('dotenv').config(quiet = true);
 
 const app = express();
 
-// Load environment variables
-async function loadConfig() {
-    const envPath = path.join(__dirname, '.env');
-    
-    try {
-        //await EnvLoader.load(envPath);
-        const envFile = await fs.readFile(envPath, 'utf8');
-        const lines = envFile.split('\n');
-        
-        for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (trimmedLine && !trimmedLine.startsWith('#')) {
-                const [key, ...valueParts] = trimmedLine.split('=');
-                if (key && valueParts.length > 0) {
-                    const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove quotes
-                    process.env[key.trim()] = value;
-                }
-            }
-        }
-    } catch (error) {
-        console.error(`Error loading .env file: ${error.message}`);
-        console.error('Please create a .env file in the same directory as this script');
-        process.exit(1);
-    }
-    
-    // Configuration with environment variables and defaults
-    return {
+// LINE Bot configuration
+const config = {
         channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
         channelSecret: process.env.LINE_CHANNEL_SECRET,
-    };
-}
-
-// LINE Bot configuration
-var config = await loadConfig() ;
+};
 
 const tpl_slipjson = {
                     "status": 200,
