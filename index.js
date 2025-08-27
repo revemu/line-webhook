@@ -276,6 +276,7 @@ async function handleEvent(event) {
 
 async function handleJoinedMember(event) {
     try {
+        console.log(event) ;
         const { replyToken, source } = event;
         for (let member of event.joined.members) {
             if (member.type === "user") {
