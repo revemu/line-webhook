@@ -261,6 +261,8 @@ async function handleEvent(event) {
     try {
         if (event.type === 'message') {
             await handleMessage(event);
+        } else if (event.type === 'memberJoined') {
+            await handleJoinedMember(event);
         } else {
             console.log('Received event:', event.type);
             console.log(event) ;
@@ -272,7 +274,40 @@ async function handleEvent(event) {
 
 }
 
- 
+async function handleJoinedMember(event) {
+    try {
+        const { replyToken, source } = event;
+        for (let member of event.joined.members) {
+            if (member.type === "user") {
+                console.log(`Member ${member.userId} joined group`);
+                const res = await client.getGroupMemberProfile(source.groupId, member.userId) ;
+                if (res.displayName != '') {
+                    const line_name = `@${res.displayName}` ;
+                    console.log(`add new member ${member.userId}: ${line_name}`);
+                    await db.newMember(member.userId, line_name) ;
+                    const replyMessages = [
+                        {
+                            "type": "textV2",
+                            "text": "สวัสดี {user1}! ยินดีต้อนรับ \n\n พิมพ์ +1 เพื่อลงชื่อในแต่ละสัปดาห์",
+                            "substitution": {
+                                "user1": {
+                                    "type": "mention",
+                                    "mentionee": {
+                                        "type": "user",
+                                        "userId": member.userId
+                                    }
+                                }
+                            }
+                        }]
+                    await replyMessage(replyToken, replyMessages);
+                }
+            }
+        }
+    } catch (error) {
+            console.error('Error add joined member:', error);
+    }
+}
+
 async function manageMember(source, member, line_name) {
     //const res = await client.getGroupMemberProfile(source.groupId, source.userId) ;
     //client.getGroupMemberProfile()
