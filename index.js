@@ -289,7 +289,7 @@ async function handleJoinedMember(event) {
                     const replyMessages = [
                         {
                             "type": "textV2",
-                            "text": "สวัสดี {user1}! ยินดีต้อนรับ \n\n พิมพ์ +1 เพื่อลงชื่อในแต่ละสัปดาห์",
+                            "text": "ยินดีต้อนรับ {user1}!\n\nพิมพ์ +1 เพื่อลงชื่อ",
                             "substitution": {
                                 "user1": {
                                     "type": "mention",
