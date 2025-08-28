@@ -245,13 +245,10 @@ app.post('/webhook', async (req, res) => {
         res.status(200).send('OK') ;
         for (const event of events) {
             handleEvent(event) ;
-        }
-        
-            
+        }        
     } catch (error) {
         console.error('Error processing events:', error);
         res.status(500).send('Internal Server Error');
-
     }
 });
 
