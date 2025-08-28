@@ -83,7 +83,7 @@ function shuffleArray(array) {
 }
 
 async function newTeamColorWeek(color, index, week_id) {
-  query = `insert team_color_week_tbl values('', ${index}, ${week_id}, '${color}')` ;
+  query = `insert team_color_week_tbl values(null, ${index}, ${week_id}, '${color}')` ;
   console.log(query) ;
   
 
@@ -191,7 +191,7 @@ async function newWeek(week_date) {
   console.log(last_week + " === " + date_str) ;
   if (last_week != date_str) {
     new_week_num = week[0].number + 1;
-    query = `insert into week_tbl values('', '${new_week_num}', '${date_str}', 2, '${y}')` ;
+    query = `insert into week_tbl values(null, '${new_week_num}', '${date_str}', 2, '${y}')` ;
     console.log(query) ;
   
 
@@ -283,7 +283,7 @@ async function registerMember(member_id, member_name) {
         //console.log(`${week_id}`)
         return false ;
       } else {
-        const query = `insert into member_team_week_tbl values('',${member_id}, '${member_name}', 0, ${week_id}, 0, 0)`
+        const query = `insert into member_team_week_tbl values(null, ${member_id}, '${member_name}', 0, ${week_id}, 0, 0)`
         //console.log(query) ;
         const reg_res = await executeQuery(query) ;
         //console.log(reg_res) ;
