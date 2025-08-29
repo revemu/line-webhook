@@ -794,7 +794,7 @@ async function getTeamWeek(week_id = 0) {
                 bubble.size = "micro" ;
                 //bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
                 bubble.hero.url = teamColor.url ;
-                bubble.hero.aspectRatio = "12:6"
+                bubble.hero.aspectRatio = "6:2"
                 
                 //let msg = [] ;
                 bubble.body.contents = [] ;
@@ -804,7 +804,7 @@ async function getTeamWeek(week_id = 0) {
                     type: "text",
                     text: `${team.color}`,
                     weight: "bold",
-                    size: "lg",
+                    size: "md",
                     align: "center",
                     color: teamColor.code
                   }, {
@@ -839,7 +839,7 @@ async function getTeamWeek(week_id = 0) {
                 
                 //bubble.contents = msg ;
                 //console.log(bubble.body.contents) ; 
-                console.log(JSON.stringify(bubble)) ;
+                //console.log(JSON.stringify(bubble)) ;
                 carousel.contents.push(bubble) ; 
                 //console.log(JSON.stringify(carousel)) ;
                 i++ ;
