@@ -910,8 +910,8 @@ async function getMemberWeek(type = 0) {
             header = `+${player}` ;
             if (reserve > 0) str += reserve_str ;
             if (goal > 0) str += goal_str ;
-            if (reserve> 0) header += `, R(${reserve})` ;
-            if (goal> 0) header += `, G(${goal})` ;
+            if (reserve> 0) header += `(${reserve})` ;
+            if (goal> 0) header += `(${goal})` ;
             
             str = `${header} ${str}` ;
             
