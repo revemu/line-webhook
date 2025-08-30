@@ -901,15 +901,19 @@ async function getMemberWeek(type = 0) {
                 }  
               } else {
                 body += (i+1) + ". " + member.name + "\n"; 
+                player++ ;
               }
               i++ ;
             }
             console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
             let str = header + body ;
+            header = `+${player}` ;
             if (reserve > 0) str += reserve_str ;
             if (goal > 0) str += goal_str ;
-            if (reserve + goal > 0) str = `+${player}(${reserve + goal}) ${str}` ;
-            else str = `+${player} ${str}` ;
+            if (reserve> 0) header += `, R(${reserve})` ;
+            if (goal> 0) header += `, G(${goal})` ;
+            
+            str = `+${header} ${str}` ;
             
             return str ;  
         }               
