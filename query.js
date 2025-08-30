@@ -913,7 +913,7 @@ async function getMemberWeek(type = 0) {
             if (reserve> 0) header += `, R(${reserve})` ;
             if (goal> 0) header += `, G(${goal})` ;
             
-            str = `+${header} ${str}` ;
+            str = `${header} ${str}` ;
             
             return str ;  
         }               
