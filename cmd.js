@@ -107,6 +107,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case '+team1':
         case '+team2':
         case '+team3':
+        case '+team4':
             if (is_mention) {
                 let team_num = Number(cmd.slice(-1)) - 1 ;
                 let week = await db.queryWeekID(0)
