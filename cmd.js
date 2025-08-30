@@ -143,7 +143,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             break ;
         case 'teamweek':
             week = await db.queryWeekID(0)
-            console.log(week) ;
+            //console.log(week) ;
             msg = await db.getTeamWeek(week[0].id) ;
             //console.log(msg) ;
             altText = `Team Week - ${week[0].date}` ;
