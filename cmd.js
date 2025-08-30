@@ -99,7 +99,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 let team_colors = await db.getTeamColorWeek(week[0].id) ;
                 //console.log(team_colors) ;
                 //await db.updateMemberWeek(member_id, 0, 1) ;
-                msg = `${member_name} ยังไม่มีทีม` ;
+                msg = `พิมพ์ +team1(-4) ได้เลย ไม่ต้อง -team` ;
             } else {
                 msg = `ต้องระบุชื่อสมาชิกด้วย` ;
             }
