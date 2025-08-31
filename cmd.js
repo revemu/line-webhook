@@ -84,6 +84,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 await db.updateMemberWeek(member_id, 1, 0) ;
                 [msg, sub] = await db.getMemberWeek2(0) ;
                 console.log(sub) ;
+                msg_type = 2 ;
            // } else {
            //     msg = "ถ้าส่ง slip แล้วยังไม่ขึ้นโปรดรอ หรือพิมพ์ +pay @ชื่อสมาชิก" ;
            // }
@@ -258,6 +259,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 type: 'flex',
                 altText: altText ,
                 contents: msg,
+            };
+        }  else if (msg_type == 2) {
+            replyMessages = {
+                type: 'textV2',
+                quoteToken: quoteToken,
+                text: msg,
+                substitution: sub 
             };
         } 
     }
