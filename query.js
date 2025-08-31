@@ -192,12 +192,12 @@ async function newWeek(week_date) {
   if (last_week != date_str) {
     new_week_num = week[0].number + 1;
     query = `insert into week_tbl values(null, '${new_week_num}', '${date_str}', 2, '${y}')` ;
-    console.log(query) ;
+    //console.log(query) ;
   
 
-    //const res = await executeQuery(query) ;
+    const res = await executeQuery(query) ;
     //console.log(res) ;
-    //return res ;
+    return res ;
   } else {
     console.log(date_str + " already exist!") ;
   }
