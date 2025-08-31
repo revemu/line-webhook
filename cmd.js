@@ -268,7 +268,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 substitution: sub
             };
             console.log(replyMessages) ;
-            replyMessages = [
+            /*replyMessages = [
                         {
                             "type": "textV2",
                             quoteToken: quoteToken,
@@ -290,7 +290,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                                 }
                             }
                         }]
-            console.log(replyMessages) ;
+            console.log(replyMessages) ;*/
         } 
     }
     
