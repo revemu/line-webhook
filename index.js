@@ -386,7 +386,7 @@ async function handleMessage(event) {
                     //let slipjson = tpl_slipjson ;
 
                     //slipjson = JSON.parse(slipjson) ;
-                    console.log(slipjson) ;
+                    //console.log(slipjson) ;
                     let header = '' ;
                     if (slipjson.hasOwnProperty('status')) {
                         header = checkSlip(slipjson, member[0].name) ;
@@ -413,10 +413,15 @@ async function handleMessage(event) {
 
         } catch (error) {
             console.error('Error processing image:', error);
-            /*await replyMessage(replyToken, [{
-                type: 'text',
-                text: 'Sorry, I encountered an error while processing your image. Please try again.'
-            }]);*/
+            const date = new Date();
+            const dow = date.getDay() ;
+            const h = date.getHours() ;
+            if (dow ==6 && h > 19) {
+                await replyMessage(replyToken, [{
+                    type: 'text',
+                    text: 'ไม่สามารถโหลดรูปภาพจาก Line ได้\nถ้าเป็นการส่ง Slip หลีกเลี่ยงการส่งในช่วงเวลา 19.00-22.30'
+                }]);
+            }   
         }
     } else if (message.type === 'text') {
         // Handle text messages
