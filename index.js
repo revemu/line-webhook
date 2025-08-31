@@ -439,7 +439,7 @@ async function handleMessage(event) {
                     } else {
                         replyMessages = {
                             type: 'textV2',
-                            quoteToken: quoteToken,
+                            quoteToken: message.quoteToken,
                             text: header + msg,
                             substitution: sub
                         };
