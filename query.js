@@ -961,6 +961,7 @@ async function getMemberWeek2(type = 0) {
             let goal = 0 ;
             let goal_str = "\n=== รายชื่อโกล์ ===\n" ;
             let index = 0 ;
+            merber_count = result.length ;
             for (const member of result) {
               if (type == 1) {
                 if (member.power == 1000) {
@@ -1004,7 +1005,6 @@ async function getMemberWeek2(type = 0) {
                 player++ ;
               }
               i++ ;
-              merber_count = i ;
               //if (i > 1) break ;
             }
             //user_json = "{" + user_json + "}" ;
