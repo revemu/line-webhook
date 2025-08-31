@@ -983,19 +983,9 @@ async function getMemberWeek2(type = 0) {
                   const name = `user${i+1}` ;
                   body += `${i+1}. {${name}} \n`;
                   if (i > 0) user_json += ','
-                  user_json += `{
-                      "${name}": 
-                      {
-                        "type": "mention",
-                        "mentionee": 
-                          {
-                            "type": "user",
-                            "userId": "${line_id}"
-                          }
-                      }
-                    }` ;
                   //console.log(userJson.replace(/\s/g, "")) ;
                   //sub.push(JSON.parse(userJson.replace(/\s/g, ""))) ;
+                  line_id = member.line_user_id ;
                   sub[name] = {
                         "type": "mention",
                         "mentionee": 
