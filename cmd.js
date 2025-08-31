@@ -270,6 +270,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             replyMessages = [
                         {
                             "type": "textV2",
+                            quoteToken: quoteToken,
                             "text": msg,
                             "substitution": {
                                 "user1": {
