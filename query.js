@@ -990,7 +990,7 @@ async function getMemberWeek2(type = 0) {
                           }
                       }
                     }` ;
-                  console.log(userJson.replace(/\s/g, "")) ;
+                  //console.log(userJson.replace(/\s/g, "")) ;
                   sub.push(JSON.parse(userJson.replace(/\s/g, ""))) ;
                 } else {
                   body += (i+1) + ". " + member.name + "\n"; 
@@ -1010,8 +1010,8 @@ async function getMemberWeek2(type = 0) {
             if (goal> 0) header += `(${goal})` ;
             
             str = `${header} ${str}` ;
-            console.log(sub) ;
-            return str ;  
+            //console.log(sub) ;
+            return {str, sub} ;  
         }               
     } else {
         if (type == 0) {
