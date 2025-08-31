@@ -116,32 +116,33 @@ async function getSlipInfo(payload) {
 
 // Function to get image content from LINE using SDK
 async function getImageContent(messageId, type = 0) {
-    try {
-        let my_client ;
-        if (type == 1) {
-            my_client = cur_client ;
-        } else {
-            my_client = client ;
+    const maxRetries = 3 ;
+    let retries = 0 ;
+    while (retries <= maxRetries) {
+        try {
+            let my_client = client ;
+            const stream = await my_client.getMessageContent(messageId);
+            const chunks = [];
+            
+            return new Promise((resolve, reject) => {
+                stream.on('data', (chunk) => {
+                    chunks.push(chunk);
+                });
+                
+                stream.on('end', () => {
+                    resolve(Buffer.concat(chunks));
+                });
+                
+                stream.on('error', (error) => {
+                    reject(error);
+                });
+            });
+        } catch (error) {
+            retries++ ;
+            console.error(`Error getting image content, retried: ${retries}`) ;
+            if (retries > maxRetries)
+                throw error;
         }
-        const stream = await my_client.getMessageContent(messageId);
-        const chunks = [];
-        
-        return new Promise((resolve, reject) => {
-            stream.on('data', (chunk) => {
-                chunks.push(chunk);
-            });
-            
-            stream.on('end', () => {
-                resolve(Buffer.concat(chunks));
-            });
-            
-            stream.on('error', (error) => {
-                reject(error);
-            });
-        });
-    } catch (error) {
-        console.error('Error getting image content:', error);
-        throw error;
     }
 }
 
