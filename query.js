@@ -977,7 +977,7 @@ async function getMemberWeek2(type = 0) {
                   }  
                 }  
               } else {
-                if (i < 10) {
+                if (result.length < 10) {
                   let line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc" ;
                   if (i > 1) line_id = "Ubc0f81812b6722aab1ac1b34897ab468" ;
                   const name = `user${i+1}` ;
