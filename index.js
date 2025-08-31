@@ -424,15 +424,27 @@ async function handleMessage(event) {
                     }
 
                     await db.updateMemberWeek(member[0].id, 1, 0) ;
-                    const msg = await db.getMemberWeek(0) ;
+                    //const msg = await db.getMemberWeek(0) ;
+                    [msg, sub, count] = await db.getMemberWeek2(0) ;
+                    console.log(`user count: ${count}`)
+                    if (count > 0 && count < 10)
                     //console.log(msg) ;
                     //res.status(200).json({ status: 1, qr: codes[0].data });
-                    
-                    replyMessages = [{
+                    if (count ==0 || count >=10) {
+                        replyMessages = [{
                         type: 'text',
                         quoteToken: message.quoteToken,
                         text: header + msg
-                    }];
+                        }];
+                    } else {
+                        replyMessages = {
+                            type: 'textV2',
+                            quoteToken: quoteToken,
+                            text: header + msg,
+                            substitution: sub
+                        };
+                    }
+                   
                     await replyMessage(replyToken, replyMessages);
                 }
                 
