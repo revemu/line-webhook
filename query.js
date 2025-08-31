@@ -978,16 +978,17 @@ async function getMemberWeek2(type = 0) {
               } else {
                 if (i < 10) {
                   const name = `{user${i+1}}` ;
-                  body += `(${i+1}) ${name} \n`;
-                  sub.push({
-                    name: {
+                  body += `${i+1}. ${name} \n`;
+                  const userJson = `
+                        "${name}": {
                         "type": "mention",
                         "mentionee": {
                             "type": "user",
-                            "userId": member.line_user_id
+                            "userId": ${member.line_user_id}
                         }
                       }
-                  }) 
+                  }` ;
+                  sub.push(JSON.parse(userJson)) ;
                 } else {
                   body += (i+1) + ". " + member.name + "\n"; 
                 }
