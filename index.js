@@ -292,7 +292,7 @@ async function handleEvent(event) {
         }
     } catch (error) {
         console.error('Error processing events', error);
-        console.log(event) ;
+        //console.log(event) ;
     }
 
 }
