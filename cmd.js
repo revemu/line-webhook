@@ -273,15 +273,22 @@ async function process_cmd(cmd_str, member, quoteToken) {
                             "type": "textV2",
                             quoteToken: quoteToken,
                             "text": msg,
-                            "substitution": {
+                            "substitution": [{
                                 "user1": {
                                     "type": "mention",
                                     "mentionee": {
                                         "type": "user",
                                         "userId": "Ud734c89ea67da2ed0a16d8dfa6538ecc"
                                     }
+                                },
+                                "user2": {
+                                    "type": "mention",
+                                    "mentionee": {
+                                        "type": "user",
+                                        "userId": "Ubc0f81812b6722aab1ac1b34897ab468"
+                                    }
                                 }
-                            }
+                            }]
                         }]
             console.log(replyMessages) ;
         } 
