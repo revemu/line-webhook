@@ -935,6 +935,7 @@ async function getMemberWeek2(type = 0) {
     let user_json = "";
     let query = "";
     let start = ""
+    let merber_count = 0 ;
     const res = await queryWeekID() ;
     
     if (res.length > 0) {
@@ -1003,7 +1004,8 @@ async function getMemberWeek2(type = 0) {
                 player++ ;
               }
               i++ ;
-              if (i > 1) break ;
+              merber_count = i ;
+              //if (i > 1) break ;
             }
             //user_json = "{" + user_json + "}" ;
             //console.log(user_json.replace(/\s/g, "")) ;
@@ -1018,7 +1020,7 @@ async function getMemberWeek2(type = 0) {
             
             str = `${header} ${str}` ;
             //console.log(sub) ;
-            return [str, sub] ;  
+            return [str, sub, merber_count] ;  
         }               
     } else {
         if (type == 0) {
