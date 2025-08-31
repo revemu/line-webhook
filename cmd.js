@@ -94,15 +94,15 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             break ;
         case '-team':
-            if (is_mention) {
-                week = await db.queryWeekID(0)
-                let team_colors = await db.getTeamColorWeek(week[0].id) ;
+            //if (is_mention) {
+                //week = await db.queryWeekID(0)
+                //let team_colors = await db.getTeamColorWeek(week[0].id) ;
                 //console.log(team_colors) ;
                 //await db.updateMemberWeek(member_id, 0, 1) ;
                 msg = `พิมพ์ +team1(-4) ได้เลย ไม่ต้อง -team` ;
-            } else {
-                msg = `ต้องระบุชื่อสมาชิกด้วย` ;
-            }
+            //} else {
+            //    msg = `ต้องระบุชื่อสมาชิกด้วย` ;
+            //}
             break ;
         case '+team1':
         case '+team2':
