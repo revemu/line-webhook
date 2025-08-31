@@ -291,7 +291,7 @@ async function handleEvent(event) {
             console.log(event) ;
         }
     } catch (error) {
-        console.error('Error processing events');
+        console.error('Error processing events', error);
         console.log(event) ;
     }
 
