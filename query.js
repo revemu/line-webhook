@@ -988,7 +988,7 @@ async function getMemberWeek2(type = 0) {
                         "mentionee": 
                           {
                             "type": "user",
-                            "userId": ${line_id}
+                            "userId": "${line_id}"
                           }
                       }
                     }` ;
