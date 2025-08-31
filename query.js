@@ -991,6 +991,7 @@ async function getMemberWeek2(type = 0) {
                           }
                       }
                     }` ;
+                  console.log(userJson) ;
                   sub.push(JSON.parse(userJson)) ;
                 } else {
                   body += (i+1) + ". " + member.name + "\n"; 
