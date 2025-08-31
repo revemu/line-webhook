@@ -16,6 +16,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let cmd ;
     let param = "" ;
     let msg = "";
+    let sub = "" ;
     var is_mention = false ;
     let member_id = member.id ;
     let member_name = member.name ;
@@ -81,7 +82,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case '+pay2':
             //if (is_mention) {
                 await db.updateMemberWeek(member_id, 1, 0) ;
-                msg = await db.getMemberWeek2(0) ;
+                [msg, sub] = await db.getMemberWeek2(0) ;
+                console.log(sub) ;
            // } else {
            //     msg = "ถ้าส่ง slip แล้วยังไม่ขึ้นโปรดรอ หรือพิมพ์ +pay @ชื่อสมาชิก" ;
            // }
