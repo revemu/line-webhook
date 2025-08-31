@@ -451,7 +451,7 @@ async function handleMessage(event) {
             } 
 
         } catch (error) {
-            console.error('Error processing image:', error);
+            console.error('Error processing image!,', error.code);
             const date = new Date();
             const dow = date.getDay() ;
             const h = date.getHours() ;
