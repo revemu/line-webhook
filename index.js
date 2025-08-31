@@ -116,7 +116,7 @@ async function getSlipInfo(payload) {
 
 // Function to get image content from LINE
 async function getImageAxios(messageId) {
-    let access_token = CHANNEL_ACCESS_TOKEN ;
+    let access_token = config.channelAccessToken ;
     const maxRetries = 3 ;
     let retries = 0 ;
     while (retries <= maxRetries) {
