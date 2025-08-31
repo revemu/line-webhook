@@ -265,7 +265,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 type: 'textV2',
                 quoteToken: quoteToken,
                 text: msg,
-                substitution: sub 
+                substitution: sub[0] 
             };
             console.log(replyMessages) ;
             replyMessages = [
