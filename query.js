@@ -1006,8 +1006,9 @@ async function getMemberWeek2(type = 0) {
               i++ ;
               if (i > 1) break ;
             }
+            user_json = "{" + user_json + "}" ;
             console.log(user_json.replace(/\s/g, "")) ;
-            sub = JSON.parse(user_json.replace(/\s/g, ""))
+            sub = JSON.parse(user_json.replace(/\s/g, "")) 
             console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
             let str = header + body ;
             header = `+${player}` ;
