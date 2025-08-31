@@ -93,7 +93,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case '+pay':
             //if (is_mention) {
                 await db.updateMemberWeek(member_id, 1, 0) ;
-                msg = await db.getMemberWeek2(0) ;
+                [msg, sub] = await db.getMemberWeek2(0) ;
+                msg_type = 2 ;
            // } else {
            //     msg = "ถ้าส่ง slip แล้วยังไม่ขึ้นโปรดรอ หรือพิมพ์ +pay @ชื่อสมาชิก" ;
            // }
