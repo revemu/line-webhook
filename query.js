@@ -932,7 +932,7 @@ async function getMemberWeek2(type = 0) {
     let header = "";
     let body = "";
     let sub = {} ;
-    let user_json ;
+    let user_json = "";
     let query = "";
     let start = ""
     const res = await queryWeekID() ;
