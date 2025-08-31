@@ -261,12 +261,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 contents: msg,
             };
         }  else if (msg_type == 2) {
-            /*replyMessages = {
+            replyMessages = {
                 type: 'textV2',
                 quoteToken: quoteToken,
                 text: msg,
                 substitution: sub 
-            };*/
+            };
+            console.log(replyMessages) ;
             replyMessages = [
                         {
                             "type": "textV2",
@@ -282,6 +283,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                                 }
                             }
                         }]
+            console.log(replyMessages) ;
         } 
     }
     
