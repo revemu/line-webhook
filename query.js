@@ -979,8 +979,7 @@ async function getMemberWeek2(type = 0) {
                 if (i < 10) {
                   const name = `user${i+1}` ;
                   body += `${i+1}. {${name}} \n`;
-                  const userJson = `
-                    {
+                  const userJson = `{
                       "${name}": 
                       {
                         "type": "mention",
@@ -992,7 +991,7 @@ async function getMemberWeek2(type = 0) {
                       }
                     }` ;
                   console.log(userJson) ;
-                  sub.push(JSON.parse(userJson)) ;
+                  sub.push(JSON.parse(userJson.replace(/\n/g, ""))) ;
                 } else {
                   body += (i+1) + ". " + member.name + "\n"; 
                 }
