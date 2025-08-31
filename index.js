@@ -133,6 +133,7 @@ async function getImageAxios(messageId) {
             console.error(`Error getting image content, retried: ${retries}`) ;
             if (retries > maxRetries)
                 throw error;
+            else await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
 }
@@ -165,6 +166,7 @@ async function getImageContent(messageId, type = 0) {
             console.error(`Error getting image content, retried: ${retries}`) ;
             if (retries > maxRetries)
                 throw error;
+            else await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
 }
