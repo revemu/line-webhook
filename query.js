@@ -977,8 +977,8 @@ async function getMemberWeek2(type = 0) {
                 }  
               } else {
                 if (i < 10) {
-                  const name = `{user${i+1}}` ;
-                  body += `${i+1}. ${name} \n`;
+                  const name = `user${i+1}` ;
+                  body += `${i+1}. {${name}} \n`;
                   const userJson = `
                     {
                       "${name}": 
