@@ -990,7 +990,7 @@ async function getMemberWeek2(type = 0) {
                           }
                       }
                     }` ;
-                  console.log(userJson) ;
+                  console.log(userJson.replace(/\s/g, "")) ;
                   sub.push(JSON.parse(userJson.replace(/\s/g, ""))) ;
                 } else {
                   body += (i+1) + ". " + member.name + "\n"; 
