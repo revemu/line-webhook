@@ -928,6 +928,98 @@ async function getMemberWeek(type = 0) {
         
 }
 
+async function getMemberWeek2(type = 0) {
+    let header = "";
+    let body = "";
+    let sub = [] ;
+    let query = "";
+    let start = ""
+    const res = await queryWeekID() ;
+    
+    if (res.length > 0) {
+        const week_id = res[0].id ;
+        query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.power, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
+        if (type == 0) {
+            header = " คนที่ยังไมได้จ่ายค่าสนาม" ;
+            query += " and pay=0" ; 
+        } else if (type == 1) {
+            header = " ลงชื่อเตะบอล" ; 
+            start = "+"
+        }
+        
+        const result = await executeQuery(query) ;
+        if (result.length > 0) {
+            const date = new Date(res[0].date) ;
+            
+            header = `${header} เสาร์ที่ ${await getFormatDate(date,'short')}\n\n`;
+            let i = 0 ;
+            let player = 0 ;
+            let reserve = 0 ;
+            let reserve_str = "\n=== รายชื่อสำรอง ===\n" ;
+            let goal = 0 ;
+            let goal_str = "\n=== รายชื่อโกล์ ===\n" ;
+            let index = 0 ;
+            for (const member of result) {
+              if (type == 1) {
+                if (member.power == 1000) {
+                  goal++ ;
+                  goal_str += (goal) + ". " + member.name + "\n";
+                } else {
+                  
+                  //index = player ;
+                  if (player < 24) {
+                    player++ ;
+                    body += (player) + ". " + member.name + "\n"; 
+                  } else {
+                    reserve++ ;
+                    reserve_str += (reserve) + ". " + member.name + "\n"; 
+                  }  
+                }  
+              } else {
+                if (i < 10) {
+                  const name = `{user${i+1}}` ;
+                  body += `(${i+1}) ${name} \n`;
+                  sub.push({
+                    name: {
+                        "type": "mention",
+                        "mentionee": {
+                            "type": "user",
+                            "userId": member.line_user_id
+                        }
+                      }
+                  }) 
+                } else {
+                  body += (i+1) + ". " + member.name + "\n"; 
+                }
+                //body += (i+1) + ". " + member.name + "\n"; 
+                
+                player++ ;
+              }
+              i++ ;
+            }
+            console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
+            let str = header + body ;
+            header = `+${player}` ;
+            if (reserve > 0) str += reserve_str ;
+            if (goal > 0) str += goal_str ;
+            if (reserve> 0) header += `(${reserve})` ;
+            if (goal> 0) header += `(${goal})` ;
+            
+            str = `${header} ${str}` ;
+            console.log(sub) ;
+            return str ;  
+        }               
+    } else {
+        if (type == 0) {
+            header = `จ่ายครบหมดแล้ว เสาร์ที่ ${await getFormatDate(date)}` ; 
+        } else if (type == 1) {
+            header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้` ; 
+        }
+        return header ;
+    }
+        
+}
+
 async function getTopStat(limit = 10, type = 0) {
     let header = "";
     let query = "";
@@ -1045,5 +1137,6 @@ module.exports = {
   newWeek,
   getFormatDate,
   addTeamColorWeek,
-  addTeamMemberWeek
+  addTeamMemberWeek,
+  getMemberWeek2
 };
