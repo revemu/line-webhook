@@ -1011,7 +1011,7 @@ async function getMemberWeek2(type = 0) {
             
             str = `${header} ${str}` ;
             //console.log(sub) ;
-            return {str, sub} ;  
+            return [str, sub] ;  
         }               
     } else {
         if (type == 0) {
