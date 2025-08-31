@@ -79,12 +79,12 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = await db.getMemberWeek(1) ;
             break ;
         case '+pay':
-            if (is_mention) {
+            //if (is_mention) {
                 await db.updateMemberWeek(member_id, 1, 0) ;
                 msg = await db.getMemberWeek(0) ;
-            } else {
-                msg = "ถ้าส่ง slip แล้วยังไม่ขึ้นโปรดรอ หรือพิมพ์ +pay @ชื่อสมาชิก" ;
-            }
+           // } else {
+           //     msg = "ถ้าส่ง slip แล้วยังไม่ขึ้นโปรดรอ หรือพิมพ์ +pay @ชื่อสมาชิก" ;
+           // }
             
             break ;
         case '-pay':
