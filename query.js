@@ -1000,6 +1000,7 @@ async function getMemberWeek2(type = 0) {
                 player++ ;
               }
               i++ ;
+              break ;
             }
             console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
             let str = header + body ;
