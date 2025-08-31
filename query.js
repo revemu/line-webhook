@@ -982,7 +982,7 @@ async function getMemberWeek2(type = 0) {
                   if (i > 1) line_id = "Ubc0f81812b6722aab1ac1b34897ab468" ;
                   const name = `user${i+1}` ;
                   body += `${i+1}. {${name}} \n`;
-                  if (i > 1) user_json += ','
+                  if (i > 0) user_json += ','
                   user_json += `{
                       "${name}": 
                       {
