@@ -261,12 +261,26 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 contents: msg,
             };
         }  else if (msg_type == 2) {
-            replyMessages = {
+            /*replyMessages = {
                 type: 'textV2',
                 quoteToken: quoteToken,
                 text: msg,
                 substitution: sub 
-            };
+            };*/
+            replyMessages = [
+                        {
+                            "type": "textV2",
+                            "text": msg,
+                            "substitution": {
+                                "user1": {
+                                    "type": "mention",
+                                    "mentionee": {
+                                        "type": "user",
+                                        "userId": "Ud734c89ea67da2ed0a16d8dfa6538ecc"
+                                    }
+                                }
+                            }
+                        }]
         } 
     }
     
