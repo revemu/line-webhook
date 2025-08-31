@@ -981,7 +981,7 @@ async function getMemberWeek2(type = 0) {
                   if (i > 1) line_id = "Ubc0f81812b6722aab1ac1b34897ab468" ;
                   const name = `user${i+1}` ;
                   body += `${i+1}. {${name}} \n`;
-                  const userJson = `{
+                  /*const userJson = `{
                       "${name}": 
                       {
                         "type": "mention",
@@ -991,9 +991,17 @@ async function getMemberWeek2(type = 0) {
                             "userId": "${line_id}"
                           }
                       }
-                    }` ;
+                    }` ;*/
                   //console.log(userJson.replace(/\s/g, "")) ;
-                  sub.push(JSON.parse(userJson.replace(/\s/g, ""))) ;
+                  //sub.push(JSON.parse(userJson.replace(/\s/g, ""))) ;
+                  sub[`${name}`] = {
+                        "type": "mention",
+                        "mentionee": 
+                          {
+                            "type": "user",
+                            "userId": line_id
+                          }
+                      }
                 } else {
                   body += (i+1) + ". " + member.name + "\n"; 
                 }
