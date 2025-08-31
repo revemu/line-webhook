@@ -114,6 +114,29 @@ async function getSlipInfo(payload) {
     }
 }
 
+// Function to get image content from LINE
+async function getImageAxios(messageId) {
+    let access_token = CHANNEL_ACCESS_TOKEN ;
+    const maxRetries = 3 ;
+    let retries = 0 ;
+    while (retries <= maxRetries) {
+        try {
+            const response = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+                headers: {
+                    'Authorization': `Bearer ${access_token}`  
+                },
+                responseType: 'arraybuffer'
+            });
+            return Buffer.from(response.data);
+        } catch (error) {
+            retries++ ;
+            console.error(`Error getting image content, retried: ${retries}`) ;
+            if (retries > maxRetries)
+                throw error;
+        }
+    }
+}
+
 // Function to get image content from LINE using SDK
 async function getImageContent(messageId, type = 0) {
     const maxRetries = 3 ;
@@ -361,7 +384,8 @@ async function handleMessage(event) {
             console.log(`${member[0].name}: sent image! need processing...`);
             let startTime = new Date() ;
             // Get image content from LINE
-            const imageBuffer = await getImageContent(message.id);
+            //const imageBuffer = await getImageContent(message.id);
+            const imageBuffer = await getImageAxios(message.id);
             //console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
             //let endTime = new Date();
             //let timeElapsed = endTime - startTime; // Difference in milliseconds
@@ -377,7 +401,7 @@ async function handleMessage(event) {
             
             let replyMessages;
             if (codes) {
-                const alphanumericRegex = /^[A-Za-z0-9]+$/;
+                //const alphanumericRegex = /^[A-Za-z0-9]+$/;
                 const qrCode = codes[0].data ;
                 console.log('QR code detected:', qrCode) ;
                 if (qrCode.includes("60000010103")) {
