@@ -197,7 +197,7 @@ async function newWeek(week_date) {
 
     const res = await executeQuery(query) ;
     //console.log(res) ;
-    return res ;
+    //return res ;
   } else {
     console.log(date_str + " already exist!") ;
   }
