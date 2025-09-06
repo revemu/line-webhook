@@ -427,7 +427,7 @@ async function handleMessage(event) {
                     //const msg = await db.getMemberWeek(0) ;
                     [msg, sub, count] = await db.getMemberWeek2(0) ;
                     console.log(`user count: ${count}`)
-                    if (count > 0 && count < 10)
+                    //if (count > 0 && count < 10)
                     //console.log(msg) ;
                     //res.status(200).json({ status: 1, qr: codes[0].data });
                     if (count ==0 || count >=10) {
