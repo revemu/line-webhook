@@ -96,7 +96,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 let count = 0 ;
                 [msg, sub, count] = await db.getMemberWeek2(0) ;
                 console.log(`user count: ${count}`)
-                if (count > 0 && count < 10)
+                if (count > 0 && count < 20)
                     msg_type = 2 ;
                 else
                     msg_type = 0 ;
