@@ -1028,7 +1028,8 @@ async function getMemberWeek2(type = 0) {
         } else if (type == 1) {
             header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้` ; 
         }
-        return header ;
+        //return header ;
+        return [header, sub, merber_count] ;
     }
         
 }
