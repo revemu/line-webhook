@@ -1029,6 +1029,7 @@ async function getMemberWeek2(type = 0) {
             header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้` ; 
         }
         //return header ;
+         console.log(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
         return [header, sub, merber_count] ;
     }
         
