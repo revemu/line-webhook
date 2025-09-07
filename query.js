@@ -951,87 +951,82 @@ async function getMemberWeek2(type = 0) {
         
         const result = await executeQuery(query) ;
         if (result.length > 0) {
-            const date = new Date(res[0].date) ;
-            
-            header = `${header} เสาร์ที่ ${await getFormatDate(date,'short')}\n\n`;
-            let i = 0 ;
-            let player = 0 ;
-            let reserve = 0 ;
-            let reserve_str = "\n=== รายชื่อสำรอง ===\n" ;
-            let goal = 0 ;
-            let goal_str = "\n=== รายชื่อโกล์ ===\n" ;
-            let index = 0 ;
-            merber_count = result.length ;
-            for (const member of result) {
-              if (type == 1) {
-                if (member.power == 1000) {
-                  goal++ ;
-                  goal_str += (goal) + ". " + member.name + "\n";
-                } else {
-                  
-                  //index = player ;
-                  if (player < 24) {
-                    player++ ;
-                    body += (player) + ". " + member.name + "\n"; 
-                  } else {
-                    reserve++ ;
-                    reserve_str += (reserve) + ". " + member.name + "\n"; 
-                  }  
-                }  
+          const date = new Date(res[0].date) ;
+          
+          header = `${header} เสาร์ที่ ${await getFormatDate(date,'short')}\n\n`;
+          let i = 0 ;
+          let player = 0 ;
+          let reserve = 0 ;
+          let reserve_str = "\n=== รายชื่อสำรอง ===\n" ;
+          let goal = 0 ;
+          let goal_str = "\n=== รายชื่อโกล์ ===\n" ;
+          let index = 0 ;
+          merber_count = result.length ;
+          for (const member of result) {
+            if (type == 1) {
+              if (member.power == 1000) {
+                goal++ ;
+                goal_str += (goal) + ". " + member.name + "\n";
               } else {
-                //console.log(`user count: ${i+1}:${result.length}`)
-                if (result.length < 10) {
-                  let line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc" ;
-                  if (i > 1) line_id = "Ubc0f81812b6722aab1ac1b34897ab468" ;
-                  const name = `user${i+1}` ;
-                  body += `${i+1}. {${name}} \n`;
-                  if (i > 0) user_json += ','
-                  //console.log(userJson.replace(/\s/g, "")) ;
-                  //sub.push(JSON.parse(userJson.replace(/\s/g, ""))) ;
-                  line_id = member.line_user_id ;
-                  sub[name] = {
-                        "type": "mention",
-                        "mentionee": 
-                          {
-                            "type": "user",
-                            "userId": line_id
-                          }
-                      } ;
-                } else {
-                  body += (i+1) + ". " + member.name + "\n"; 
-                }
-                //body += (i+1) + ". " + member.name + "\n"; 
                 
-                player++ ;
-              }
-              i++ ;
-              //if (i > 1) break ;
+                //index = player ;
+                if (player < 24) {
+                  player++ ;
+                  body += (player) + ". " + member.name + "\n"; 
+                } else {
+                  reserve++ ;
+                  reserve_str += (reserve) + ". " + member.name + "\n"; 
+                }  
+              }  
+            } else {
+              //console.log(`user count: ${i+1}:${result.length}`)
+              if (result.length < 21) {
+                let line_id = member.line_user_id ;
+                
+                const name = `user${i+1}` ;
+                body += `${i+1}. {${name}} \n`;
+                if (i > 0) user_json += ',';
+                sub[name] = {
+                      "type": "mention",
+                      "mentionee": 
+                        {
+                          "type": "user",
+                          "userId": line_id
+                        }
+                    } ;
+              } else {
+                body += (i+1) + ". " + member.name + "\n"; 
+              }       
+              player++ ;
             }
-            //user_json = "{" + user_json + "}" ;
-            //console.log(user_json.replace(/\s/g, "")) ;
-            //sub = JSON.parse(user_json.replace(/\s/g, "")) 
-            console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
-            let str = header + body ;
-            header = `+${player}` ;
-            if (reserve > 0) str += reserve_str ;
-            if (goal > 0) str += goal_str ;
-            if (reserve> 0) header += `(${reserve})` ;
-            if (goal> 0) header += `(${goal})` ;
-            
-            str = `${header} ${str}` ;
-            //console.log(sub) ;
-            return [str, sub, merber_count] ;  
-        }               
-    } else {
-        if (type == 0) {
-            header = `จ่ายครบหมดแล้ว เสาร์ที่ ${await getFormatDate(date)}` ; 
-        } else if (type == 1) {
-            header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้` ; 
-        }
-        //return header ;
-         console.log(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
-        return [header, sub, merber_count] ;
-    }
+            i++ ;
+            //if (i > 1) break ;
+          }
+          //user_json = "{" + user_json + "}" ;
+          //console.log(user_json.replace(/\s/g, "")) ;
+          //sub = JSON.parse(user_json.replace(/\s/g, "")) 
+          console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
+          let str = header + body ;
+          header = `+${player}` ;
+          if (reserve > 0) str += reserve_str ;
+          if (goal > 0) str += goal_str ;
+          if (reserve> 0) header += `(${reserve})` ;
+          if (goal> 0) header += `(${goal})` ;
+          
+          str = `${header} ${str}` ;
+          //console.log(sub) ;
+          return [str, sub, merber_count] ;  
+        } else {
+          if (type == 0) {
+              header = `จ่ายครบหมดแล้ว เสาร์ที่ ${await getFormatDate(date)}` ; 
+          } else if (type == 1) {
+              header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้` ; 
+          }
+          //return header ;
+          console.log(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
+          return [header, sub, merber_count] ;
+        }              
+    } 
         
 }
 
