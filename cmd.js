@@ -95,7 +95,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 await db.updateMemberWeek(member_id, 1, 0) ;
                 let count = 0 ;
                 [msg, sub, count] = await db.getMemberWeek2(0) ;
-                console.log(`user count: ${count}`)
+                //console.log(`user count: ${count}`)
                 if (count > 0 && count < 21)
                     msg_type = 2 ;
                 else
@@ -281,30 +281,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 text: msg,
                 substitution: sub
             };
-            console.log(replyMessages) ;
-            /*replyMessages = [
-                        {
-                            "type": "textV2",
-                            quoteToken: quoteToken,
-                            "text": msg,
-                            "substitution": {
-                                "user1": {
-                                    "type": "mention",
-                                    "mentionee": {
-                                        "type": "user",
-                                        "userId": "Ud734c89ea67da2ed0a16d8dfa6538ecc"
-                                    }
-                                },
-                                "user2": {
-                                    "type": "mention",
-                                    "mentionee": {
-                                        "type": "user",
-                                        "userId": "Ubc0f81812b6722aab1ac1b34897ab468"
-                                    }
-                                }
-                            }
-                        }]
-            console.log(replyMessages) ;*/
+            //console.log(replyMessages) ;
         } 
     }
     
