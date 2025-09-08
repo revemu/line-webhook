@@ -1005,7 +1005,7 @@ async function getMemberWeek2(type = 0) {
           //user_json = "{" + user_json + "}" ;
           //console.log(user_json.replace(/\s/g, "")) ;
           //sub = JSON.parse(user_json.replace(/\s/g, "")) 
-          console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
+          //console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
           let str = header + body ;
           header = `+${player}` ;
           if (reserve > 0) str += reserve_str ;
@@ -1023,7 +1023,7 @@ async function getMemberWeek2(type = 0) {
               header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้` ; 
           }
           //return header ;
-          console.log(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
+          //console.log(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
           return [header, sub, merber_count] ;
         }              
     } 
