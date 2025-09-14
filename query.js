@@ -982,7 +982,7 @@ async function getMemberWeek2(type = 0) {
               //console.log(`user count: ${i+1}:${result.length}`)
               if (result.length < 21) {
                 let line_id = member.line_user_id ;
-                line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc"
+                //line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc"
                 const name = `user${i+1}` ;
                 body += `${i+1}. {${name}} \n`;
                 if (i > 0) user_json += ',';
