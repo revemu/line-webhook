@@ -983,17 +983,24 @@ async function getMemberWeek2(type = 0) {
               if (result.length < 21) {
                 let line_id = member.line_user_id ;
                 //line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc"
-                const name = `user${i+1}` ;
-                body += `${i+1}. {${name}} \n`;
-                if (i > 0) user_json += ',';
-                sub[name] = {
-                      "type": "mention",
-                      "mentionee": 
-                        {
-                          "type": "user",
-                          "userId": line_id
-                        }
-                    } ;
+                let name = member.name ;
+                if (line_id != null) {
+                  name = `user${i+1}` ;
+                  body += `${i+1}. {${name}} \n`;
+                  if (i > 0) user_json += ',';
+                  sub[name] = {
+                        "type": "mention",
+                        "mentionee": 
+                          {
+                            "type": "user",
+                            "userId": line_id
+                          }
+                      } ;
+                } else {
+                  body += (i+1) + ". " + member.name + "\n"; 
+                }
+                
+                
               } else {
                 body += (i+1) + ". " + member.name + "\n"; 
               }       
