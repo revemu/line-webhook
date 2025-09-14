@@ -90,7 +90,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
            // }
             
             break ;
-        case '+pay3':
+        case '+pay':
             //if (is_mention) {
                 await db.updateMemberWeek(member_id, 1, 0) ;
                 let count = 0 ;
