@@ -940,6 +940,7 @@ async function getMemberWeek2(type = 0) {
     
     if (res.length > 0) {
         const week_id = res[0].id ;
+        const date = new Date(res[0].date) ;
         query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.power, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
         if (type == 0) {
             header = "คนที่ยังไมได้จ่ายค่าสนาม" ;
@@ -951,7 +952,7 @@ async function getMemberWeek2(type = 0) {
         
         const result = await executeQuery(query) ;
         if (result.length > 0) {
-          const date = new Date(res[0].date) ;
+          
           
           header = `${header} เสาร์ที่ ${await getFormatDate(date,'short')}\n\n`;
           let i = 0 ;

@@ -348,8 +348,8 @@ async function manageMember(source, member, line_name) {
         if (line_name == member[0].name) {
             //console.log(`existing member ${source.userId}: ${member[0].name}`);
         } else {
-            console.log(`update existing member name ${source.userId}: ${member[0].name} => ${displayName}`);
-            //await db.updateMember(member[0].id, displayName, 0) ;
+            console.log(`update existing member name ${source.userId}: ${member[0].name} => ${line_name}`);
+            await db.updateMember(member[0].id, line_name, 0) ;
         }
     } else {
         console.log(`add new member ${source.userId}: ${line_name}`);
