@@ -430,7 +430,7 @@ async function handleMessage(event) {
                     //if (count > 0 && count < 10)
                     //console.log(msg) ;
                     //res.status(200).json({ status: 1, qr: codes[0].data });
-                    if (count ==0 || count >=10) {
+                    if (count ==0 || count >20) {
                         replyMessages = [{
                         type: 'text',
                         quoteToken: message.quoteToken,
