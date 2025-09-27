@@ -986,8 +986,8 @@ async function getMemberWeek2(type = 0) {
                 //line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc"
                 let name = member.name ;
                 if (line_id != null) {
-                  name = `user${i+1}` ;
-                  body += `${i+1}. {${name}} \n`;
+                  name = `user${index+1}` ;
+                  body += `${index+1}. {${name}} \n`;
                   if (i > 0) user_json += ',';
                   sub[name] = {
                         "type": "mention",
@@ -997,6 +997,7 @@ async function getMemberWeek2(type = 0) {
                             "userId": line_id
                           }
                       } ;
+                  index++ ;
                 } else {
                   body += (i+1) + ". " + member.name + "\n"; 
                 }
