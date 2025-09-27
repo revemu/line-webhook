@@ -985,7 +985,7 @@ async function getMemberWeek2(type = 0) {
                 let line_id = member.line_user_id ;
                 //line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc"
                 let name = member.name ;
-                if (line_id.length > 0) {
+                if (line_id != null) {
                   name = `user${index+1}` ;
                   body += `${index+1}. {${name}} \n`;
                   if (index > 0) user_json += ',';
