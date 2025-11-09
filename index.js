@@ -427,6 +427,12 @@ async function handleMessage(event) {
                     //const msg = await db.getMemberWeek(0) ;
                     [msg, sub, count] = await db.getMemberWeek2(0) ;
                     console.log(`user count: ${count}`)
+                    const week = await queryWeekID() ;
+                    if (week.length > 0) {
+                        const week_date = week[0].date ;
+                        console.log(week_date) ;
+                        return ;
+                    }
                     //if (count > 0 && count < 10)
                     //console.log(msg) ;
                     //res.status(200).json({ status: 1, qr: codes[0].data });
