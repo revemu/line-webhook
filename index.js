@@ -423,10 +423,6 @@ async function handleMessage(event) {
                         //console.log("qrCode") ;
                     }
 
-                    await db.updateMemberWeek(member[0].id, 1, 0) ;
-                    //const msg = await db.getMemberWeek(0) ;
-                    [msg, sub, count] = await db.getMemberWeek2(0) ;
-                    console.log(`user count: ${count}`)
                     const week = await db.queryWeekDate() ;
                     let payweek = true ;
                     if (week.length > 0) {
@@ -435,7 +431,7 @@ async function handleMessage(event) {
                         if (now.getTime() < week_date.getTime()) {
                             payweek = false ;
                         }
-                        console.log(`week ${week_date} now${now}`) ;
+                        console.log(`week ${week_date} now ${now}`) ;
                         //return ;
                     }
                     //if (count > 0 && count < 10)
@@ -447,20 +443,28 @@ async function handleMessage(event) {
                         quoteToken: message.quoteToken,
                         text: header
                         }];
-                    } else if (count ==0 || count >20) {
-                        replyMessages = [{
-                        type: 'text',
-                        quoteToken: message.quoteToken,
-                        text: header + msg
-                        }];
                     } else {
-                        replyMessages = {
-                            type: 'textV2',
+                        await db.updateMemberWeek(member[0].id, 1, 0) ;
+                        //const msg = await db.getMemberWeek(0) ;
+                        [msg, sub, count] = await db.getMemberWeek2(0) ;
+                        console.log(`user count: ${count}`)
+                        if (count ==0 || count >20) {
+                            replyMessages = [{
+                            type: 'text',
                             quoteToken: message.quoteToken,
-                            text: header + msg,
-                            substitution: sub
-                        };
+                            text: header + msg
+                            }];
+                        } else {
+                            replyMessages = {
+                                type: 'textV2',
+                                quoteToken: message.quoteToken,
+                                text: header + msg,
+                                substitution: sub
+                            };
+                        }
                     }
+                    
+                    
                    
                     await replyMessage(replyToken, replyMessages);
                 }
