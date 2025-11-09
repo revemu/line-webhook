@@ -428,15 +428,26 @@ async function handleMessage(event) {
                     [msg, sub, count] = await db.getMemberWeek2(0) ;
                     console.log(`user count: ${count}`)
                     const week = await db.queryWeekDate() ;
+                    let payweek = true ;
                     if (week.length > 0) {
                         const week_date = week[0].date ;
+                        const now = new Date() ;
+                        if (now.getTime() < week_date.getTime()) {
+                            payweek = false ;
+                        }
                         console.log(week_date) ;
-                        return ;
+                        //return ;
                     }
                     //if (count > 0 && count < 10)
                     //console.log(msg) ;
                     //res.status(200).json({ status: 1, qr: codes[0].data });
-                    if (count ==0 || count >20) {
+                    if (!payweek) {
+                        replyMessages = [{
+                        type: 'text',
+                        quoteToken: message.quoteToken,
+                        text: header
+                        }];
+                    } else if (count ==0 || count >20) {
                         replyMessages = [{
                         type: 'text',
                         quoteToken: message.quoteToken,
