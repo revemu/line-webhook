@@ -221,6 +221,19 @@ async function updateMemberWeek(member_id, value, type = 0) {
   }
 }
 
+async function queryWeekDate(week_id = 0) {
+    let query = "" ;
+    if (week_id == 0) {
+      query = "SELECT id, number, date FROM week_tbl ORDER BY NUMBER DESC LIMIT 1" ;
+    } else {
+      query = `SELECT id, number, date FROM week_tbl where id=${week_id}` ;
+    }
+    
+    const res = await executeQuery(query) ;
+    //console.log(res) ;
+    return res ;
+}
+
 async function queryWeekID(week_id = 0) {
     let query = "" ;
     if (week_id == 0) {
@@ -1137,6 +1150,7 @@ async function getTopStat(limit = 10, type = 0) {
 module.exports = {
   testConnection,
   executeQuery,
+  queryWeekDate,
   queryWeekID,
   getTeamColorWeek,
   getTeamWeek,
