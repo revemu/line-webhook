@@ -427,7 +427,7 @@ async function handleMessage(event) {
                     //const msg = await db.getMemberWeek(0) ;
                     [msg, sub, count] = await db.getMemberWeek2(0) ;
                     console.log(`user count: ${count}`)
-                    const week = await db.queryWeekID() ;
+                    const week = await db.queryWeekDate() ;
                     if (week.length > 0) {
                         const week_date = week[0].date ;
                         console.log(week_date) ;
