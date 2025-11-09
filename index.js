@@ -435,7 +435,7 @@ async function handleMessage(event) {
                         if (now.getTime() < week_date.getTime()) {
                             payweek = false ;
                         }
-                        console.log(week_date) ;
+                        console.log(`week ${week_date} now${now}`) ;
                         //return ;
                     }
                     //if (count > 0 && count < 10)
