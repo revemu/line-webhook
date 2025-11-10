@@ -977,19 +977,24 @@ async function getMemberWeek2(type = 0) {
           let index = 0 ;
           merber_count = result.length ;
           for (const member of result) {
+            let donate = "" ;
+            if (member.donate > 0) {
+              donate = "🎗️" ;
+            }
+            let member_name = member.name ;
             if (type == 1) {
               if (member.power == 1000) {
                 goal++ ;
-                goal_str += (goal) + ". " + member.name + "\n";
+                goal_str += (goal) + ". " + donate + member_name + "\n";
               } else {
                 
                 //index = player ;
                 if (player < 24) {
                   player++ ;
-                  body += (player) + ". " + member.name + "\n"; 
+                  body += (player) + ". " + donate + member_name + "\n"; 
                 } else {
                   reserve++ ;
-                  reserve_str += (reserve) + ". " + member.name + "\n"; 
+                  reserve_str += (reserve) + ". " + donate + member_name + "\n"; 
                 }  
               }  
             } else {
@@ -997,10 +1002,10 @@ async function getMemberWeek2(type = 0) {
               if (result.length < 21) {
                 let line_id = member.line_user_id ;
                 //line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc"
-                let name = member.name ;
+                let name = member_name ;
                 if (line_id != null && line_id != "") {
                   name = `user${index+1}` ;
-                  body += `${i+1}. {${name}} \n`;
+                  body += `${i+1}. ${donate}{${name}} \n`;
                   if (index > 0) user_json += ',';
                   sub[name] = {
                         "type": "mention",
@@ -1012,12 +1017,12 @@ async function getMemberWeek2(type = 0) {
                       } ;
                   index++ ;
                 } else {
-                  body += (i+1) + ". " + member.name + "\n"; 
+                  body += (i+1) + ". " + donate + member_name + "\n"; 
                 }
                 
                 
               } else {
-                body += (i+1) + ". " + member.name + "\n"; 
+                body += (i+1) + ". " + donate + member_name + "\n"; 
               }       
               player++ ;
             }
