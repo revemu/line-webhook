@@ -898,8 +898,12 @@ async function getMemberWeek(type = 0) {
             let index = 0 ;
             for (const member of result) {
               let donate = "" ;
-              if (member.donate > 0) {
+              if (member.donate == 1) {
                 donate = "🎗️" ;
+              } else if (member.donate == 2) {
+                donate = "💝" ;
+              } else if (member.donate == 3) {
+                donate = "👑" ;
               }
               if (type == 1) {
                 if (member.power == 1000) {
@@ -982,8 +986,12 @@ async function getMemberWeek2(type = 0) {
           merber_count = result.length ;
           for (const member of result) {
             let donate = "" ;
-            if (member.donate > 0) {
+            if (member.donate == 1) {
               donate = "🎗️" ;
+            } else if (member.donate == 2) {
+              donate = "💝" ;
+            } else if (member.donate == 3) {
+              donate = "👑" ;
             }
             let member_name = member.name ;
             if (type == 1) {
