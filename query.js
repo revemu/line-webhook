@@ -865,6 +865,19 @@ async function getTeamWeek(week_id = 0) {
     }
         
 }
+async function getDonateBadge(donate = 0) {
+
+  if (member.donate == 1) {
+    return"🎗️" ;
+  } else if (member.donate == 2) {
+    return "💝" ;
+  } else if (member.donate == 3) {
+    return "👑" ;
+  } else {
+    return "" ;
+  }
+
+}
 
 async function getMemberWeek(type = 0) {
     let header = "";
@@ -897,14 +910,8 @@ async function getMemberWeek(type = 0) {
             let goal_str = "\n=== รายชื่อโกล์ ===\n" ;
             let index = 0 ;
             for (const member of result) {
-              let donate = "" ;
-              if (member.donate == 1) {
-                donate = "🎗️" ;
-              } else if (member.donate == 2) {
-                donate = "💝" ;
-              } else if (member.donate == 3) {
-                donate = "👑" ;
-              }
+              let donate = getDonateBadge(member.donate) ;
+          
               if (type == 1) {
                 if (member.power == 1000) {
                   goal++ ;
@@ -985,14 +992,8 @@ async function getMemberWeek2(type = 0) {
           let index = 0 ;
           merber_count = result.length ;
           for (const member of result) {
-            let donate = "" ;
-            if (member.donate == 1) {
-              donate = "🎗️" ;
-            } else if (member.donate == 2) {
-              donate = "💝" ;
-            } else if (member.donate == 3) {
-              donate = "👑" ;
-            }
+            let donate = getDonateBadge(member.donate) ;
+          
             let member_name = member.name ;
             if (type == 1) {
               if (member.power == 1000) {
