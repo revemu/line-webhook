@@ -910,7 +910,7 @@ async function getMemberWeek(type = 0) {
             let goal_str = "\n=== รายชื่อโกล์ ===\n" ;
             let index = 0 ;
             for (const member of result) {
-              let donate = getDonateBadge(member.donate) ;
+              let donate = await getDonateBadge(member.donate) ;
           
               if (type == 1) {
                 if (member.power == 1000) {
@@ -992,7 +992,7 @@ async function getMemberWeek2(type = 0) {
           let index = 0 ;
           merber_count = result.length ;
           for (const member of result) {
-            let donate = getDonateBadge(member.donate) ;
+            let donate = await getDonateBadge(member.donate) ;
           
             let member_name = member.name ;
             if (type == 1) {
