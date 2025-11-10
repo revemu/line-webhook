@@ -897,23 +897,27 @@ async function getMemberWeek(type = 0) {
             let goal_str = "\n=== รายชื่อโกล์ ===\n" ;
             let index = 0 ;
             for (const member of result) {
+              let donate = "" ;
+              if (member.donate > 0) {
+                donate = "🎗️" ;
+              }
               if (type == 1) {
                 if (member.power == 1000) {
                   goal++ ;
-                  goal_str += (goal) + ". " + member.name + "\n";
+                  goal_str += (goal) + ". " + donate + member.name + "\n";
                 } else {
                   
                   //index = player ;
                   if (player < 24) {
                     player++ ;
-                    body += (player) + ". " + member.name + "\n"; 
+                    body += (player) + ". " + donate + member.name + "\n"; 
                   } else {
                     reserve++ ;
-                    reserve_str += (reserve) + ". " + member.name + "\n"; 
+                    reserve_str += (reserve) + ". " + donate + member.name + "\n"; 
                   }  
                 }  
               } else {
-                body += (i+1) + ". " + member.name + "\n"; 
+                body += (i+1) + ". " + donate + member.name + "\n"; 
                 player++ ;
               }
               i++ ;
