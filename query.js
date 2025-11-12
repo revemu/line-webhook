@@ -869,9 +869,9 @@ async function getDonateBadge(donate = 0) {
   if (donate < 100) {
     return "" ;
   } else if (donate > 499) {
-    return "👑⭐🎗️" ;
+    return "👑" ;
   }  else if (donate > 199) {
-    return "⭐🎗️" ;
+    return "⭐" ;
   } else if (donate > 99) {
     return"🎗️" ;
   } 
