@@ -868,6 +868,8 @@ async function getTeamWeek(week_id = 0) {
 async function getDonateBadge(donate = 0) {
   if (donate < 100) {
     return "" ;
+   } else if (donate > 599) {
+    return "👑☀︎" ;
   } else if (donate > 499) {
     return "👑" ;
   }  else if (donate > 299) {
