@@ -872,7 +872,7 @@ async function getDonateBadge(donate = 0) {
   } else if (donate == 2) {
     return "💝" ;
   } else if (donate == 3) {
-    return "👑" ;
+    return "(star)" ;
   } else {
     return "" ;
   }
