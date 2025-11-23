@@ -907,8 +907,9 @@ async function getMemberNY() {
 
         let i = 0 ;
         for (const member of result) {
-          console.log((i+1) + ". " + donate + member.name) ;
+          
           let donate = await getDonateBadge(member.donate) ;
+          console.log((i+1) + ". " + donate + member.name) ;
           body += (i+1) + ". " + donate + member.name + "\n"; 
           i++ ;
         }
