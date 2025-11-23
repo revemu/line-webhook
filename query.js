@@ -904,9 +904,11 @@ async function getMemberNY() {
         let str = header + body ;
         header = `+${i} ` ;
         str = `${header} ${str}` ;
-        
+        console.log(str) ;
         return str ;  
-    }               
+    } else {
+        return header ;  
+    }              
         
 }
 
