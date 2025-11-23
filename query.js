@@ -287,7 +287,7 @@ async function IsMemberWeek(member_id) {
 
 async function registerNY(member_id) {
 
-      const query = `update member_tbl set week_id=1 where member_id=${member_id}`  ;
+      const query = `update member_tbl set week_id=1 where id=${member_id}`  ;
 
       //console.log(query) ;
       const reg_res = await executeQuery(query) ;
