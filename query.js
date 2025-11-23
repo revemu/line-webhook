@@ -899,7 +899,7 @@ async function getMemberNY() {
     let query = "";
 
     query = `SELECT * from member_tbl where week_id = 1`;
-    header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 20 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: มูนเทอร์เรซ ห้อง M5 นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานลงชื่อด้วยนะครับ\n\n พิมพ์ x1 เพื่อลงชื่อครับ \n\n" ; 
+    header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 20 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: มูนเทอร์เรซ ห้อง M5 นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานลงชื่อด้วยนะครับ\n\n" ; 
 
     
     const result = await executeQuery(query) ;
@@ -913,9 +913,9 @@ async function getMemberNY() {
           body += (i+1) + ". " + donate + member.name + "\n"; 
           i++ ;
         }
-        let str = header + body ;
-        header = `+${i} ` ;
-        str = `${header} ${str}` ;
+        let str = header + `+${i} พิมพ์ x1 เพื่อลงชื่อครับ\n` + body ;
+        //header = `+${i} พิมพ์ x1 เพื่อลงชื่อครับ` ;
+        //str = `${header} ${str}` ;
         console.log(str) ;
         return str ;  
     } else {
