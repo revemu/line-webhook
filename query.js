@@ -909,14 +909,14 @@ async function getMemberNY() {
         for (const member of result) {
           
           let donate = await getDonateBadge(member.donate) ;
-          console.log((i+1) + ". " + donate + member.name) ;
+          //console.log((i+1) + ". " + donate + member.name) ;
           body += (i+1) + ". " + donate + member.name + "\n"; 
           i++ ;
         }
         let str = header + `+${i} พิมพ์ x1 เพื่อลงชื่อครับ\n` + body ;
         //header = `+${i} พิมพ์ x1 เพื่อลงชื่อครับ` ;
         //str = `${header} ${str}` ;
-        console.log(str) ;
+        //console.log(str) ;
         return str ;  
     } else {
         return header ;  
