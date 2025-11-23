@@ -882,6 +882,33 @@ async function getDonateBadge(donate = 0) {
 
 }
 
+async function getMemberNY() {
+    let header = "";
+    let body = "";
+    let query = "";
+
+    query = `SELECT * from member_tbl where week_id = 1`;
+    header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 20 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่ที่มูนเทอร์เรซ ห้อง M5 นะครับ ขอเรียนเชิญทุกท่านที่มาร่วมงานลงชื่อด้วยนะครับ\n" ; 
+
+    
+    const result = await executeQuery(query) ;
+    if (result.length > 0) {
+
+        let i = 0 ;
+        for (const member of result) {
+          let donate = await getDonateBadge(member.donate) ;
+          body += (i+1) + ". " + donate + member.name + "\n"; 
+          i++ ;
+        }
+        let str = header + body ;
+        header = `+${i} ` ;
+        str = `${header} ${str}` ;
+        
+        return str ;  
+    }               
+        
+}
+
 async function getMemberWeek(type = 0) {
     let header = "";
     let body = "";
@@ -1173,6 +1200,7 @@ module.exports = {
   executeQuery,
   queryWeekDate,
   queryWeekID,
+  getMemberNY,
   getTeamColorWeek,
   getTeamWeek,
   getMemberWeek,
