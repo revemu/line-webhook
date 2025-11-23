@@ -490,9 +490,9 @@ async function handleMessage(event) {
         const op = text.substring(0,1) ;
         let index = 0 ;
         switch (op) {
-            case "x":
             case "/":
                 index = 1 ;
+            case "x":
             case '+':
             case '-':
                 /*if (op == "/") {
