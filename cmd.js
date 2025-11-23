@@ -69,7 +69,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     switch (cmd) {
         case 'x1':
             await db.registerNY(member_id) ;
-            msg = await db.getMemberNY(1) ;
+            msg = await db.getMemberNY() ;
             break ;
         case '+1':
             if (!await db.registerMember(member_id, member_name)) {
