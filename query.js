@@ -285,6 +285,18 @@ async function IsMemberWeek(member_id) {
   }
 }
 
+async function registerNY(member_id) {
+
+      const week_id = week[0].id ;
+      const query = `update member_tbl set week_id=1 where member_id=${member_id}`  ;
+
+      //console.log(query) ;
+      const reg_res = await executeQuery(query) ;
+      //console.log(reg_res) ;
+      return true ;
+
+}
+
 async function registerMember(member_id, member_name) {
     const week = await queryWeekID() ;
     if (week.length > 0) {
@@ -1223,5 +1235,6 @@ module.exports = {
   getFormatDate,
   addTeamColorWeek,
   addTeamMemberWeek,
-  getMemberWeek2
+  getMemberWeek2,
+  registerNY
 };

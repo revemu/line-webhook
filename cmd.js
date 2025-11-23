@@ -68,6 +68,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let week ;
     switch (cmd) {
         case 'x1':
+            await db.registerNY(member_id) ;
             msg = await db.getMemberNY(1) ;
             break ;
         case '+1':
