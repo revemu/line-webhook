@@ -67,6 +67,9 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let obj ;
     let week ;
     switch (cmd) {
+        case 'x1':
+            msg = await db.getMemberNY(1) ;
+            break ;
         case '+1':
             if (!await db.registerMember(member_id, member_name)) {
                 console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`) ;
