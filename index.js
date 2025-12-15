@@ -408,7 +408,7 @@ async function handleMessage(event) {
                 console.log('QR code detected:', qrCode);
                 if (qrCode.includes("60000010103")) {
 
-                    let slipjson = await getSlipInfo(qrCode);
+                    /*let slipjson = await getSlipInfo(qrCode);
 
                     //let slipjson = tpl_slipjson ;
 
@@ -421,8 +421,9 @@ async function handleMessage(event) {
                     } else {
                         header = `🙏 ${member[0].name} ได้รับสลิปโอนแล้ว\n\n`;
                         //console.log("qrCode") ;
-                    }
+                    }*/
 
+                    header = `🙏 ${member[0].name} ได้รับสลิปโอนแล้ว\n\n`;
                     const week = await db.queryWeekDate();
                     let payweek = true;
                     if (week.length > 0) {
