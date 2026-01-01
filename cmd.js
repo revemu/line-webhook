@@ -71,7 +71,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             await db.registerNY(member_id);
             msg = await db.getMemberNY();
             break;
-        case '+1':
+        case '+2':
             const reg_res = await db.registerMember(member_id, member_name);
             if (reg_res == 1) {
                 console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`);
@@ -82,7 +82,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             msg = await db.getMemberWeek(1);
             break;
-        case '+2':
+        case '+1':
             const reg_res2 = await db.registerMember(member_id, member_name);
             if (reg_res2 == 1) {
                 console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`);
@@ -91,7 +91,6 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 msg = `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res2}บาท!`
                 break;
             }
-            sub = {};
             msg_type = 2;
             [msg, sub] = await db.getMemberWeek0(1);
             break;
@@ -99,7 +98,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             if (await db.unregisterMember(member_id)) {
                 console.log(`${chat_type} ${member_name} พบข้อมูลลงทะเบียน!`);
             }
-            msg = await db.getMemberWeek(1);
+            msg_type = 2;
+            [msg, sub] = await db.getMemberWeek0(1);
             break;
         case '+pay2':
             //if (is_mention) {
