@@ -930,6 +930,95 @@ async function getMemberNY() {
 
 }
 
+async function getMemberWeek0(type = 0) {
+  let header = "";
+  let body = "";
+  let query = "";
+  let start = ""
+  const res = await queryWeekID();
+
+  if (res.length > 0) {
+    const week_id = res[0].id;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
+    if (type == 0) {
+      header = "คนที่ยังไมได้จ่ายค่าสนาม";
+      query += " and pay=0";
+    } else if (type == 1) {
+      header = "ลงชื่อเตะบอล";
+      start = "+"
+    }
+
+    const check = `SELECT * from member_tbl where power > 0`;
+    const check_res = await executeQuery(check);
+    let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
+    let debt_count = 0;
+    if (check_res.length > 0) {
+      for (const member of check_res) {
+        debt_count++;
+        debt_str += `${debt_count}. ${member.name} - ${member.power}บาท\n`;
+      }
+    }
+
+    const result = await executeQuery(query);
+    if (result.length > 0) {
+      const date = new Date(res[0].date);
+
+      header = `${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
+      let i = 0;
+      let player = 0;
+      let reserve = 0;
+      let reserve_str = "\n=== รายชื่อสำรอง ===\n";
+      let goal = 0;
+      let goal_str = "\n=== รายชื่อโกล์ ===\n";
+      let index = 0;
+      for (const member of result) {
+        let donate = await getDonateBadge(member.donate);
+
+        if (type == 1) {
+          if (member.team_id == 100) {
+            goal++;
+            goal_str += (goal) + ". " + donate + member.name + "\n";
+          } else {
+
+            //index = player ;
+            if (player < 24) {
+              player++;
+              body += (player) + ". " + donate + member.name + "\n";
+            } else {
+              reserve++;
+              reserve_str += (reserve) + ". " + donate + member.name + "\n";
+            }
+          }
+        } else {
+          body += (i + 1) + ". " + donate + member.name + "\n";
+          player++;
+        }
+        i++;
+      }
+      console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`);
+      let str = header + body;
+      header = `+${player}`;
+      if (reserve > 0) str += reserve_str;
+      if (goal > 0) str += goal_str;
+      if (reserve > 0) header += `(${reserve})`;
+      if (goal > 0) header += `(${goal})`;
+      if (debt_count > 0) str += debt_str;
+
+      str = `${header} ${str}`;
+
+      return str;
+    }
+  } else {
+    if (type == 0) {
+      header = `จ่ายครบหมดแล้ว เสาร์ที่ ${await getFormatDate(date)}`;
+    } else if (type == 1) {
+      header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้`;
+    }
+    return header;
+  }
+
+}
+
 async function getMemberWeek(type = 0) {
   let header = "";
   let body = "";
@@ -1254,5 +1343,6 @@ module.exports = {
   addTeamColorWeek,
   addTeamMemberWeek,
   getMemberWeek2,
+  getMemberWeek0,
   registerNY
 };
