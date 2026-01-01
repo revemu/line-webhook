@@ -948,6 +948,17 @@ async function getMemberWeek(type = 0) {
       start = "+"
     }
 
+    const check = `SELECT * from member_tbl where id=${member_id} and power > 0`;
+    const check_res = await executeQuery(check);
+    let debt_str = "\n=== สมาชิกที่มียอดค้างชำระ ===\n"
+    let debt_count = 0;
+    if (check_res.length > 0) {
+      for (const member of check_res) {
+        debt_count++;
+        debt_str += `${debt_count}. ${member.name} ยอดค้าง ${member.power}บาท\n`;
+      }
+    }
+
     const result = await executeQuery(query);
     if (result.length > 0) {
       const date = new Date(res[0].date);
@@ -991,6 +1002,7 @@ async function getMemberWeek(type = 0) {
       if (goal > 0) str += goal_str;
       if (reserve > 0) header += `(${reserve})`;
       if (goal > 0) header += `(${goal})`;
+      if (debt_count > 0) str += debt_str;
 
       str = `${header} ${str}`;
 
