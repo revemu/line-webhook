@@ -1054,7 +1054,7 @@ async function getMemberWeek(type = 0) {
       start = "+"
     }
 
-    const check = `SELECT * from member_tbl where power > 0`;
+    /*const check = `SELECT * from member_tbl where power > 0`;
     const check_res = await executeQuery(check);
     let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
     let debt_count = 0;
@@ -1063,7 +1063,7 @@ async function getMemberWeek(type = 0) {
         debt_count++;
         debt_str += `${debt_count}. ${member.name} - ${member.power}บาท\n`;
       }
-    }
+    }*/
 
     const result = await executeQuery(query);
     if (result.length > 0) {
