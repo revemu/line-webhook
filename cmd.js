@@ -82,6 +82,18 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             msg = await db.getMemberWeek(1);
             break;
+        case '+2':
+            const reg_res2 = await db.registerMember(member_id, member_name);
+            if (reg_res2 == 1) {
+                console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`);
+            } else if (reg_res2 > 1) {
+                console.log(`${chat_type} ${member_name} ยังมียอดค้าง ${reg_res2}บาท!`);
+                msg = `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res2}บาท!`
+                break;
+            }
+            msg_type = 2;
+            msg = await db.getMemberWeek(1);
+            break;
         case '-1':
             if (await db.unregisterMember(member_id)) {
                 console.log(`${chat_type} ${member_name} พบข้อมูลลงทะเบียน!`);
