@@ -950,12 +950,12 @@ async function getMemberWeek(type = 0) {
 
     const check = `SELECT * from member_tbl where power > 0`;
     const check_res = await executeQuery(check);
-    let debt_str = "\n=== สมาชิกที่มียอดค้างชำระ ===\n"
+    let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
     let debt_count = 0;
     if (check_res.length > 0) {
       for (const member of check_res) {
         debt_count++;
-        debt_str += `${debt_count}. ${member.name} ยอดค้าง ${member.power}บาท\n`;
+        debt_str += `${debt_count}. ${member.name} - ${member.power}บาท\n`;
       }
     }
 
