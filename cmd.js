@@ -91,6 +91,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 msg = `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res2}บาท!`
                 break;
             }
+            sub = {};
             msg_type = 2;
             msg = await db.getMemberWeek(1);
             break;
