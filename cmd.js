@@ -72,8 +72,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = await db.getMemberNY();
             break;
         case '+1':
-            if (!await db.registerMember(member_id, member_name)) {
+            const reg_res = await db.registerMember(member_id, member_name);
+            if (reg_res == 1) {
                 console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`);
+            } else if (reg_res > 1) {
+                console.log(`${chat_type} ${member_name} ยังมียอดค้าง ${reg_res}บาท!`);
+                msg = `${member_name} ยังมียอดค้าง ${reg_res}บาท!`
+                break;
             }
             msg = await db.getMemberWeek(1);
             break;
