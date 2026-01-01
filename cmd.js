@@ -77,7 +77,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`);
             } else if (reg_res > 1) {
                 console.log(`${chat_type} ${member_name} ยังมียอดค้าง ${reg_res}บาท!`);
-                msg = `${member_name} ขออภัย คุณยังมียอดค้าง ${reg_res}บาท!`
+                msg = `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res}บาท!`
                 break;
             }
             msg = await db.getMemberWeek(1);
