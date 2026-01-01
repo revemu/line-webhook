@@ -93,7 +93,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             sub = {};
             msg_type = 2;
-            msg = await db.getMemberWeek(1);
+            [msg, sub] = await db.getMemberWeek0(1);
             break;
         case '-1':
             if (await db.unregisterMember(member_id)) {

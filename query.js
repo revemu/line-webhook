@@ -933,6 +933,7 @@ async function getMemberNY() {
 async function getMemberWeek0(type = 0) {
   let header = "";
   let body = "";
+  let sub = {};
   let query = "";
   let start = ""
   const res = await queryWeekID();
@@ -952,10 +953,26 @@ async function getMemberWeek0(type = 0) {
     const check_res = await executeQuery(check);
     let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
     let debt_count = 0;
+    let index = 0;
     if (check_res.length > 0) {
       for (const member of check_res) {
         debt_count++;
-        debt_str += `${debt_count}. ${member.name} - ${member.power}บาท\n`;
+        let name = member.name;
+        let line_id = member.line_user_id;
+        if (line_id != null && line_id != "") {
+          name = `user${debt_count}`;
+          debt_str += `${debt_count}. ${donate}{${name}} \n`;
+          sub[name] = {
+            "type": "mention",
+            "mentionee":
+            {
+              "type": "user",
+              "userId": line_id
+            }
+          };
+        } else {
+          debt_str += `${debt_count}. ${name} - ${member.power}บาท\n`;
+        }
       }
     }
 
@@ -1006,7 +1023,7 @@ async function getMemberWeek0(type = 0) {
 
       str = `${header} ${str}`;
 
-      return str;
+      return [str, sub];
     }
   } else {
     if (type == 0) {
