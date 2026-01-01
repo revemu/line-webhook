@@ -961,7 +961,7 @@ async function getMemberWeek0(type = 0) {
         let line_id = member.line_user_id;
         if (line_id != null && line_id != "") {
           name = `user${debt_count}`;
-          debt_str += `${debt_count}. {${name}} - ${member.power}บาท\n`;
+          debt_str += `${debt_count}. {${name}} - ${member.power} บาท\n`;
           sub[name] = {
             "type": "mention",
             "mentionee":
@@ -971,7 +971,7 @@ async function getMemberWeek0(type = 0) {
             }
           };
         } else {
-          debt_str += `${debt_count}. ${name} - ${member.power}บาท\n`;
+          debt_str += `${debt_count}. ${name} - ${member.power} บาท\n`;
         }
       }
     }
