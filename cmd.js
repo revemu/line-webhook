@@ -74,7 +74,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case '+2':
             [msg, sub] = await db.getDebtList(0);
             console.log(sub);
-            //msg_type = 2;
+            msg_type = 3;
             //msg = await db.getMemberWeek(1);
             break;
         case '+1':
@@ -295,6 +295,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
             replyMessages = {
                 type: 'textV2',
                 quoteToken: quoteToken,
+                text: msg,
+                substitution: sub
+            };
+            //console.log(replyMessages) ;
+        } else if (msg_type == 3) {
+            replyMessages = {
+                type: 'textV2',
                 text: msg,
                 substitution: sub
             };
