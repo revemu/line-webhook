@@ -1376,7 +1376,7 @@ async function getDebtList(type = 0) {
     }
 
   }
-
+  debt_str += "\n\n** ข้อความแจ้งเตือนวันละครั้ง";
   return [debt_str, sub, debt_count, proceed];
 
 }
