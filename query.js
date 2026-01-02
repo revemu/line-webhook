@@ -959,42 +959,6 @@ async function getMemberWeek0(type = 0) {
       header = "ลงชื่อเตะบอล";
       start = "+"
     }
-    let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
-    let debt_count = 0;
-    const debt_call = `SELECT value from template_tpl where name = 'call'`;
-    const debt_call_res = await executeQuery(debt_call);
-    if (debt_call_res.length > 0) {
-      if (debt_call_res[0].value == 0) {
-        const check = `SELECT * from member_tbl where power > 0`;
-        const check_res = await executeQuery(check);
-
-        if (check_res.length > 0) {
-          for (const member of check_res) {
-            debt_count++;
-            let name = member.name;
-            let line_id = member.line_user_id;
-            if (line_id != null && line_id != "") {
-              name = `user${debt_count}`;
-              debt_str += `${debt_count}. {${name}} - ${member.power} บาท\n`;
-              sub[name] = {
-                "type": "mention",
-                "mentionee":
-                {
-                  "type": "user",
-                  "userId": line_id
-                }
-              };
-            } else {
-              debt_str += `${debt_count}. ${name} - ${member.power} บาท\n`;
-            }
-          }
-          await updateAlertCall(1);
-        }
-
-      }
-    }
-
-
 
     const result = await executeQuery(query);
     if (result.length > 0) {
@@ -1039,7 +1003,7 @@ async function getMemberWeek0(type = 0) {
       if (goal > 0) str += goal_str;
       if (reserve > 0) header += `(${reserve})`;
       if (goal > 0) header += `(${goal})`;
-      if (debt_count > 0) str += debt_str;
+      //if (debt_count > 0) str += debt_str;
 
       str = `${header} ${str}`;
 
@@ -1353,6 +1317,59 @@ async function getTopStat(limit = 10, type = 0) {
 
 }
 
+async function getDebtList(type = 0) {
+  let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n";
+  let debt_count = 0;
+  let sub = {};
+  let proceed = false;
+
+  if (type == 0) {
+    const debt_call = `SELECT value from template_tpl where name = 'call'`;
+    const debt_call_res = await executeQuery(debt_call);
+    if (debt_call_res.length > 0) {
+      if (debt_call_res[0].value == 0) {
+        proceed = true;
+      }
+    }
+  } else {
+    proceed = true;
+  }
+
+  if (proceed) {
+    const check = `SELECT * from member_tbl where power > 0`;
+    const check_res = await executeQuery(check);
+
+    if (check_res.length > 0) {
+      for (const member of check_res) {
+        debt_count++;
+        let name = member.name;
+        let line_id = member.line_user_id;
+        if (line_id != null && line_id != "") {
+          name = `user${debt_count}`;
+          debt_str += `${debt_count}. {${name}} - ${member.power} บาท\n`;
+          sub[name] = {
+            "type": "mention",
+            "mentionee":
+            {
+              "type": "user",
+              "userId": line_id
+            }
+          };
+        } else {
+          debt_str += `${debt_count}. ${name} - ${member.power} บาท\n`;
+        }
+      }
+      if (type == 0) {
+        await updateAlertCall(1);
+      }
+    }
+
+  }
+
+  return { debt_str, debt_count, sub };
+
+}
+
 
 module.exports = {
   testConnection,
@@ -1381,5 +1398,6 @@ module.exports = {
   addTeamMemberWeek,
   getMemberWeek2,
   getMemberWeek0,
-  registerNY
+  registerNY,
+  getDebtList
 };

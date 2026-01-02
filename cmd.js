@@ -72,15 +72,12 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = await db.getMemberNY();
             break;
         case '+2':
-            const reg_res = await db.registerMember(member_id, member_name);
-            if (reg_res == 1) {
-                console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`);
-            } else if (reg_res > 1) {
-                console.log(`${chat_type} ${member_name} ยังมียอดค้าง ${reg_res}บาท!`);
-                msg = `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res}บาท!`
-                break;
-            }
-            msg = await db.getMemberWeek(1);
+            const debt_data = await db.getDebtList(0);
+            msg = debt_data.debt_str;
+            let debt_count = debt_data.debt_count;
+            sub = Object.assign(sub, debt_data.sub);
+            msg_type = 2;
+            //msg = await db.getMemberWeek(1);
             break;
         case '+1':
             const reg_res2 = await db.registerMember(member_id, member_name);
