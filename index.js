@@ -511,7 +511,7 @@ async function handleMessage(event) {
                 const h = date.getHours();
                 console.log(`member_id: ${member[0].id} hr: ${h}`);
                 console.log(`source.groupId: ${source.groupId}`);
-                if (h > 12 && h < 22 && source.groupId) {
+                if (h > 12 && h < 22 && source.groupId != undefined) {
                     let debt_str = "";
                     let sub = {};
                     let debt_count = 0;
