@@ -1366,7 +1366,7 @@ async function getDebtList(type = 0) {
 
   }
 
-  return { debt_str, sub };
+  return [debt_str, sub];
 
 }
 
