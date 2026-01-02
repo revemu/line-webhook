@@ -38,6 +38,17 @@ async function executeQuery(query, params = []) {
   }
 }
 
+async function updateAlertCall(value = 1) {
+
+  let query;
+  query = `update template_tpl set value=${value} where name='call'`;
+
+  const res = await executeQuery(query);
+  //console.log(res) ;
+  return res;
+
+}
+
 async function updateMember(member_id, value, type = 0) {
 
   let query;
@@ -948,33 +959,42 @@ async function getMemberWeek0(type = 0) {
       header = "ลงชื่อเตะบอล";
       start = "+"
     }
-
-    const check = `SELECT * from member_tbl where power > 0`;
-    const check_res = await executeQuery(check);
-    let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
-    let debt_count = 0;
-    let index = 0;
-    if (check_res.length > 0) {
-      for (const member of check_res) {
-        debt_count++;
-        let name = member.name;
-        let line_id = member.line_user_id;
-        if (line_id != null && line_id != "") {
-          name = `user${debt_count}`;
-          debt_str += `${debt_count}. {${name}} - ${member.power} บาท\n`;
-          sub[name] = {
-            "type": "mention",
-            "mentionee":
-            {
-              "type": "user",
-              "userId": line_id
+    const debt_call = `SELECT value from template_tpl where name = 'call'`;
+    const debt_call_res = await executeQuery(debt_call);
+    if (debt_call_res.length > 0) {
+      if (debt_call_res[0].value == 0) {
+        const check = `SELECT * from member_tbl where power > 0`;
+        const check_res = await executeQuery(check);
+        let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
+        let debt_count = 0;
+        let index = 0;
+        if (check_res.length > 0) {
+          for (const member of check_res) {
+            debt_count++;
+            let name = member.name;
+            let line_id = member.line_user_id;
+            if (line_id != null && line_id != "") {
+              name = `user${debt_count}`;
+              debt_str += `${debt_count}. {${name}} - ${member.power} บาท\n`;
+              sub[name] = {
+                "type": "mention",
+                "mentionee":
+                {
+                  "type": "user",
+                  "userId": line_id
+                }
+              };
+            } else {
+              debt_str += `${debt_count}. ${name} - ${member.power} บาท\n`;
             }
-          };
-        } else {
-          debt_str += `${debt_count}. ${name} - ${member.power} บาท\n`;
+          }
+          await updateAlertCall(1);
         }
+
       }
     }
+
+
 
     const result = await executeQuery(query);
     if (result.length > 0) {
