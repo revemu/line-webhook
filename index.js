@@ -523,7 +523,7 @@ async function handleMessage(event) {
                             substitution: sub
                         };
                         console.log(replyMessages);
-                        //await replyMessage(replyToken, replyMessages);
+                        await replyMessage(replyToken, replyMessages);
                     }
                 }
                 break;
