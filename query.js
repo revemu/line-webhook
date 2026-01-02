@@ -1360,13 +1360,13 @@ async function getDebtList(type = 0) {
         }
       }
       if (type == 0) {
-        await updateAlertCall(1);
+        //await updateAlertCall(1);
       }
     }
 
   }
 
-  return { debt_str, debt_count, sub };
+  return { debt_str, sub };
 
 }
 
