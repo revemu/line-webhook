@@ -506,6 +506,26 @@ async function handleMessage(event) {
                 await replyMessage(replyToken, replyMessages);
                 break;
             default:
+                const date = new Date();
+                const dow = date.getDay();
+                const h = date.getHours();
+                console.log(`${member[0].id} ${dow} ${h}`);
+                if (h > 12) {
+                    let debt_str = "";
+                    let sub = {};
+                    let debt_count = 0;
+                    let proceed = false;
+                    [debt_str, sub, debt_count, proceed] = await db.getDebtList(0);
+                    if (proceed && debt_count > 0) {
+                        replyMessages = {
+                            type: 'textV2',
+                            text: debt_str,
+                            substitution: sub
+                        };
+                        console.log(replyMessages);
+                        //await replyMessage(replyToken, replyMessages);
+                    }
+                }
                 break;
         }
         //console.log(text) ;

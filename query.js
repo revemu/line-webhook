@@ -1317,8 +1317,19 @@ async function getTopStat(limit = 10, type = 0) {
 
 }
 
+async function checkDebtCall() {
+  const debt_call = `SELECT value from template_tpl where name = 'call'`;
+  const debt_call_res = await executeQuery(debt_call);
+  if (debt_call_res.length > 0) {
+    if (debt_call_res[0].value == 0) {
+      proceed = true;
+    }
+  }
+  return proceed;
+}
+
 async function getDebtList(type = 0) {
-  let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n";
+  let debt_str = "=== สมาชิกที่มียอดค้าง ===\n\n";
   let debt_count = 0;
   let sub = {};
   let proceed = false;
@@ -1366,7 +1377,7 @@ async function getDebtList(type = 0) {
 
   }
 
-  return [debt_str, sub];
+  return [debt_str, sub, debt_count, proceed];
 
 }
 
