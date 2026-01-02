@@ -507,9 +507,9 @@ async function handleMessage(event) {
                 break;
             default:
                 const date = new Date();
-                const dow = date.getDay();
+                //const dow = date.getDay();
                 const h = date.getHours();
-                console.log(`${member[0].id} ${dow} ${h}`);
+                console.log(`member_id: ${member[0].id} hr: ${h}`);
                 if (h > 12) {
                     let debt_str = "";
                     let sub = {};
