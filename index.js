@@ -516,8 +516,8 @@ async function handleMessage(event) {
                     let debt_count = 0;
                     let proceed = false;
                     [debt_str, sub, debt_count, proceed] = await db.getDebtList(0);
-                    if (proceed && debt_count > 0) {
-                        replyMessages = {
+                    if (proceed && debt_count > 0 && member[0].id == 14) {
+                        let replyMessages = {
                             type: 'textV2',
                             text: debt_str,
                             substitution: sub
