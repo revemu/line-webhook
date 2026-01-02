@@ -1371,7 +1371,7 @@ async function getDebtList(type = 0) {
         }
       }
       if (type == 0) {
-        //await updateAlertCall(1);
+        await updateAlertCall(1);
       }
     }
 
