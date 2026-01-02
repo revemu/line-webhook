@@ -76,7 +76,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = debt_data.debt_str;
             let debt_count = debt_data.debt_count;
             sub = Object.assign(sub, debt_data.sub);
-            msg_type = 2;
+            console.log(sub);
+            //msg_type = 2;
             //msg = await db.getMemberWeek(1);
             break;
         case '+1':
