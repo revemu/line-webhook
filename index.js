@@ -509,10 +509,10 @@ async function handleMessage(event) {
                 const date = new Date();
                 //const dow = date.getDay();
                 const h = date.getHours();
-                console.log(`member_id: ${member[0].id} hr: ${h}`);
+                //console.log(`member_id: ${member[0].id} hr: ${h}`);
 
                 if (h > 12 && h < 22 && source.groupId != undefined) {
-                    console.log(`source.groupId: ${source.groupId}`);
+                    //console.log(`source.groupId: ${source.groupId}`);
                     let debt_str = "";
                     let sub = {};
                     let debt_count = 0;
@@ -524,7 +524,8 @@ async function handleMessage(event) {
                             text: debt_str,
                             substitution: sub
                         };
-                        console.log(replyMessages);
+                        //console.log(replyMessages);
+                        console.log(`once a day debt call!`);
                         await replyMessage(replyToken, replyMessages);
                     }
                 }
