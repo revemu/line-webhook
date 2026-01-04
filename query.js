@@ -395,6 +395,11 @@ async function queryMatchGoal(match_id, goal_status = 0) {
       } else {
         member_list += member.alias;
       }
+      if (member.statusid == 2) {
+        member_list += "🥅";
+      } else if (member.statusid == 1) {
+        member_list += "🔄";
+      }
       //member_list += member.name ;
       i++;
       //console.log(member) ;
