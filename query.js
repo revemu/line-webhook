@@ -357,7 +357,7 @@ async function queryMatchGoal(match_id, goal_status = 0) {
   let offsetTop;
   let offsetStart;
   if (goal_status == 0) {
-    status = " < 2";
+    status = " <= 2";
     icon = "⚽";
     url = "https://api.revemu.org/ball_ico.png";
     size = "md";
