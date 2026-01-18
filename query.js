@@ -1001,7 +1001,7 @@ async function getMemberWeek0(type = 0) {
         }
         i++;
       }
-      console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`);
+      //console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`);
       let str = header + body;
       header = `+${player}`;
       if (reserve > 0) str += reserve_str;
@@ -1090,7 +1090,7 @@ async function getMemberWeek(type = 0) {
         }
         i++;
       }
-      console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`);
+      //console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`);
       let str = header + body;
       header = `+${player}`;
       if (reserve > 0) str += reserve_str;
