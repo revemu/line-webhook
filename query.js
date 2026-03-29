@@ -1312,14 +1312,16 @@ ORDER BY pts DESC limit ${limit}`;
             "text": `${i + 1}. ${member.name.replace("@", '')}`,
             "weight": "regular",
             "size": "xs",
-            "align": "start"
+            "align": "start",
+            "flex": 4
           },
           {
             "type": "text",
-            "text": `${val} `,
+            "text": `${val}`,
             "weight": "regular",
             "size": "xs",
-            "align": "end"
+            "align": "end",
+            "flex": 1
           }
         ]
       });
