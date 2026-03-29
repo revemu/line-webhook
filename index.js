@@ -22,68 +22,7 @@ const config = {
     channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
-const tpl_slipjson = {
-    "status": 200,
-    "data": {
-        "payload": "004600060000010103002022520250816210339240054672085102TH9104D5EB",
-        "transRef": "2025081621033924005467208",
-        "date": "2025-08-16T21:03:39+07:00",
-        "countryCode": "",
-        "amount": {
-            "amount": 249,
-            "local": { "amount": 0, "currency": "" }
-        },
-        "fee": 0, "ref1": "", "ref2": "", "ref3": "",
-        "sender": {
-            "bank": { "id": "002", "name": "ธนาคารกรุงเทพ", "short": "BBL" },
-            "account": { "name": { "en": "PYSIT P" }, "bank": { "type": "BANKAC", "account": "086-0-xxx588" } }
-        },
-        "receiver": {
-            "bank": {},
-            "account": {
-                "name": { "th": "นาย เศรษฐ ว", "en": "SAGE" },
-                "proxy": { "type": "MSISDN", "account": "085-xxx-5894" }
-            }
-        }
-    }
-};
 
-// Create LINE SDK client
-const client = new Client(config);
-
-// Use LINE SDK middleware for webhook handling
-app.use('/webhook', middleware(config));
-
-function checkSlip(slipjson, name) {
-
-    const amount = slipjson.data.amount.amount;
-    const date = new Date(slipjson.data.date);
-    let recv;
-    let sender;
-    if ('en' in slipjson.data.receiver.account.name) {
-        recv = slipjson.data.receiver.account.name.en;
-    } else {
-        recv = slipjson.data.receiver.account.name.th;
-    }
-    if ('en' in slipjson.data.sender.account.name) {
-        sender = slipjson.data.sender.account.name.en;
-    } else {
-        sender = slipjson.data.sender.account.name.th;
-    }
-    let tail;
-    if (recv.includes("เศรษฐ") || recv.includes("SAGE")) {
-        recv = "Kyne";
-        tail = `💰 -🙏 ${name} ได้รับ เงินโอนจำนวน ${amount} บาท\n\n`;
-    } else {
-        recv += " * ชื่อผู้รับไม่ตรง"
-        tail = `💰 - ${name} เงินโอนจำนวน ${amount} บาท\n\n`;
-    }
-    const bank = slipjson.data.sender.bank.short;
-
-    return `⌚ - ${formatDate(date)}\n💸 - ${bank} - ${sender} \n💵 - ${recv} \n` + tail;
-
-
-}
 
 function formatDate(curDate) {
     const d = ('0' + curDate.getDate()).slice(-2);
@@ -95,24 +34,13 @@ function formatDate(curDate) {
     return (`${y}-${m}-${d} ${h}:${min}:${s}`)
 }
 
-async function getSlipInfo(payload) {
-    try {
-        const response = await axios.get(`https://developer.easyslip.com/api/v1/verify?payload=${payload}`, {
-            headers: {
-                'Authorization': `Bearer 196e73b3-6b1a-4a46-be07-5ef89dffa11b`
-            },
-            //responseType: 'arraybuffer'
-        });
-        //console.log(response.data) ;
-        return response.data;
-    } catch (error) {
-        if (error.response.data) {
-            console.error('api slip error:', error.response.data);
-        }
-        return { "success": false };
-        //throw error;
-    }
-}
+
+// Create LINE SDK client
+const client = new Client(config);
+
+// Use LINE SDK middleware for webhook handling
+app.use('/webhook', middleware(config));
+
 
 // Function to get image content from LINE
 async function getImageAxios(messageId) {
@@ -138,38 +66,7 @@ async function getImageAxios(messageId) {
     }
 }
 
-// Function to get image content from LINE using SDK
-async function getImageContent(messageId, type = 0) {
-    const maxRetries = 3;
-    let retries = 0;
-    while (retries <= maxRetries) {
-        try {
-            let my_client = client;
-            const stream = await my_client.getMessageContent(messageId);
-            const chunks = [];
 
-            return new Promise((resolve, reject) => {
-                stream.on('data', (chunk) => {
-                    chunks.push(chunk);
-                });
-
-                stream.on('end', () => {
-                    resolve(Buffer.concat(chunks));
-                });
-
-                stream.on('error', (error) => {
-                    reject(error);
-                });
-            });
-        } catch (error) {
-            retries++;
-            console.error(`Error getting image content, retried: ${retries}`);
-            if (retries > maxRetries)
-                throw error;
-            else await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-    }
-}
 
 // Function to read QR code from image buffer using zbarimg CLI
 async function readQRCode(imageBuffer) {
@@ -360,184 +257,129 @@ async function manageMember(source, member, line_name) {
 
 // Handle incoming messages
 async function handleMessage(event) {
-    const { replyToken, message, source } = event;
-    const userId = source.userId;
-    //const groupId = source.groupId ;
-    //console.log(source) ;
-    const member = await db.queryMemberbyLineID(userId);
-    //console.log(`Message from user ${userId}: ${message.type}`);
-    if (source.groupId) {
-        const res = await client.getGroupMemberProfile(source.groupId, source.userId);
-        //console.log(res) ;
-        if (res.displayName != '') {
-            const line_name = res.displayName
-            await manageMember(source, member, line_name);
-        }
+    const { source, message } = event;
+    const { userId, groupId } = source;
 
+    // Parallel fetch member and group profile if applicable
+    const [member, groupProfile] = await Promise.all([
+        db.queryMemberbyLineID(userId),
+        groupId ? client.getGroupMemberProfile(groupId, userId).catch(() => null) : null
+    ]);
+
+    if (groupId && groupProfile && groupProfile.displayName) {
+        await manageMember(source, member, groupProfile.displayName);
     }
 
-    if (member.length == 0) {
-        return;
+    if (member.length === 0) return;
+
+    switch (message.type) {
+        case 'image':
+            return await handleImageMessage(event, member[0]);
+        case 'text':
+            return await handleTextMessage(event, member[0]);
+        case 'sticker':
+            return handleStickerMessage(event, member[0]);
+        default:
+            console.log(`Received message type: ${message.type}`);
     }
+}
 
-    if (message.type === 'image') {
-        try {
-            //console.log('Processing image message...');
-            console.log(`${member[0].name}: sent image! need processing...`);
-            let startTime = new Date();
-            // Get image content from LINE
-            //const imageBuffer = await getImageContent(message.id);
-            const imageBuffer = await getImageAxios(message.id);
-            //console.log('Image downloaded, size:', imageBuffer.length, 'bytes');
-            //let endTime = new Date();
-            //let timeElapsed = endTime - startTime; // Difference in milliseconds
-            //console.log(`Time load img elapsed: ${timeElapsed} ms`);
+async function handleImageMessage(event, member) {
+    const { replyToken, message } = event;
+    try {
+        console.log(`${member.name}: sent image! need processing...`);
+        const startTime = Date.now();
+        const imageBuffer = await getImageAxios(message.id);
+        const codes = await readQRCode(imageBuffer);
+        
+        console.log(`Time processed image elapsed: ${Date.now() - startTime} ms`);
 
-            // Read QR/barcodes from image
-            //startTime = new Date() ;
-            const codes = await readQRCode(imageBuffer);
-            endTime = new Date();
-            timeElapsed = endTime - startTime; // Difference in milliseconds
-            console.log(`Time processed image elapsed: ${timeElapsed} ms`);
-            //console.log(codes) ;
-
-            let replyMessages;
-            if (codes) {
-                //const alphanumericRegex = /^[A-Za-z0-9]+$/;
-                const qrCode = codes[0].data;
-                console.log('QR code detected:', qrCode);
-                if (qrCode.includes("60000010103")) {
-
-                    /*let slipjson = await getSlipInfo(qrCode);
-
-                    //let slipjson = tpl_slipjson ;
-
-                    //slipjson = JSON.parse(slipjson) ;
-                    //console.log(slipjson) ;
-                    let header = '';
-                    if (slipjson.hasOwnProperty('status')) {
-                        header = checkSlip(slipjson, member[0].name);
-                        console.log(header);
-                    } else {
-                        header = `🙏 ${member[0].name} ได้รับสลิปโอนแล้ว\n\n`;
-                        //console.log("qrCode") ;
-                    }*/
-
-                    header = `🙏 ${member[0].name} ได้รับสลิปโอนแล้ว\n\n`;
-                    const week = await db.queryWeekDate();
-                    let payweek = true;
-                    if (week.length > 0) {
-                        const week_date = week[0].date;
-                        const now = new Date();
-                        if (now.getTime() < week_date.getTime()) {
-                            payweek = false;
-                        }
-                        console.log(`week ${week_date} now ${now}`);
-                        //return ;
+        if (codes) {
+            const qrCode = codes[0].data;
+            console.log('QR code detected:', qrCode);
+            if (qrCode.includes("60000010103")) {
+                const header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n`;
+                const week = await db.queryWeekDate();
+                let payweek = true;
+                if (week.length > 0) {
+                    const now = new Date();
+                    if (now.getTime() < week[0].date.getTime()) {
+                        payweek = false;
                     }
-                    //if (count > 0 && count < 10)
-                    //console.log(msg) ;
-                    //res.status(200).json({ status: 1, qr: codes[0].data });
-                    if (!payweek) {
+                    console.log(`week ${week[0].date} now ${now}`);
+                }
+
+                let replyMessages;
+                if (!payweek) {
+                    replyMessages = [{
+                        type: 'text',
+                        quoteToken: message.quoteToken,
+                        text: header
+                    }];
+                } else {
+                    await db.updateMemberWeek(member.id, 1, 0);
+                    const [msg, sub, count] = await db.getMemberWeek2(0);
+                    console.log(`user count: ${count}`);
+                    if (count === 0 || count > 20) {
                         replyMessages = [{
                             type: 'text',
                             quoteToken: message.quoteToken,
-                            text: header
+                            text: header + msg
                         }];
                     } else {
-                        await db.updateMemberWeek(member[0].id, 1, 0);
-                        //const msg = await db.getMemberWeek(0) ;
-                        [msg, sub, count] = await db.getMemberWeek2(0);
-                        console.log(`user count: ${count}`)
-                        if (count == 0 || count > 20) {
-                            replyMessages = [{
-                                type: 'text',
-                                quoteToken: message.quoteToken,
-                                text: header + msg
-                            }];
-                        } else {
-                            replyMessages = {
-                                type: 'textV2',
-                                quoteToken: message.quoteToken,
-                                text: header + msg,
-                                substitution: sub
-                            };
-                        }
-                    }
-
-
-
-                    await replyMessage(replyToken, replyMessages);
-                }
-
-            }
-
-        } catch (error) {
-            console.error('Error processing image!,', error);
-            const date = new Date();
-            const dow = date.getDay();
-            const h = date.getHours();
-            if (dow == 6 && h > 19) {
-                await replyMessage(replyToken, [{
-                    type: 'text',
-                    text: 'ไม่สามารถโหลดรูปภาพจาก Line ได้\nถ้าเป็นการส่ง Slip หลีกเลี่ยงการส่งในช่วงเวลา 19.00-22.30'
-                }]);
-            }
-        }
-    } else if (message.type === 'text') {
-        // Handle text messages
-        console.log(`${member[0].name}: ${message.text}`);
-        const text = message.text.trim();
-        const op = text.substring(0, 1);
-        let index = 0;
-        switch (op) {
-            case "/":
-                index = 1;
-            case "x":
-            case '+':
-            case '-':
-                /*if (op == "/") {
-                    index = 1 ;
-                }*/
-                const cmd_str = text.substring(index);
-                let replyMessages = await cmd.process_cmd(cmd_str, member[0], message.quoteToken);
-                //replyMessage.quoteToken = await message.quoteToken ;
-                //console.log(replyMessage) ;
-                await replyMessage(replyToken, replyMessages);
-                break;
-            default:
-                const date = new Date();
-                //const dow = date.getDay();
-                const h = date.getHours();
-                //console.log(`member_id: ${member[0].id} hr: ${h}`);
-
-                if (h > 12 && h < 22 && source.groupId != undefined) {
-                    //console.log(`source.groupId: ${source.groupId}`);
-                    let debt_str = "";
-                    let sub = {};
-                    let debt_count = 0;
-                    let proceed = false;
-                    [debt_str, sub, debt_count, proceed] = await db.getDebtList(0)
-                    if (proceed && debt_count > 0) {
-                        let replyMessages = {
+                        replyMessages = {
                             type: 'textV2',
-                            text: debt_str,
+                            quoteToken: message.quoteToken,
+                            text: header + msg,
                             substitution: sub
                         };
-                        //console.log(replyMessages);
-                        console.log(`once a day debt call!`);
-                        await replyMessage(replyToken, replyMessages);
                     }
                 }
-                break;
+                await replyMessage(replyToken, replyMessages);
+            }
         }
-        //console.log(text) ;
-        return;
-
-    } else if (message.type == 'sticker') {
-        const keywords = message.keywords;
-        console.log(`${member[0].name}: sent sticker ${randomItem(keywords)}`);
+    } catch (error) {
+        console.error('Error processing image!,', error);
+        const date = new Date();
+        if (date.getDay() === 6 && date.getHours() > 19) {
+            await replyMessage(replyToken, [{
+                type: 'text',
+                text: 'ไม่สามารถโหลดรูปภาพจาก Line ได้\nถ้าเป็นการส่ง Slip หลีกเลี่ยงการส่งในช่วงเวลา 19.00-22.30'
+            }]);
+        }
     }
+}
+
+async function handleTextMessage(event, member) {
+    const { replyToken, message, source } = event;
+    console.log(`${member.name}: ${message.text}`);
+    const text = message.text.trim();
+    const op = text.substring(0, 1);
+    const index = (op === "/") ? 1 : 0;
+
+    if (['/', 'x', '+', '-'].includes(op)) {
+        const cmd_str = text.substring(index);
+        const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken);
+        await replyMessage(replyToken, replyMessages);
+    } else {
+        const h = new Date().getHours();
+        if (h > 12 && h < 22 && source.groupId) {
+            const [debt_str, sub, debt_count, proceed] = await db.getDebtList(0);
+            if (proceed && debt_count > 0) {
+                console.log(`once a day debt call!`);
+                await replyMessage(replyToken, {
+                    type: 'textV2',
+                    text: debt_str,
+                    substitution: sub
+                });
+            }
+        }
+    }
+}
+
+function handleStickerMessage(event, member) {
+    const keywords = event.message.keywords;
+    console.log(`${member.name}: sent sticker ${randomItem(keywords || ['unknown'])}`);
 }
 
 function randomItem(items) {
