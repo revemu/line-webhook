@@ -29,10 +29,6 @@ async function process_cmd(cmd_str, member, quoteToken) {
     }
 
     if (param.startsWith('@')) {
-        if (param.includes("'")) {
-            param = param.replaceAll(/[']/g, "\\'");
-            //console.log(`member name has quoted - ${param}`) ;
-        }
         is_mention = true;
         const mention = await db.queryMemberbyName(param);
         if (mention.length > 0) {
@@ -51,12 +47,6 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = `ไม่พบสมาชิก ${param}`
         }
 
-    } else {
-
-        if (member_name.includes("'")) {
-            member_name = member_name.replaceAll(/[']/g, "\\'");
-            //console.log(`member name has quoted - ${param}`) ;
-        }
     }
     let chat_type = "[cmd] -";
     console.log(`${chat_type} command: ${cmd} - param: ${param}`);

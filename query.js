@@ -7,6 +7,7 @@ const dbConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  charset: 'utf8mb4',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -50,18 +51,13 @@ async function updateAlertCall(value = 1) {
 }
 
 async function updateMember(member_id, value, type = 0) {
-
   let query;
   if (type == 0) {
-    query = `update member_tbl set name='${value}' where id=${member_id}`
+    query = "update member_tbl set name=? where id=?";
+    return await executeQuery(query, [value, member_id]);
   } else if (type == 1) {
     //query = `update member_team_week_tbl set team_id=${value} where member_id=${member_id} and week_id=${week_id}`
   }
-
-  const res = await executeQuery(query);
-  //console.log(res) ;
-  return res;
-
 }
 
 async function resetMemberTeam() {
@@ -75,14 +71,9 @@ async function resetMemberTeam() {
 }
 
 async function newMember(lineID, name) {
-
-  let query = `insert into member_tbl values(null, '${name}', 0, 0, 0, '${name.replace('@', '')}', '${lineID}', 0)`;
-
-
-  const res = await executeQuery(query);
-  //console.log(res) ;
+  const query = "insert into member_tbl values(null, ?, 0, 0, 0, ?, ?, 0)";
+  const res = await executeQuery(query, [name, name.replace('@', ''), lineID]);
   return res;
-
 }
 
 function shuffleArray(array) {
@@ -221,12 +212,12 @@ async function updateMemberWeek(member_id, value, type = 0) {
     const week_id = week[0].id;
     let query;
     if (type == 0) {
-      query = `update member_team_week_tbl set pay=${value} where member_id=${member_id} and week_id=${week_id}`
+      query = "update member_team_week_tbl set pay=? where member_id=? and week_id=?";
     } else if (type == 1) {
-      query = `update member_team_week_tbl set team_id=${value} where member_id=${member_id} and week_id=${week_id}`
+      query = "update member_team_week_tbl set team_id=? where member_id=? and week_id=?";
     }
 
-    const res = await executeQuery(query);
+    const res = await executeQuery(query, [value, member_id, week_id]);
     //console.log(res) ;
     return res;
   }
@@ -236,40 +227,36 @@ async function queryWeekDate(week_id = 0) {
   let query = "";
   if (week_id == 0) {
     query = "SELECT id, number, date FROM week_tbl ORDER BY NUMBER DESC LIMIT 1";
+    return await executeQuery(query);
   } else {
-    query = `SELECT id, number, date FROM week_tbl where id=${week_id}`;
+    query = "SELECT id, number, date FROM week_tbl where id=?";
+    return await executeQuery(query, [week_id]);
   }
-
-  const res = await executeQuery(query);
-  //console.log(res) ;
-  return res;
 }
 
 async function queryWeekID(week_id = 0) {
   let query = "";
   if (week_id == 0) {
     query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY NUMBER DESC LIMIT 1";
+    return await executeQuery(query);
   } else {
-    query = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl where id=${week_id}`;
+    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl where id=?";
+    return await executeQuery(query, [week_id]);
   }
-
-  const res = await executeQuery(query);
-  //console.log(res) ;
-  return res;
 }
 
 async function unregisterMember(member_id) {
   const week = await queryWeekID();
   if (week.length > 0) {
     const week_id = week[0].id;
-    const query = `SELECT * from member_team_week_tbl where week_id=${week_id} and member_id=${member_id}`;
-    const res = await executeQuery(query);
+    const query = "SELECT * from member_team_week_tbl where week_id=? and member_id=?";
+    const res = await executeQuery(query, [week_id, member_id]);
     //console.log(`${res.length}`)
     if (res.length > 0) {
       //console.log(`${week_id}`)
-      const query = `delete from member_team_week_tbl where member_id=${member_id} and week_id=${week_id}`;
+      const query = "delete from member_team_week_tbl where member_id=? and week_id=?";
       //console.log(query) ;
-      const reg_res = await executeQuery(query);
+      const reg_res = await executeQuery(query, [member_id, week_id]);
       //console.log(reg_res) ;
       return true;
     } else {
@@ -311,10 +298,10 @@ async function registerMember(member_id, member_name) {
   const week = await queryWeekID();
   if (week.length > 0) {
     const week_id = week[0].id;
-    const query = `SELECT * from member_team_week_tbl where week_id=${week_id} and member_id=${member_id}`;
-    const res = await executeQuery(query);
-    const check = `SELECT * from member_tbl where id=${member_id}`;
-    const check_res = await executeQuery(check);
+    const query = "SELECT * from member_team_week_tbl where week_id=? and member_id=?";
+    const res = await executeQuery(query, [week_id, member_id]);
+    const check = "SELECT * from member_tbl where id=?";
+    const check_res = await executeQuery(check, [member_id]);
     if (check_res.length > 0) {
       const debt = check_res[0].power;
       console.log(`ยอดค้าง ${debt}`);
@@ -324,9 +311,9 @@ async function registerMember(member_id, member_name) {
     if (res.length > 0) {
       return 1;
     } else {
-      const query = `insert into member_team_week_tbl values(null, ${member_id}, '${member_name}', 0, ${week_id}, 0, 0)`
+      const query = "insert into member_team_week_tbl values(null, ?, ?, 0, ?, 0, 0)";
       //console.log(query) ;
-      const reg_res = await executeQuery(query);
+      const reg_res = await executeQuery(query, [member_id, member_name, week_id]);
       //console.log(reg_res) ;
       return 0;
     }
@@ -336,16 +323,14 @@ async function registerMember(member_id, member_name) {
 }
 
 async function queryMemberbyLineID(lineId) {
-  const query = `SELECT * FROM member_tbl where line_user_id='${lineId}'`;
-  const res = await executeQuery(query);
-  //console.log(res) ;
+  const query = "SELECT * FROM member_tbl where line_user_id=?";
+  const res = await executeQuery(query, [lineId]);
   return res;
 }
 
 async function queryMemberbyName(name) {
-  const query = `SELECT * FROM member_tbl where name='${name}'`;
-  const res = await executeQuery(query);
-  //console.log(res) ;
+  const query = "SELECT * FROM member_tbl where name=?";
+  const res = await executeQuery(query, [name]);
   return res;
 }
 
