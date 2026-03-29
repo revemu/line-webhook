@@ -1225,8 +1225,6 @@ async function getTopStat(limit = 10, type = 0) {
   if (type == 0) {
     status = "< 2";
     header = `Top ${limit} Scorer`;
-
-
   } else if (type == 1) {
     status = "= 3";
     header = `Top ${limit} Assist`;
@@ -1236,6 +1234,26 @@ async function getTopStat(limit = 10, type = 0) {
   }
 
   query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl , week_tbl WHERE match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.team_id <> 101 group by member_tbl.id order by goal DESC limit ${limit}`;
+
+  if (type == 4) {
+    query = `SELECT 
+    member_tbl.name, 
+    member_tbl.alias, 
+    SUM(table_week_tbl.pts) 
+        / COUNT(table_week_tbl.id) AS pts
+FROM member_team_week_tbl
+JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
+JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
+JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
+WHERE week_tbl.year = YEAR(CURRENT_DATE())
+GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias
+HAVING COUNT(table_week_tbl.id) > (
+    SELECT COUNT(*) * 0.5
+    FROM week_tbl
+    WHERE week_tbl.year = YEAR(CURRENT_DATE())
+)
+ORDER BY pts DESC limit ${limit}`;
+  }
   //console.log(query) ;
   const result = await executeQuery(query);
   if (result.length > 0) {
@@ -1270,6 +1288,12 @@ async function getTopStat(limit = 10, type = 0) {
         top_url = "https://commons.wikimedia.org/wiki/File:BLANK_ICON.png"
         offsetTop = "none"
       }
+      let val = "";
+      if (type == 4) {
+        val = member.pts;
+      } else {
+        val = member.goal;
+      }
       bubble.body.contents.push({
         "type": "box",
         "layout": "baseline",
@@ -1290,7 +1314,7 @@ async function getTopStat(limit = 10, type = 0) {
           },
           {
             "type": "text",
-            "text": `${member.goal}`,
+            "text": `${val}`,
             "weight": "regular",
             "size": "xs",
             "align": "end"

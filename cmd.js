@@ -214,6 +214,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             carousel.contents.push(msg);
             msg = await db.getTopStat(limit, 1);
             carousel.contents.push(msg);
+            msg = await db.getTopStat(limit, 4);
+            carousel.contents.push(msg);
             msg = await db.getTopStat(limit, 2);
             carousel.contents.push(msg);
             const date = new Date();
