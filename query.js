@@ -1316,7 +1316,7 @@ ORDER BY pts DESC limit ${limit}`;
           },
           {
             "type": "text",
-            "text": `${val}`,
+            "text": `${val} `,
             "weight": "regular",
             "size": "xs",
             "align": "end"
