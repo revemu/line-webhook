@@ -13,23 +13,14 @@ function getNextSaturday() {
 
 async function process_cmd(cmd_str, member, quoteToken) {
     const pos = cmd_str.indexOf(" ");
-    let cmd;
-    let param = "";
-    let msg = "";
-    let sub = "";
-    var is_mention = false;
+    const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
+    let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
+
     let member_id = member.id;
     let member_name = member.name;
+    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team'].includes(cmd);
 
-    if (pos > 0) {
-        cmd = cmd_str.substring(0, pos).trim();
-        param = cmd_str.substring(pos).trim();
-    } else {
-        cmd = cmd_str.trim();
-    }
-
-    if (param.startsWith('@')) {
-        is_mention = true;
+    if (is_mention_cmd && param.startsWith('@')) {
         const mention = await db.queryMemberbyName(param);
         if (mention.length > 0) {
             console.log(`mentioned member - ${param}, id: ${mention[0].id}`);
@@ -37,16 +28,20 @@ async function process_cmd(cmd_str, member, quoteToken) {
             member_name = param;
             if (cmd != '+1' && cmd != '-1') {
                 if (!await db.IsMemberWeek(member_id)) {
-                    cmd = "";
-                    msg = `สมาชิก ${param} ไม่ได้ลงชื่อในสัปดาห์นี้`
+                    return [{
+                        type: 'text',
+                        quoteToken: quoteToken,
+                        text: `สมาชิก ${param} ไม่ได้ลงชื่อในสัปดาห์นี้`
+                    }];
                 }
             }
-
         } else {
-            cmd = "";
-            msg = `ไม่พบสมาชิก ${param}`
+            return [{
+                type: 'text',
+                quoteToken: quoteToken,
+                text: `ไม่พบสมาชิก ${param}`
+            }];
         }
-
     }
     let chat_type = "[cmd] -";
     console.log(`${chat_type} command: ${cmd} - param: ${param}`);
@@ -206,22 +201,19 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = `ลงชื่อเตะบอล เสาร์ที่ ${await db.getFormatDate(next_sat)} ได้`;
             break;
         case 'top':
-            let limit = 10;
-            if (param != '') limit = Number(param);
-            msg = await db.getTopStat(limit, 0);
-            let carousel = flex.tpl_carousel;
-            carousel.contents = [];
-            carousel.contents.push(msg);
-            msg = await db.getTopStat(limit, 1);
-            carousel.contents.push(msg);
-            msg = await db.getTopStat(limit, 4);
-            carousel.contents.push(msg);
-            msg = await db.getTopStat(limit, 2);
-            carousel.contents.push(msg);
+            const limit = param != '' ? Number(param) : 10;
+            const stats = await Promise.all([
+                db.getTopStat(limit, 0),
+                db.getTopStat(limit, 1),
+                db.getTopStat(limit, 4),
+                db.getTopStat(limit, 2)
+            ]);
+            
+            const carousel = flex.tpl_carousel;
+            carousel.contents = stats;
             const date = new Date();
             altText = `Top ${limit} Stat (${date.getFullYear()})`;
             msg = carousel;
-            //console.log(JSON.stringify(msg))
             msg_type = 1;
             break;
         case 'testcarousel':
@@ -270,35 +262,36 @@ async function process_cmd(cmd_str, member, quoteToken) {
 
             break;
     }
-    if (msg != '') {
-        if (msg_type == 0) {
-            replyMessages = [{
+    if (msg == '') return;
+
+    switch (msg_type) {
+        case 0:
+            return [{
                 type: 'text',
                 quoteToken: quoteToken,
                 text: msg
             }];
-        } else if (msg_type == 1) {
-            replyMessages = {
+        case 1:
+            return {
                 type: 'flex',
                 altText: altText,
                 contents: msg,
             };
-        } else if (msg_type == 2) {
-            replyMessages = {
+        case 2:
+            return {
                 type: 'textV2',
                 quoteToken: quoteToken,
                 text: msg,
                 substitution: sub
             };
-            //console.log(replyMessages) ;
-        } else if (msg_type == 3) {
-            replyMessages = {
+        case 3:
+            return {
                 type: 'textV2',
                 text: msg,
                 substitution: sub
             };
-            //console.log(replyMessages) ;
-        }
+        default:
+            return;
     }
 
     //console.log(replyMessages)
