@@ -1245,7 +1245,7 @@ async function getTopStat(limit = 10, type = 0) {
         / COUNT(table_week_tbl.id) AS pts
 FROM member_team_week_tbl
 JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
-JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
+JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.team_id <> 101
 JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
 WHERE week_tbl.year = YEAR(CURRENT_DATE())
 GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias
