@@ -19,10 +19,12 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let member_id = member.id;
     let member_name = member.name;
     const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team'].includes(cmd);
+    let is_mention = false;
 
     if (is_mention_cmd && param.startsWith('@')) {
         const mention = await db.queryMemberbyName(param);
         if (mention.length > 0) {
+            is_mention = true;
             console.log(`mentioned member - ${param}, id: ${mention[0].id}`);
             member_id = mention[0].id;
             member_name = param;
@@ -46,6 +48,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let chat_type = "[cmd] -";
     console.log(`${chat_type} command: ${cmd} - param: ${param}`);
     let replyMessages;
+    let msg = "";
+    let sub = null;
 
     var altText;
     let msg_type = 0;
@@ -208,7 +212,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 db.getTopStat(limit, 4),
                 db.getTopStat(limit, 2)
             ]);
-            
+
             const carousel = flex.tpl_carousel;
             carousel.contents = stats;
             const date = new Date();
