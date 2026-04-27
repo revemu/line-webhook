@@ -964,24 +964,30 @@ async function getMemberWeek0(type = 0) {
       let index = 0;
       for (const member of result) {
         let donate = await getDonateBadge(member.donate);
+        let name_display = member.name;
+        if (member.id == 52) {
+          name_display = member.alias;
+        } else {
+          name_display = member.name;
+        }
 
         if (type == 1) {
           if (member.team_id == 100) {
             goal++;
-            goal_str += (goal) + ". " + donate + member.name + "\n";
+            goal_str += (goal) + ". " + donate + name_display + "\n";
           } else {
 
             //index = player ;
             if (player < 24) {
               player++;
-              body += (player) + ". " + donate + member.name + "\n";
+              body += (player) + ". " + donate + name_display + "\n";
             } else {
               reserve++;
-              reserve_str += (reserve) + ". " + donate + member.name + "\n";
+              reserve_str += (reserve) + ". " + donate + name_display + "\n";
             }
           }
         } else {
-          body += (i + 1) + ". " + donate + member.name + "\n";
+          body += (i + 1) + ". " + donate + name_display + "\n";
           player++;
         }
         i++;
