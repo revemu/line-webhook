@@ -291,7 +291,7 @@ async function handleImageMessage(event, member) {
         const startTime = Date.now();
         const imageBuffer = await getImageAxios(message.id);
         const codes = await readQRCode(imageBuffer);
-        
+
         console.log(`Time processed image elapsed: ${Date.now() - startTime} ms`);
 
         if (codes) {
@@ -344,7 +344,7 @@ async function handleImageMessage(event, member) {
         if (date.getDay() === 6 && date.getHours() > 19) {
             await replyMessage(replyToken, [{
                 type: 'text',
-                text: 'ไม่สามารถโหลดรูปภาพจาก Line ได้\nถ้าเป็นการส่ง Slip หลีกเลี่ยงการส่งในช่วงเวลา 19.00-22.30'
+                text: 'ไม่สามารถโหลดรูปจาก Line ได้'
             }]);
         }
     }

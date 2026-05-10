@@ -211,8 +211,11 @@ async function updateMemberWeek(member_id, value, type = 0) {
   if (week.length > 0) {
     const week_id = week[0].id;
     let query;
+    let query1 = ""
     if (type == 0) {
       query = "update member_team_week_tbl set pay=? where member_id=? and week_id=?";
+      query1 = "update member_tbl set power=? where id=?";
+      const res1 = await executeQuery(query1, [0, member_id]);
     } else if (type == 1) {
       query = "update member_team_week_tbl set team_id=? where member_id=? and week_id=?";
     }
