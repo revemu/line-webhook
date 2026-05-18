@@ -210,7 +210,7 @@ async function updateMaxNumberWeek(max_number = 24) {
   const week = await queryWeekID();
   if (week.length > 0) {
     const week_id = week[0].id;
-    const query = "update week_tbl set max=? where week_id=?";
+    const query = "update week_tbl set max=? where id=?";
     const res = await executeQuery(query, [max_number, week_id]);
     return res;
   }
