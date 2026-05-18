@@ -56,7 +56,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let obj;
     let week;
     switch (cmd) {
-        case 'setmax':
+        case 'setmaxweek':
             msg_type = 2;
             if (param == "") {
                 msg = "Please enter max number";
