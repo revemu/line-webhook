@@ -193,7 +193,7 @@ async function newWeek(week_date) {
   console.log(last_week + " === " + date_str);
   if (last_week != date_str) {
     new_week_num = week[0].number + 1;
-    query = `insert into week_tbl values(null, '${new_week_num}', '${date_str}', 2, '${y}')`;
+    query = `insert into week_tbl values(null, '${new_week_num}', '${date_str}', 2, '${y}', 24)`;
     //console.log(query) ;
 
 
@@ -204,6 +204,16 @@ async function newWeek(week_date) {
     console.log(date_str + " already exist!");
   }
   await addTeamColorWeek();
+}
+
+async function updateMaxNumberWeek(max_number = 24) {
+  const week = await queryWeekID();
+  if (week.length > 0) {
+    const week_id = week[0].id;
+    const query = "update week_tbl set max=? where week_id=?";
+    const res = await executeQuery(query, [max_number, week_id]);
+    return res;
+  }
 }
 
 async function updateMemberWeek(member_id, value, type = 0) {
@@ -1422,6 +1432,7 @@ module.exports = {
   getTableWeek,
   updateMember,
   updateMemberWeek,
+  updateMaxNumberWeek,
   queryMemberbyLineID,
   queryMemberbyName,
   newMember,

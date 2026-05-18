@@ -56,6 +56,16 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let obj;
     let week;
     switch (cmd) {
+        case 'setmax':
+            msg_type = 2;
+            if (param == "") {
+                msg = "Please enter max number";
+                break;
+            }
+            await db.updateMaxNumberWeek(Number(param));
+
+            [msg, sub] = await db.getMemberWeek0(1);
+            break;
         case 'x1':
             await db.registerNY(member_id);
             msg = await db.getMemberNY();
