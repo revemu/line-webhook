@@ -1331,7 +1331,7 @@ ORDER BY pts DESC limit ${limit}`;
           {
             "type": "text",
             "text": `${i + 1}. ${member.name.replace("@", '')}`,
-            "weight": "regular",
+            "weight": "bold",
             "size": "xs",
             "align": "start",
             "flex": 3
@@ -1339,7 +1339,7 @@ ORDER BY pts DESC limit ${limit}`;
           {
             "type": "text",
             "text": valText,
-            "weight": "regular",
+            "weight": "bold",
             "size": "xs",
             "align": "end",
             "flex": 2
