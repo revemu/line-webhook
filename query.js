@@ -1311,13 +1311,11 @@ ORDER BY pts DESC limit ${limit}`;
         top_url = "https://commons.wikimedia.org/wiki/File:BLANK_ICON.png"
         offsetTop = "none"
       }
-      let val = "";
-      let mcount = 0;
+      let valText = "";
       if (type == 4) {
-        val = Number(member.pts).toFixed(3);
-        mcount = member.m;
+        valText = `${Number(member.pts).toFixed(3)} (${member.m})`;
       } else {
-        val = member.goal;
+        valText = `${member.goal}`;
       }
       bubble.body.contents.push({
         "type": "box",
@@ -1336,15 +1334,15 @@ ORDER BY pts DESC limit ${limit}`;
             "weight": "regular",
             "size": "xs",
             "align": "start",
-            "flex": 4
+            "flex": 3
           },
           {
             "type": "text",
-            "text": `${val} (${mcount})`,
+            "text": valText,
             "weight": "regular",
             "size": "xs",
             "align": "end",
-            "flex": 1
+            "flex": 2
           }
         ]
       });
