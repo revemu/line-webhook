@@ -1312,8 +1312,10 @@ ORDER BY pts DESC limit ${limit}`;
         offsetTop = "none"
       }
       let val = "";
+      let mcount = 0;
       if (type == 4) {
-        val = Number(member.pts).toFixed(2);
+        val = Number(member.pts).toFixed(3);
+        mcount = member.m;
       } else {
         val = member.goal;
       }
@@ -1338,7 +1340,7 @@ ORDER BY pts DESC limit ${limit}`;
           },
           {
             "type": "text",
-            "text": `${val}`,
+            "text": `${val} (${mcount})`,
             "weight": "regular",
             "size": "xs",
             "align": "end",
