@@ -1324,7 +1324,7 @@ ORDER BY pts DESC limit ${limit}`;
         "contents": [
           {
             "type": "icon",
-            "size": "md",
+            "size": "sm",
             "url": top_url,
             "offsetTop": offsetTop
           },
