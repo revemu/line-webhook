@@ -979,7 +979,7 @@ async function getMemberWeek0(type = 0) {
       for (const member of result) {
         let donate = await getDonateBadge(member.donate);
         let name_display = member.name;
-        if (member.id == 116) {
+        if (member.id == 116 || member.id == 16) {
           name_display = member.alias;
         } else {
           name_display = member.name;
