@@ -1293,7 +1293,16 @@ ORDER BY pts DESC limit ${limit}`;
     bubble.body.contents.push(
       {
         "type": "text",
-        "text": `${header} (${currentYear})`,
+        "text": `${currentYear}`,
+        "weight": "bold",
+        "size": "md",
+        "align": "center"
+      }
+    );
+    bubble.body.contents.push(
+      {
+        "type": "text",
+        "text": `${header}`,
         "weight": "bold",
         "size": "md",
         "align": "center"
