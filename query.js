@@ -219,7 +219,7 @@ async function updateMaxNumberWeek(max_number = 24) {
 async function updateMemberDebt(member_id) {
   let query1 = ""
 
-  query1 = "update member_tbl set debt=0 where id=?";
+  query1 = "update member_tbl set power=0 where id=?";
   const res1 = await executeQuery(query1, [member_id]);
 
   //console.log(res) ;
