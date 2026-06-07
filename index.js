@@ -311,6 +311,7 @@ async function handleImageMessage(event, member) {
 
                 let replyMessages;
                 if (!payweek) {
+                    await db.updateMemberDebt(member.id);
                     replyMessages = [{
                         type: 'text',
                         quoteToken: message.quoteToken,
