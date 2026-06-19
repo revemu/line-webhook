@@ -1484,7 +1484,8 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   let poolRound = 0;
   while (pool.length < maxMatches) {
     const anchor = poolRound % numTeams;
-    const others = Array.from({ length: numTeams }, (_, i) => i).filter(i => i !== anchor);
+    const others = Array.from({ length: numTeams }, (_, i) => (anchor + 2 + i) % numTeams)
+                     .filter(t => t !== anchor);
 
     for (let j = 0; j < others.length && pool.length < maxMatches; j++) {
       const opp  = others[j];                        // anchor's opponent this sub-round
