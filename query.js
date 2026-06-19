@@ -873,7 +873,7 @@ async function getTeamWeek(week_id = 0) {
           }
         );
 
-        query = `select member_team_week_tbl.*, member_tbl.name AS line_name from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team=${team.id}`;
+        query = `select member_team_week_tbl.*, member_tbl.name AS line_name from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
         console.log(query);
         //const count = await executeQuery(query);
         //query = `select member_team_week_tbl.*, member_tbl.name from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where week_id=${week_id} and team_id=${team.id}`;
