@@ -1484,15 +1484,22 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     }
   }
 
-  // Build pool: shift the cycle start by 1 each round so every round
-  // opens with a DIFFERENT pair of teams.
-  // e.g. Round1 offset=0 → (0,3) Black vs Red
-  //      Round2 offset=1 → (1,2) Green vs White  ← totally different teams
-  //      Round3 offset=2 → (0,2) Black vs White  ← no Green
+  // Build pool: for each round shift the start by `pairsPerSubRound` positions.
+  // For 4 teams: pairsPerSubRound=2 → offsets 0, 2, 4 across the 3 rounds.
+  //
+  // Why this offset works (verified slot-by-slot):
+  //   Round 1 offset 0: SR1a SR1b | SR2a SR2b | SR3a SR3b
+  //   Round 2 offset 2: SR2a SR2b | SR3a SR3b | SR1a SR1b  ← shifted 1 sub-round
+  //   Round 3 offset 4: SR3a SR3b | SR1a SR1b | SR2a SR2b  ← shifted 2 sub-rounds
+  //
+  // At every round boundary, teams that just played in the last sub-round of
+  // round N now sit out the FIRST match of round N+1 — guaranteeing they rest
+  // exactly 1 or 2 slots, never 3.
+  const pairsPerSubRound = Math.floor(numTeams / 2); // = 2 for 4 teams
   const pool = [];
   let poolRound = 0;
   while (pool.length < maxMatches) {
-    const offset = poolRound % cycleLen;
+    const offset = (poolRound * pairsPerSubRound) % cycleLen;
     for (let j = 0; j < cycleLen; j++) {
       if (pool.length >= maxMatches) break;
       pool.push([...baseCycle[(offset + j) % cycleLen]]);
@@ -1501,40 +1508,64 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   }
 
   // -----------------------------------------------------------
-  // Greedy scheduler: enforce max 2 consecutive matches per team
-  // At each slot, scan the pool for the first match where
-  // NEITHER team has already played 2 in a row.
+  // Greedy scheduler: enforce BOTH constraints simultaneously
+  //   1. No team PLAYS 3+ consecutive matches
+  //   2. No team RESTS 3+ consecutive matches
+  //
+  // For each slot, scan remaining pool for the first match (a,b) where:
+  //   - Neither a nor b has played 2 consecutive  (play constraint)
+  //   - No non-playing team has already rested 2 consecutive (rest constraint)
   // -----------------------------------------------------------
-  const consec = new Array(numTeams).fill(0);   // consecutive count per team
-  const lastSlot = new Array(numTeams).fill(-2); // last slot each team played
-  const remaining = [...pool];
-  const matchups = [];
+  const consec     = new Array(numTeams).fill(0);   // consecutive PLAY streak
+  const lastSlot   = new Array(numTeams).fill(-2);  // last slot team played
+  const restConsec = new Array(numTeams).fill(0);   // consecutive REST streak
+  const lastRest   = new Array(numTeams).fill(-2);  // last slot team rested
+  const remaining  = [...pool];
+  const matchups   = [];
 
   for (let slot = 0; slot < maxMatches; slot++) {
     let chosen = -1;
 
     for (let i = 0; i < remaining.length; i++) {
       const [a, b] = remaining[i];
-      // Dynamic consecutive count: only counts if team played the very previous slot
+
+      // --- Play constraint ---
       const aC = lastSlot[a] === slot - 1 ? consec[a] : 0;
       const bC = lastSlot[b] === slot - 1 ? consec[b] : 0;
-      if (aC < 2 && bC < 2) {
-        chosen = i;
-        break;
+      if (aC >= 2 || bC >= 2) continue;
+
+      // --- Rest constraint ---
+      // If we pick (a,b), every other team is resting this slot.
+      // Reject if that would give any of them a 3rd consecutive rest.
+      let restOk = true;
+      for (let t = 0; t < numTeams; t++) {
+        if (t === a || t === b) continue; // playing, not resting
+        const tR = lastRest[t] === slot - 1 ? restConsec[t] : 0;
+        if (tR >= 2) { restOk = false; break; }
       }
+      if (!restOk) continue;
+
+      chosen = i;
+      break;
     }
 
-    // Fallback (shouldn't happen with 4 teams, but safety net)
+    // Fallback safety net (shouldn't trigger with 4 teams)
     if (chosen === -1) chosen = 0;
 
     const [a, b] = remaining.splice(chosen, 1)[0];
     matchups.push([a, b]);
 
-    // Update consecutive tracking for both playing teams
+    // Update tracking for ALL teams
     for (let t = 0; t < numTeams; t++) {
       if (t === a || t === b) {
-        consec[t] = lastSlot[t] === slot - 1 ? consec[t] + 1 : 1;
+        // Playing this slot
+        consec[t]   = lastSlot[t] === slot - 1 ? consec[t] + 1 : 1;
         lastSlot[t] = slot;
+        restConsec[t] = 0; // reset rest streak when playing
+      } else {
+        // Resting this slot
+        restConsec[t] = lastRest[t] === slot - 1 ? restConsec[t] + 1 : 1;
+        lastRest[t]   = slot;
       }
     }
   }
@@ -1556,7 +1587,7 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${dateStr}`);
   lines.push(`🕐 เริ่ม ${startTimeStr} น. | ${matchMin} นาที/แมตช์`);
   lines.push(`👥 ${numTeams} ทีม | ${matchups.length} แมตช์ (${totalRounds} รอบ) | ${totalHours} ชม.`);
-  lines.push(`⚠️ แต่ละทีมเล่นติดต่อกันได้สูงสุด 2 แมตช์`);
+  lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
   lines.push('─'.repeat(30));
 
   matchups.forEach((m, i) => {
