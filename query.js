@@ -1468,29 +1468,34 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   const slotMin = matchMin + breakMin;
   const maxMatches = Math.floor((totalHours * 60) / slotMin);
 
-  // Build pool: for each round, rotate the "anchor" team in the round-robin
-  // algorithm so every round opens with a DIFFERENT team.
-  //
-  // Standard round-robin fixes team[0] and rotates the rest.
-  // By changing the anchor each round:
-  //   Round 1: anchor=Team0 → opens with Team0 vs X
-  //   Round 2: anchor=Team1 → opens with Team1 vs X
-  //   Round 3: anchor=Team2 → opens with Team2 vs X
+  // Build the base round-robin cycle once (interleaved sub-round ordering).
+  // For 4 teams the 6 unique pairs are grouped as 3 sub-rounds of 2 matches each:
+  //   Sub-round 1: (0,3),(1,2)  Sub-round 2: (0,2),(3,1)  Sub-round 3: (0,1),(2,3)
+  // Listing them sequentially gives the base cycle.
+  const baseCycle = [];
+  {
+    const rot = Array.from({ length: numTeams - 1 }, (_, i) => i + 1);
+    for (let r = 0; r < numTeams - 1; r++) {
+      const row = [0, ...rot];
+      for (let i = 0; i < Math.floor(numTeams / 2); i++) {
+        baseCycle.push([row[i], row[numTeams - 1 - i]]);
+      }
+      rot.unshift(rot.pop());
+    }
+  }
+
+  // Build pool: shift the cycle start by 1 each round so every round
+  // opens with a DIFFERENT pair of teams.
+  // e.g. Round1 offset=0 → (0,3) Black vs Red
+  //      Round2 offset=1 → (1,2) Green vs White  ← totally different teams
+  //      Round3 offset=2 → (0,2) Black vs White  ← no Green
   const pool = [];
   let poolRound = 0;
   while (pool.length < maxMatches) {
-    const anchor = poolRound % numTeams;
-    // Build the "others" list: all teams except anchor
-    const others = Array.from({ length: numTeams }, (_, i) => i).filter(i => i !== anchor);
-    const rotating = [...others];
-    for (let r = 0; r < numTeams - 1; r++) {
-      const row = [anchor, ...rotating];
-      for (let i = 0; i < Math.floor(numTeams / 2); i++) {
-        if (pool.length < maxMatches) {
-          pool.push([row[i], row[numTeams - 1 - i]]);
-        }
-      }
-      rotating.unshift(rotating.pop()); // rotate
+    const offset = poolRound % cycleLen;
+    for (let j = 0; j < cycleLen; j++) {
+      if (pool.length >= maxMatches) break;
+      pool.push([...baseCycle[(offset + j) % cycleLen]]);
     }
     poolRound++;
   }
