@@ -209,6 +209,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'topassist':
             msg = "ให้ใช้ /top แทน";
             break;
+        case 'schedule':
+            const schedStart = param !== '' ? param : '17:00';
+            msg = await db.getScheduleText(schedStart, 8, 2, 3);
+            break;
         case 'newweek':
             const next_sat = getNextSaturday();
             await db.newWeek(next_sat);

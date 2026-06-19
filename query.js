@@ -1443,6 +1443,136 @@ async function getDebtList(type = 0) {
 }
 
 
+async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 2, totalHours = 3) {
+  // Fetch current week team colors
+  const week = await queryWeekID();
+  if (!week || week.length === 0) return 'ยังไม่มีข้อมูลสัปดาห์นี้';
+
+  const week_id = week[0].id;
+  const team_colors = await getTeamColorWeek(week_id);
+
+  if (!team_colors || team_colors.length < 2) {
+    return 'ยังไม่มีข้อมูลทีมในสัปดาห์นี้ (ใช้คำสั่ง randomteam ก่อน)';
+  }
+
+  // Build team list (up to 4)
+  const teams = team_colors.slice(0, 4).map(t => t.color);
+  const numTeams = teams.length;
+
+  // Generate 1 full round-robin cycle (all unique pairs)
+  const cycle = [];
+  const n = numTeams % 2 === 0 ? numTeams : numTeams + 1;
+  const rotating = [];
+  for (let i = 1; i < n; i++) rotating.push(i);
+  for (let round = 0; round < n - 1; round++) {
+    const roundTeams = [0, ...rotating];
+    for (let i = 0; i < Math.floor(n / 2); i++) {
+      const a = roundTeams[i];
+      const b = roundTeams[n - 1 - i];
+      if (a < numTeams && b < numTeams) cycle.push([a, b]);
+    }
+    rotating.unshift(rotating.pop());
+  }
+
+  // Parse start time and slot sizes
+  const [startH, startM] = startTimeStr.split(':').map(Number);
+  const startTotal = startH * 60 + (startM || 0);
+  const slotMin = matchMin + breakMin;
+  const maxMatches = Math.floor((totalHours * 60) / slotMin);
+
+  // Build the full pool by repeating the cycle
+  const pool = [];
+  while (pool.length < maxMatches) {
+    for (const m of cycle) {
+      if (pool.length >= maxMatches) break;
+      pool.push([m[0], m[1]]);
+    }
+  }
+
+  // -----------------------------------------------------------
+  // Greedy scheduler: enforce max 2 consecutive matches per team
+  // At each slot, scan the pool for the first match where
+  // NEITHER team has already played 2 in a row.
+  // -----------------------------------------------------------
+  const consec = new Array(numTeams).fill(0);   // consecutive count per team
+  const lastSlot = new Array(numTeams).fill(-2); // last slot each team played
+  const remaining = [...pool];
+  const matchups = [];
+
+  for (let slot = 0; slot < maxMatches; slot++) {
+    let chosen = -1;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const [a, b] = remaining[i];
+      // Dynamic consecutive count: only counts if team played the very previous slot
+      const aC = lastSlot[a] === slot - 1 ? consec[a] : 0;
+      const bC = lastSlot[b] === slot - 1 ? consec[b] : 0;
+      if (aC < 2 && bC < 2) {
+        chosen = i;
+        break;
+      }
+    }
+
+    // Fallback (shouldn't happen with 4 teams, but safety net)
+    if (chosen === -1) chosen = 0;
+
+    const [a, b] = remaining.splice(chosen, 1)[0];
+    matchups.push([a, b]);
+
+    // Update consecutive tracking for both playing teams
+    for (let t = 0; t < numTeams; t++) {
+      if (t === a || t === b) {
+        consec[t] = lastSlot[t] === slot - 1 ? consec[t] + 1 : 1;
+        lastSlot[t] = slot;
+      }
+    }
+  }
+
+  const totalRounds = Math.ceil(maxMatches / cycle.length);
+
+  const toTime = (mins) => {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  // Format output
+  const thaiMonthsShort = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const dateObj = new Date(week[0].date || Date.now());
+  const dateStr = `${dateObj.getDate()} ${thaiMonthsShort[dateObj.getMonth()]} ${String(dateObj.getFullYear()).slice(-2)}`;
+
+  const lines = [];
+  lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${dateStr}`);
+  lines.push(`🕐 เริ่ม ${startTimeStr} น. | ${matchMin} นาที/แมตช์`);
+  lines.push(`👥 ${numTeams} ทีม | ${matchups.length} แมตช์ (${totalRounds} รอบ) | ${totalHours} ชม.`);
+  lines.push(`⚠️ แต่ละทีมเล่นติดต่อกันได้สูงสุด 2 แมตช์`);
+  lines.push('─'.repeat(30));
+
+  // Track round labels: a "round" resets when all 6 pairs have been seen again
+  let roundNum = 0;
+  const roundTracker = new Set();
+
+  matchups.forEach((m, i) => {
+    const key = `${Math.min(m[0],m[1])}-${Math.max(m[0],m[1])}`;
+    if (roundTracker.size === 0 || (roundTracker.has(key) && roundTracker.size === cycle.length)) {
+      roundTracker.clear();
+      roundNum++;
+      lines.push(`▶ รอบที่ ${roundNum}`);
+    }
+    roundTracker.add(key);
+
+    const slotStart = startTotal + i * slotMin;
+    // Show a rest indicator for teams sitting out
+    const resting = teams.filter((_, idx) => idx !== m[0] && idx !== m[1]).join(', ');
+    lines.push(`[${i + 1}] ${toTime(slotStart)}-${toTime(slotStart + matchMin)}  ${teams[m[0]]} vs ${teams[m[1]]}  (พัก: ${resting})`);
+  });
+
+  lines.push('─'.repeat(30));
+  lines.push(`สิ้นสุด ${toTime(startTotal + matchups.length * slotMin)} น.`);
+
+  return lines.join('\n');
+}
+
 module.exports = {
   testConnection,
   executeQuery,
@@ -1473,5 +1603,6 @@ module.exports = {
   getMemberWeek2,
   getMemberWeek0,
   registerNY,
-  getDebtList
+  getDebtList,
+  getScheduleText
 };
