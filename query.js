@@ -1468,41 +1468,32 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   const slotMin = matchMin + breakMin;
   const maxMatches = Math.floor((totalHours * 60) / slotMin);
 
-  // Build the base round-robin cycle once (interleaved sub-round ordering).
-  // For 4 teams the 6 unique pairs are grouped as 3 sub-rounds of 2 matches each:
-  //   Sub-round 1: (0,3),(1,2)  Sub-round 2: (0,2),(3,1)  Sub-round 3: (0,1),(2,3)
-  // Listing them sequentially gives the base cycle.
-  const baseCycle = [];
-  {
-    const rot = Array.from({ length: numTeams - 1 }, (_, i) => i + 1);
-    for (let r = 0; r < numTeams - 1; r++) {
-      const row = [0, ...rot];
-      for (let i = 0; i < Math.floor(numTeams / 2); i++) {
-        baseCycle.push([row[i], row[numTeams - 1 - i]]);
-      }
-      rot.unshift(rot.pop());
-    }
-  }
-
-  // Build pool: for each round shift the start by `pairsPerSubRound` positions.
-  // For 4 teams: pairsPerSubRound=2 → offsets 0, 2, 4 across the 3 rounds.
+  // Build pool using a rotating-anchor approach (matching the reference schedule).
   //
-  // Why this offset works (verified slot-by-slot):
-  //   Round 1 offset 0: SR1a SR1b | SR2a SR2b | SR3a SR3b
-  //   Round 2 offset 2: SR2a SR2b | SR3a SR3b | SR1a SR1b  ← shifted 1 sub-round
-  //   Round 3 offset 4: SR3a SR3b | SR1a SR1b | SR2a SR2b  ← shifted 2 sub-rounds
+  // Each successive round picks the NEXT team as the "anchor".
+  // Within a round's cycle the anchor plays FIRST in every sub-round,
+  // followed by the other two teams' match:
   //
-  // At every round boundary, teams that just played in the last sub-round of
-  // round N now sit out the FIRST match of round N+1 — guaranteeing they rest
-  // exactly 1 or 2 slots, never 3.
-  const pairsPerSubRound = Math.floor(numTeams / 2); // = 2 for 4 teams
+  //   Round 1 anchor=T0:  (T0,T1),(T2,T3) | (T0,T2),(T1,T3) | (T0,T3),(T1,T2)
+  //   Round 2 anchor=T1:  (T1,T0),(T2,T3) | (T1,T2),(T0,T3) | (T1,T3),(T0,T2)
+  //   Round 3 anchor=T2:  (T2,T0),(T1,T3) | (T2,T1),(T0,T3) | (T2,T3),(T0,T1)
+  //
+  // This guarantees each round starts with a completely different team
+  // and the boundary between rounds never causes a team to rest 3+ in a row.
   const pool = [];
   let poolRound = 0;
   while (pool.length < maxMatches) {
-    const offset = (poolRound * pairsPerSubRound) % cycleLen;
-    for (let j = 0; j < cycleLen; j++) {
-      if (pool.length >= maxMatches) break;
-      pool.push([...baseCycle[(offset + j) % cycleLen]]);
+    const anchor = poolRound % numTeams;
+    const others = Array.from({ length: numTeams }, (_, i) => i).filter(i => i !== anchor);
+
+    for (let j = 0; j < others.length && pool.length < maxMatches; j++) {
+      const opp  = others[j];                        // anchor's opponent this sub-round
+      const pair = others.filter((_, k) => k !== j); // the other two teams
+
+      pool.push([anchor, opp]);                       // anchor's match first
+      if (pool.length < maxMatches) {
+        pool.push([pair[0], pair[1]]);                // then the other pair
+      }
     }
     poolRound++;
   }
