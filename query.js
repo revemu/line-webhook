@@ -1459,20 +1459,8 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   const teams = team_colors.slice(0, 4).map(t => t.color);
   const numTeams = teams.length;
 
-  // Generate 1 full round-robin cycle (all unique pairs)
-  const cycle = [];
-  const n = numTeams % 2 === 0 ? numTeams : numTeams + 1;
-  const rotating = [];
-  for (let i = 1; i < n; i++) rotating.push(i);
-  for (let round = 0; round < n - 1; round++) {
-    const roundTeams = [0, ...rotating];
-    for (let i = 0; i < Math.floor(n / 2); i++) {
-      const a = roundTeams[i];
-      const b = roundTeams[n - 1 - i];
-      if (a < numTeams && b < numTeams) cycle.push([a, b]);
-    }
-    rotating.unshift(rotating.pop());
-  }
+  // Number of unique pairs in one round-robin cycle
+  const cycleLen = (numTeams * (numTeams - 1)) / 2; // = 6 for 4 teams
 
   // Parse start time and slot sizes (support both '17:30' and '17.30')
   const [startH, startM] = startTimeStr.replace('.', ':').split(':').map(Number);
@@ -1480,13 +1468,31 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   const slotMin = matchMin + breakMin;
   const maxMatches = Math.floor((totalHours * 60) / slotMin);
 
-  // Build the full pool by repeating the cycle
+  // Build pool: for each round, rotate the "anchor" team in the round-robin
+  // algorithm so every round opens with a DIFFERENT team.
+  //
+  // Standard round-robin fixes team[0] and rotates the rest.
+  // By changing the anchor each round:
+  //   Round 1: anchor=Team0 → opens with Team0 vs X
+  //   Round 2: anchor=Team1 → opens with Team1 vs X
+  //   Round 3: anchor=Team2 → opens with Team2 vs X
   const pool = [];
+  let poolRound = 0;
   while (pool.length < maxMatches) {
-    for (const m of cycle) {
-      if (pool.length >= maxMatches) break;
-      pool.push([m[0], m[1]]);
+    const anchor = poolRound % numTeams;
+    // Build the "others" list: all teams except anchor
+    const others = Array.from({ length: numTeams }, (_, i) => i).filter(i => i !== anchor);
+    const rotating = [...others];
+    for (let r = 0; r < numTeams - 1; r++) {
+      const row = [anchor, ...rotating];
+      for (let i = 0; i < Math.floor(numTeams / 2); i++) {
+        if (pool.length < maxMatches) {
+          pool.push([row[i], row[numTeams - 1 - i]]);
+        }
+      }
+      rotating.unshift(rotating.pop()); // rotate
     }
+    poolRound++;
   }
 
   // -----------------------------------------------------------
@@ -1528,7 +1534,7 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     }
   }
 
-  const totalRounds = Math.ceil(maxMatches / cycle.length);
+  const totalRounds = Math.ceil(maxMatches / cycleLen);
 
   const toTime = (mins) => {
     const h = Math.floor(mins / 60) % 24;
@@ -1548,21 +1554,13 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   lines.push(`⚠️ แต่ละทีมเล่นติดต่อกันได้สูงสุด 2 แมตช์`);
   lines.push('─'.repeat(30));
 
-  // Track round labels: a "round" resets when all 6 pairs have been seen again
-  let roundNum = 0;
-  const roundTracker = new Set();
-
   matchups.forEach((m, i) => {
-    const key = `${Math.min(m[0],m[1])}-${Math.max(m[0],m[1])}`;
-    if (roundTracker.size === 0 || (roundTracker.has(key) && roundTracker.size === cycle.length)) {
-      roundTracker.clear();
-      roundNum++;
-      lines.push(`▶ รอบที่ ${roundNum}`);
+    // New round header every cycleLen matches
+    if (i % cycleLen === 0) {
+      lines.push(`▶ รอบที่ ${Math.floor(i / cycleLen) + 1}`);
     }
-    roundTracker.add(key);
 
     const slotStart = startTotal + i * slotMin;
-    // Show a rest indicator for teams sitting out
     const resting = teams.filter((_, idx) => idx !== m[0] && idx !== m[1]).join(', ');
     lines.push(`[${i + 1}] ${toTime(slotStart)}-${toTime(slotStart + matchMin)}  ${teams[m[0]]} vs ${teams[m[1]]}  (พัก: ${resting})`);
   });
