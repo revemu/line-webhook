@@ -1474,8 +1474,8 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     rotating.unshift(rotating.pop());
   }
 
-  // Parse start time and slot sizes
-  const [startH, startM] = startTimeStr.split(':').map(Number);
+  // Parse start time and slot sizes (support both '17:30' and '17.30')
+  const [startH, startM] = startTimeStr.replace('.', ':').split(':').map(Number);
   const startTotal = startH * 60 + (startM || 0);
   const slotMin = matchMin + breakMin;
   const maxMatches = Math.floor((totalHours * 60) / slotMin);
