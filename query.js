@@ -1724,7 +1724,20 @@ async function getCurrentMatch() {
     }));
   }
 
-  return { currentMatch, nextMatch, score, scorers, assists, weekId: sched.weekId, date: sched.date };
+  // ── Week table (team, GD, pts) ──
+  let table = [];
+  if (week && week.length > 0) {
+    const tableRows = await queryTableWeek(week[0].id);
+    if (tableRows && tableRows.length > 0) {
+      table = tableRows.map(r => ({
+        team: r.color,
+        gd: (r.g - r.a),
+        pts: r.pts
+      }));
+    }
+  }
+
+  return { currentMatch, nextMatch, score, scorers, assists, table, weekId: sched.weekId, date: sched.date };
 }
 
 module.exports = {

@@ -261,8 +261,18 @@ async function process_cmd(cmd_str, member, quoteToken) {
             } else {
                 msg += '\n🏁 นี่คือแมตช์สุดท้ายแล้วครับ';
             }
+
+            // ── Week table ──
+            if (matchInfo.table && matchInfo.table.length > 0) {
+                msg += '\n\n📊 ตารางคะแนน\n';
+                matchInfo.table.forEach((row, i) => {
+                    const gdStr = row.gd > 0 ? `+${row.gd}` : `${row.gd}`;
+                    msg += `${i + 1}. ${row.team}  GD ${gdStr}  ${row.pts} แต้ม\n`;
+                });
+            }
             break;
         }
+
 
 
         case 'newweek':
