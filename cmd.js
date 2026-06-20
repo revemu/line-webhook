@@ -239,19 +239,20 @@ async function process_cmd(cmd_str, member, quoteToken) {
             // ── Scorers ──
             if (matchInfo.scorers.length > 0) {
                 const scorerLine = matchInfo.scorers.map(s => {
-                    const badge = s.ownGoal ? '🥅' : '⚽';
-                    return s.goal > 1 ? `${s.name}(${s.goal})${badge}` : `${s.name}${badge}`;
-                }).join('  ');
-                msg += `${scorerLine}\n`;
+                    const og = s.ownGoal ? '🥅' : '';
+                    return s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
+                }).join(', ');
+                msg += `⚽ ${scorerLine}\n`;
             }
 
             // ── Assists ──
             if (matchInfo.assists.length > 0) {
                 const assistLine = matchInfo.assists.map(a =>
-                    a.assist > 1 ? `${a.name}(${a.assist})👟` : `${a.name}👟`
-                ).join('  ');
-                msg += `${assistLine}\n`;
+                    a.assist > 1 ? `${a.name}(${a.assist})` : a.name
+                ).join(', ');
+                msg += `👟 ${assistLine}\n`;
             }
+
 
             // ── Next match (teams only) ──
             if (nxt) {
