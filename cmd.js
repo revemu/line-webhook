@@ -227,16 +227,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 break;
             }
 
-            // ── Current match header ──
-            msg = `⚽ แมตช์ปัจจุบัน รอบที่ ${cur.round}\n`;
-            msg += `${cur.startTime}-${cur.endTime}  [${cur.matchNo}]\n`;
-
-            // ── Score ──
+            // ── Current match header + Score ──
             const sc = matchInfo.score;
+            msg = `⚽ แมตช์ปัจจุบัน รอบที่ ${cur.round}\n`;
             if (sc !== null) {
-                msg += `${cur.teamA}  ${sc.teamA} - ${sc.teamB}  ${cur.teamB}\n`;
+                msg += `${cur.startTime}-${cur.endTime}  [${cur.matchNo}]  ${cur.teamA}  ${sc.teamA} - ${sc.teamB}  ${cur.teamB}\n`;
             } else {
-                msg += `${cur.teamA} vs ${cur.teamB}\n`;
+                msg += `${cur.startTime}-${cur.endTime}  [${cur.matchNo}]  ${cur.teamA} vs ${cur.teamB}\n`;
             }
 
             // ── Scorers ──
