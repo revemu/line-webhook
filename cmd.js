@@ -226,18 +226,46 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 msg = 'ยังไม่มีข้อมูลแมตช์ปัจจุบัน';
                 break;
             }
-            const restCur = cur.resting.length > 0 ? `(พัก: ${cur.resting.join(', ')})` : '';
-            msg = `⚽ แมตช์ปัจจุบัน [${cur.matchNo}] รอบที่ ${cur.round}\n`;
-            msg += `${cur.startTime}-${cur.endTime}  ${cur.teamA} vs ${cur.teamB}  ${restCur}\n`;
+
+            // ── Current match header ──
+            msg = `⚽ แมตช์ปัจจุบัน รอบที่ ${cur.round}\n`;
+            msg += `${cur.startTime}-${cur.endTime}  [${cur.matchNo}]\n`;
+
+            // ── Score ──
+            const sc = matchInfo.score;
+            if (sc !== null) {
+                msg += `${cur.teamA}  ${sc.teamA} - ${sc.teamB}  ${cur.teamB}\n`;
+            } else {
+                msg += `${cur.teamA} vs ${cur.teamB}\n`;
+            }
+
+            // ── Scorers ──
+            if (matchInfo.scorers.length > 0) {
+                const scorerLine = matchInfo.scorers.map(s => {
+                    const badge = s.ownGoal ? '🥅' : '⚽';
+                    return s.goal > 1 ? `${s.name}(${s.goal})${badge}` : `${s.name}${badge}`;
+                }).join('  ');
+                msg += `${scorerLine}\n`;
+            }
+
+            // ── Assists ──
+            if (matchInfo.assists.length > 0) {
+                const assistLine = matchInfo.assists.map(a =>
+                    a.assist > 1 ? `${a.name}(${a.assist})👟` : `${a.name}👟`
+                ).join('  ');
+                msg += `${assistLine}\n`;
+            }
+
+            // ── Next match (teams only) ──
             if (nxt) {
-                const restNxt = nxt.resting.length > 0 ? `(พัก: ${nxt.resting.join(', ')})` : '';
-                msg += `\n⏭ แมตช์ถัดไป [${nxt.matchNo}] รอบที่ ${nxt.round}\n`;
-                msg += `${nxt.startTime}-${nxt.endTime}  ${nxt.teamA} vs ${nxt.teamB}  ${restNxt}`;
+                msg += `\n⏭ แมตช์ถัดไป รอบที่ ${nxt.round}\n`;
+                msg += `${nxt.startTime}-${nxt.endTime}  [${nxt.matchNo}]  ${nxt.teamA} vs ${nxt.teamB}`;
             } else {
                 msg += '\n🏁 นี่คือแมตช์สุดท้ายแล้วครับ';
             }
             break;
         }
+
 
         case 'newweek':
             const next_sat = getNextSaturday();

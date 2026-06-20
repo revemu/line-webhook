@@ -1671,6 +1671,7 @@ async function getCurrentMatch() {
 
   let currentMatchNo = 1;
   let nextMatchNo    = Math.min(2, schedMatches.length);
+  let currentDbRow   = null;
 
   const week = await queryWeekID();
   if (week && week.length > 0) {
@@ -1679,13 +1680,51 @@ async function getCurrentMatch() {
       const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
       currentMatchNo = maxDbMatchNum;
       nextMatchNo    = Math.min(maxDbMatchNum + 1, schedMatches.length);
+      currentDbRow   = dbMatches.find(r => r.match_num === maxDbMatchNum);
     }
   }
 
   const currentMatch = schedMatches.find(m => m.matchNo === currentMatchNo) || schedMatches[0];
   const nextMatch    = schedMatches.find(m => m.matchNo === nextMatchNo && nextMatchNo !== currentMatchNo) || null;
 
-  return { currentMatch, nextMatch, weekId: sched.weekId, date: sched.date };
+  // ── Live score from match_stat_tbl ──
+  let score = null;
+  let scorers = [];
+  let assists = [];
+
+  if (currentDbRow) {
+    score = {
+      teamA: currentDbRow.team_a_goal ?? 0,
+      teamB: currentDbRow.team_b_goal ?? 0
+    };
+
+    // Scorers: goal_status <= 2
+    const scorerQ = `SELECT member_tbl.name, member_tbl.alias, match_goal_tbl.status as statusid, count(*) as goal
+      FROM match_goal_tbl
+      JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
+      WHERE match_goal_tbl.match_id = ${currentDbRow.id} AND match_goal_tbl.status <= 2
+      GROUP BY member_tbl.id, match_goal_tbl.status`;
+    const scorerRows = await executeQuery(scorerQ);
+    scorers = scorerRows.map(r => ({
+      name: r.alias && r.alias !== '' ? r.alias : r.name,
+      goal: r.goal,
+      ownGoal: r.statusid === 2
+    }));
+
+    // Assists: goal_status = 3
+    const assistQ = `SELECT member_tbl.name, member_tbl.alias, count(*) as assist
+      FROM match_goal_tbl
+      JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
+      WHERE match_goal_tbl.match_id = ${currentDbRow.id} AND match_goal_tbl.status = 3
+      GROUP BY member_tbl.id`;
+    const assistRows = await executeQuery(assistQ);
+    assists = assistRows.map(r => ({
+      name: r.alias && r.alias !== '' ? r.alias : r.name,
+      assist: r.assist
+    }));
+  }
+
+  return { currentMatch, nextMatch, score, scorers, assists, weekId: sched.weekId, date: sched.date };
 }
 
 module.exports = {
