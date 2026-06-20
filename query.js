@@ -1658,6 +1658,36 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   return lines.join('\n');
 }
 
+// ── Live current/next match lookup ──
+// Reads the schedule list from schedule.json but re-queries match_stat_tbl
+// for the latest match_num so it is always up to date.
+async function getCurrentMatch() {
+  const jsonPath = path.join(__dirname, 'schedule.json');
+  if (!require('fs').existsSync(jsonPath)) return null;
+
+  const sched = JSON.parse(require('fs').readFileSync(jsonPath, 'utf8'));
+  const schedMatches = sched.matches;
+  if (!schedMatches || schedMatches.length === 0) return null;
+
+  let currentMatchNo = 1;
+  let nextMatchNo    = Math.min(2, schedMatches.length);
+
+  const week = await queryWeekID();
+  if (week && week.length > 0) {
+    const dbMatches = await queryMatchWeek(week[0].id);
+    if (dbMatches && dbMatches.length > 0) {
+      const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
+      currentMatchNo = maxDbMatchNum;
+      nextMatchNo    = Math.min(maxDbMatchNum + 1, schedMatches.length);
+    }
+  }
+
+  const currentMatch = schedMatches.find(m => m.matchNo === currentMatchNo) || schedMatches[0];
+  const nextMatch    = schedMatches.find(m => m.matchNo === nextMatchNo && nextMatchNo !== currentMatchNo) || null;
+
+  return { currentMatch, nextMatch, weekId: sched.weekId, date: sched.date };
+}
+
 module.exports = {
   testConnection,
   executeQuery,
@@ -1689,5 +1719,6 @@ module.exports = {
   getMemberWeek0,
   registerNY,
   getDebtList,
-  getScheduleText
+  getScheduleText,
+  getCurrentMatch
 };

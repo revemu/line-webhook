@@ -1,7 +1,6 @@
 const db = require('./query');
 const flex = require('./flex');
-const fs = require('fs');
-const path = require('path');
+
 
 function getNextSaturday() {
     const date = new Date();
@@ -216,14 +215,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = await db.getScheduleText(schedStart, 8, 2, 3);
             break;
         case 'now': {
-            const jsonPath = path.join(__dirname, 'schedule.json');
-            if (!fs.existsSync(jsonPath)) {
+            const matchInfo = await db.getCurrentMatch();
+            if (!matchInfo) {
                 msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
                 break;
             }
-            const sched = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-            const cur  = sched.currentMatch;
-            const nxt  = sched.nextMatch;
+            const cur = matchInfo.currentMatch;
+            const nxt = matchInfo.nextMatch;
             if (!cur) {
                 msg = 'ยังไม่มีข้อมูลแมตช์ปัจจุบัน';
                 break;
@@ -240,6 +238,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             break;
         }
+
         case 'newweek':
             const next_sat = getNextSaturday();
             await db.newWeek(next_sat);
