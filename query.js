@@ -1,4 +1,6 @@
 const mysql = require('mysql2/promise');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config({ quiet: true });
 const flex = require('./flex');
 
@@ -1595,6 +1597,63 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
 
   lines.push('─'.repeat(30));
   lines.push(`สิ้นสุด ${toTime(startTotal + matchups.length * slotMin)} น.`);
+
+  // ── Build schedule JSON ──
+  const scheduleMatches = matchups.map((m, i) => ({
+    matchNo: i + 1,
+    round: Math.floor(i / cycleLen) + 1,
+    startTime: toTime(startTotal + i * slotMin),
+    endTime: toTime(startTotal + i * slotMin + matchMin),
+    teamA: teams[m[0]],
+    teamAId: team_colors[m[0]].id,
+    teamB: teams[m[1]],
+    teamBId: team_colors[m[1]].id,
+    resting: teams.filter((_, idx) => idx !== m[0] && idx !== m[1])
+  }));
+
+  // ── Sync with match_stat_tbl to find current & next match ──
+  let currentMatchNo = 1;
+  let nextMatchNo = 2;
+  try {
+    const dbMatches = await queryMatchWeek(week_id);
+    if (dbMatches && dbMatches.length > 0) {
+      // Highest match_num recorded in DB = the match currently in progress (or last played)
+      const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
+      currentMatchNo = maxDbMatchNum;
+      nextMatchNo = Math.min(maxDbMatchNum + 1, scheduleMatches.length);
+    }
+    // else: no records → start from match 1 / next is match 2
+  } catch (err) {
+    console.error('[schedule] failed to query match_stat_tbl:', err.message);
+  }
+
+  const currentMatch = scheduleMatches.find(m => m.matchNo === currentMatchNo) || scheduleMatches[0];
+  const nextMatch    = scheduleMatches.find(m => m.matchNo === nextMatchNo)    || null;
+
+  const scheduleJson = {
+    generatedAt: new Date().toISOString(),
+    weekId: week_id,
+    date: dateStr,
+    startTime: startTimeStr,
+    matchMinutes: matchMin,
+    breakMinutes: breakMin,
+    totalHours: totalHours,
+    teams: teams,
+    totalMatches: scheduleMatches.length,
+    totalRounds: totalRounds,
+    endTime: toTime(startTotal + scheduleMatches.length * slotMin),
+    currentMatch,
+    nextMatch,
+    matches: scheduleMatches
+  };
+
+  try {
+    const jsonPath = path.join(__dirname, 'schedule.json');
+    fs.writeFileSync(jsonPath, JSON.stringify(scheduleJson, null, 2), 'utf8');
+    console.log(`[schedule] saved → current: match ${currentMatchNo}, next: match ${nextMatchNo}`);
+  } catch (err) {
+    console.error('[schedule] failed to save JSON:', err.message);
+  }
 
   return lines.join('\n');
 }

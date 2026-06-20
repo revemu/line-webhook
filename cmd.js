@@ -1,5 +1,7 @@
 const db = require('./query');
 const flex = require('./flex');
+const fs = require('fs');
+const path = require('path');
 
 function getNextSaturday() {
     const date = new Date();
@@ -213,6 +215,31 @@ async function process_cmd(cmd_str, member, quoteToken) {
             const schedStart = param !== '' ? param : '17:00';
             msg = await db.getScheduleText(schedStart, 8, 2, 3);
             break;
+        case 'now': {
+            const jsonPath = path.join(__dirname, 'schedule.json');
+            if (!fs.existsSync(jsonPath)) {
+                msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
+                break;
+            }
+            const sched = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+            const cur  = sched.currentMatch;
+            const nxt  = sched.nextMatch;
+            if (!cur) {
+                msg = 'ยังไม่มีข้อมูลแมตช์ปัจจุบัน';
+                break;
+            }
+            const restCur = cur.resting.length > 0 ? `(พัก: ${cur.resting.join(', ')})` : '';
+            msg = `⚽ แมตช์ปัจจุบัน [${cur.matchNo}] รอบที่ ${cur.round}\n`;
+            msg += `${cur.startTime}-${cur.endTime}  ${cur.teamA} vs ${cur.teamB}  ${restCur}\n`;
+            if (nxt) {
+                const restNxt = nxt.resting.length > 0 ? `(พัก: ${nxt.resting.join(', ')})` : '';
+                msg += `\n⏭ แมตช์ถัดไป [${nxt.matchNo}] รอบที่ ${nxt.round}\n`;
+                msg += `${nxt.startTime}-${nxt.endTime}  ${nxt.teamA} vs ${nxt.teamB}  ${restNxt}`;
+            } else {
+                msg += '\n🏁 นี่คือแมตช์สุดท้ายแล้วครับ';
+            }
+            break;
+        }
         case 'newweek':
             const next_sat = getNextSaturday();
             await db.newWeek(next_sat);
