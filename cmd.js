@@ -238,7 +238,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg_type = 1;
             break;
         }
-        case 'now2': {
+        case 'live': {
             const matchInfo = await db.getCurrentMatch();
             if (!matchInfo || !matchInfo.sched) {
                 msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
