@@ -706,115 +706,192 @@ async function getMatchWeek(week_id = 0) {
     const matches = await queryMatchWeek(week_id);
     console.log(matches);
     if (matches.length > 0) {
-      const bubble = JSON.parse(JSON.stringify(flex.tpl_bubble));
-      bubble.size = "giga";
-      bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
-      //bubble.hero.url = teamColor.url ;
-      bubble.hero.aspectRatio = "6:2"
-
-      bubble.body.contents = [];
-
       const date = new Date(res[0].date);
       const date_str = await getFormatDate(date);
-      bubble.body.contents.push(
-        {
-          type: "text",
-          text: `Match Week - ${date_str}`,
-          weight: "bold",
-          size: "lg",
-          align: "center",
-          //color: teamColor.code
-        }, {
-        type: "separator",
-        margin: "none",
-        color: "#000000"
-      },
-        {
-          type: "separator",
-          color: "#FFFFFF",
-          margin: "md"
-        }
-      );
-      //return bubble ;
-      //var bubble = new Array(team_colors.length) ;
-      var i = 0;
       let team_colors = await getTeamColorWeek(week_id);
-      //team_colors = team_colors[0] ;
-      //console.log(team_colors) ;
-      for (const match of matches) {
-        //const teamColor = await getTeamColor(team.color) ;
-        //const bubble =  Object.assign({}, flex.tpl_bubble);
-        const team_a = team_colors.filter(team => team.id === match.team_a_id)[0];
-        const team_b = team_colors.filter(team => team.id === match.team_b_id)[0];
-        //console.log(team_a) ;
-        //console.log(team_b) ;
-        //console.log(`${match.team_a_id} a: ${team_a.color}, ${match.team_b_id} b: ${team_b.color}`)
-        //console.log(match) ;
 
-        const match_box = {
-          "type": "box",
-          "layout": "baseline",
-          "margin": "md",
-          "contents": [
-            {
-              "type": "text",
-              "text": `Match [${match.match_num}]`,
-              "flex": 0,
-              "weight": "bold",
-              "align": "center",
-              "size": "sm"
-            },
-            {
-              "type": "text",
-              "text": team_a.color,
-              "color": team_a.code,
-              "weight": "bold",
-              "align": "center",
-              "flex": 1,
-              "size": "sm"
-            },
-            {
-              "type": "text",
-              "text": `${match.team_a_goal} - ${match.team_b_goal}`,
-              "flex": 1,
-              "align": "center",
-              "size": "sm"
+      const bodyContents = [];
 
-            },
-            {
-              "type": "text",
-              "text": team_b.color,
-              "color": team_b.code,
-              "weight": "bold",
-              "flex": 1,
-              "align": "center",
-              "size": "sm"
-            }
-          ],
-          "spacing": "xl"
-        }
-
-        bubble.body.contents.push(match_box);
-
-        if (match.team_a_goal > 0 || match.team_b_goal > 0) {
-          bubble.body.contents.push(await queryMatchGoal(match.id, 0));
-          bubble.body.contents.push(await queryMatchGoal(match.id, 3));
-        }
-        i++;
-        //if (i > 2) break ;
-      }
-      //console.log(JSON.stringify(bubble)) ; 
-      bubble.body.contents.push({
-        type: "separator",
-        margin: "md",
-        color: "#000000"
+      // ── Header ──
+      bodyContents.push({
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#1a1a2e',
+        paddingAll: 'md',
+        cornerRadius: 'md',
+        contents: [
+          {
+            type: 'text',
+            text: '\u26bd \u0e1c\u0e25\u0e01\u0e32\u0e23\u0e41\u0e02\u0e48\u0e07\u0e02\u0e31\u0e19',
+            weight: 'bold',
+            size: 'lg',
+            color: '#ffffff',
+            align: 'center'
+          },
+          {
+            type: 'text',
+            text: `\u0e40\u0e2a\u0e32\u0e23\u0e4c\u0e17\u0e35\u0e48 ${date_str}`,
+            size: 'sm',
+            color: '#a0a8c0',
+            align: 'center',
+            margin: 'xs'
+          }
+        ]
       });
-      const tables = await getTableWeek(week_id)
-      for (const table of tables) {
-        bubble.body.contents.push(table);
+
+      // ── Match cards ──
+      for (const match of matches) {
+        const team_a = team_colors.filter(t => t.id === match.team_a_id)[0];
+        const team_b = team_colors.filter(t => t.id === match.team_b_id)[0];
+
+        const goalBox   = await queryMatchGoal(match.id, 0);
+        const assistBox = await queryMatchGoal(match.id, 3);
+
+        const styleGoalBox = (box, isAssist) => {
+          if (!box) return null;
+          const textNode = box.contents && box.contents[1];
+          if (!textNode) return null;
+          const textVal = textNode.text ? textNode.text.trim() : '';
+          if (textVal === '' || textVal === ' ') return null;
+          return {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            paddingStart: 'sm',
+            contents: [
+              { type: 'text', text: isAssist ? '\ud83d\udc5f' : '\u26bd', size: 'xs', flex: 0 },
+              {
+                type: 'text',
+                text: textVal,
+                size: 'xs',
+                color: isAssist ? '#bbddff' : '#ddddff',
+                flex: 1,
+                margin: 'sm',
+                wrap: true
+              }
+            ]
+          };
+        };
+
+        const scorerRow = styleGoalBox(goalBox, false);
+        const assistRow = styleGoalBox(assistBox, true);
+
+        const cardContents = [
+          {
+            type: 'text',
+            text: `\u0e41\u0e21\u0e15\u0e0a\u0e4c [${match.match_num}]`,
+            size: 'xs',
+            color: '#a0a8c0',
+            align: 'center'
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'sm',
+            contents: [
+              { type: 'text', text: team_a ? team_a.color : '?', size: 'lg', weight: 'bold', color: team_a ? team_a.code : '#ffffff', flex: 2, align: 'end' },
+              {
+                type: 'text',
+                text: `${match.team_a_goal} - ${match.team_b_goal}`,
+                size: 'lg',
+                weight: 'bold',
+                color: '#e94560',
+                flex: 1,
+                align: 'center'
+              },
+              { type: 'text', text: team_b ? team_b.color : '?', size: 'lg', weight: 'bold', color: team_b ? team_b.code : '#ffffff', flex: 2, align: 'start' }
+            ]
+          }
+        ];
+
+        if (scorerRow) cardContents.push(scorerRow);
+        if (assistRow) cardContents.push(assistRow);
+
+        bodyContents.push({
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#1a1a2e',
+          paddingAll: 'sm',
+          cornerRadius: 'md',
+          margin: 'sm',
+          contents: cardContents
+        });
       }
-      //console.log(JSON.stringify(bubble)) ;
-      return bubble;
+
+      // ── Standings ──
+      const tableRows = await queryTableWeek(week_id);
+      if (tableRows && tableRows.length > 0) {
+        bodyContents.push({ type: 'separator', margin: 'md', color: '#2a2a4a' });
+        bodyContents.push({
+          type: 'text',
+          text: '\ud83d\udcca \u0e15\u0e32\u0e23\u0e32\u0e07\u0e04\u0e30\u0e41\u0e19\u0e19',
+          size: 'sm',
+          weight: 'bold',
+          color: '#e0e0ff',
+          margin: 'md'
+        });
+
+        bodyContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'xs',
+          contents: [
+            { type: 'text', text: '\u0e17\u0e35\u0e21', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 3 },
+            { type: 'text', text: 'W',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+            { type: 'text', text: 'D',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+            { type: 'text', text: 'L',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+            { type: 'text', text: 'GD',  size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+            { type: 'text', text: 'PTS', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'end' }
+          ]
+        });
+
+        const medals = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49', '4\ufe0f\u20e3'];
+        tableRows.forEach((row, i) => {
+          const gd = (row.G || 0) - (row.A || 0);
+          const gdStr = gd > 0 ? `+${gd}` : `${gd}`;
+          const teamColor = team_colors.filter(t => t.id === row.team_week_id)[0];
+          bodyContents.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            contents: [
+              { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color}`, size: 'xs', color: teamColor ? teamColor.code : '#ccccee', flex: 3, weight: i === 0 ? 'bold' : 'regular' },
+              { type: 'text', text: `${row.w}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
+              { type: 'text', text: `${row.d}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
+              { type: 'text', text: `${row.l}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
+              { type: 'text', text: gdStr, size: 'xs', color: gd >= 0 ? '#88ff88' : '#ff8888', flex: 1, align: 'center' },
+              { type: 'text', text: `${row.pts}`, size: 'xs', color: '#ffffff', flex: 1, align: 'end', weight: 'bold' }
+            ]
+          });
+        });
+      }
+
+      return {
+        type: 'bubble',
+        size: 'giga',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#0f3460',
+          paddingAll: 'none',
+          contents: [
+            {
+              type: 'image',
+              url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+              size: 'full',
+              aspectRatio: '20:7',
+              aspectMode: 'cover'
+            }
+          ]
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#0d0d1a',
+          paddingAll: 'md',
+          contents: bodyContents
+        }
+      };
     }
 
 
