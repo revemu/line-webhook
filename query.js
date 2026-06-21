@@ -1859,6 +1859,10 @@ async function getCurrentMatch() {
 
   const currentMatch = schedMatches.find(m => m.matchNo === currentMatchNo) || schedMatches[0];
   const nextMatch = schedMatches.find(m => m.matchNo === nextMatchNo && nextMatchNo !== currentMatchNo) || null;
+  const nextMatch2No = Math.min(currentMatchNo + 2, schedMatches.length);
+  const nextMatch2 = (nextMatch2No !== currentMatchNo && nextMatch2No !== nextMatchNo)
+    ? (schedMatches.find(m => m.matchNo === nextMatch2No) || null)
+    : null;
 
   // ── Live score from match_stat_tbl ──
   let score = null;
@@ -1910,7 +1914,7 @@ async function getCurrentMatch() {
     }
   }
 
-  return { currentMatch, nextMatch, score, scorers, assists, table, weekId: sched.weekId, date: sched.date };
+  return { currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, weekId: sched.weekId, date: sched.date };
 }
 
 module.exports = {

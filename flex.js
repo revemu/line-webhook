@@ -243,7 +243,7 @@ function buildScheduleFlex(sched) {
  * @param {object} matchInfo - result from getCurrentMatch()
  */
 function buildNowFlex(matchInfo) {
-  const { currentMatch: cur, nextMatch: nxt, score, scorers, assists, table } = matchInfo;
+  const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table } = matchInfo;
 
   const bodyContents = [];
 
@@ -342,6 +342,32 @@ function buildNowFlex(matchInfo) {
         { type: 'text', text: `${nxt.startTime} – ${nxt.endTime}`, size: 'xxs', color: '#555577', align: 'center', margin: 'xs' }
       ]
     });
+
+    // ── Second next match ──
+    if (nxt2) {
+      bodyContents.push({
+        type: 'box',
+        layout: 'vertical',
+        margin: 'xs',
+        backgroundColor: '#12192c',
+        paddingAll: 'sm',
+        cornerRadius: 'sm',
+        contents: [
+          { type: 'text', text: `⏭⏭ หลังจากนั้น  รอบที่ ${nxt2.round}  [${nxt2.matchNo}]`, size: 'xxs', color: '#666688' },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            contents: [
+              { type: 'text', text: nxt2.teamA, size: 'sm', weight: 'bold', color: '#aaaacc', flex: 2, align: 'end' },
+              { type: 'text', text: 'vs', size: 'sm', color: '#555577', flex: 1, align: 'center' },
+              { type: 'text', text: nxt2.teamB, size: 'sm', weight: 'bold', color: '#aaaacc', flex: 2, align: 'start' }
+            ]
+          },
+          { type: 'text', text: `${nxt2.startTime} – ${nxt2.endTime}`, size: 'xxs', color: '#444466', align: 'center', margin: 'xs' }
+        ]
+      });
+    }
   } else {
     bodyContents.push({ type: 'text', text: '🏁 นี่คือแมตช์สุดท้ายแล้วครับ', size: 'sm', color: '#e94560', margin: 'sm', align: 'center' });
   }
