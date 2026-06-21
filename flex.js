@@ -262,9 +262,11 @@ function buildNowFlex(matchInfo) {
   bodyContents.push({
     type: 'box',
     layout: 'vertical',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#1f1c3a',
     paddingAll: 'md',
     cornerRadius: 'md',
+    borderWidth: 'normal',
+    borderColor: '#e94560',
     contents: [
       // Header: label  [matchNo]  time — all same size
       {
