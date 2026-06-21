@@ -588,13 +588,16 @@ function buildNow2Flex(matchInfo) {
         type: 'box',
         layout: 'horizontal',
         margin: 'xs',
-        paddingAll: isCurrent ? 'sm' : 'none',
-        backgroundColor: isCurrent ? '#1f1c3a' : 'transparent',
-        borderWidth: isCurrent ? '1px' : 'none',
-        borderColor: isCurrent ? '#e94560' : 'transparent',
-        cornerRadius: isCurrent ? 'sm' : 'none',
         contents: matchBoxContents
       };
+
+      if (isCurrent) {
+        matchContainer.paddingAll = 'sm';
+        matchContainer.backgroundColor = '#1f1c3a';
+        matchContainer.borderWidth = 'normal';
+        matchContainer.borderColor = '#e94560';
+        matchContainer.cornerRadius = 'sm';
+      }
 
       bodyContents.push(matchContainer);
 
