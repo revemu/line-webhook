@@ -796,10 +796,10 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
               layout: 'vertical',
               width: '22px',
               contents: [
-                { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577' }
+                { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577', align: 'end' }
               ]
             },
-            { type: 'text', text: `${p1.donate}${p1.name}`, size: 'xs', color: '#ddddff', flex: 1 }
+            { type: 'text', text: `${p1.donate}${p1.name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
           ]
         }
       ];
@@ -815,10 +815,10 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
               layout: 'vertical',
               width: '22px',
               contents: [
-                { type: 'text', text: `${i + 2}.`, size: 'xs', color: '#555577' }
+                { type: 'text', text: `${i + 2}.`, size: 'xs', color: '#555577', align: 'end' }
               ]
             },
-            { type: 'text', text: `${p2.donate}${p2.name}`, size: 'xs', color: '#ddddff', flex: 1 }
+            { type: 'text', text: `${p2.donate}${p2.name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
           ]
         });
       } else {
@@ -864,10 +864,10 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
             layout: 'vertical',
             width: '22px',
             contents: [
-              { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577' }
+              { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577', align: 'end' }
             ]
           },
-          { type: 'text', text: `${goalies[i].donate}${goalies[i].name}`, size: 'xs', color: '#ddddff', flex: 1 }
+          { type: 'text', text: `${goalies[i].donate}${goalies[i].name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
         ]
       });
     }
@@ -902,10 +902,10 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
             layout: 'vertical',
             width: '22px',
             contents: [
-              { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577' }
+              { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577', align: 'end' }
             ]
           },
-          { type: 'text', text: `${reserves[i].donate}${reserves[i].name}`, size: 'xs', color: '#ddddff', flex: 1 }
+          { type: 'text', text: `${reserves[i].donate}${reserves[i].name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
         ]
       });
     }
