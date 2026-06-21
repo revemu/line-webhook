@@ -704,7 +704,7 @@ function buildLiveFlex(matchInfo) {
           type: 'image',
           url: imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
           size: 'full',
-          aspectRatio: '20:7',
+          aspectRatio: '20:4',
           aspectMode: 'cover'
         }
       ]
