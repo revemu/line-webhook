@@ -1,25 +1,25 @@
 const report_template = {
-                "type": "bubble",
-                hero: {
-                    type: 'image',
-                    url: '{{img_url}}',
-                    size: 'full',
-                    aspectRatio: '20:13',
-                    aspectMode: 'cover'
-                },
-                "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                    "type": "text",
-                    "text": "{{header}}",
-                    "weight": "bold",
-                    "size": "xl"
-                    }
-                ]
-                }
-            };
+  "type": "bubble",
+  hero: {
+    type: 'image',
+    url: '{{img_url}}',
+    size: 'full',
+    aspectRatio: '20:13',
+    aspectMode: 'cover'
+  },
+  "body": {
+    "type": "box",
+    "layout": "vertical",
+    "contents": [
+      {
+        "type": "text",
+        "text": "{{header}}",
+        "weight": "bold",
+        "size": "xl"
+      }
+    ]
+  }
+};
 
 /*const tpl_top = 
 `{
@@ -45,10 +45,10 @@ const tpl_carousel =
   type: "carousel",
 }
 
-const tpl_bubble = 
+const tpl_bubble =
 {
   type: 'bubble',
-  hero: 
+  hero:
   {
     type: 'image',
     url: '',
@@ -64,29 +64,29 @@ const tpl_bubble =
 
 function replacePlaceholders(template, data) {
   let jsonString = JSON.stringify(template);
-  
+
   // Replace all placeholders with actual data
   Object.keys(data).forEach(key => {
     const placeholder = `{{${key}}}`;
     const regex = new RegExp(placeholder, 'g');
     jsonString = jsonString.replace(regex, data[key]);
   });
-  console.log(jsonString) ;
+  console.log(jsonString);
   return JSON.parse(jsonString);
 }
 
 function replaceFlex(template, data) {
-  let jsonString = template ;
-  
-  
+  let jsonString = template;
+
+
   // Replace all placeholders with actual data
   Object.keys(data).forEach(key => {
     const placeholder = `{{${key}}}`;
     const regex = new RegExp(placeholder, 'g');
     jsonString = jsonString.replace(regex, data[key]);
   });
-  jsonString = jsonString.replaceAll("'",'"') ;
-  console.log(jsonString) ;
+  jsonString = jsonString.replaceAll("'", '"');
+  console.log(jsonString);
   return JSON.parse(jsonString);
 }
 
@@ -95,7 +95,7 @@ const tdc = (name) => {
   const n = (name || '').toLowerCase();
   if (n === 'black') return '#999999';
   if (n === 'white') return '#ffffff';
-  if (n === 'red')   return '#ff5566';
+  if (n === 'red') return '#ff5566';
   if (n === 'green') return '#44cc66';
   return '#ffffff';
 };
@@ -430,7 +430,7 @@ function buildNowFlex(matchInfo) {
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${medals[i] || (i+1+'.')} ${row.team}`, size: 'xs', color: '#ccccee', flex: 3, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'xs', color: '#ccccee', flex: 3, weight: i === 0 ? 'bold' : 'regular' },
           { type: 'text', text: gdStr, size: 'xs', color: row.gd >= 0 ? '#88ff88' : '#ff8888', flex: 1, align: 'center' },
           { type: 'text', text: `${row.pts}`, size: 'xs', color: '#ffffff', flex: 1, align: 'end', weight: 'bold' }
         ]
@@ -470,7 +470,7 @@ function buildNowFlex(matchInfo) {
  * Build a Flex bubble for /now2 (live full schedule with current match highlighted)
  * @param {object} matchInfo - result from getCurrentMatch() containing sched, dbMatches, currentMatch, scorers, assists, table
  */
-function buildNow2Flex(matchInfo) {
+function buildLiveFlex(matchInfo) {
   const { sched, currentMatch, scorers, assists, table, dbMatches } = matchInfo;
   const { date, startTime, matchMinutes, totalHours, teams, totalMatches, totalRounds, endTime, matches } = sched;
 
@@ -493,7 +493,7 @@ function buildNow2Flex(matchInfo) {
     contents: [
       {
         type: 'text',
-        text: '⚽ ติดตามการแข่งขัน',
+        text: '⚽ Live! Match',
         weight: 'bold',
         size: 'lg',
         color: '#ffffff',
@@ -673,7 +673,7 @@ function buildNow2Flex(matchInfo) {
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${medals[i] || (i+1+'.')} ${row.team}`, size: 'xs', color: '#ccccee', flex: 3, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'xs', color: '#ccccee', flex: 3, weight: i === 0 ? 'bold' : 'regular' },
           { type: 'text', text: gdStr, size: 'xs', color: row.gd >= 0 ? '#88ff88' : '#ff8888', flex: 1, align: 'center' },
           { type: 'text', text: `${row.pts}`, size: 'xs', color: '#ffffff', flex: 1, align: 'end', weight: 'bold' }
         ]
@@ -727,5 +727,5 @@ module.exports = {
   replaceFlex,
   buildScheduleFlex,
   buildNowFlex,
-  buildNow2Flex
+  buildLiveFlex
 };

@@ -245,7 +245,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 break;
             }
             const cur = matchInfo.currentMatch;
-            msg = flex.buildNow2Flex(matchInfo);
+            msg = flex.buildLiveFlex(matchInfo);
             altText = `⚽ ติดตามการแข่งขัน ${cur ? `[${cur.matchNo}]` : ''}`;
             msg_type = 1;
             break;
