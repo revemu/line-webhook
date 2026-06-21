@@ -164,9 +164,9 @@ function buildScheduleFlex(sched) {
     layout: 'horizontal',
     margin: 'sm',
     contents: [
-      { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 0, margin: 'none' },
+      { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
       { type: 'text', text: 'เวลา', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 2, align: 'center' },
-      { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 3, align: 'center' }
+      { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 6, align: 'center' }
     ]
   });
 
@@ -194,12 +194,12 @@ function buildScheduleFlex(sched) {
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${m.matchNo}`, size: 'xs', color: '#888899', flex: 0, margin: 'none', align: 'center' },
+          { type: 'text', text: `${m.matchNo}`, size: 'xs', color: '#888899', flex: 1, align: 'center' },
           { type: 'text', text: `${m.startTime}`, size: 'xs', color: '#aaaacc', flex: 2, align: 'center' },
           {
             type: 'box',
             layout: 'horizontal',
-            flex: 3,
+            flex: 6,
             contents: [
               { type: 'text', text: m.teamA, size: 'xs', color: tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
               { type: 'text', text: 'vs', size: 'xs', color: '#888899', align: 'center', flex: 1 },
