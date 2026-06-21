@@ -495,7 +495,7 @@ function buildLiveFlex(matchInfo) {
         type: 'text',
         text: '⚽ Live! Match',
         weight: 'bold',
-        size: 'lg',
+        size: 'md',
         color: '#ffffff',
         align: 'center'
       },
