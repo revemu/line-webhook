@@ -245,6 +245,16 @@ function buildScheduleFlex(sched) {
 function buildNowFlex(matchInfo) {
   const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table } = matchInfo;
 
+  // Team name → readable color on dark background
+  const tdc = (name) => {
+    const n = (name || '').toLowerCase();
+    if (n === 'black') return '#999999';
+    if (n === 'white') return '#ffffff';
+    if (n === 'red')   return '#ff5566';
+    if (n === 'green') return '#44cc66';
+    return '#ffffff';
+  };
+
   const bodyContents = [];
 
   // ── Current Match ──
@@ -268,7 +278,7 @@ function buildNowFlex(matchInfo) {
         layout: 'horizontal',
         margin: 'md',
         contents: [
-          { type: 'text', text: cur.teamA, size: 'xl', weight: 'bold', color: '#ffffff', flex: 2, align: 'end' },
+          { type: 'text', text: cur.teamA, size: 'xl', weight: 'bold', color: tdc(cur.teamA), flex: 2, align: 'end' },
           {
             type: 'text',
             text: score ? `${score.teamA} - ${score.teamB}` : 'vs',
@@ -278,7 +288,7 @@ function buildNowFlex(matchInfo) {
             flex: 1,
             align: 'center'
           },
-          { type: 'text', text: cur.teamB, size: 'xl', weight: 'bold', color: '#ffffff', flex: 2, align: 'start' }
+          { type: 'text', text: cur.teamB, size: 'xl', weight: 'bold', color: tdc(cur.teamB), flex: 2, align: 'start' }
         ]
       },
       { type: 'text', text: `${cur.startTime} – ${cur.endTime}`, size: 'xs', color: '#666688', align: 'center', margin: 'xs' }
@@ -334,9 +344,9 @@ function buildNowFlex(matchInfo) {
           layout: 'horizontal',
           margin: 'xs',
           contents: [
-            { type: 'text', text: nxt.teamA, size: 'md', weight: 'bold', color: '#ffffff', flex: 2, align: 'end' },
+            { type: 'text', text: nxt.teamA, size: 'md', weight: 'bold', color: tdc(nxt.teamA), flex: 2, align: 'end' },
             { type: 'text', text: 'vs', size: 'md', color: '#888899', flex: 1, align: 'center' },
-            { type: 'text', text: nxt.teamB, size: 'md', weight: 'bold', color: '#ffffff', flex: 2, align: 'start' }
+            { type: 'text', text: nxt.teamB, size: 'md', weight: 'bold', color: tdc(nxt.teamB), flex: 2, align: 'start' }
           ]
         },
         { type: 'text', text: `${nxt.startTime} – ${nxt.endTime}`, size: 'xxs', color: '#555577', align: 'center', margin: 'xs' }
@@ -359,9 +369,9 @@ function buildNowFlex(matchInfo) {
             layout: 'horizontal',
             margin: 'xs',
             contents: [
-              { type: 'text', text: nxt2.teamA, size: 'md', weight: 'bold', color: '#aaaacc', flex: 2, align: 'end' },
+              { type: 'text', text: nxt2.teamA, size: 'md', weight: 'bold', color: tdc(nxt2.teamA), flex: 2, align: 'end' },
               { type: 'text', text: 'vs', size: 'md', color: '#555577', flex: 1, align: 'center' },
-              { type: 'text', text: nxt2.teamB, size: 'md', weight: 'bold', color: '#aaaacc', flex: 2, align: 'start' }
+              { type: 'text', text: nxt2.teamB, size: 'md', weight: 'bold', color: tdc(nxt2.teamB), flex: 2, align: 'start' }
             ]
           },
           { type: 'text', text: `${nxt2.startTime} – ${nxt2.endTime}`, size: 'xxs', color: '#555577', align: 'center', margin: 'xs' }
