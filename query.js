@@ -1159,7 +1159,7 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         let altHeader = `+${players.length}`;
         if (reserves.length > 0) altHeader += `(${reserves.length})`;
         if (goalies.length > 0) altHeader += `(${goalies.length})`;
-        const altText = `${altHeader} ] ${titleText} @ เสาร์ที่ ${dateStr}`;
+        const altText = `${altHeader} ${titleText} @ เสาร์ที่ ${dateStr}`;
         return [flexJson, sub, altText];
       }
 
