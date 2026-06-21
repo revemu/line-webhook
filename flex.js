@@ -918,7 +918,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
 
   return {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     header: {
       type: 'box',
       layout: 'vertical',

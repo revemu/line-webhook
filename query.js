@@ -1135,6 +1135,7 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         for (const member of result) {
           let donate = await getDonateBadge(member.donate);
           let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
+          name_display = (name_display || '').replace('@', '');
 
           if (type == 1) {
             if (member.team_id == 100) {
@@ -1168,6 +1169,7 @@ async function getMemberWeek0(type = 0, isFlex = true) {
       for (const member of result) {
         let donate = await getDonateBadge(member.donate);
         let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
+        name_display = (name_display || '').replace('@', '');
 
         if (type == 1) {
           if (member.team_id == 100) {
