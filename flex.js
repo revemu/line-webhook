@@ -265,7 +265,6 @@ function buildNowFlex(matchInfo) {
     backgroundColor: '#1a1a2e',
     paddingAll: 'md',
     cornerRadius: 'md',
-    alignItems: 'center',
     contents: [
       { type: 'text', text: `⚽ ${cur.matchNo}  ${cur.startTime.replace(':', '.')}`, size: 'xs', color: '#a0a8c0', flex: 3, gravity: 'center' },
       { type: 'text', text: cur.teamA, size: 'md', weight: 'bold', color: tdc(cur.teamA), flex: 2.5, align: 'end', gravity: 'center' },
@@ -325,7 +324,6 @@ function buildNowFlex(matchInfo) {
       backgroundColor: '#16213e',
       paddingAll: 'sm',
       cornerRadius: 'sm',
-      alignItems: 'center',
       contents: [
         { type: 'text', text: `⏭ ${nxt.matchNo}  ${nxt.startTime.replace(':', '.')}`, size: 'xs', color: '#a0a8c0', flex: 3, gravity: 'center' },
         { type: 'text', text: nxt.teamA, size: 'md', weight: 'bold', color: tdc(nxt.teamA), flex: 2.5, align: 'end', gravity: 'center' },
@@ -343,7 +341,6 @@ function buildNowFlex(matchInfo) {
         backgroundColor: '#12192c',
         paddingAll: 'sm',
         cornerRadius: 'sm',
-        alignItems: 'center',
         contents: [
           { type: 'text', text: `⏭⏭ ${nxt2.matchNo}  ${nxt2.startTime.replace(':', '.')}`, size: 'xs', color: '#7878a8', flex: 3, gravity: 'center' },
           { type: 'text', text: nxt2.teamA, size: 'md', weight: 'bold', color: tdc(nxt2.teamA), flex: 2.5, align: 'end', gravity: 'center' },
