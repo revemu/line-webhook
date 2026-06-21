@@ -1675,60 +1675,87 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   }
 
   // -----------------------------------------------------------
-  // Greedy scheduler: enforce BOTH constraints simultaneously
-  //   1. No team PLAYS 3+ consecutive matches
-  //   2. No team RESTS 3+ consecutive matches
-  //
-  // For each slot, scan remaining pool for the first match (a,b) where:
-  //   - Neither a nor b has played 2 consecutive  (play constraint)
-  //   - No non-playing team has already rested 2 consecutive (rest constraint)
+  // Scoring scheduler: enforce hard constraints, but optimize for:
+  //   1. Minimize 2-match consecutive plays (soft constraint)
+  //   2. Distribute unavoidable consecutive plays evenly among teams
+  //   3. Avoid repeating the exact same match too soon
+  //   4. Preserve overall round-robin structure (start of each round)
   // -----------------------------------------------------------
   const consec = new Array(numTeams).fill(0);   // consecutive PLAY streak
   const lastSlot = new Array(numTeams).fill(-2);  // last slot team played
   const restConsec = new Array(numTeams).fill(0);   // consecutive REST streak
   const lastRest = new Array(numTeams).fill(-2);  // last slot team rested
+  
+  // Track consecutive burden and last time a pair played each other
+  const totalConsecs = new Array(numTeams).fill(0); 
+  const lastPlayedPair = Array.from({ length: numTeams }, () => new Array(numTeams).fill(-99));
+  
   const remaining = [...pool];
   const matchups = [];
 
   for (let slot = 0; slot < maxMatches; slot++) {
     let chosen = -1;
+    let bestScore = Infinity;
 
     for (let i = 0; i < remaining.length; i++) {
       const [a, b] = remaining[i];
 
-      // --- Play constraint ---
+      // --- Hard Constraints ---
       const aC = lastSlot[a] === slot - 1 ? consec[a] : 0;
       const bC = lastSlot[b] === slot - 1 ? consec[b] : 0;
-      if (aC >= 2 || bC >= 2) continue;
+      if (aC >= 2 || bC >= 2) continue; // No 3 plays in a row
 
-      // --- Rest constraint ---
-      // If we pick (a,b), every other team is resting this slot.
-      // Reject if that would give any of them a 3rd consecutive rest.
       let restOk = true;
       for (let t = 0; t < numTeams; t++) {
-        if (t === a || t === b) continue; // playing, not resting
+        if (t === a || t === b) continue;
         const tR = lastRest[t] === slot - 1 ? restConsec[t] : 0;
         if (tR >= 2) { restOk = false; break; }
       }
-      if (!restOk) continue;
+      if (!restOk) continue; // No 3 rests in a row
 
-      chosen = i;
-      break;
+      // --- Soft Constraints (Scoring) ---
+      let consecPenalty = 0;
+      if (aC > 0) consecPenalty += 50 + (totalConsecs[a] * 500);
+      if (bC > 0) consecPenalty += 50 + (totalConsecs[b] * 500);
+
+      const t1 = Math.min(a, b);
+      const t2 = Math.max(a, b);
+      const slotsSincePlayed = slot - lastPlayedPair[t1][t2];
+      
+      let repeatPenalty = 0;
+      if (slotsSincePlayed <= 3) repeatPenalty = 1000; // very bad to repeat inside same sub-round
+      else if (slotsSincePlayed <= 5) repeatPenalty = 100; // mild penalty to push repeats apart
+      
+      const score = consecPenalty + repeatPenalty + i;
+
+      if (score < bestScore) {
+        bestScore = score;
+        chosen = i;
+      }
     }
 
-    // Fallback safety net (shouldn't trigger with 4 teams)
+    // Fallback safety net
     if (chosen === -1) chosen = 0;
 
     const [a, b] = remaining.splice(chosen, 1)[0];
     matchups.push([a, b]);
 
+    const t1 = Math.min(a, b);
+    const t2 = Math.max(a, b);
+    lastPlayedPair[t1][t2] = slot;
+
     // Update tracking for ALL teams
     for (let t = 0; t < numTeams; t++) {
       if (t === a || t === b) {
         // Playing this slot
-        consec[t] = lastSlot[t] === slot - 1 ? consec[t] + 1 : 1;
+        if (lastSlot[t] === slot - 1) {
+          consec[t]++;
+          if (consec[t] === 2) totalConsecs[t]++; // Increment their burden counter
+        } else {
+          consec[t] = 1;
+        }
         lastSlot[t] = slot;
-        restConsec[t] = 0; // reset rest streak when playing
+        restConsec[t] = 0;
       } else {
         // Resting this slot
         restConsec[t] = lastRest[t] === slot - 1 ? restConsec[t] + 1 : 1;
