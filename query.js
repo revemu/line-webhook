@@ -1675,93 +1675,173 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   }
 
   // -----------------------------------------------------------
-  // Scoring scheduler: enforce hard constraints, but optimize for:
-  //   1. Minimize 2-match consecutive plays (soft constraint)
-  //   2. Distribute unavoidable consecutive plays evenly among teams
-  //   3. Avoid repeating the exact same match too soon
-  //   4. Preserve overall round-robin structure (start of each round)
+  // Backtracking scheduler: enforce hard constraints, guarantee round-robin unique matchups,
+  // ensure distinct starting matches for each round, and perfectly balance 2-match streaks.
   // -----------------------------------------------------------
-  const consec = new Array(numTeams).fill(0);   // consecutive PLAY streak
-  const lastSlot = new Array(numTeams).fill(-2);  // last slot team played
-  const restConsec = new Array(numTeams).fill(0);   // consecutive REST streak
-  const lastRest = new Array(numTeams).fill(-2);  // last slot team rested
-  
-  // Track consecutive burden and last time a pair played each other
-  const totalConsecs = new Array(numTeams).fill(0); 
-  const lastPlayedPair = Array.from({ length: numTeams }, () => new Array(numTeams).fill(-99));
-  
-  const remaining = [...pool];
-  const matchups = [];
+  const allPairs = [];
+  for (let i = 0; i < numTeams; i++) {
+    for (let j = i + 1; j < numTeams; j++) {
+      allPairs.push([i, j]);
+    }
+  }
 
-  for (let slot = 0; slot < maxMatches; slot++) {
-    let chosen = -1;
-    let bestScore = Infinity;
+  let bestSchedule = null;
+  let bestMaxStreak = Infinity;
+  let bestStreakDiff = Infinity;
+  let steps = 0;
+  const maxSteps = 10000;
 
-    for (let i = 0; i < remaining.length; i++) {
-      const [a, b] = remaining[i];
+  const schedule = [];
+  const totalRoundsCount = Math.ceil(maxMatches / cycleLen);
+  const roundUsedPairs = Array.from({ length: totalRoundsCount }, () => new Set());
+  const roundStarts = new Array(totalRoundsCount).fill(-1);
 
-      // --- Hard Constraints ---
-      const aC = lastSlot[a] === slot - 1 ? consec[a] : 0;
-      const bC = lastSlot[b] === slot - 1 ? consec[b] : 0;
-      if (aC >= 2 || bC >= 2) continue; // No 3 plays in a row
+  const consecPlay = new Array(numTeams).fill(0);
+  const lastPlay = new Array(numTeams).fill(-2);
+  const consecRest = new Array(numTeams).fill(0);
+  const lastRest = new Array(numTeams).fill(-2);
 
+  function backtrack(slot) {
+    steps++;
+    if (steps > maxSteps) return false;
+
+    if (slot === maxMatches) {
+      // Calculate streaks for the candidate schedule
+      const streaks = new Array(numTeams).fill(0);
+      const tempPlay = new Array(numTeams).fill(0);
+      const tempLast = new Array(numTeams).fill(-2);
+      for (let s = 0; s < maxMatches; s++) {
+        const [a, b] = schedule[s];
+        for (let t = 0; t < numTeams; t++) {
+          if (t === a || t === b) {
+            if (tempLast[t] === s - 1) {
+              tempPlay[t]++;
+              if (tempPlay[t] === 2) streaks[t]++;
+            } else {
+              tempPlay[t] = 1;
+            }
+            tempLast[t] = s;
+          }
+        }
+      }
+
+      const maxStr = Math.max(...streaks);
+      const minStr = Math.min(...streaks);
+      const diff = maxStr - minStr;
+
+      if (maxStr < bestMaxStreak || (maxStr === bestMaxStreak && diff < bestStreakDiff)) {
+        bestMaxStreak = maxStr;
+        bestStreakDiff = diff;
+        bestSchedule = [...schedule];
+      }
+
+      // If we find a perfectly balanced solution (all teams play exactly the same number of streaks), stop early
+      if (maxStr <= 2 && diff === 0) {
+        return true;
+      }
+      return false;
+    }
+
+    const roundIdx = Math.floor(slot / cycleLen);
+    const isRoundStart = (slot % cycleLen === 0);
+
+    for (let pIdx = 0; pIdx < allPairs.length; pIdx++) {
+      if (roundUsedPairs[roundIdx].has(pIdx)) continue;
+
+      const [a, b] = allPairs[pIdx];
+
+      // Ensure distinct starting matchups for each round
+      if (isRoundStart) {
+        let duplicateStart = false;
+        for (let r = 0; r < roundIdx; r++) {
+          if (roundStarts[r] === pIdx) {
+            duplicateStart = true;
+            break;
+          }
+        }
+        if (duplicateStart) continue;
+      }
+
+      // Hard play constraint: no team plays 3 in a row
+      const aC = lastPlay[a] === slot - 1 ? consecPlay[a] : 0;
+      const bC = lastPlay[b] === slot - 1 ? consecPlay[b] : 0;
+      if (aC >= 2 || bC >= 2) continue;
+
+      // Hard rest constraint: no team rests 3 in a row
       let restOk = true;
       for (let t = 0; t < numTeams; t++) {
         if (t === a || t === b) continue;
-        const tR = lastRest[t] === slot - 1 ? restConsec[t] : 0;
+        const tR = lastRest[t] === slot - 1 ? consecRest[t] : 0;
         if (tR >= 2) { restOk = false; break; }
       }
-      if (!restOk) continue; // No 3 rests in a row
+      if (!restOk) continue;
 
-      // --- Soft Constraints (Scoring) ---
-      let consecPenalty = 0;
-      if (aC > 0) consecPenalty += 50 + (totalConsecs[a] * 500);
-      if (bC > 0) consecPenalty += 50 + (totalConsecs[b] * 500);
+      // Save state
+      const prevPlay = [...consecPlay];
+      const prevLastPlay = [...lastPlay];
+      const prevRest = [...consecRest];
+      const prevLastRest = [...lastRest];
 
-      const t1 = Math.min(a, b);
-      const t2 = Math.max(a, b);
-      const slotsSincePlayed = slot - lastPlayedPair[t1][t2];
-      
-      let repeatPenalty = 0;
-      if (slotsSincePlayed <= 3) repeatPenalty = 1000; // very bad to repeat inside same sub-round
-      else if (slotsSincePlayed <= 5) repeatPenalty = 100; // mild penalty to push repeats apart
-      
-      const score = consecPenalty + repeatPenalty + i;
-
-      if (score < bestScore) {
-        bestScore = score;
-        chosen = i;
-      }
-    }
-
-    // Fallback safety net
-    if (chosen === -1) chosen = 0;
-
-    const [a, b] = remaining.splice(chosen, 1)[0];
-    matchups.push([a, b]);
-
-    const t1 = Math.min(a, b);
-    const t2 = Math.max(a, b);
-    lastPlayedPair[t1][t2] = slot;
-
-    // Update tracking for ALL teams
-    for (let t = 0; t < numTeams; t++) {
-      if (t === a || t === b) {
-        // Playing this slot
-        if (lastSlot[t] === slot - 1) {
-          consec[t]++;
-          if (consec[t] === 2) totalConsecs[t]++; // Increment their burden counter
+      // Update state
+      for (let t = 0; t < numTeams; t++) {
+        if (t === a || t === b) {
+          consecPlay[t] = lastPlay[t] === slot - 1 ? consecPlay[t] + 1 : 1;
+          lastPlay[t] = slot;
+          consecRest[t] = 0;
         } else {
-          consec[t] = 1;
+          consecRest[t] = lastRest[t] === slot - 1 ? consecRest[t] + 1 : 1;
+          lastRest[t] = slot;
+          consecPlay[t] = 0;
         }
-        lastSlot[t] = slot;
-        restConsec[t] = 0;
-      } else {
-        // Resting this slot
-        restConsec[t] = lastRest[t] === slot - 1 ? restConsec[t] + 1 : 1;
-        lastRest[t] = slot;
+      }
+
+      schedule.push([a, b]);
+      roundUsedPairs[roundIdx].add(pIdx);
+      if (isRoundStart) roundStarts[roundIdx] = pIdx;
+
+      if (backtrack(slot + 1)) return true;
+
+      // Backtrack
+      schedule.pop();
+      roundUsedPairs[roundIdx].delete(pIdx);
+      if (isRoundStart) roundStarts[roundIdx] = -1;
+      for (let t = 0; t < numTeams; t++) {
+        consecPlay[t] = prevPlay[t];
+        lastPlay[t] = prevLastPlay[t];
+        consecRest[t] = prevRest[t];
+        lastRest[t] = prevLastRest[t];
       }
     }
+    return false;
+  }
+
+  backtrack(0);
+
+  let matchups = [];
+  if (bestSchedule) {
+    matchups = bestSchedule;
+  } else {
+    // Fallback: original rotating anchor generator
+    console.warn('[schedule] Backtracking solver found no solution, using fallback rotating anchor pool.');
+    const pool = [];
+    let poolRound = 0;
+    while (pool.length < maxMatches) {
+      const anchor = poolRound % numTeams;
+      const others = Array.from({ length: numTeams }, (_, i) => (anchor + 2 + i) % numTeams)
+        .filter(t => t !== anchor);
+
+      for (let j = 0; j < others.length && pool.length < maxMatches; j++) {
+        const opp = others[j];
+        const pair = others.filter((_, k) => k !== j);
+
+        pool.push([anchor, opp]);
+        if (pool.length < maxMatches) {
+          pool.push([pair[0], pair[1]]);
+        }
+      }
+      poolRound++;
+    }
+    matchups = pool;
   }
 
   const totalRounds = Math.ceil(maxMatches / cycleLen);
