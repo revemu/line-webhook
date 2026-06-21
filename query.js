@@ -2051,7 +2051,10 @@ async function getCurrentMatch() {
     }
   }
 
-  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, weekId: sched.weekId, date: sched.date };
+  const imgTpl = await getTemplate('live', 'header');
+  const imageUrl = imgTpl ? imgTpl.url : null;
+
+  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, weekId: sched.weekId, date: sched.date, imageUrl };
 }
 
 module.exports = {

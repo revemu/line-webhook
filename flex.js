@@ -471,7 +471,7 @@ function buildNowFlex(matchInfo) {
  * @param {object} matchInfo - result from getCurrentMatch() containing sched, dbMatches, currentMatch, scorers, assists, table
  */
 function buildLiveFlex(matchInfo) {
-  const { sched, currentMatch, scorers, assists, table, dbMatches } = matchInfo;
+  const { sched, currentMatch, scorers, assists, table, dbMatches, imageUrl } = matchInfo;
   const { date, startTime, matchMinutes, totalHours, teams, totalMatches, totalRounds, endTime, matches } = sched;
 
   // Group matches by round
@@ -693,7 +693,7 @@ function buildLiveFlex(matchInfo) {
 
   return {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     header: {
       type: 'box',
       layout: 'vertical',
@@ -702,7 +702,7 @@ function buildLiveFlex(matchInfo) {
       contents: [
         {
           type: 'image',
-          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          url: imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
           size: 'full',
           aspectRatio: '20:7',
           aspectMode: 'cover'
