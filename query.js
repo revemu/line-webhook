@@ -717,7 +717,7 @@ async function getMatchWeek(week_id = 0) {
         const n = (colorName || '').toLowerCase();
         if (n === 'black') return '#999999';   // dark grey, readable on dark bg
         if (n === 'white') return '#ffffff';
-        if (n === 'red')   return '#ff5566';   // bright red
+        if (n === 'red') return '#ff5566';   // bright red
         if (n === 'green') return '#44cc66';   // bright green
         // fallback: brighten dark DB codes
         if (!code || code.length < 7) return '#ffffff';
@@ -759,7 +759,7 @@ async function getMatchWeek(week_id = 0) {
         const team_a = team_colors.filter(t => t.id === match.team_a_id)[0];
         const team_b = team_colors.filter(t => t.id === match.team_b_id)[0];
 
-        const goalBox   = await queryMatchGoal(match.id, 0);
+        const goalBox = await queryMatchGoal(match.id, 0);
         const assistBox = await queryMatchGoal(match.id, 3);
 
         const styleGoalBox = (box, isAssist) => {
@@ -852,10 +852,10 @@ async function getMatchWeek(week_id = 0) {
           margin: 'xs',
           contents: [
             { type: 'text', text: '\u0e17\u0e35\u0e21', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 4 },
-            { type: 'text', text: 'W',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center', margin: 'lg' },
-            { type: 'text', text: 'D',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
-            { type: 'text', text: 'L',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
-            { type: 'text', text: 'GD',  size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+            { type: 'text', text: 'W', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center', margin: 'lg' },
+            { type: 'text', text: 'D', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+            { type: 'text', text: 'L', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+            { type: 'text', text: 'GD', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
             { type: 'text', text: 'PTS', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' }
           ]
         });
@@ -871,9 +871,9 @@ async function getMatchWeek(week_id = 0) {
             margin: 'xs',
             contents: [
               { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color}`, size: 'xs', color: teamDisplayColor(row.color, teamColor ? teamColor.code : null), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
-              { type: 'text', text: `${row.w}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center', margin: 'lg' },
-              { type: 'text', text: `${row.d}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
-              { type: 'text', text: `${row.l}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
+              { type: 'text', text: `${row.w}`, size: 'xs', color: '#aaaacc', flex: 1, align: 'center', margin: 'lg' },
+              { type: 'text', text: `${row.d}`, size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
+              { type: 'text', text: `${row.l}`, size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
               { type: 'text', text: gdStr, size: 'xs', color: gd >= 0 ? '#88ff88' : '#ff8888', flex: 1, align: 'center' },
               { type: 'text', text: `${row.pts}`, size: 'xs', color: '#ffffff', flex: 1, align: 'center', weight: 'bold' }
             ]
@@ -919,7 +919,7 @@ function teamDisplayColor(colorName, code) {
   const n = (colorName || '').toLowerCase();
   if (n === 'black') return '#999999';
   if (n === 'white') return '#ffffff';
-  if (n === 'red')   return '#ff5566';
+  if (n === 'red') return '#ff5566';
   if (n === 'green') return '#44cc66';
   if (!code || code.length < 7) return '#ffffff';
   const r = parseInt(code.slice(1, 3), 16);
@@ -968,14 +968,6 @@ async function getTeamWeek(week_id = 0) {
               size: 'lg',
               color: displayColor,
               align: 'center'
-            },
-            {
-              type: 'text',
-              text: '⚽ ทีมสัปดาห์นี้',
-              size: 'xxs',
-              color: '#a0a8c0',
-              align: 'center',
-              margin: 'xs'
             }
           ]
         });
@@ -1668,10 +1660,10 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   while (pool.length < maxMatches) {
     const anchor = poolRound % numTeams;
     const others = Array.from({ length: numTeams }, (_, i) => (anchor + 2 + i) % numTeams)
-                     .filter(t => t !== anchor);
+      .filter(t => t !== anchor);
 
     for (let j = 0; j < others.length && pool.length < maxMatches; j++) {
-      const opp  = others[j];                        // anchor's opponent this sub-round
+      const opp = others[j];                        // anchor's opponent this sub-round
       const pair = others.filter((_, k) => k !== j); // the other two teams
 
       pool.push([anchor, opp]);                       // anchor's match first
@@ -1691,12 +1683,12 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   //   - Neither a nor b has played 2 consecutive  (play constraint)
   //   - No non-playing team has already rested 2 consecutive (rest constraint)
   // -----------------------------------------------------------
-  const consec     = new Array(numTeams).fill(0);   // consecutive PLAY streak
-  const lastSlot   = new Array(numTeams).fill(-2);  // last slot team played
+  const consec = new Array(numTeams).fill(0);   // consecutive PLAY streak
+  const lastSlot = new Array(numTeams).fill(-2);  // last slot team played
   const restConsec = new Array(numTeams).fill(0);   // consecutive REST streak
-  const lastRest   = new Array(numTeams).fill(-2);  // last slot team rested
-  const remaining  = [...pool];
-  const matchups   = [];
+  const lastRest = new Array(numTeams).fill(-2);  // last slot team rested
+  const remaining = [...pool];
+  const matchups = [];
 
   for (let slot = 0; slot < maxMatches; slot++) {
     let chosen = -1;
@@ -1734,13 +1726,13 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     for (let t = 0; t < numTeams; t++) {
       if (t === a || t === b) {
         // Playing this slot
-        consec[t]   = lastSlot[t] === slot - 1 ? consec[t] + 1 : 1;
+        consec[t] = lastSlot[t] === slot - 1 ? consec[t] + 1 : 1;
         lastSlot[t] = slot;
         restConsec[t] = 0; // reset rest streak when playing
       } else {
         // Resting this slot
         restConsec[t] = lastRest[t] === slot - 1 ? restConsec[t] + 1 : 1;
-        lastRest[t]   = slot;
+        lastRest[t] = slot;
       }
     }
   }
@@ -1754,7 +1746,7 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   };
 
   // Format output
-  const thaiMonthsShort = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const thaiMonthsShort = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
   const dateObj = new Date(week[0].date || Date.now());
   const dateStr = `${dateObj.getDate()} ${thaiMonthsShort[dateObj.getMonth()]} ${String(dateObj.getFullYear()).slice(-2)}`;
 
@@ -1809,7 +1801,7 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   }
 
   const currentMatch = scheduleMatches.find(m => m.matchNo === currentMatchNo) || scheduleMatches[0];
-  const nextMatch    = scheduleMatches.find(m => m.matchNo === nextMatchNo)    || null;
+  const nextMatch = scheduleMatches.find(m => m.matchNo === nextMatchNo) || null;
 
   const scheduleJson = {
     generatedAt: new Date().toISOString(),
@@ -1851,8 +1843,8 @@ async function getCurrentMatch() {
   if (!schedMatches || schedMatches.length === 0) return null;
 
   let currentMatchNo = 1;
-  let nextMatchNo    = Math.min(2, schedMatches.length);
-  let currentDbRow   = null;
+  let nextMatchNo = Math.min(2, schedMatches.length);
+  let currentDbRow = null;
 
   const week = await queryWeekID();
   if (week && week.length > 0) {
@@ -1860,13 +1852,13 @@ async function getCurrentMatch() {
     if (dbMatches && dbMatches.length > 0) {
       const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
       currentMatchNo = maxDbMatchNum;
-      nextMatchNo    = Math.min(maxDbMatchNum + 1, schedMatches.length);
-      currentDbRow   = dbMatches.find(r => r.match_num === maxDbMatchNum);
+      nextMatchNo = Math.min(maxDbMatchNum + 1, schedMatches.length);
+      currentDbRow = dbMatches.find(r => r.match_num === maxDbMatchNum);
     }
   }
 
   const currentMatch = schedMatches.find(m => m.matchNo === currentMatchNo) || schedMatches[0];
-  const nextMatch    = schedMatches.find(m => m.matchNo === nextMatchNo && nextMatchNo !== currentMatchNo) || null;
+  const nextMatch = schedMatches.find(m => m.matchNo === nextMatchNo && nextMatchNo !== currentMatchNo) || null;
 
   // ── Live score from match_stat_tbl ──
   let score = null;
