@@ -90,6 +90,16 @@ function replaceFlex(template, data) {
   return JSON.parse(jsonString);
 }
 
+// Team name → readable color on dark background
+const tdc = (name) => {
+  const n = (name || '').toLowerCase();
+  if (n === 'black') return '#999999';
+  if (n === 'white') return '#ffffff';
+  if (n === 'red')   return '#ff5566';
+  if (n === 'green') return '#44cc66';
+  return '#ffffff';
+};
+
 /**
  * Build a Flex bubble for /schedule
  * @param {object} sched - schedule object from getScheduleText (parsed JSON fields)
@@ -187,13 +197,14 @@ function buildScheduleFlex(sched) {
           { type: 'text', text: `${m.matchNo}`, size: 'xs', color: '#888899', flex: 0, margin: 'none', align: 'center' },
           { type: 'text', text: `${m.startTime}`, size: 'xs', color: '#aaaacc', flex: 2, align: 'center' },
           {
-            type: 'text',
-            text: `${m.teamA}  vs  ${m.teamB}`,
-            size: 'xs',
-            color: '#ffffff',
+            type: 'box',
+            layout: 'horizontal',
             flex: 3,
-            align: 'center',
-            weight: 'bold'
+            contents: [
+              { type: 'text', text: m.teamA, size: 'xs', color: tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
+              { type: 'text', text: 'vs', size: 'xs', color: '#888899', align: 'center', flex: 1 },
+              { type: 'text', text: m.teamB, size: 'xs', color: tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
+            ]
           }
         ]
       });
@@ -244,16 +255,6 @@ function buildScheduleFlex(sched) {
  */
 function buildNowFlex(matchInfo) {
   const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table } = matchInfo;
-
-  // Team name → readable color on dark background
-  const tdc = (name) => {
-    const n = (name || '').toLowerCase();
-    if (n === 'black') return '#999999';
-    if (n === 'white') return '#ffffff';
-    if (n === 'red')   return '#ff5566';
-    if (n === 'green') return '#44cc66';
-    return '#ffffff';
-  };
 
   const bodyContents = [];
 
