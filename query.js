@@ -1400,18 +1400,18 @@ async function getTopStat(limit = 10, type = 0) {
 
   if (type == 0) {
     status = "< 2";
-    header = "Top Scorer";
+    header = `Top ${limit} Scorer`;
     icon = "⚽";
   } else if (type == 1) {
     status = "= 3";
-    header = "Top Assist";
+    header = `Top ${limit} Assist`;
     icon = "👟";
   } else if (type == 2) {
     status = "= 2";
-    header = "Own Goal";
+    header = `Top ${limit} Own Goal`;
     icon = "🥅";
   } else if (type == 4) {
-    header = "Avg Pts";
+    header = `Top ${limit} Avg Pts`;
     icon = "📊";
   }
 
@@ -1459,14 +1459,6 @@ ORDER BY pts DESC limit ${limit}`;
           size: 'md',
           color: '#ffffff',
           align: 'center'
-        },
-        {
-          type: 'text',
-          text: `Top ${limit}  (${currentYear})`,
-          size: 'xxs',
-          color: '#a0a8c0',
-          align: 'center',
-          margin: 'xs'
         }
       ]
     });
