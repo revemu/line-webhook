@@ -898,7 +898,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       contents: [
         {
           type: 'image',
-          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuyGBcXBYCphjV9yKqgZyNEWCvdbbLtn6ILg&s',
           size: 'full',
           aspectRatio: '20:7',
           aspectMode: 'cover'
