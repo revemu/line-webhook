@@ -1844,6 +1844,16 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     matchups = pool;
   }
 
+  // Post-process matchups to ensure consecutive playing teams remain on the same side (Left or Right)
+  for (let i = 1; i < matchups.length; i++) {
+    const [prevA, prevB] = matchups[i - 1];
+    const [currA, currB] = matchups[i];
+
+    if (currB === prevA || currA === prevB) {
+      matchups[i] = [currB, currA];
+    }
+  }
+
   const totalRounds = Math.ceil(maxMatches / cycleLen);
 
   const toTime = (mins) => {
