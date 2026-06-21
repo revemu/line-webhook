@@ -719,8 +719,9 @@ function buildLiveFlex(matchInfo) {
   };
 }
 
-function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies) {
+function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl) {
   const bodyContents = [];
+  const finalImageUrl = imageUrl || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuyGBcXBYCphjV9yKqgZyNEWCvdbbLtn6ILg&s';
 
   // Header block
   bodyContents.push({
@@ -790,8 +791,15 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
           layout: 'horizontal',
           flex: 1,
           contents: [
-            { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577', flex: 0 },
-            { type: 'text', text: `${p1.donate}${p1.name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
+            {
+              type: 'box',
+              layout: 'vertical',
+              width: '22px',
+              contents: [
+                { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577' }
+              ]
+            },
+            { type: 'text', text: `${p1.donate}${p1.name}`, size: 'xs', color: '#ddddff', flex: 1 }
           ]
         }
       ];
@@ -802,8 +810,15 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
           layout: 'horizontal',
           flex: 1,
           contents: [
-            { type: 'text', text: `${i + 2}.`, size: 'xs', color: '#555577', flex: 0 },
-            { type: 'text', text: `${p2.donate}${p2.name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
+            {
+              type: 'box',
+              layout: 'vertical',
+              width: '22px',
+              contents: [
+                { type: 'text', text: `${i + 2}.`, size: 'xs', color: '#555577' }
+              ]
+            },
+            { type: 'text', text: `${p2.donate}${p2.name}`, size: 'xs', color: '#ddddff', flex: 1 }
           ]
         });
       } else {
@@ -844,8 +859,15 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577', flex: 0 },
-          { type: 'text', text: `${goalies[i].donate}${goalies[i].name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '22px',
+            contents: [
+              { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577' }
+            ]
+          },
+          { type: 'text', text: `${goalies[i].donate}${goalies[i].name}`, size: 'xs', color: '#ddddff', flex: 1 }
         ]
       });
     }
@@ -875,8 +897,15 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577', flex: 0 },
-          { type: 'text', text: `${reserves[i].donate}${reserves[i].name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '22px',
+            contents: [
+              { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577' }
+            ]
+          },
+          { type: 'text', text: `${reserves[i].donate}${reserves[i].name}`, size: 'xs', color: '#ddddff', flex: 1 }
         ]
       });
     }
@@ -898,7 +927,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       contents: [
         {
           type: 'image',
-          url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuyGBcXBYCphjV9yKqgZyNEWCvdbbLtn6ILg&s',
+          url: finalImageUrl,
           size: 'full',
           aspectRatio: '20:7',
           aspectMode: 'cover'

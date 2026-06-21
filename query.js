@@ -1151,7 +1151,10 @@ async function getMemberWeek0(type = 0, isFlex = true) {
           }
         }
 
-        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies);
+        const imgTpl = await getTemplate('register', 'header');
+        const imageUrl = imgTpl ? imgTpl.url : null;
+
+        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl);
         return [flexJson, sub];
       }
 
