@@ -724,7 +724,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   const finalImageUrl = imageUrl || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuyGBcXBYCphjV9yKqgZyNEWCvdbbLtn6ILg&s';
 
   // Header block
-  bodyContents.push({
+  /*bodyContents.push({
     type: 'box',
     layout: 'vertical',
     backgroundColor: '#1a1a2e',
@@ -740,11 +740,11 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
         align: 'center'
       }
     ]
-  });
+  });*/
 
   // Subtitle showing counts
   const countParts = [];
-  countParts.push({ type: 'text', text: `👤 ลงชื่อ: ${players.length}/${maxPlayers}`, size: 'xs', color: '#8888aa', flex: 1 });
+  countParts.push({ type: 'text', text: `👤 ลงชื่อ: ${players.length}/${maxPlayers} เสาร์ที่ ${dateStr}`, size: 'xs', color: '#8888aa', flex: 1 });
   if (goalies.length > 0) {
     countParts.push({ type: 'text', text: `🧤 โกล์: ${goalies.length}`, size: 'xs', color: '#8888aa', flex: 1, align: 'center' });
   }
