@@ -913,6 +913,21 @@ async function getMatchWeek(week_id = 0) {
   }
 }
 
+
+// Maps team color name → a readable display color on dark backgrounds
+function teamDisplayColor(colorName, code) {
+  const n = (colorName || '').toLowerCase();
+  if (n === 'black') return '#999999';
+  if (n === 'white') return '#ffffff';
+  if (n === 'red')   return '#ff5566';
+  if (n === 'green') return '#44cc66';
+  if (!code || code.length < 7) return '#ffffff';
+  const r = parseInt(code.slice(1, 3), 16);
+  const g = parseInt(code.slice(3, 5), 16);
+  const b = parseInt(code.slice(5, 7), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.40 ? '#ffffff' : code;
+}
+
 async function getTeamWeek(week_id = 0) {
 
   let query = "";
@@ -924,85 +939,128 @@ async function getTeamWeek(week_id = 0) {
     if (week_id == 0) {
       week_id = res[0].id;
     }
-    //const week_id = res[0].id ;
 
     const team_colors = await getTeamColorWeek(week_id);
-    //let bubble = flex.tpl_bubble ;
-    let carousel = flex.tpl_carousel;
+    const date = new Date(res[0].date);
+    const date_str = await getFormatDate(date);
 
     if (team_colors.length > 0) {
-      carousel.contents = [];
-      //var bubble = new Array(team_colors.length) ;
-      var i = 0;
+      const carousel = { type: 'carousel', contents: [] };
+
       for (const team of team_colors) {
-        const bubble = JSON.parse(JSON.stringify(flex.tpl_bubble));
         const teamColor = await getTeamColor(team.color);
-        //const bubble =  Object.assign({}, flex.tpl_bubble);
-        //console.log(team.color) ;
-        bubble.size = "micro";
-        //bubble.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' ;
-        bubble.hero.url = teamColor.url;
-        bubble.hero.aspectRatio = "6:2"
+        const displayColor = teamDisplayColor(team.color, teamColor ? teamColor.code : null);
 
-        //let msg = [] ;
-        bubble.body.contents = [];
+        const bodyContents = [];
 
-        bubble.body.contents.push(
-          {
-            type: "text",
-            text: `${team.color}`,
-            weight: "bold",
-            size: "md",
-            align: "center",
-            color: teamColor.code
-          }, {
-          type: "separator",
-          margin: "none",
-          color: "#000000"
-        },
-          {
-            type: "separator",
-            color: "#FFFFFF",
-            margin: "md"
-          }
-        );
+        // ── Team header card ──
+        bodyContents.push({
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#1a1a2e',
+          paddingAll: 'md',
+          cornerRadius: 'md',
+          contents: [
+            {
+              type: 'text',
+              text: team.color,
+              weight: 'bold',
+              size: 'lg',
+              color: displayColor,
+              align: 'center'
+            },
+            {
+              type: 'text',
+              text: '⚽ ทีมสัปดาห์นี้',
+              size: 'xxs',
+              color: '#a0a8c0',
+              align: 'center',
+              margin: 'xs'
+            }
+          ]
+        });
 
+        bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
+
+        // ── Member list ──
         query = `select member_team_week_tbl.*, member_tbl.name AS line_name from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
         console.log(query);
-        //const count = await executeQuery(query);
-        //query = `select member_team_week_tbl.*, member_tbl.name from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where week_id=${week_id} and team_id=${team.id}`;
-        //console.log(team_color) ;
         const team_members = await executeQuery(query);
         if (team_members.length > 0) {
+          let idx = 0;
           for (const member of team_members) {
-            bubble.body.contents.push(
-              {
-                "type": "text",
-                //"text": `${member.name.replace('@', '')}`,
-                "text": `${member.line_name.replace('@', '')}`,
-                "weight": "regular",
-                "size": "sm",
-                "align": "center"
-              });
+            const isFirst = idx === 0;
+            bodyContents.push({
+              type: 'box',
+              layout: 'horizontal',
+              margin: 'xs',
+              contents: [
+                {
+                  type: 'text',
+                  text: `${idx + 1}.`,
+                  size: 'xs',
+                  color: '#555577',
+                  flex: 0,
+                  margin: 'none'
+                },
+                {
+                  type: 'text',
+                  text: member.line_name.replace('@', ''),
+                  size: 'sm',
+                  color: '#ddddff',
+                  flex: 1,
+                  margin: 'sm'
+                }
+              ]
+            });
+            idx++;
           }
+        } else {
+          bodyContents.push({
+            type: 'text',
+            text: 'ยังไม่มีสมาชิกในทีมนี้',
+            size: 'xs',
+            color: '#555577',
+            align: 'center',
+            margin: 'md'
+          });
         }
-        //bubble.contents = msg ; 
 
-        //bubble.contents = msg ;
-        //console.log(bubble.body.contents) ; 
-        //console.log(JSON.stringify(bubble)) ;
-        carousel.contents.push(bubble);
-        //console.log(JSON.stringify(carousel)) ;
-        i++;
-        //break ;
+        carousel.contents.push({
+          type: 'bubble',
+          size: 'micro',
+          header: {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#0f3460',
+            paddingAll: 'none',
+            contents: [
+              {
+                type: 'image',
+                url: teamColor ? teamColor.url : 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+                size: 'full',
+                aspectRatio: '6:2',
+                aspectMode: 'cover'
+              }
+            ]
+          },
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#0d0d1a',
+            paddingAll: 'sm',
+            contents: bodyContents
+          }
+        });
       }
-      //console.log(JSON.stringify(carousel)) ;
+
       return carousel;
     }
 
   }
 
 }
+
 async function getDonateBadge(donate = 0) {
   if (donate < 100) {
     return "";
@@ -1342,24 +1400,27 @@ async function getMemberWeek2(type = 0) {
 
 async function getTopStat(limit = 10, type = 0) {
   let header = "";
+  let icon = "";
   let query = "";
-  let start = ""
   let status = "";
-  let msg = [];
   const res = await getTemplate('top', type);
-  let url = res.url;
-  //console.log(res) ;
+  let url = res ? res.url : '';
+
   if (type == 0) {
     status = "< 2";
-    header = `Scorer`;
+    header = "Top Scorer";
+    icon = "⚽";
   } else if (type == 1) {
     status = "= 3";
-    header = `Assist`;
+    header = "Top Assist";
+    icon = "👟";
   } else if (type == 2) {
     status = "= 2";
-    header = `Own Goal`;
+    header = "Own Goal";
+    icon = "🥅";
   } else if (type == 4) {
-    header = `Avg Pts (Match)`;
+    header = "Avg Pts";
+    icon = "📊";
   }
 
   query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl , week_tbl WHERE match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.team_id <> 101 group by member_tbl.id order by goal DESC limit ${limit}`;
@@ -1384,89 +1445,117 @@ HAVING COUNT(table_week_tbl.id) > (
 )
 ORDER BY pts DESC limit ${limit}`;
   }
-  //console.log(query) ;
+
   const result = await executeQuery(query);
   if (result.length > 0) {
-    let i = 0;
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const bubble = JSON.parse(JSON.stringify(flex.tpl_bubble));
-    bubble.size = "hecto";
-    bubble.hero.url = url;
-    //bubble.hero.url = teamColor.url ;
-    bubble.hero.aspectRatio = "6:3"
+    const currentYear = new Date().getFullYear();
 
-    bubble.body.contents = [];
-    bubble.body.contents.push(
-      {
-        "type": "text",
-        "text": `Top ${limit} (${currentYear})`,
-        "weight": "bold",
-        "size": "md",
-        "align": "center"
-      }
-    );
-    bubble.body.contents.push(
-      {
-        "type": "text",
-        "text": `${header}`,
-        "weight": "bold",
-        "size": "md",
-        "align": "center"
-      }
-    );
-    //return bubble ;
-    let top_url = ""
-    let offsetTop = "none"
-    for (const member of result) {
-      //body += `${i+1}. ${member.name}  ${member.goal} `;
-      if (i == 0) {
-        top_url = "https://api.revemu.org/g_medal_ico.png";
-        offsetTop = "3px";
-      } else {
-        top_url = "https://commons.wikimedia.org/wiki/File:BLANK_ICON.png"
-        offsetTop = "none"
-      }
+    const bodyContents = [];
+
+    // ── Stat header card ──
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: '#1a1a2e',
+      paddingAll: 'md',
+      cornerRadius: 'md',
+      contents: [
+        {
+          type: 'text',
+          text: `${icon} ${header}`,
+          weight: 'bold',
+          size: 'md',
+          color: '#ffffff',
+          align: 'center'
+        },
+        {
+          type: 'text',
+          text: `Top ${limit}  (${currentYear})`,
+          size: 'xxs',
+          color: '#a0a8c0',
+          align: 'center',
+          margin: 'xs'
+        }
+      ]
+    });
+
+    bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
+
+    // ── Rank rows ──
+    const rankIcons = ['🥇', '🥈', '🥉'];
+    result.forEach((member, i) => {
+      const displayName = (member.alias && member.alias !== '' ? member.alias : member.name).replace('@', '');
       let valText = "";
       if (type == 4) {
-        valText = `${Number(member.pts).toFixed(3)} (${member.m})`;
+        valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
       } else {
         valText = `${member.goal}`;
       }
-      bubble.body.contents.push({
-        "type": "box",
-        "layout": "baseline",
-        "margin": "xs",
-        "contents": [
+
+      const rankLabel = rankIcons[i] || `${i + 1}.`;
+      const isTop = i === 0;
+
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        contents: [
           {
-            "type": "icon",
-            "size": "sm",
-            "url": top_url,
-            "offsetTop": offsetTop
+            type: 'text',
+            text: rankLabel,
+            size: 'xs',
+            flex: 0,
+            margin: 'none',
+            gravity: 'center'
           },
           {
-            "type": "text",
-            "text": `${i + 1}. ${member.name.replace("@", '')}`,
-            "weight": "regular",
-            "size": "xs",
-            "align": "start",
-            "flex": 3
+            type: 'text',
+            text: displayName,
+            size: 'xs',
+            color: isTop ? '#ffffff' : '#ccccee',
+            weight: isTop ? 'bold' : 'regular',
+            flex: 3,
+            margin: 'sm'
           },
           {
-            "type": "text",
-            "text": valText,
-            "weight": "regular",
-            "size": "xs",
-            "align": "end",
-            "flex": 2
+            type: 'text',
+            text: valText,
+            size: 'xs',
+            color: isTop ? '#e94560' : '#aaaacc',
+            weight: isTop ? 'bold' : 'regular',
+            flex: 2,
+            align: 'end'
           }
         ]
       });
-      i++;
-    }
-    //console.log(JSON.stringify(bubble)) ;
-    return bubble;
+    });
 
+    return {
+      type: 'bubble',
+      size: 'hecto',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#0f3460',
+        paddingAll: 'none',
+        contents: [
+          {
+            type: 'image',
+            url: url || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+            size: 'full',
+            aspectRatio: '6:3',
+            aspectMode: 'cover'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#0d0d1a',
+        paddingAll: 'sm',
+        contents: bodyContents
+      }
+    };
   }
 
 
