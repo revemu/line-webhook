@@ -712,13 +712,19 @@ async function getMatchWeek(week_id = 0) {
 
       const bodyContents = [];
 
-      // Returns white for very dark colors (e.g. Black team #000000) so text is readable
-      const safeColor = (hex) => {
-        if (!hex || hex.length < 7) return '#ffffff';
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.40 ? '#ffffff' : hex;
+      // Maps team color name → a readable display color on dark backgrounds
+      const teamDisplayColor = (colorName, code) => {
+        const n = (colorName || '').toLowerCase();
+        if (n === 'black') return '#999999';   // dark grey, readable on dark bg
+        if (n === 'white') return '#ffffff';
+        if (n === 'red')   return '#ff5566';   // bright red
+        if (n === 'green') return '#44cc66';   // bright green
+        // fallback: brighten dark DB codes
+        if (!code || code.length < 7) return '#ffffff';
+        const r = parseInt(code.slice(1, 3), 16);
+        const g = parseInt(code.slice(3, 5), 16);
+        const b = parseInt(code.slice(5, 7), 16);
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.40 ? '#ffffff' : code;
       };
 
       // ── Header ──
@@ -798,7 +804,7 @@ async function getMatchWeek(week_id = 0) {
             layout: 'horizontal',
             margin: 'sm',
             contents: [
-              { type: 'text', text: team_a ? team_a.color : '?', size: 'lg', weight: 'bold', color: team_a ? safeColor(team_a.code) : '#ffffff', flex: 2, align: 'end' },
+              { type: 'text', text: team_a ? team_a.color : '?', size: 'lg', weight: 'bold', color: team_a ? teamDisplayColor(team_a.color, team_a.code) : '#ffffff', flex: 2, align: 'end' },
               {
                 type: 'text',
                 text: `${match.team_a_goal} - ${match.team_b_goal}`,
@@ -808,7 +814,7 @@ async function getMatchWeek(week_id = 0) {
                 flex: 1,
                 align: 'center'
               },
-              { type: 'text', text: team_b ? team_b.color : '?', size: 'lg', weight: 'bold', color: team_b ? safeColor(team_b.code) : '#ffffff', flex: 2, align: 'start' }
+              { type: 'text', text: team_b ? team_b.color : '?', size: 'lg', weight: 'bold', color: team_b ? teamDisplayColor(team_b.color, team_b.code) : '#ffffff', flex: 2, align: 'start' }
             ]
           }
         ];
@@ -845,12 +851,12 @@ async function getMatchWeek(week_id = 0) {
           layout: 'horizontal',
           margin: 'xs',
           contents: [
-            { type: 'text', text: '\u0e17\u0e35\u0e21', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 3 },
-            { type: 'text', text: 'W',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+            { type: 'text', text: '\u0e17\u0e35\u0e21', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 4 },
+            { type: 'text', text: 'W',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center', margin: 'lg' },
             { type: 'text', text: 'D',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
             { type: 'text', text: 'L',   size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
             { type: 'text', text: 'GD',  size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
-            { type: 'text', text: 'PTS', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 2, align: 'end' }
+            { type: 'text', text: 'PTS', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' }
           ]
         });
 
@@ -864,12 +870,12 @@ async function getMatchWeek(week_id = 0) {
             layout: 'horizontal',
             margin: 'xs',
             contents: [
-              { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color}`, size: 'xs', color: teamColor ? safeColor(teamColor.code) : '#ccccee', flex: 3, weight: i === 0 ? 'bold' : 'regular' },
-              { type: 'text', text: `${row.w}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
+              { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color}`, size: 'xs', color: teamDisplayColor(row.color, teamColor ? teamColor.code : null), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
+              { type: 'text', text: `${row.w}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center', margin: 'lg' },
               { type: 'text', text: `${row.d}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
               { type: 'text', text: `${row.l}`,   size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
               { type: 'text', text: gdStr, size: 'xs', color: gd >= 0 ? '#88ff88' : '#ff8888', flex: 1, align: 'center' },
-              { type: 'text', text: `${row.pts}`, size: 'xs', color: '#ffffff', flex: 2, align: 'end', weight: 'bold' }
+              { type: 'text', text: `${row.pts}`, size: 'xs', color: '#ffffff', flex: 1, align: 'center', weight: 'bold' }
             ]
           });
         });
