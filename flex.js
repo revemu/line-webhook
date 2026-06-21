@@ -90,10 +90,329 @@ function replaceFlex(template, data) {
   return JSON.parse(jsonString);
 }
 
+/**
+ * Build a Flex bubble for /schedule
+ * @param {object} sched - schedule object from getScheduleText (parsed JSON fields)
+ * @param {Array}  matchups - array of {matchNo, round, startTime, endTime, teamA, teamB, resting[]}
+ */
+function buildScheduleFlex(sched) {
+  const { date, startTime, matchMinutes, totalHours, teams, totalMatches, totalRounds, endTime, matches } = sched;
+
+  // Group matches by round
+  const rounds = {};
+  for (const m of matches) {
+    if (!rounds[m.round]) rounds[m.round] = [];
+    rounds[m.round].push(m);
+  }
+
+  const bodyContents = [];
+
+  // ── Header block ──
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: '#1a1a2e',
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    contents: [
+      {
+        type: 'text',
+        text: `⚽ ตารางแข่งขัน`,
+        weight: 'bold',
+        size: 'lg',
+        color: '#ffffff',
+        align: 'center'
+      },
+      {
+        type: 'text',
+        text: `เสาร์ที่ ${date}`,
+        size: 'sm',
+        color: '#a0a8c0',
+        align: 'center',
+        margin: 'xs'
+      }
+    ]
+  });
+
+  // ── Info row ──
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'sm',
+    contents: [
+      { type: 'text', text: `🕐 ${startTime}–${endTime}`, size: 'xs', color: '#555577', flex: 1 },
+      { type: 'text', text: `${matchMinutes} นาที/แมตช์`, size: 'xs', color: '#555577', flex: 1, align: 'center' },
+      { type: 'text', text: `${totalMatches} แมตช์`, size: 'xs', color: '#555577', flex: 1, align: 'end' }
+    ]
+  });
+
+  bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
+
+  // ── Column header ──
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'sm',
+    contents: [
+      { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 0, margin: 'none' },
+      { type: 'text', text: 'เวลา', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 2, align: 'center' },
+      { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 3, align: 'center' }
+    ]
+  });
+
+  // ── Rounds ──
+  for (const [roundNum, roundMatches] of Object.entries(rounds)) {
+    // Round label
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      margin: 'sm',
+      backgroundColor: '#16213e',
+      paddingStart: 'sm',
+      paddingEnd: 'sm',
+      paddingTop: 'xs',
+      paddingBottom: 'xs',
+      cornerRadius: 'sm',
+      contents: [
+        { type: 'text', text: `▶ รอบที่ ${roundNum}`, size: 'xs', weight: 'bold', color: '#e94560' }
+      ]
+    });
+
+    for (const m of roundMatches) {
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        contents: [
+          { type: 'text', text: `${m.matchNo}`, size: 'xs', color: '#888899', flex: 0, margin: 'none', align: 'center' },
+          { type: 'text', text: `${m.startTime}`, size: 'xs', color: '#aaaacc', flex: 2, align: 'center' },
+          {
+            type: 'text',
+            text: `${m.teamA}  vs  ${m.teamB}`,
+            size: 'xs',
+            color: '#ffffff',
+            flex: 3,
+            align: 'center',
+            weight: 'bold'
+          }
+        ]
+      });
+    }
+  }
+
+  bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
+  bodyContents.push({
+    type: 'text',
+    text: `สิ้นสุด ${endTime} น.  |  ${totalRounds} รอบ  |  ${totalHours} ชม.`,
+    size: 'xxs',
+    color: '#666688',
+    align: 'center',
+    margin: 'sm'
+  });
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: '#0f3460',
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          size: 'full',
+          aspectRatio: '20:7',
+          aspectMode: 'cover'
+        }
+      ]
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: '#0d0d1a',
+      paddingAll: 'md',
+      contents: bodyContents
+    }
+  };
+}
+
+/**
+ * Build a Flex bubble for /now
+ * @param {object} matchInfo - result from getCurrentMatch()
+ */
+function buildNowFlex(matchInfo) {
+  const { currentMatch: cur, nextMatch: nxt, score, scorers, assists, table } = matchInfo;
+
+  const bodyContents = [];
+
+  // ── Current Match ──
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: '#1a1a2e',
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    contents: [
+      {
+        type: 'text',
+        text: `⚽ แมตช์ปัจจุบัน  รอบที่ ${cur.round}  [${cur.matchNo}]`,
+        size: 'sm',
+        color: '#a0a8c0',
+        align: 'center'
+      },
+      // Score row
+      {
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'md',
+        contents: [
+          { type: 'text', text: cur.teamA, size: 'xl', weight: 'bold', color: '#ffffff', flex: 2, align: 'end' },
+          {
+            type: 'text',
+            text: score ? `${score.teamA} - ${score.teamB}` : 'vs',
+            size: 'xl',
+            weight: 'bold',
+            color: '#e94560',
+            flex: 1,
+            align: 'center'
+          },
+          { type: 'text', text: cur.teamB, size: 'xl', weight: 'bold', color: '#ffffff', flex: 2, align: 'start' }
+        ]
+      },
+      { type: 'text', text: `${cur.startTime} – ${cur.endTime}`, size: 'xs', color: '#666688', align: 'center', margin: 'xs' }
+    ]
+  });
+
+  // ── Scorers ──
+  if (scorers && scorers.length > 0) {
+    const scorerText = scorers.map(s => {
+      const og = s.ownGoal ? '🥅' : '';
+      return s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
+    }).join('  ');
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'sm',
+      contents: [
+        { type: 'text', text: '⚽', size: 'sm', flex: 0 },
+        { type: 'text', text: scorerText, size: 'sm', color: '#ddddff', flex: 1, margin: 'sm', wrap: true }
+      ]
+    });
+  }
+
+  // ── Assists ──
+  if (assists && assists.length > 0) {
+    const assistText = assists.map(a => a.assist > 1 ? `${a.name}(${a.assist})` : a.name).join('  ');
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'xs',
+      contents: [
+        { type: 'text', text: '👟', size: 'sm', flex: 0 },
+        { type: 'text', text: assistText, size: 'sm', color: '#bbddff', flex: 1, margin: 'sm', wrap: true }
+      ]
+    });
+  }
+
+  bodyContents.push({ type: 'separator', margin: 'md', color: '#2a2a4a' });
+
+  // ── Next Match ──
+  if (nxt) {
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      margin: 'sm',
+      backgroundColor: '#16213e',
+      paddingAll: 'sm',
+      cornerRadius: 'sm',
+      contents: [
+        { type: 'text', text: `⏭ แมตช์ถัดไป  รอบที่ ${nxt.round}  [${nxt.matchNo}]`, size: 'xs', color: '#a0a8c0' },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'xs',
+          contents: [
+            { type: 'text', text: nxt.teamA, size: 'md', weight: 'bold', color: '#ffffff', flex: 2, align: 'end' },
+            { type: 'text', text: 'vs', size: 'md', color: '#888899', flex: 1, align: 'center' },
+            { type: 'text', text: nxt.teamB, size: 'md', weight: 'bold', color: '#ffffff', flex: 2, align: 'start' }
+          ]
+        },
+        { type: 'text', text: `${nxt.startTime} – ${nxt.endTime}`, size: 'xxs', color: '#555577', align: 'center', margin: 'xs' }
+      ]
+    });
+  } else {
+    bodyContents.push({ type: 'text', text: '🏁 นี่คือแมตช์สุดท้ายแล้วครับ', size: 'sm', color: '#e94560', margin: 'sm', align: 'center' });
+  }
+
+  // ── Standings table ──
+  if (table && table.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'md', color: '#2a2a4a' });
+    bodyContents.push({ type: 'text', text: '📊 ตารางคะแนน', size: 'sm', weight: 'bold', color: '#e0e0ff', margin: 'md' });
+
+    // Header row
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'xs',
+      contents: [
+        { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 3 },
+        { type: 'text', text: 'GD', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+        { type: 'text', text: 'แต้ม', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'end' }
+      ]
+    });
+
+    const medals = ['🥇', '🥈', '🥉', '4️⃣'];
+    table.forEach((row, i) => {
+      const gdStr = row.gd > 0 ? `+${row.gd}` : `${row.gd}`;
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        contents: [
+          { type: 'text', text: `${medals[i] || (i+1+'.')} ${row.team}`, size: 'xs', color: '#ccccee', flex: 3, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: gdStr, size: 'xs', color: row.gd >= 0 ? '#88ff88' : '#ff8888', flex: 1, align: 'center' },
+          { type: 'text', text: `${row.pts}`, size: 'xs', color: '#ffffff', flex: 1, align: 'end', weight: 'bold' }
+        ]
+      });
+    });
+  }
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: '#0f3460',
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          size: 'full',
+          aspectRatio: '20:7',
+          aspectMode: 'cover'
+        }
+      ]
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: '#0d0d1a',
+      paddingAll: 'md',
+      contents: bodyContents
+    }
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
   tpl_carousel,
   replacePlaceholders,
-  replaceFlex
+  replaceFlex,
+  buildScheduleFlex,
+  buildNowFlex
 };

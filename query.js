@@ -1655,7 +1655,7 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     console.error('[schedule] failed to save JSON:', err.message);
   }
 
-  return lines.join('\n');
+  return [lines.join('\n'), scheduleJson];
 }
 
 // ── Live current/next match lookup ──

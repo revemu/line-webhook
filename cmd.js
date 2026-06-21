@@ -210,10 +210,18 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'topassist':
             msg = "ให้ใช้ /top แทน";
             break;
-        case 'schedule':
+        case 'schedule': {
             const schedStart = param !== '' ? param : '17:00';
-            msg = await db.getScheduleText(schedStart, 8, 2, 3);
+            const [schedText, schedJson] = await db.getScheduleText(schedStart, 8, 2, 3);
+            if (schedJson) {
+                msg = flex.buildScheduleFlex(schedJson);
+                altText = `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`;
+                msg_type = 1;
+            } else {
+                msg = schedText;
+            }
             break;
+        }
         case 'now': {
             const matchInfo = await db.getCurrentMatch();
             if (!matchInfo) {
@@ -221,55 +229,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 break;
             }
             const cur = matchInfo.currentMatch;
-            const nxt = matchInfo.nextMatch;
             if (!cur) {
                 msg = 'ยังไม่มีข้อมูลแมตช์ปัจจุบัน';
                 break;
             }
-
-            // ── Current match header + Score ──
-            const sc = matchInfo.score;
-            msg = `⚽ แมตช์ปัจจุบัน รอบที่ ${cur.round}\n`;
-            if (sc !== null) {
-                msg += `${cur.startTime}-${cur.endTime}  [${cur.matchNo}]  ${cur.teamA}  ${sc.teamA} - ${sc.teamB}  ${cur.teamB}\n`;
-            } else {
-                msg += `${cur.startTime}-${cur.endTime}  [${cur.matchNo}]  ${cur.teamA} vs ${cur.teamB}\n`;
-            }
-
-            // ── Scorers ──
-            if (matchInfo.scorers.length > 0) {
-                const scorerLine = matchInfo.scorers.map(s => {
-                    const og = s.ownGoal ? '🥅' : '';
-                    return s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
-                }).join(', ');
-                msg += `⚽ ${scorerLine}\n`;
-            }
-
-            // ── Assists ──
-            if (matchInfo.assists.length > 0) {
-                const assistLine = matchInfo.assists.map(a =>
-                    a.assist > 1 ? `${a.name}(${a.assist})` : a.name
-                ).join(', ');
-                msg += `👟 ${assistLine}\n`;
-            }
-
-
-            // ── Next match (teams only) ──
-            if (nxt) {
-                msg += `\n⏭ แมตช์ถัดไป รอบที่ ${nxt.round}\n`;
-                msg += `${nxt.startTime}-${nxt.endTime}  [${nxt.matchNo}]  ${nxt.teamA} vs ${nxt.teamB}`;
-            } else {
-                msg += '\n🏁 นี่คือแมตช์สุดท้ายแล้วครับ';
-            }
-
-            // ── Week table ──
-            if (matchInfo.table && matchInfo.table.length > 0) {
-                msg += '\n\n📊 ตารางคะแนน\n';
-                matchInfo.table.forEach((row, i) => {
-                    const gdStr = row.gd > 0 ? `+${row.gd}` : `${row.gd}`;
-                    msg += `${i + 1}. ${row.team}  GD ${gdStr}  ${row.pts} แต้ม\n`;
-                });
-            }
+            msg = flex.buildNowFlex(matchInfo);
+            altText = `⚽ แมตช์ปัจจุบัน [${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}`;
+            msg_type = 1;
             break;
         }
 
