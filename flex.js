@@ -765,7 +765,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   if (players.length > 0) {
     bodyContents.push({
       type: 'text',
-      text: '▶ รายชื่อ @ เสาร์ที่ ' + dateStr,
+      text: `▶ รายชื่อ เสาร์ที่ ${dateStr}`,
       size: 'xs',
       weight: 'bold',
       color: '#e94560',
