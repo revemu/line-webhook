@@ -1156,7 +1156,11 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         const imageUrl = imgTpl ? imgTpl.url : null;
 
         const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl);
-        return [flexJson, sub];
+        let altHeader = `+${players.length}`;
+        if (reserves.length > 0) altHeader += `(${reserves.length})`;
+        if (goalies.length > 0) altHeader += `(${goalies.length})`;
+        const altText = `${altHeader} ] ${titleText} @ เสาร์ที่ ${dateStr}`;
+        return [flexJson, sub, altText];
       }
 
       header = `${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
@@ -1199,18 +1203,18 @@ async function getMemberWeek0(type = 0, isFlex = true) {
 
       str = `${header} ${str}`;
 
-      return [str, sub];
+      return [str, sub, null];
     } else {
       if (type == 0) {
         header = `จ่ายครบหมดแล้ว เสาร์ที่ ${await getFormatDate(date)}`;
       } else if (type == 1) {
         header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้`;
       }
-      return [header, sub];
+      return [header, sub, null];
     }
   } else {
     header = "ยังไม่มีข้อมูลสำหรับสัปดาห์นี้";
-    return [header, sub];
+    return [header, sub, null];
   }
 }
 

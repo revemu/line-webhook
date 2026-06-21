@@ -71,10 +71,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             await db.updateMaxNumberWeek(Number(param));
 
-            [msg, sub] = await db.getMemberWeek0(1, is_flex);
+            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex);
             if (is_flex && typeof msg === 'object') {
                 msg_type = 1;
-                altText = "ลงชื่อเตะบอล";
+                altText = altText || "ลงชื่อเตะบอล";
             } else {
                 msg_type = 2;
             }
@@ -99,10 +99,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 msg_type = 0;
                 break;
             }
-            [msg, sub] = await db.getMemberWeek0(1, is_flex);
+            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex);
             if (is_flex && typeof msg === 'object') {
                 msg_type = 1;
-                altText = "ลงชื่อเตะบอล";
+                altText = altText || "ลงชื่อเตะบอล";
             } else {
                 msg_type = 2;
             }
@@ -111,10 +111,10 @@ async function process_cmd(cmd_str, member, quoteToken) {
             if (await db.unregisterMember(member_id)) {
                 console.log(`${chat_type} ${member_name} พบข้อมูลลงทะเบียน!`);
             }
-            [msg, sub] = await db.getMemberWeek0(1, is_flex);
+            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex);
             if (is_flex && typeof msg === 'object') {
                 msg_type = 1;
-                altText = "ลงชื่อเตะบอล";
+                altText = altText || "ลงชื่อเตะบอล";
             } else {
                 msg_type = 2;
             }
