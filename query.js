@@ -1130,7 +1130,7 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         const reserves = [];
         const goalies = [];
         const dateStr = await getFormatDate(date, 'short');
-        const titleText = type === 0 ? "คนที่ยังไม่ได้จ่ายค่าสนาม" : "ลงชื่อเตะบอล";
+        const titleText = type === 0 ? "คนที่ยังไม่ได้จ่ายค่าสนาม" : "รายชื่อสมาชิก";
 
         for (const member of result) {
           let donate = await getDonateBadge(member.donate);

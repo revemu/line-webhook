@@ -733,19 +733,11 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     contents: [
       {
         type: 'text',
-        text: `⚽ ${title}`,
+        text: `⚽ ${title} @ เสาร์ที่ ${dateStr}`,
         weight: 'bold',
         size: 'lg',
         color: '#ffffff',
         align: 'center'
-      },
-      {
-        type: 'text',
-        text: `เสาร์ที่ ${dateStr}`,
-        size: 'sm',
-        color: '#a0a8c0',
-        align: 'center',
-        margin: 'xs'
       }
     ]
   });
