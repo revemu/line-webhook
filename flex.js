@@ -752,7 +752,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
 
   // Subtitle showing counts
   const countParts = [];
-  countParts.push({ type: 'text', text: `👤 ผู้เล่นหลัก: ${players.length}/${maxPlayers}`, size: 'xs', color: '#8888aa', flex: 1 });
+  countParts.push({ type: 'text', text: `👤 ลงชื่อ: ${players.length}/${maxPlayers}`, size: 'xs', color: '#8888aa', flex: 1 });
   if (goalies.length > 0) {
     countParts.push({ type: 'text', text: `🧤 โกล์: ${goalies.length}`, size: 'xs', color: '#8888aa', flex: 1, align: 'center' });
   }
@@ -773,7 +773,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   if (players.length > 0) {
     bodyContents.push({
       type: 'text',
-      text: '▶ รายชื่อผู้เล่นหลัก',
+      text: '▶ รายชื่อ',
       size: 'xs',
       weight: 'bold',
       color: '#e94560',
