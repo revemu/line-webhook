@@ -954,7 +954,7 @@ async function getTeamWeek(week_id = 0) {
         const bodyContents = [];
 
         // ── Team header card ──
-        bodyContents.push({
+        /*bodyContents.push({
           type: 'box',
           layout: 'vertical',
           backgroundColor: '#1a1a2e',
@@ -970,7 +970,7 @@ async function getTeamWeek(week_id = 0) {
               align: 'center'
             }
           ]
-        });
+        });*/
 
         bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
 
