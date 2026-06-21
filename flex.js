@@ -921,7 +921,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
           type: 'image',
           url: finalImageUrl,
           size: 'full',
-          aspectRatio: '20:3',
+          aspectRatio: '20:5',
           aspectMode: 'cover'
         }
       ]
