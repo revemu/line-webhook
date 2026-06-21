@@ -1963,9 +1963,10 @@ async function getCurrentMatch() {
   let nextMatchNo = Math.min(2, schedMatches.length);
   let currentDbRow = null;
 
+  let dbMatches = [];
   const week = await queryWeekID();
   if (week && week.length > 0) {
-    const dbMatches = await queryMatchWeek(week[0].id);
+    dbMatches = await queryMatchWeek(week[0].id);
     if (dbMatches && dbMatches.length > 0) {
       const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
       currentMatchNo = maxDbMatchNum;
@@ -2031,7 +2032,7 @@ async function getCurrentMatch() {
     }
   }
 
-  return { currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, weekId: sched.weekId, date: sched.date };
+  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, weekId: sched.weekId, date: sched.date };
 }
 
 module.exports = {

@@ -238,6 +238,18 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg_type = 1;
             break;
         }
+        case 'now2': {
+            const matchInfo = await db.getCurrentMatch();
+            if (!matchInfo || !matchInfo.sched) {
+                msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
+                break;
+            }
+            const cur = matchInfo.currentMatch;
+            msg = flex.buildNow2Flex(matchInfo);
+            altText = `⚽ ติดตามการแข่งขัน ${cur ? `[${cur.matchNo}]` : ''}`;
+            msg_type = 1;
+            break;
+        }
 
 
 
