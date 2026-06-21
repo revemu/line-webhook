@@ -719,6 +719,202 @@ function buildLiveFlex(matchInfo) {
   };
 }
 
+function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies) {
+  const bodyContents = [];
+
+  // Header block
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: '#1a1a2e',
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    contents: [
+      {
+        type: 'text',
+        text: `⚽ ${title}`,
+        weight: 'bold',
+        size: 'lg',
+        color: '#ffffff',
+        align: 'center'
+      },
+      {
+        type: 'text',
+        text: `เสาร์ที่ ${dateStr}`,
+        size: 'sm',
+        color: '#a0a8c0',
+        align: 'center',
+        margin: 'xs'
+      }
+    ]
+  });
+
+  // Subtitle showing counts
+  const countParts = [];
+  countParts.push({ type: 'text', text: `👤 ผู้เล่นหลัก: ${players.length}/${maxPlayers}`, size: 'xs', color: '#8888aa', flex: 1 });
+  if (goalies.length > 0) {
+    countParts.push({ type: 'text', text: `🧤 โกล์: ${goalies.length}`, size: 'xs', color: '#8888aa', flex: 1, align: 'center' });
+  }
+  if (reserves.length > 0) {
+    countParts.push({ type: 'text', text: `⏳ สำรอง: ${reserves.length}`, size: 'xs', color: '#8888aa', flex: 1, align: 'end' });
+  }
+
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'sm',
+    contents: countParts
+  });
+
+  bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
+
+  // Players section
+  if (players.length > 0) {
+    bodyContents.push({
+      type: 'text',
+      text: '▶ รายชื่อผู้เล่นหลัก',
+      size: 'xs',
+      weight: 'bold',
+      color: '#e94560',
+      margin: 'sm'
+    });
+
+    const rows = [];
+    for (let i = 0; i < players.length; i += 2) {
+      const p1 = players[i];
+      const p2 = players[i + 1];
+
+      const cols = [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          flex: 1,
+          contents: [
+            { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577', flex: 0 },
+            { type: 'text', text: `${p1.donate}${p1.name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
+          ]
+        }
+      ];
+
+      if (p2) {
+        cols.push({
+          type: 'box',
+          layout: 'horizontal',
+          flex: 1,
+          contents: [
+            { type: 'text', text: `${i + 2}.`, size: 'xs', color: '#555577', flex: 0 },
+            { type: 'text', text: `${p2.donate}${p2.name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
+          ]
+        });
+      } else {
+        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [] });
+      }
+
+      rows.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        contents: cols
+      });
+    }
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      contents: rows
+    });
+  }
+
+  // Goalies section
+  if (goalies.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
+    bodyContents.push({
+      type: 'text',
+      text: '🧤 รายชื่อโกล์',
+      size: 'xs',
+      weight: 'bold',
+      color: '#44cc66',
+      margin: 'sm'
+    });
+
+    const goalieRows = [];
+    for (let i = 0; i < goalies.length; i++) {
+      goalieRows.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        contents: [
+          { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577', flex: 0 },
+          { type: 'text', text: `${goalies[i].donate}${goalies[i].name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
+        ]
+      });
+    }
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      contents: goalieRows
+    });
+  }
+
+  // Reserves section
+  if (reserves.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
+    bodyContents.push({
+      type: 'text',
+      text: '⏳ รายชื่อสำรอง',
+      size: 'xs',
+      weight: 'bold',
+      color: '#ffaa66',
+      margin: 'sm'
+    });
+
+    const reserveRows = [];
+    for (let i = 0; i < reserves.length; i++) {
+      reserveRows.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        contents: [
+          { type: 'text', text: `${i + 1}.`, size: 'xs', color: '#555577', flex: 0 },
+          { type: 'text', text: `${reserves[i].donate}${reserves[i].name}`, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm' }
+        ]
+      });
+    }
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      contents: reserveRows
+    });
+  }
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: '#0f3460',
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          size: 'full',
+          aspectRatio: '20:7',
+          aspectMode: 'cover'
+        }
+      ]
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: '#0d0d1a',
+      paddingAll: 'md',
+      contents: bodyContents
+    }
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -727,5 +923,6 @@ module.exports = {
   replaceFlex,
   buildScheduleFlex,
   buildNowFlex,
-  buildLiveFlex
+  buildLiveFlex,
+  buildMemberWeekFlex
 };

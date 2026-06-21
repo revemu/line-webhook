@@ -17,6 +17,12 @@ async function process_cmd(cmd_str, member, quoteToken) {
     const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
     let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
 
+    let is_flex = true;
+    if (param.toLowerCase().includes('text')) {
+        is_flex = false;
+        param = param.replace(/text/gi, '').trim();
+    }
+
     let member_id = member.id;
     let member_name = member.name;
     const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team'].includes(cmd);
@@ -58,14 +64,20 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let week;
     switch (cmd) {
         case 'setmaxweek':
-            msg_type = 2;
             if (param == "") {
                 msg = "Please enter max number";
+                msg_type = 0;
                 break;
             }
             await db.updateMaxNumberWeek(Number(param));
 
-            [msg, sub] = await db.getMemberWeek0(1);
+            [msg, sub] = await db.getMemberWeek0(1, is_flex);
+            if (is_flex && typeof msg === 'object') {
+                msg_type = 1;
+                altText = "ลงชื่อเตะบอล";
+            } else {
+                msg_type = 2;
+            }
             break;
         case 'x1':
             await db.registerNY(member_id);
@@ -83,18 +95,29 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`);
             } else if (reg_res2 > 1) {
                 console.log(`${chat_type} ${member_name} ยังมียอดค้าง ${reg_res2}บาท!`);
-                msg = `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res2}บาท!`
+                msg = `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res2}บาท!`;
+                msg_type = 0;
                 break;
             }
-            msg_type = 2;
-            [msg, sub] = await db.getMemberWeek0(1);
+            [msg, sub] = await db.getMemberWeek0(1, is_flex);
+            if (is_flex && typeof msg === 'object') {
+                msg_type = 1;
+                altText = "ลงชื่อเตะบอล";
+            } else {
+                msg_type = 2;
+            }
             break;
         case '-1':
             if (await db.unregisterMember(member_id)) {
                 console.log(`${chat_type} ${member_name} พบข้อมูลลงทะเบียน!`);
             }
-            msg_type = 2;
-            [msg, sub] = await db.getMemberWeek0(1);
+            [msg, sub] = await db.getMemberWeek0(1, is_flex);
+            if (is_flex && typeof msg === 'object') {
+                msg_type = 1;
+                altText = "ลงชื่อเตะบอล";
+            } else {
+                msg_type = 2;
+            }
             break;
         case '+pay2':
             //if (is_mention) {

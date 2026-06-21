@@ -1101,29 +1101,59 @@ async function getMemberNY() {
 
 }
 
-async function getMemberWeek0(type = 0) {
+async function getMemberWeek0(type = 0, isFlex = true) {
   let header = "";
   let body = "";
   let sub = {};
   let query = "";
-  let start = ""
+  let start = "";
   const res = await queryWeekID();
 
   if (res.length > 0) {
     const week_id = res[0].id;
     const max_players = res[0].max;
+    const date = new Date(res[0].date);
+
     query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0";
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
-      start = "+"
+      start = "+";
     }
 
     const result = await executeQuery(query);
     if (result.length > 0) {
-      const date = new Date(res[0].date);
+      if (isFlex) {
+        const players = [];
+        const reserves = [];
+        const goalies = [];
+        const dateStr = await getFormatDate(date, 'short');
+        const titleText = type === 0 ? "คนที่ยังไม่ได้จ่ายค่าสนาม" : "ลงชื่อเตะบอล";
+
+        for (const member of result) {
+          let donate = await getDonateBadge(member.donate);
+          let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
+
+          if (type == 1) {
+            if (member.team_id == 100) {
+              goalies.push({ name: name_display, donate });
+            } else {
+              if (players.length < max_players) {
+                players.push({ name: name_display, donate });
+              } else {
+                reserves.push({ name: name_display, donate });
+              }
+            }
+          } else {
+            players.push({ name: name_display, donate });
+          }
+        }
+
+        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies);
+        return [flexJson, sub];
+      }
 
       header = `${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
       let i = 0;
@@ -1132,23 +1162,15 @@ async function getMemberWeek0(type = 0) {
       let reserve_str = "\n=== รายชื่อสำรอง ===\n";
       let goal = 0;
       let goal_str = "\n=== รายชื่อโกล์ ===\n";
-      let index = 0;
       for (const member of result) {
         let donate = await getDonateBadge(member.donate);
-        let name_display = member.name;
-        if (member.id == 116 || member.id == 16) {
-          name_display = member.alias;
-        } else {
-          name_display = member.name;
-        }
+        let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
 
         if (type == 1) {
           if (member.team_id == 100) {
             goal++;
             goal_str += (goal) + ". " + donate + name_display + "\n";
           } else {
-
-            //index = player ;
             if (player < max_players) {
               player++;
               body += (player) + ". " + donate + name_display + "\n";
@@ -1163,28 +1185,28 @@ async function getMemberWeek0(type = 0) {
         }
         i++;
       }
-      //console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`);
       let str = header + body;
       header = `+${player}`;
       if (reserve > 0) str += reserve_str;
       if (goal > 0) str += goal_str;
       if (reserve > 0) header += `(${reserve})`;
       if (goal > 0) header += `(${goal})`;
-      //if (debt_count > 0) str += debt_str;
 
       str = `${header} ${str}`;
 
       return [str, sub];
+    } else {
+      if (type == 0) {
+        header = `จ่ายครบหมดแล้ว เสาร์ที่ ${await getFormatDate(date)}`;
+      } else if (type == 1) {
+        header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้`;
+      }
+      return [header, sub];
     }
   } else {
-    if (type == 0) {
-      header = `จ่ายครบหมดแล้ว เสาร์ที่ ${await getFormatDate(date)}`;
-    } else if (type == 1) {
-      header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้`;
-    }
-    return header;
+    header = "ยังไม่มีข้อมูลสำหรับสัปดาห์นี้";
+    return [header, sub];
   }
-
 }
 
 async function getMemberWeek(type = 0) {
