@@ -271,9 +271,9 @@ function buildNowFlex(matchInfo) {
         type: 'box',
         layout: 'horizontal',
         contents: [
-          { type: 'text', text: '⚽ แมตช์ปัจจุบัน', size: 'sm', color: '#a0a8c0', flex: 0 },
-          { type: 'text', text: `[${cur.matchNo}]`, size: 'sm', color: '#a0a8c0', flex: 0, margin: 'md' },
-          { type: 'text', text: `${cur.startTime}–${cur.endTime}`, size: 'sm', color: '#a0a8c0', flex: 0, margin: 'md' }
+          { type: 'text', text: '⚽ แมตช์ปัจจุบัน', size: 'xs', color: '#a0a8c0', flex: 0 },
+          { type: 'text', text: `[${cur.matchNo}]`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' },
+          { type: 'text', text: `${cur.startTime}`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' }
         ]
       },
       // Score row: TeamA  score  TeamB
@@ -282,17 +282,17 @@ function buildNowFlex(matchInfo) {
         layout: 'horizontal',
         margin: 'md',
         contents: [
-          { type: 'text', text: cur.teamA, size: 'xl', weight: 'bold', color: tdc(cur.teamA), flex: 2, align: 'end' },
+          { type: 'text', text: cur.teamA, size: 'md', weight: 'bold', color: tdc(cur.teamA), flex: 2, align: 'end' },
           {
             type: 'text',
             text: score ? `${score.teamA} - ${score.teamB}` : 'vs',
-            size: 'xl',
+            size: 'md',
             weight: 'bold',
             color: '#e94560',
             flex: 1,
             align: 'center'
           },
-          { type: 'text', text: cur.teamB, size: 'xl', weight: 'bold', color: tdc(cur.teamB), flex: 2, align: 'start' }
+          { type: 'text', text: cur.teamB, size: 'md', weight: 'bold', color: tdc(cur.teamB), flex: 2, align: 'start' }
         ]
       }
     ]
@@ -309,8 +309,8 @@ function buildNowFlex(matchInfo) {
       layout: 'horizontal',
       margin: 'sm',
       contents: [
-        { type: 'text', text: '⚽', size: 'sm', flex: 0 },
-        { type: 'text', text: scorerText, size: 'sm', color: '#ddddff', flex: 1, margin: 'sm', wrap: true }
+        { type: 'text', text: '⚽', size: 'xs', flex: 0 },
+        { type: 'text', text: scorerText, size: 'xs', color: '#ddddff', flex: 1, margin: 'sm', wrap: true }
       ]
     });
   }
@@ -323,8 +323,8 @@ function buildNowFlex(matchInfo) {
       layout: 'horizontal',
       margin: 'xs',
       contents: [
-        { type: 'text', text: '👟', size: 'sm', flex: 0 },
-        { type: 'text', text: assistText, size: 'sm', color: '#bbddff', flex: 1, margin: 'sm', wrap: true }
+        { type: 'text', text: '👟', size: 'xs', flex: 0 },
+        { type: 'text', text: assistText, size: 'xs', color: '#bbddff', flex: 1, margin: 'sm', wrap: true }
       ]
     });
   }
@@ -348,7 +348,7 @@ function buildNowFlex(matchInfo) {
           contents: [
             { type: 'text', text: '⏭ แมตช์ถัดไป', size: 'xs', color: '#a0a8c0', flex: 0 },
             { type: 'text', text: `[${nxt.matchNo}]`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' },
-            { type: 'text', text: `${nxt.startTime}–${nxt.endTime}`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' }
+            { type: 'text', text: `${nxt.startTime}`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' }
           ]
         },
         // Teams row: TeamA  vs  TeamB
@@ -382,7 +382,7 @@ function buildNowFlex(matchInfo) {
             contents: [
               { type: 'text', text: '⏭⏭ หลังจากนั้น', size: 'xs', color: '#7878a8', flex: 0 },
               { type: 'text', text: `[${nxt2.matchNo}]`, size: 'xs', color: '#7878a8', flex: 0, margin: 'md' },
-              { type: 'text', text: `${nxt2.startTime}–${nxt2.endTime}`, size: 'xs', color: '#7878a8', flex: 0, margin: 'md' }
+              { type: 'text', text: `${nxt2.startTime}`, size: 'xs', color: '#7878a8', flex: 0, margin: 'md' }
             ]
           },
           // Teams row: TeamA  vs  TeamB
