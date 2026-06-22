@@ -527,8 +527,11 @@ function buildLiveFlex(matchInfo) {
     type: 'box',
     layout: 'horizontal',
     margin: 'sm',
+    paddingStart: 'sm',
+    paddingEnd: 'sm',
     contents: [
-      { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
+      { type: 'box', layout: 'vertical', width: '12px', height: '12px', contents: [] },
+      { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center', margin: 'md' },
       { type: 'text', text: 'เวลา', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 2, align: 'center' },
       { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 6, align: 'center' }
     ]
@@ -568,8 +571,24 @@ function buildLiveFlex(matchInfo) {
         vsText = `${scoreA} - ${scoreB}`;
       }
 
+      const statusDot = isCurrent ? {
+        type: 'image',
+        url: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Circle_green_blink.gif',
+        width: '12px',
+        height: '12px',
+        gravity: 'center',
+        animated: true
+      } : {
+        type: 'box',
+        layout: 'vertical',
+        width: '12px',
+        height: '12px',
+        contents: []
+      };
+
       const matchBoxContents = [
-        { type: 'text', text: `${m.matchNo}`, size: 'sm', color: isCurrent ? '#e94560' : '#888899', flex: 1, align: 'center', weight: isCurrent ? 'bold' : 'regular' },
+        statusDot,
+        { type: 'text', text: `${m.matchNo}`, size: 'sm', color: isCurrent ? '#e94560' : '#888899', flex: 1, align: 'center', weight: isCurrent ? 'bold' : 'regular', margin: 'md' },
         { type: 'text', text: `${m.startTime}`, size: 'sm', color: isCurrent ? '#ffffff' : '#aaaacc', flex: 2, align: 'center', weight: isCurrent ? 'bold' : 'regular' },
         {
           type: 'box',
@@ -587,12 +606,17 @@ function buildLiveFlex(matchInfo) {
       const matchContainer = {
         type: 'box',
         layout: 'horizontal',
+        paddingStart: 'sm',
+        paddingEnd: 'sm',
+        paddingTop: 'xs',
+        paddingBottom: 'xs',
         margin: 'xs',
         contents: matchBoxContents
       };
 
       if (isCurrent) {
-        matchContainer.paddingAll = 'sm';
+        matchContainer.paddingTop = 'sm';
+        matchContainer.paddingBottom = 'sm';
         matchContainer.backgroundColor = '#1f1c3a';
         matchContainer.borderWidth = 'normal';
         matchContainer.borderColor = '#e94560';
