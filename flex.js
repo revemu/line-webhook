@@ -498,14 +498,6 @@ function buildLiveFlex(matchInfo) {
         size: 'md',
         color: '#ffffff',
         align: 'center'
-      },
-      {
-        type: 'text',
-        text: `เสาร์ที่ ${date}`,
-        size: 'sm',
-        color: '#a0a8c0',
-        align: 'center',
-        margin: 'xs'
       }
     ]
   });
@@ -516,9 +508,9 @@ function buildLiveFlex(matchInfo) {
     layout: 'horizontal',
     margin: 'sm',
     contents: [
-      { type: 'text', text: `🕐 ${startTime}–${endTime}`, size: 'xs', color: '#555577', flex: 1 },
-      { type: 'text', text: `${matchMinutes} นาที/แมตช์`, size: 'xs', color: '#555577', flex: 1, align: 'center' },
-      { type: 'text', text: `${totalMatches} แมตช์`, size: 'xs', color: '#555577', flex: 1, align: 'end' }
+      { type: 'text', text: `🕐 เสาร์ที่ ${date} ${startTime}–${endTime}`, size: 'sm', color: '#555577', flex: 1 },
+      { type: 'text', text: `${matchMinutes} นาที/แมตช์`, size: 'sm', color: '#555577', flex: 1, align: 'center' },
+      { type: 'text', text: `${totalMatches} แมตช์`, size: 'sm', color: '#555577', flex: 1, align: 'end' }
     ]
   });
 
@@ -752,7 +744,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     countParts.push({ type: 'text', text: `,⏳ สำรอง: ${reserves.length}`, size: 'sm', color: '#8888aa', flex: 1, align: 'start' });
   }
 
-  countParts.push({ type: 'text', text: `⏱️ เสาร์ที่ ${dateStr}`, size: 'sm', color: '#8888aa', flex: 1, align: 'end' });
+  countParts.push({ type: 'text', text: `⏱️ เสาร์ที่ ${dateStr}`, size: 'sm', color: '#39393bff', flex: 1, align: 'end' });
 
   bodyContents.push({
     type: 'box',
