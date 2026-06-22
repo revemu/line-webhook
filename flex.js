@@ -273,7 +273,23 @@ function buildNowFlex(matchInfo) {
         type: 'box',
         layout: 'horizontal',
         contents: [
-          { type: 'text', text: '⚽ แมตช์ปัจจุบัน', size: 'xs', color: '#a0a8c0', flex: 0 },
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '12px',
+            height: '12px',
+            flex: 0,
+            contents: [
+              {
+                type: 'image',
+                url: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Circle_green_blink.gif',
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover'
+              }
+            ]
+          },
+          { type: 'text', text: 'แมตช์ปัจจุบัน', size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' },
           { type: 'text', text: `[${cur.matchNo}]`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' },
           { type: 'text', text: `${cur.startTime}`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' }
         ]
@@ -535,6 +551,7 @@ function buildLiveFlex(matchInfo) {
         layout: 'vertical',
         width: '12px',
         height: '12px',
+        flex: 0,
         contents: [
           {
             type: 'spacer'
@@ -586,6 +603,7 @@ function buildLiveFlex(matchInfo) {
         layout: 'vertical',
         width: '12px',
         height: '12px',
+        flex: 0,
         contents: [
           {
             type: 'image',
@@ -600,6 +618,7 @@ function buildLiveFlex(matchInfo) {
         layout: 'vertical',
         width: '12px',
         height: '12px',
+        flex: 0,
         contents: [
           {
             type: 'spacer'
