@@ -926,7 +926,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     countParts.push({ type: 'text', text: `,⏳ สำรอง: ${reserves.length}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'start' });
   }
 
-  countParts.push({ type: 'text', text: `⏱️ เสาร์ที่ ${dateStr}`, size: 'sm', color: colors.textMutedDark, flex: 1, align: 'end' });
+  countParts.push({ type: 'text', text: `⏱️ เสาร์ที่ ${dateStr}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'end' });
 
   bodyContents.push({
     type: 'box',
