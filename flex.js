@@ -412,7 +412,7 @@ function buildNowFlex(matchInfo) {
     });
   }
 
-  bodyContents.push({ type: 'separator', margin: 'md', color: '#2a2a4a' });
+  //bodyContents.push({ type: 'separator', margin: 'md', color: '#2a2a4a' });
 
   // ── Next Match ──
   if (nxt) {
