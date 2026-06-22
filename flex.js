@@ -613,13 +613,13 @@ function buildLiveFlex(matchInfo) {
       const statusDot = isCurrent ? {
         type: 'box',
         layout: 'vertical',
-        width: '24px',
-        height: '24px',
+        width: '64px',
+        height: '64px',
         flex: 0,
         contents: [
           {
             type: 'image',
-            url: 'https://api.revemu.org/green_pulse.png',
+            url: 'https://api.revemu.org/green_pulse_true.png',
             size: 'full',
             aspectRatio: '1:1',
             aspectMode: 'cover',
@@ -629,8 +629,8 @@ function buildLiveFlex(matchInfo) {
       } : {
         type: 'box',
         layout: 'vertical',
-        width: '24px',
-        height: '24px',
+        width: '64px',
+        height: '64px',
         flex: 0,
         contents: [
           {
