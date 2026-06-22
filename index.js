@@ -41,6 +41,11 @@ const client = new Client(config);
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
 
+// Serve green_dot.png static asset
+app.get('/green_dot.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'green_dot.png'));
+});
+
 
 // Function to get image content from LINE
 async function getImageAxios(messageId) {

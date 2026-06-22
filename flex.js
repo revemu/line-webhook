@@ -282,10 +282,11 @@ function buildNowFlex(matchInfo) {
             contents: [
               {
                 type: 'image',
-                url: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Circle_green_blink.gif',
+                url: 'https://api.revemu.org/green_dot.png',
                 size: 'full',
                 aspectRatio: '1:1',
-                aspectMode: 'cover'
+                aspectMode: 'cover',
+                animated: true
               }
             ]
           },
@@ -607,10 +608,11 @@ function buildLiveFlex(matchInfo) {
         contents: [
           {
             type: 'image',
-            url: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Circle_green_blink.gif',
+            url: 'https://api.revemu.org/green_dot.png',
             size: 'full',
             aspectRatio: '1:1',
-            aspectMode: 'cover'
+            aspectMode: 'cover',
+            animated: true
           }
         ]
       } : {
