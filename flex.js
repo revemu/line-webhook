@@ -530,7 +530,17 @@ function buildLiveFlex(matchInfo) {
     paddingStart: 'sm',
     paddingEnd: 'sm',
     contents: [
-      { type: 'box', layout: 'vertical', width: '12px', height: '12px', contents: [] },
+      {
+        type: 'box',
+        layout: 'vertical',
+        width: '12px',
+        height: '12px',
+        contents: [
+          {
+            type: 'spacer'
+          }
+        ]
+      },
       { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center', margin: 'md' },
       { type: 'text', text: 'เวลา', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 2, align: 'center' },
       { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 6, align: 'center' }
@@ -572,18 +582,29 @@ function buildLiveFlex(matchInfo) {
       }
 
       const statusDot = isCurrent ? {
-        type: 'image',
-        url: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Circle_green_blink.gif',
+        type: 'box',
+        layout: 'vertical',
         width: '12px',
         height: '12px',
-        gravity: 'center',
-        animated: true
+        contents: [
+          {
+            type: 'image',
+            url: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Circle_green_blink.gif',
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover'
+          }
+        ]
       } : {
         type: 'box',
         layout: 'vertical',
         width: '12px',
         height: '12px',
-        contents: []
+        contents: [
+          {
+            type: 'spacer'
+          }
+        ]
       };
 
       const matchBoxContents = [
