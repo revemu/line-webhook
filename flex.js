@@ -277,13 +277,13 @@ function buildNowFlex(matchInfo) {
           {
             type: 'box',
             layout: 'vertical',
-            width: '12px',
-            height: '12px',
+            width: '32px',
+            height: '32px',
             flex: 0,
             contents: [
               {
                 type: 'image',
-                url: 'https://api.revemu.org/green_dot.png',
+                url: 'https://api.revemu.org/green_pulse_true.png',
                 size: 'full',
                 aspectRatio: '1:1',
                 aspectMode: 'cover',
