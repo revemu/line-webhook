@@ -1155,7 +1155,8 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         const imgTpl = await getTemplate('register', 'header');
         const imageUrl = imgTpl ? imgTpl.url : null;
 
-        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl);
+        const theme = await getTheme();
+        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl, theme);
         let altHeader = `+${players.length}`;
         if (reserves.length > 0) altHeader += `(${reserves.length})`;
         if (goalies.length > 0) altHeader += `(${goalies.length})`;
@@ -1472,6 +1473,8 @@ ORDER BY pts DESC limit ${limit}`;
   const result = await executeQuery(query);
   if (result.length > 0) {
     const currentYear = new Date().getFullYear();
+    const theme = await getTheme();
+    const colors = flex.getThemeColors(theme);
 
     const bodyContents = [];
 
@@ -1479,7 +1482,7 @@ ORDER BY pts DESC limit ${limit}`;
     bodyContents.push({
       type: 'box',
       layout: 'vertical',
-      backgroundColor: '#1a1a2e',
+      backgroundColor: colors.bgHeader,
       paddingAll: 'md',
       cornerRadius: 'md',
       contents: [
@@ -1488,13 +1491,13 @@ ORDER BY pts DESC limit ${limit}`;
           text: `${icon} ${header}`,
           weight: 'bold',
           size: 'md',
-          color: '#ffffff',
+          color: colors.textPrimary,
           align: 'center'
         }
       ]
     });
 
-    bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
+    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
 
     // ── Rank rows ──
     const rankIcons = ['🥇', '🥈', '🥉'];
@@ -1520,6 +1523,7 @@ ORDER BY pts DESC limit ${limit}`;
             text: rankLabel,
             size: 'xs',
             flex: 0,
+            color: colors.textMuted,
             margin: 'none',
             gravity: 'center'
           },
@@ -1527,7 +1531,7 @@ ORDER BY pts DESC limit ${limit}`;
             type: 'text',
             text: displayName,
             size: 'xs',
-            color: isTop ? '#ffffff' : '#ccccee',
+            color: isTop ? colors.textPrimary : colors.textMutedLight,
             weight: isTop ? 'bold' : 'regular',
             flex: 3,
             margin: 'sm'
@@ -1536,7 +1540,7 @@ ORDER BY pts DESC limit ${limit}`;
             type: 'text',
             text: valText,
             size: 'xs',
-            color: isTop ? '#e94560' : '#aaaacc',
+            color: isTop ? colors.textAccent : colors.textMutedLight,
             weight: isTop ? 'bold' : 'regular',
             flex: 2,
             align: 'end'
@@ -1551,7 +1555,7 @@ ORDER BY pts DESC limit ${limit}`;
       header: {
         type: 'box',
         layout: 'vertical',
-        backgroundColor: '#0f3460',
+        backgroundColor: colors.bgHeader,
         paddingAll: 'none',
         contents: [
           {
@@ -1566,7 +1570,7 @@ ORDER BY pts DESC limit ${limit}`;
       body: {
         type: 'box',
         layout: 'vertical',
-        backgroundColor: '#0d0d1a',
+        backgroundColor: colors.bgMain,
         paddingAll: 'sm',
         contents: bodyContents
       }
@@ -2061,6 +2065,32 @@ async function getCurrentMatch() {
   return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, weekId: sched.weekId, date: sched.date, imageUrl };
 }
 
+async function getTheme() {
+  try {
+    const query = "SELECT value FROM template_tpl WHERE name = 'theme'";
+    const result = await executeQuery(query);
+    if (result && result.length > 0) {
+      return result[0].value;
+    }
+  } catch (err) {
+    console.error('Failed to get theme, defaulting to black:', err.message);
+  }
+  return 'black';
+}
+
+async function setTheme(themeName) {
+  const theme = themeName.toLowerCase() === 'white' ? 'white' : 'black';
+  const checkQuery = "SELECT id FROM template_tpl WHERE name = 'theme'";
+  const rows = await executeQuery(checkQuery);
+  if (rows.length > 0) {
+    const updateQuery = "UPDATE template_tpl SET value = ? WHERE name = 'theme'";
+    return await executeQuery(updateQuery, [theme]);
+  } else {
+    const insertQuery = "INSERT INTO template_tpl (id, name, value) VALUES (null, 'theme', ?)";
+    return await executeQuery(insertQuery, [theme]);
+  }
+}
+
 module.exports = {
   testConnection,
   executeQuery,
@@ -2093,5 +2123,7 @@ module.exports = {
   registerNY,
   getDebtList,
   getScheduleText,
-  getCurrentMatch
+  getCurrentMatch,
+  getTheme,
+  setTheme
 };

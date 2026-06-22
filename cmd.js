@@ -233,11 +233,21 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'topassist':
             msg = "ให้ใช้ /top แทน";
             break;
+        case 'theme':
+            if (param === 'black' || param === 'white') {
+                await db.setTheme(param);
+                msg = `เปลี่ยนธีมเป็น ${param} เรียบร้อยครับ`;
+            } else {
+                msg = `กรุณาระบุธีม: /theme black หรือ /theme white`;
+            }
+            msg_type = 0;
+            break;
         case 'schedule': {
+            const theme = await db.getTheme();
             const schedStart = param !== '' ? param : '17:00';
             const [schedText, schedJson] = await db.getScheduleText(schedStart, 8, 2, 3);
             if (schedJson) {
-                msg = flex.buildScheduleFlex(schedJson);
+                msg = flex.buildScheduleFlex(schedJson, theme);
                 altText = `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`;
                 msg_type = 1;
             } else {
@@ -246,6 +256,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             break;
         }
         case 'now': {
+            const theme = await db.getTheme();
             const matchInfo = await db.getCurrentMatch();
             if (!matchInfo) {
                 msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
@@ -256,19 +267,20 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 msg = 'ยังไม่มีข้อมูลแมตช์ปัจจุบัน';
                 break;
             }
-            msg = flex.buildNowFlex(matchInfo);
+            msg = flex.buildNowFlex(matchInfo, theme);
             altText = `⚽ แมตช์ปัจจุบัน [${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}`;
             msg_type = 1;
             break;
         }
         case 'live': {
+            const theme = await db.getTheme();
             const matchInfo = await db.getCurrentMatch();
             if (!matchInfo || !matchInfo.sched) {
                 msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
                 break;
             }
             const cur = matchInfo.currentMatch;
-            msg = flex.buildLiveFlex(matchInfo);
+            msg = flex.buildLiveFlex(matchInfo, theme);
             altText = `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''}`;
             msg_type = 1;
             break;
