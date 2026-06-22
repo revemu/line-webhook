@@ -746,11 +746,13 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   const countParts = [];
   countParts.push({ type: 'text', text: `👤 ลงชื่อ: ${players.length}/${maxPlayers}`, size: 'sm', color: '#8888aa', flex: 1 });
   if (goalies.length > 0) {
-    countParts.push({ type: 'text', text: `🧤 โกล์: ${goalies.length}`, size: 'sm', color: '#8888aa', flex: 1, align: 'center' });
+    countParts.push({ type: 'text', text: `,🧤 โกล์: ${goalies.length}`, size: 'sm', color: '#8888aa', flex: 1, align: 'start' });
   }
   if (reserves.length > 0) {
-    countParts.push({ type: 'text', text: `⏳ สำรอง: ${reserves.length}`, size: 'sm', color: '#8888aa', flex: 1, align: 'end' });
+    countParts.push({ type: 'text', text: `,⏳ สำรอง: ${reserves.length}`, size: 'sm', color: '#8888aa', flex: 1, align: 'start' });
   }
+
+  countParts.push({ type: 'text', text: `⏱️ เสาร์ที่ ${dateStr}`, size: 'sm', color: '#8888aa', flex: 1, align: 'end' });
 
   bodyContents.push({
     type: 'box',
@@ -765,8 +767,8 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   if (players.length > 0) {
     bodyContents.push({
       type: 'text',
-      text: `▶ รายชื่อ @ เสาร์ที่ ${dateStr}`,
-      size: 'xs',
+      text: `▶ รายชื่อ`,
+      size: 'sm',
       weight: 'bold',
       color: '#e94560',
       margin: 'sm'
