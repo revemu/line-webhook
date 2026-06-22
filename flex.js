@@ -256,6 +256,90 @@ function buildScheduleFlex(sched) {
 function buildNowFlex(matchInfo) {
   const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table } = matchInfo;
 
+  const makeHeaderContents = (iconType, iconText, titleText, matchNo, startTime, useLightColor) => {
+    const textColor = useLightColor ? '#a0a8c0' : '#7878a8';
+    return [
+      {
+        type: 'box',
+        layout: 'vertical',
+        width: '32px',
+        height: '32px',
+        flex: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        contents: iconType === 'image' ? [
+          {
+            type: 'image',
+            url: iconText,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            animated: true
+          }
+        ] : [
+          {
+            type: 'text',
+            text: iconText,
+            size: 'xs',
+            color: textColor,
+            align: 'center',
+            gravity: 'center'
+          }
+        ]
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        width: '80px',
+        flex: 0,
+        justifyContent: 'center',
+        contents: [
+          {
+            type: 'text',
+            text: titleText,
+            size: 'xs',
+            color: textColor,
+            gravity: 'center'
+          }
+        ]
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        width: '35px',
+        flex: 0,
+        justifyContent: 'center',
+        contents: [
+          {
+            type: 'text',
+            text: `[${matchNo}]`,
+            size: 'xs',
+            color: textColor,
+            align: 'center',
+            gravity: 'center'
+          }
+        ]
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        width: '50px',
+        flex: 0,
+        justifyContent: 'center',
+        contents: [
+          {
+            type: 'text',
+            text: startTime,
+            size: 'xs',
+            color: textColor,
+            align: 'center',
+            gravity: 'center'
+          }
+        ]
+      }
+    ];
+  };
+
   const bodyContents = [];
 
   // ── Current Match ──
@@ -273,28 +357,7 @@ function buildNowFlex(matchInfo) {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
-        contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            width: '32px',
-            height: '32px',
-            flex: 0,
-            contents: [
-              {
-                type: 'image',
-                url: 'https://api.revemu.org/green_pulse_true.png',
-                size: 'full',
-                aspectRatio: '1:1',
-                aspectMode: 'cover',
-                animated: true
-              }
-            ]
-          },
-          { type: 'text', text: 'แมตช์ปัจจุบัน', size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' },
-          { type: 'text', text: `[${cur.matchNo}]`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' },
-          { type: 'text', text: `${cur.startTime}`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' }
-        ]
+        contents: makeHeaderContents('image', 'https://api.revemu.org/green_pulse_true.png', 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
       },
       // Score row: TeamA  score  TeamB
       {
@@ -365,11 +428,8 @@ function buildNowFlex(matchInfo) {
         {
           type: 'box',
           layout: 'horizontal',
-          contents: [
-            { type: 'text', text: '⏭ แมตช์ถัดไป', size: 'xs', color: '#a0a8c0', flex: 0 },
-            { type: 'text', text: `[${nxt.matchNo}]`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' },
-            { type: 'text', text: `${nxt.startTime}`, size: 'xs', color: '#a0a8c0', flex: 0, margin: 'md' }
-          ]
+          alignItems: 'center',
+          contents: makeHeaderContents('text', '⏭', 'แมตช์ถัดไป', nxt.matchNo, nxt.startTime, true)
         },
         // Teams row: TeamA  vs  TeamB
         {
@@ -399,11 +459,8 @@ function buildNowFlex(matchInfo) {
           {
             type: 'box',
             layout: 'horizontal',
-            contents: [
-              { type: 'text', text: '⏭⏭ หลังจากนั้น', size: 'xs', color: '#7878a8', flex: 0 },
-              { type: 'text', text: `[${nxt2.matchNo}]`, size: 'xs', color: '#7878a8', flex: 0, margin: 'md' },
-              { type: 'text', text: `${nxt2.startTime}`, size: 'xs', color: '#7878a8', flex: 0, margin: 'md' }
-            ]
+            alignItems: 'center',
+            contents: makeHeaderContents('text', '⏭⏭', 'หลังจากนั้น', nxt2.matchNo, nxt2.startTime, false)
           },
           // Teams row: TeamA  vs  TeamB
           {
