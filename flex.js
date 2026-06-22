@@ -277,8 +277,8 @@ function buildNowFlex(matchInfo) {
           {
             type: 'box',
             layout: 'vertical',
-            width: '32px',
-            height: '32px',
+            width: '48px',
+            height: '48px',
             flex: 0,
             contents: [
               {
