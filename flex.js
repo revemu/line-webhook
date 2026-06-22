@@ -272,6 +272,7 @@ function buildNowFlex(matchInfo) {
       {
         type: 'box',
         layout: 'horizontal',
+        align: 'center',
         contents: [
           {
             type: 'box',
@@ -546,6 +547,7 @@ function buildLiveFlex(matchInfo) {
     margin: 'sm',
     paddingStart: 'sm',
     paddingEnd: 'sm',
+    align: 'center',
     contents: [
       {
         type: 'box',
@@ -636,6 +638,7 @@ function buildLiveFlex(matchInfo) {
           type: 'box',
           layout: 'horizontal',
           flex: 6,
+          align: 'center',
           contents: [
             { type: 'text', text: m.teamA, size: 'sm', color: tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
             { type: 'text', text: vsText, size: 'sm', color: isCurrent ? '#e94560' : '#888899', align: 'center', flex: 1, weight: dbMatch || isCurrent ? 'bold' : 'regular' },
@@ -653,6 +656,7 @@ function buildLiveFlex(matchInfo) {
         paddingTop: 'xs',
         paddingBottom: 'xs',
         margin: 'xs',
+        align: 'center',
         contents: matchBoxContents
       };
 
