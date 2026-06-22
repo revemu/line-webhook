@@ -501,7 +501,7 @@ function buildLiveFlex(matchInfo) {
       },
       {
         type: 'text',
-        text: `เสาร์ที่ ${date} ${startTime}–${endTime}`,
+        text: `🕐 ${date} ${startTime}–${endTime}`,
         size: 'sm',
         color: '#a0a8c0',
         align: 'center',
