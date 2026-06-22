@@ -551,17 +551,26 @@ function buildLiveFlex(matchInfo) {
     contents: [
       {
         type: 'box',
-        layout: 'vertical',
-        width: '12px',
-        height: '12px',
-        flex: 0,
+        layout: 'horizontal',
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
         contents: [
           {
-            type: 'spacer'
-          }
+            type: 'box',
+            layout: 'vertical',
+            width: '12px',
+            height: '12px',
+            flex: 0,
+            contents: [
+              {
+                type: 'spacer'
+              }
+            ]
+          },
+          { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 0, margin: 'xs' }
         ]
       },
-      { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center', margin: 'md' },
       { type: 'text', text: 'เวลา', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 2, align: 'center' },
       { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 6, align: 'center' }
     ]
@@ -631,8 +640,17 @@ function buildLiveFlex(matchInfo) {
       };
 
       const matchBoxContents = [
-        statusDot,
-        { type: 'text', text: `${m.matchNo}`, size: 'sm', color: isCurrent ? '#e94560' : '#888899', flex: 1, align: 'center', weight: isCurrent ? 'bold' : 'regular', margin: 'md' },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          contents: [
+            statusDot,
+            { type: 'text', text: `${m.matchNo}`, size: 'sm', color: isCurrent ? '#e94560' : '#888899', flex: 0, weight: isCurrent ? 'bold' : 'regular', margin: 'xs' }
+          ]
+        },
         { type: 'text', text: `${m.startTime}`, size: 'sm', color: isCurrent ? '#ffffff' : '#aaaacc', flex: 2, align: 'center', weight: isCurrent ? 'bold' : 'regular' },
         {
           type: 'box',
