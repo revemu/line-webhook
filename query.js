@@ -1942,9 +1942,11 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   // ── Sync with match_stat_tbl to find current & next match ──
   let currentMatchNo = 1;
   let nextMatchNo = 2;
+  let dbMatches = [];
   try {
-    const dbMatches = await queryMatchWeek(week_id);
-    if (dbMatches && dbMatches.length > 0) {
+    const rows = await queryMatchWeek(week_id);
+    if (rows && rows.length > 0) {
+      dbMatches = rows;
       // Highest match_num recorded in DB = the match currently in progress (or last played)
       const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
       currentMatchNo = maxDbMatchNum;
@@ -1957,6 +1959,14 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
 
   const currentMatch = scheduleMatches.find(m => m.matchNo === currentMatchNo) || scheduleMatches[0];
   const nextMatch = scheduleMatches.find(m => m.matchNo === nextMatchNo) || null;
+
+  let imageUrl = null;
+  try {
+    const imgTpl = await getTemplate('schedule', 'header');
+    imageUrl = imgTpl ? imgTpl.url : null;
+  } catch (err) {
+    console.error('[schedule] failed to query template image:', err.message);
+  }
 
   const scheduleJson = {
     generatedAt: new Date().toISOString(),
@@ -1972,6 +1982,8 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     endTime: toTime(startTotal + scheduleMatches.length * slotMin),
     currentMatch,
     nextMatch,
+    imageUrl,
+    dbMatches,
     matches: scheduleMatches
   };
 

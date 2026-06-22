@@ -179,25 +179,25 @@ function buildScheduleFlex(sched, theme) {
   // ── Header block ──
   bodyContents.push({
     type: 'box',
-    layout: 'vertical',
+    layout: 'horizontal',
     backgroundColor: colors.bgHeader,
     paddingAll: 'md',
     cornerRadius: 'md',
     contents: [
       {
         type: 'text',
-        text: `⚽ ตารางแข่งขัน`,
+        text: '⚽ ตารางแข่งขัน',
         weight: 'bold',
-        size: 'lg',
+        size: 'md',
         color: colors.textPrimary,
-        align: 'center'
+        align: 'start'
       },
       {
         type: 'text',
-        text: `เสาร์ที่ ${date}`,
+        text: `🕐 เสาร์ที่ ${date} ${startTime}–${endTime}`,
         size: 'sm',
         color: colors.textMuted,
-        align: 'center',
+        align: 'end',
         margin: 'xs'
       }
     ]
@@ -209,8 +209,8 @@ function buildScheduleFlex(sched, theme) {
     layout: 'horizontal',
     margin: 'sm',
     contents: [
-      { type: 'text', text: `🕐 ${startTime}–${endTime}`, size: 'sm', color: colors.textMutedDark, flex: 1 },
-      { type: 'text', text: `${matchMinutes} นาที/แมตช์`, size: 'sm', color: colors.textMutedDark, flex: 1, align: 'center' },
+      { type: 'text', text: `⏱️ ${matchMinutes} นาที/แมตช์`, size: 'sm', color: colors.textMutedDark, flex: 1 },
+      { type: 'text', text: `${totalRounds} รอบ`, size: 'sm', color: colors.textMutedDark, flex: 1, align: 'center' },
       { type: 'text', text: `${totalMatches} แมตช์`, size: 'sm', color: colors.textMutedDark, flex: 1, align: 'end' }
     ]
   });
@@ -222,10 +222,13 @@ function buildScheduleFlex(sched, theme) {
     type: 'box',
     layout: 'horizontal',
     margin: 'sm',
+    paddingStart: 'sm',
+    paddingEnd: 'sm',
+    alignItems: 'center',
     contents: [
-      { type: 'text', text: '#', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-      { type: 'text', text: 'เวลา', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
-      { type: 'text', text: 'ทีม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 6, align: 'center' }
+      { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+      { type: 'text', text: 'เวลา', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
+      { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 6, align: 'center' }
     ]
   });
 
@@ -243,15 +246,33 @@ function buildScheduleFlex(sched, theme) {
       paddingBottom: 'xs',
       cornerRadius: 'sm',
       contents: [
-        { type: 'text', text: `▶ รอบที่ ${roundNum}`, size: 'sm', weight: 'bold', color: colors.textAccent }
+        { type: 'text', text: `▶ รอบที่ ${roundNum}`, size: 'xs', weight: 'bold', color: colors.textAccent }
       ]
     });
 
     for (const m of roundMatches) {
+      // Check if match was played
+      const dbMatch = sched.dbMatches && sched.dbMatches.find(dm => dm.match_num === m.matchNo);
+      let vsText = 'vs';
+      if (dbMatch) {
+        let scoreA = dbMatch.team_a_goal;
+        let scoreB = dbMatch.team_b_goal;
+        if (dbMatch.team_a_id === m.teamBId) {
+          scoreA = dbMatch.team_b_goal;
+          scoreB = dbMatch.team_a_goal;
+        }
+        vsText = `${scoreA} - ${scoreB}`;
+      }
+
       bodyContents.push({
         type: 'box',
         layout: 'horizontal',
+        paddingStart: 'sm',
+        paddingEnd: 'sm',
+        paddingTop: 'xs',
+        paddingBottom: 'xs',
         margin: 'xs',
+        alignItems: 'center',
         contents: [
           { type: 'text', text: `${m.matchNo}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'center' },
           { type: 'text', text: `${m.startTime}`, size: 'sm', color: colors.textMutedLight, flex: 2, align: 'center' },
@@ -259,9 +280,10 @@ function buildScheduleFlex(sched, theme) {
             type: 'box',
             layout: 'horizontal',
             flex: 6,
+            alignItems: 'center',
             contents: [
               { type: 'text', text: m.teamA, size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
-              { type: 'text', text: 'vs', size: 'sm', color: colors.textMuted, align: 'center', flex: 1 },
+              { type: 'text', text: vsText, size: 'sm', color: colors.textMuted, align: 'center', flex: 1, weight: dbMatch ? 'bold' : 'regular' },
               { type: 'text', text: m.teamB, size: 'sm', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
             ]
           }
@@ -282,7 +304,7 @@ function buildScheduleFlex(sched, theme) {
 
   return {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     header: {
       type: 'box',
       layout: 'vertical',
@@ -291,9 +313,9 @@ function buildScheduleFlex(sched, theme) {
       contents: [
         {
           type: 'image',
-          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          url: sched.imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
           size: 'full',
-          aspectRatio: '20:7',
+          aspectRatio: '10:3',
           aspectMode: 'cover'
         }
       ]
