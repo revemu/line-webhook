@@ -1716,7 +1716,7 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   let bestMaxStreak = Infinity;
   let bestStreakDiff = Infinity;
   let steps = 0;
-  const maxSteps = 10000;
+  const maxSteps = 200000;
 
   const schedule = [];
   const totalRoundsCount = Math.ceil(maxMatches / cycleLen);
@@ -1776,7 +1776,6 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
       if (roundUsedPairs[roundIdx].has(pIdx)) continue;
 
       const [a, b] = allPairs[pIdx];
-
       // Ensure distinct starting matchups for each round
       if (isRoundStart) {
         let duplicateStart = false;
@@ -1793,6 +1792,18 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
       const aC = lastPlay[a] === slot - 1 ? consecPlay[a] : 0;
       const bC = lastPlay[b] === slot - 1 ? consecPlay[b] : 0;
       if (aC >= 2 || bC >= 2) continue;
+
+      // Special constraint: match 1 and match 2 of each round must not share any team (no 2-streak between match 1 & 2)
+      if (numTeams >= 4 && slot % cycleLen === 1) {
+        const [prevA, prevB] = schedule[slot - 1];
+        if (a === prevA || a === prevB || b === prevA || b === prevB) continue;
+      }
+
+      // Special constraint: opening match of Round 2 must not share any team with Round 1 opening match
+      if (numTeams >= 4 && slot === cycleLen) {
+        const [prevStartA, prevStartB] = schedule[0];
+        if (a === prevStartA || a === prevStartB || b === prevStartA || b === prevStartB) continue;
+      }
 
       // Hard rest constraint: no team rests 3 in a row
       let restOk = true;
