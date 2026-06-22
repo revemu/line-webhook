@@ -504,7 +504,7 @@ function buildLiveFlex(matchInfo) {
         text: `🕐 ${date} ${startTime}–${endTime}`,
         size: 'sm',
         color: '#a0a8c0',
-        align: 'center',
+        align: 'end',
         margin: 'xs'
       }
     ]
