@@ -486,7 +486,7 @@ function buildLiveFlex(matchInfo) {
   // ── Header block ──
   bodyContents.push({
     type: 'box',
-    layout: 'vertical',
+    layout: 'horizontal',
     backgroundColor: '#1a1a2e',
     paddingAll: 'md',
     cornerRadius: 'md',
