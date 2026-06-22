@@ -272,13 +272,14 @@ function buildNowFlex(matchInfo) {
       {
         type: 'box',
         layout: 'horizontal',
-        alignItems: 'start',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
         contents: [
           {
             type: 'box',
             layout: 'vertical',
-            width: '32px',
-            height: '32px',
+            width: '48px',
+            height: '48px',
             flex: 0,
             contents: [
               {
