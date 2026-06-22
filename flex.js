@@ -964,7 +964,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
               layout: 'vertical',
               width: '22px',
               contents: [
-                { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMutedDark, align: 'end' }
+                { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMuted, align: 'end' }
               ]
             },
             { type: 'text', text: `${p1.donate}${p1.name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
@@ -983,7 +983,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
               layout: 'vertical',
               width: '22px',
               contents: [
-                { type: 'text', text: `${i + 2}.`, size: 'sm', color: colors.textMutedDark, align: 'end' }
+                { type: 'text', text: `${i + 2}.`, size: 'sm', color: colors.textMuted, align: 'end' }
               ]
             },
             { type: 'text', text: `${p2.donate}${p2.name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
@@ -1032,7 +1032,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
             layout: 'vertical',
             width: '22px',
             contents: [
-              { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMutedDark, align: 'end' }
+              { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMuted, align: 'end' }
             ]
           },
           { type: 'text', text: `${goalies[i].donate}${goalies[i].name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
@@ -1070,7 +1070,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
             layout: 'vertical',
             width: '22px',
             contents: [
-              { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMutedDark, align: 'end' }
+              { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMuted, align: 'end' }
             ]
           },
           { type: 'text', text: `${reserves[i].donate}${reserves[i].name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
