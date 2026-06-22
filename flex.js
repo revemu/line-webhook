@@ -508,9 +508,7 @@ function buildLiveFlex(matchInfo) {
     layout: 'horizontal',
     margin: 'sm',
     contents: [
-      { type: 'text', text: `🕐 ${date} ${startTime}–${endTime}`, size: 'sm', color: '#555577', flex: 1 },
-      { type: 'text', text: `${matchMinutes} นาที/แมตช์`, size: 'sm', color: '#555577', flex: 1, align: 'end' },
-      { type: 'text', text: `${totalMatches} แมตช์`, size: 'sm', color: '#555577', flex: 1, align: 'end' }
+      { type: 'text', text: `🕐 ${date} ${startTime}–${endTime}`, size: 'sm', color: '#555577', flex: 2 }
     ]
   });
 
