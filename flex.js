@@ -619,7 +619,7 @@ function buildLiveFlex(matchInfo) {
         contents: [
           {
             type: 'image',
-            url: 'https://api.revemu.org/green_dot1.png',
+            url: 'https://api.revemu.org/green_pulse.png',
             size: 'full',
             aspectRatio: '1:1',
             aspectMode: 'cover',
