@@ -269,7 +269,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             const cur = matchInfo.currentMatch;
             msg = flex.buildLiveFlex(matchInfo);
-            altText = `⚽ ติดตามการแข่งขัน ${cur ? `[${cur.matchNo}]` : ''}`;
+            altText = `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''}`;
             msg_type = 1;
             break;
         }
