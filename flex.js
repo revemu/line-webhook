@@ -497,20 +497,28 @@ function buildLiveFlex(matchInfo) {
         weight: 'bold',
         size: 'md',
         color: '#ffffff',
-        align: 'center'
+        align: 'start'
+      },
+      {
+        type: 'text',
+        text: `เสาร์ที่ ${date} ${startTime}–${endTime}`,
+        size: 'sm',
+        color: '#a0a8c0',
+        align: 'center',
+        margin: 'xs'
       }
     ]
   });
 
   // ── Info row ──
-  bodyContents.push({
+  /*bodyContents.push({
     type: 'box',
     layout: 'horizontal',
     margin: 'sm',
     contents: [
       { type: 'text', text: `🕐 ${date} ${startTime}–${endTime}`, size: 'sm', color: '#555577', flex: 2 }
     ]
-  });
+  });*/
 
   bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
 
