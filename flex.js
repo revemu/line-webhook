@@ -613,8 +613,8 @@ function buildLiveFlex(matchInfo) {
       const statusDot = isCurrent ? {
         type: 'box',
         layout: 'vertical',
-        width: '24px',
-        height: '24px',
+        width: '32px',
+        height: '32px',
         flex: 0,
         contents: [
           {
@@ -629,8 +629,8 @@ function buildLiveFlex(matchInfo) {
       } : {
         type: 'box',
         layout: 'vertical',
-        width: '24px',
-        height: '24px',
+        width: '32px',
+        height: '32px',
         flex: 0,
         contents: [
           {
