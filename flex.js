@@ -941,11 +941,11 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   // Subtitle showing counts
   const countParts = [];
   countParts.push({ type: 'text', text: `👤 ลงชื่อ: ${players.length}/${maxPlayers}`, size: 'sm', color: colors.textMuted, flex: 1 });
-  if (goalies.length > 0) {
-    countParts.push({ type: 'text', text: `,🧤 โกล์: ${goalies.length}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'start' });
-  }
   if (reserves.length > 0) {
     countParts.push({ type: 'text', text: `,⏳ สำรอง: ${reserves.length}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'start' });
+  }
+  if (goalies.length > 0) {
+    countParts.push({ type: 'text', text: `,🧤 โกล์: ${goalies.length}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'start' });
   }
 
   countParts.push({ type: 'text', text: `⏱️ เสาร์ที่ ${dateStr}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'end' });
@@ -1030,44 +1030,6 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     });
   }
 
-  // Goalies section
-  if (goalies.length > 0) {
-    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
-    bodyContents.push({
-      type: 'text',
-      text: '🧤 รายชื่อโกล์',
-      size: 'sm',
-      weight: 'bold',
-      color: colors.name === 'white' ? '#15803d' : '#44cc66',
-      margin: 'sm'
-    });
-
-    const goalieRows = [];
-    for (let i = 0; i < goalies.length; i++) {
-      goalieRows.push({
-        type: 'box',
-        layout: 'horizontal',
-        margin: 'xs',
-        contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            width: '22px',
-            contents: [
-              { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMuted, align: 'end' }
-            ]
-          },
-          { type: 'text', text: `${goalies[i].donate}${goalies[i].name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
-        ]
-      });
-    }
-    bodyContents.push({
-      type: 'box',
-      layout: 'vertical',
-      contents: goalieRows
-    });
-  }
-
   // Reserves section
   if (reserves.length > 0) {
     bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
@@ -1103,6 +1065,44 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       type: 'box',
       layout: 'vertical',
       contents: reserveRows
+    });
+  }
+
+  // Goalies section
+  if (goalies.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+    bodyContents.push({
+      type: 'text',
+      text: '🧤 รายชื่อโกล์',
+      size: 'sm',
+      weight: 'bold',
+      color: colors.name === 'white' ? '#15803d' : '#44cc66',
+      margin: 'sm'
+    });
+
+    const goalieRows = [];
+    for (let i = 0; i < goalies.length; i++) {
+      goalieRows.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '22px',
+            contents: [
+              { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMuted, align: 'end' }
+            ]
+          },
+          { type: 'text', text: `${goalies[i].donate}${goalies[i].name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
+        ]
+      });
+    }
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      contents: goalieRows
     });
   }
 
