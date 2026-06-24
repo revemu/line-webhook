@@ -940,14 +940,15 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
 
   // Subtitle showing counts
   const countParts = [];
-  countParts.push({ type: 'text', text: `👤 ลงชื่อ: ${players.length}/${maxPlayers}`, size: 'sm', color: colors.textMuted, flex: 1 });
+  let text_row = `👤 ลงชื่อ: ${players.length}/${maxPlayers}`;
+
   if (reserves.length > 0) {
-    countParts.push({ type: 'text', text: `,⏳ สำรอง: ${reserves.length}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'start' });
+    text_row += `, ⏳ สำรอง: ${reserves.length}`;
   }
   if (goalies.length > 0) {
-    countParts.push({ type: 'text', text: `,🧤 โกล์: ${goalies.length}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'start' });
+    text_row += `,🧤 โกล์: ${goalies.length}`;
   }
-
+  countParts.push({ type: 'text', text: `${text_row}`, size: 'sm', color: colors.textMuted, flex: 1 });
   countParts.push({ type: 'text', text: `⏱️ เสาร์ที่ ${dateStr}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'end' });
 
   bodyContents.push({
