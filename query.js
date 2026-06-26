@@ -1657,8 +1657,11 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     return 'ยังไม่มีข้อมูลทีมในสัปดาห์นี้ (ใช้คำสั่ง randomteam ก่อน)';
   }
 
+  // Shuffle a copy of the team colors to randomize starting team assignments and increase schedule variety
+  const shuffledColors = shuffleArray([...team_colors.slice(0, 4)]);
+
   // Build team list (up to 4)
-  const teams = team_colors.slice(0, 4).map(t => t.color);
+  const teams = shuffledColors.map(t => t.color);
   const numTeams = teams.length;
 
   // Number of unique pairs in one round-robin cycle
@@ -1722,6 +1725,8 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
       allPairs.push([i, j]);
     }
   }
+  // Shuffle the candidate matchup pairs to randomise search order and schedule variety
+  shuffleArray(allPairs);
 
   let bestSchedule = null;
   let bestMaxStreak = Infinity;
@@ -1946,9 +1951,9 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     startTime: toTime(startTotal + i * slotMin),
     endTime: toTime(startTotal + i * slotMin + matchMin),
     teamA: teams[m[0]],
-    teamAId: team_colors[m[0]].id,
+    teamAId: shuffledColors[m[0]].id,
     teamB: teams[m[1]],
-    teamBId: team_colors[m[1]].id,
+    teamBId: shuffledColors[m[1]].id,
     resting: teams.filter((_, idx) => idx !== m[0] && idx !== m[1])
   }));
 
