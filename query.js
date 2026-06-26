@@ -1645,7 +1645,7 @@ async function getDebtList(type = 0) {
 }
 
 
-async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 2, totalHours = 3) {
+async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 2, totalHours = 3, endTimeStr = null) {
   // Fetch current week team colors
   const week = await queryWeekID();
   if (!week || week.length === 0) return 'ยังไม่มีข้อมูลสัปดาห์นี้';
@@ -1667,8 +1667,19 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   // Parse start time and slot sizes (support both '17:30' and '17.30')
   const [startH, startM] = startTimeStr.replace('.', ':').split(':').map(Number);
   const startTotal = startH * 60 + (startM || 0);
+
+  let calculatedTotalHours = totalHours;
+  if (endTimeStr) {
+    const [endH, endM] = endTimeStr.replace('.', ':').split(':').map(Number);
+    let endTotal = endH * 60 + (endM || 0);
+    if (endTotal < startTotal) {
+      endTotal += 1440; // wrap around midnight
+    }
+    calculatedTotalHours = (endTotal - startTotal) / 60;
+  }
+
   const slotMin = matchMin + breakMin;
-  const maxMatches = Math.floor((totalHours * 60) / slotMin);
+  const maxMatches = Math.floor((calculatedTotalHours * 60) / slotMin);
 
   // Build pool using a rotating-anchor approach (matching the reference schedule).
   //
@@ -1908,7 +1919,8 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   const lines = [];
   lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${dateStr}`);
   lines.push(`🕐 เริ่ม ${startTimeStr} น. | ${matchMin} นาที/แมตช์`);
-  lines.push(`👥 ${numTeams} ทีม | ${matchups.length} แมตช์ (${totalRounds} รอบ) | ${totalHours} ชม.`);
+  const displayHours = Number(calculatedTotalHours.toFixed(2));
+  lines.push(`👥 ${numTeams} ทีม | ${matchups.length} แมตช์ (${totalRounds} รอบ) | ${displayHours} ชม.`);
   lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
   lines.push('─'.repeat(30));
 
@@ -1975,7 +1987,7 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     startTime: startTimeStr,
     matchMinutes: matchMin,
     breakMinutes: breakMin,
-    totalHours: totalHours,
+    totalHours: Number(calculatedTotalHours.toFixed(2)),
     teams: teams,
     totalMatches: scheduleMatches.length,
     totalRounds: totalRounds,

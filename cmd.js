@@ -244,8 +244,30 @@ async function process_cmd(cmd_str, member, quoteToken) {
             break;
         case 'schedule': {
             const theme = await db.getTheme();
-            const schedStart = param !== '' ? param : '17:00';
-            const [schedText, schedJson] = await db.getScheduleText(schedStart, 8, 2, 3);
+            const args = param.split(/\s+/).filter(Boolean);
+            let startTime = '17:00';
+            let endTime = null;
+            let matchDuration = 8;
+
+            if (args.length > 0) {
+                startTime = args[0];
+            }
+            if (args.length > 1) {
+                if (args[1].includes(':') || args[1].includes('.')) {
+                    endTime = args[1];
+                } else {
+                    matchDuration = parseInt(args[1], 10) || 8;
+                }
+            }
+            if (args.length > 2) {
+                if (args[2].includes(':') || args[2].includes('.')) {
+                    endTime = args[2];
+                } else {
+                    matchDuration = parseInt(args[2], 10) || 8;
+                }
+            }
+
+            const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, 2, 3, endTime);
             if (schedJson) {
                 msg = flex.buildScheduleFlex(schedJson, theme);
                 altText = `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`;
