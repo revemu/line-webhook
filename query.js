@@ -1936,7 +1936,8 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   });
 
   lines.push('─'.repeat(30));
-  lines.push(`สิ้นสุด ${toTime(startTotal + matchups.length * slotMin)} น.`);
+  const displayEndTime = endTimeStr ? endTimeStr.replace('.', ':') : toTime(startTotal + matchups.length * slotMin);
+  lines.push(`สิ้นสุด ${displayEndTime} น.`);
 
   // ── Build schedule JSON ──
   const scheduleMatches = matchups.map((m, i) => ({
@@ -1991,7 +1992,7 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     teams: teams,
     totalMatches: scheduleMatches.length,
     totalRounds: totalRounds,
-    endTime: toTime(startTotal + scheduleMatches.length * slotMin),
+    endTime: endTimeStr ? endTimeStr.replace('.', ':') : toTime(startTotal + scheduleMatches.length * slotMin),
     currentMatch,
     nextMatch,
     imageUrl,
