@@ -69,7 +69,7 @@ async function testConnection() {
           "('donate_color', '100', '#10b981'), " + // emerald/green
           "('donate_color', '200', '#3b82f6'), " + // blue
           "('donate_color', '300', '#f59e0b'), " + // amber/gold
-          "('donate_color', '500', '#ec4899')");   // pink/rose
+          "('donate_color', '500', '#f0e112ff')");   // pink/rose
         console.log('✅ Default donate colors inserted successfully');
       }
     } catch (migErr) {
@@ -125,7 +125,7 @@ async function executeQuery(query, params = []) {
 function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge) {
   let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
   name_display = (name_display || '').replace('@', '');
-  
+
   const badgeInfo = badges[String(member.rank || 0)] || null;
   let badgeUrl = badgeInfo ? badgeInfo.url : null;
   const badgeSize = badgeInfo ? (badgeInfo.size || '20px') : '20px';
@@ -1175,7 +1175,7 @@ async function getTeamWeek(week_id = 0) {
           ]
         });*/
 
-        bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
+        //bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
 
         // ── Member list ──
         query = `select member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
@@ -1186,7 +1186,7 @@ async function getTeamWeek(week_id = 0) {
           for (const member of team_members) {
             const isFirst = idx === 0;
             const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
-            
+
             const rowContents = [
               {
                 type: 'text',
@@ -1782,7 +1782,7 @@ ORDER BY pts DESC limit ${limit}`;
     const rankIcons = ['🥇', '🥈', '🥉'];
     result.forEach((member, i) => {
       const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
-      
+
       let valText = "";
       if (type == 4) {
         valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
@@ -2496,7 +2496,7 @@ async function setTheme(themeName) {
 async function updateHof() {
   try {
     const currentYear = new Date().getFullYear();
-    
+
     // 1. Get current year top scorer(s)
     const scorers = await executeQuery(`
       SELECT member_id, COUNT(*) as count 
@@ -2508,7 +2508,7 @@ async function updateHof() {
         AND member_id <> 121 AND member_id <> 169
       GROUP BY member_id
     `);
-    
+
     // 2. Get current year top assist(s)
     const assists = await executeQuery(`
       SELECT member_id, COUNT(*) as count 
@@ -2520,7 +2520,7 @@ async function updateHof() {
         AND member_id <> 121 AND member_id <> 169
       GROUP BY member_id
     `);
-    
+
     // Find max counts and filter
     let topScorers = [];
     if (scorers && scorers.length > 0) {
@@ -2529,7 +2529,7 @@ async function updateHof() {
         topScorers = scorers.filter(s => s.count === maxGoals).map(s => s.member_id);
       }
     }
-    
+
     let topAssists = [];
     if (assists && assists.length > 0) {
       const maxAssists = Math.max(...assists.map(a => a.count));
@@ -2540,7 +2540,7 @@ async function updateHof() {
 
     // Delete existing records for current year
     await executeQuery(`DELETE FROM hof_tbl WHERE year = ${currentYear} AND type IN ('scorer', 'assist')`);
-    
+
     // Insert new records
     for (const memberId of topScorers) {
       await executeQuery("INSERT INTO hof_tbl (member_id, type, year) VALUES (?, 'scorer', ?)", [memberId, currentYear]);
@@ -2548,7 +2548,7 @@ async function updateHof() {
     for (const memberId of topAssists) {
       await executeQuery("INSERT INTO hof_tbl (member_id, type, year) VALUES (?, 'assist', ?)", [memberId, currentYear]);
     }
-    
+
     console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}`);
   } catch (err) {
     console.error('Error updating HOF records:', err.message);
