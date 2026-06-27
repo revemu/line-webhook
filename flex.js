@@ -469,33 +469,151 @@ function buildNowFlex(matchInfo, theme) {
 
   // ── Scorers ──
   if (scorers && scorers.length > 0) {
-    const scorerText = scorers.map(s => {
+    for (const s of scorers) {
       const og = s.ownGoal ? '🥅' : '';
-      return s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
-    }).join('  ');
-    bodyContents.push({
-      type: 'box',
-      layout: 'horizontal',
-      margin: 'sm',
-      contents: [
-        { type: 'text', text: '⚽', size: 'xs', flex: 0, color: colors.textMuted },
-        { type: 'text', text: scorerText, size: 'xs', color: colors.textMutedLight, flex: 1, margin: 'sm', wrap: true }
-      ]
-    });
+      const nameText = s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
+
+      const rowContents = [
+        { type: 'text', text: '⚽', size: 'xs', flex: 0, color: colors.textMuted }
+      ];
+
+      const badgeSize = s.badgeSize || '16px';
+      if (s.badgeUrl) {
+        rowContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: badgeSize,
+          height: badgeSize,
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: s.badgeUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true
+            }
+          ],
+          margin: 'xs'
+        });
+      }
+
+      if (s.hofCount && s.hofCount > 0) {
+        const hSize = s.hofBadgeSize || '16px';
+        for (let c = 0; c < s.hofCount; c++) {
+          rowContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: hSize,
+            height: hSize,
+            flex: 0,
+            contents: [
+              {
+                type: 'image',
+                url: s.hofBadgeUrl,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                animated: true
+              }
+            ],
+            margin: 'xs'
+          });
+        }
+      }
+
+      rowContents.push({
+        type: 'text',
+        text: nameText,
+        size: 'xs',
+        color: s.nameColor || colors.textMutedLight,
+        flex: 1,
+        margin: 'sm'
+      });
+
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'sm',
+        alignItems: 'center',
+        contents: rowContents
+      });
+    }
   }
 
   // ── Assists ──
   if (assists && assists.length > 0) {
-    const assistText = assists.map(a => a.assist > 1 ? `${a.name}(${a.assist})` : a.name).join('  ');
-    bodyContents.push({
-      type: 'box',
-      layout: 'horizontal',
-      margin: 'xs',
-      contents: [
-        { type: 'text', text: '👟', size: 'xs', flex: 0, color: colors.textMuted },
-        { type: 'text', text: assistText, size: 'xs', color: colors.textMutedLight, flex: 1, margin: 'sm', wrap: true }
-      ]
-    });
+    for (const a of assists) {
+      const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
+
+      const rowContents = [
+        { type: 'text', text: '👟', size: 'xs', flex: 0, color: colors.textMuted }
+      ];
+
+      const badgeSize = a.badgeSize || '16px';
+      if (a.badgeUrl) {
+        rowContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: badgeSize,
+          height: badgeSize,
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: a.badgeUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true
+            }
+          ],
+          margin: 'xs'
+        });
+      }
+
+      if (a.hofCount && a.hofCount > 0) {
+        const hSize = a.hofBadgeSize || '16px';
+        for (let c = 0; c < a.hofCount; c++) {
+          rowContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: hSize,
+            height: hSize,
+            flex: 0,
+            contents: [
+              {
+                type: 'image',
+                url: a.hofBadgeUrl,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                animated: true
+              }
+            ],
+            margin: 'xs'
+          });
+        }
+      }
+
+      rowContents.push({
+        type: 'text',
+        text: nameText,
+        size: 'xs',
+        color: a.nameColor || colors.textMutedLight,
+        flex: 1,
+        margin: 'sm'
+      });
+
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        alignItems: 'center',
+        contents: rowContents
+      });
+    }
   }
 
   // ── Next Match ──
@@ -825,31 +943,149 @@ function buildLiveFlex(matchInfo, theme) {
       if (isCurrent) {
         const detailRows = [];
         if (scorers && scorers.length > 0) {
-          const scorerText = scorers.map(s => {
+          for (const s of scorers) {
             const og = s.ownGoal ? '🥅' : '';
-            return s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
-          }).join('  ');
-          detailRows.push({
-            type: 'box',
-            layout: 'horizontal',
-            margin: 'xs',
-            contents: [
-              { type: 'text', text: '⚽', size: 'sm', flex: 0, color: colors.textMuted },
-              { type: 'text', text: scorerText, size: 'sm', color: colors.textMutedLight, flex: 1, margin: 'sm', wrap: true }
-            ]
-          });
+            const nameText = s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
+
+            const rowContents = [
+              { type: 'text', text: '⚽', size: 'sm', flex: 0, color: colors.textMuted }
+            ];
+
+            const badgeSize = s.badgeSize || '16px';
+            if (s.badgeUrl) {
+              rowContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: badgeSize,
+                height: badgeSize,
+                flex: 0,
+                contents: [
+                  {
+                    type: 'image',
+                    url: s.badgeUrl,
+                    size: 'full',
+                    aspectRatio: '1:1',
+                    aspectMode: 'cover',
+                    animated: true
+                  }
+                ],
+                margin: 'xs'
+              });
+            }
+
+            if (s.hofCount && s.hofCount > 0) {
+              const hSize = s.hofBadgeSize || '16px';
+              for (let c = 0; c < s.hofCount; c++) {
+                rowContents.push({
+                  type: 'box',
+                  layout: 'vertical',
+                  width: hSize,
+                  height: hSize,
+                  flex: 0,
+                  contents: [
+                    {
+                      type: 'image',
+                      url: s.hofBadgeUrl,
+                      size: 'full',
+                      aspectRatio: '1:1',
+                      aspectMode: 'cover',
+                      animated: true
+                    }
+                  ],
+                  margin: 'xs'
+                });
+              }
+            }
+
+            rowContents.push({
+              type: 'text',
+              text: nameText,
+              size: 'sm',
+              color: s.nameColor || colors.textMutedLight,
+              flex: 1,
+              margin: 'sm'
+            });
+
+            detailRows.push({
+              type: 'box',
+              layout: 'horizontal',
+              margin: 'xs',
+              alignItems: 'center',
+              contents: rowContents
+            });
+          }
         }
         if (assists && assists.length > 0) {
-          const assistText = assists.map(a => a.assist > 1 ? `${a.name}(${a.assist})` : a.name).join('  ');
-          detailRows.push({
-            type: 'box',
-            layout: 'horizontal',
-            margin: 'xs',
-            contents: [
-              { type: 'text', text: '👟', size: 'sm', flex: 0, color: colors.textMuted },
-              { type: 'text', text: assistText, size: 'sm', color: colors.textMutedLight, flex: 1, margin: 'sm', wrap: true }
-            ]
-          });
+          for (const a of assists) {
+            const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
+
+            const rowContents = [
+              { type: 'text', text: '👟', size: 'sm', flex: 0, color: colors.textMuted }
+            ];
+
+            const badgeSize = a.badgeSize || '16px';
+            if (a.badgeUrl) {
+              rowContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: badgeSize,
+                height: badgeSize,
+                flex: 0,
+                contents: [
+                  {
+                    type: 'image',
+                    url: a.badgeUrl,
+                    size: 'full',
+                    aspectRatio: '1:1',
+                    aspectMode: 'cover',
+                    animated: true
+                  }
+                ],
+                margin: 'xs'
+              });
+            }
+
+            if (a.hofCount && a.hofCount > 0) {
+              const hSize = a.hofBadgeSize || '16px';
+              for (let c = 0; c < a.hofCount; c++) {
+                rowContents.push({
+                  type: 'box',
+                  layout: 'vertical',
+                  width: hSize,
+                  height: hSize,
+                  flex: 0,
+                  contents: [
+                    {
+                      type: 'image',
+                      url: a.hofBadgeUrl,
+                      size: 'full',
+                      aspectRatio: '1:1',
+                      aspectMode: 'cover',
+                      animated: true
+                    }
+                  ],
+                  margin: 'xs'
+                });
+              }
+            }
+
+            rowContents.push({
+              type: 'text',
+              text: nameText,
+              size: 'sm',
+              color: a.nameColor || colors.textMutedLight,
+              flex: 1,
+              margin: 'sm'
+            });
+
+            detailRows.push({
+              type: 'box',
+              layout: 'horizontal',
+              margin: 'xs',
+              alignItems: 'center',
+              contents: rowContents
+            });
+          }
         }
 
         if (detailRows.length > 0) {

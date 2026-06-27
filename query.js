@@ -84,8 +84,7 @@ async function testConnection() {
           id INT AUTO_INCREMENT PRIMARY KEY,
           member_id INT NOT NULL,
           type VARCHAR(50) NOT NULL,
-          year INT NOT NULL,
-          FOREIGN KEY (member_id) REFERENCES member_tbl(id)
+          year INT NOT NULL
         )
       `);
       console.log('✅ HOF table verified/created successfully');
@@ -121,6 +120,109 @@ async function executeQuery(query, params = []) {
     console.log(error);
     throw error;
   }
+}
+
+function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge) {
+  let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
+  name_display = (name_display || '').replace('@', '');
+  
+  const badgeInfo = badges[String(member.rank || 0)] || null;
+  let badgeUrl = badgeInfo ? badgeInfo.url : null;
+  const badgeSize = badgeInfo ? (badgeInfo.size || '20px') : '20px';
+  if (badgeUrl) {
+    if (!badgeUrl.startsWith('http://') && !badgeUrl.startsWith('https://')) {
+      const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+      badgeUrl = badgeUrl.startsWith('/') ? `${baseUrl}${badgeUrl}` : `${baseUrl}/${badgeUrl}`;
+    }
+    if (badgeUrl.startsWith('http://')) {
+      badgeUrl = badgeUrl.replace('http://', 'https://');
+    }
+  }
+
+  let nameColor = null;
+  const memberDonate = member.donate || 0;
+  if (memberDonate >= 100) {
+    let matched = null;
+    for (const dc of donateColors) {
+      if (dc.threshold <= memberDonate) {
+        matched = dc;
+      } else {
+        break;
+      }
+    }
+    if (matched) {
+      nameColor = matched.color;
+    }
+  }
+
+  const hofCount = hofCounts[member.id] || 0;
+  let hofBadgeUrl = hofBadge ? hofBadge.url : 'https://bearbit.org/pic/crown.gif';
+  let hofBadgeSize = hofBadge ? (hofBadge.size || '20px') : '20px';
+  if (hofBadgeUrl && !hofBadgeUrl.startsWith('http://') && !hofBadgeUrl.startsWith('https://')) {
+    const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+    hofBadgeUrl = hofBadgeUrl.startsWith('/') ? `${baseUrl}${hofBadgeUrl}` : `${baseUrl}/${hofBadgeUrl}`;
+  }
+  if (hofBadgeUrl && hofBadgeUrl.startsWith('http://')) {
+    hofBadgeUrl = hofBadgeUrl.replace('http://', 'https://');
+  }
+
+  return {
+    name: name_display,
+    badgeUrl,
+    badgeSize,
+    nameColor,
+    hofCount,
+    hofBadgeUrl,
+    hofBadgeSize
+  };
+}
+
+async function fetchDisplayAssets() {
+  const badges = {};
+  try {
+    const badgeResults = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'rank_badge'");
+    badgeResults.forEach(r => {
+      badges[r.value] = { url: r.url, size: r.size };
+    });
+  } catch (badgeErr) {
+    console.error('Error querying rank badges:', badgeErr.message);
+  }
+
+  const donateColors = [];
+  try {
+    const colorResults = await executeQuery("SELECT value, code FROM template_tpl WHERE name = 'donate_color'");
+    colorResults.forEach(r => {
+      donateColors.push({
+        threshold: parseInt(r.value, 10),
+        color: r.code
+      });
+    });
+    donateColors.sort((a, b) => a.threshold - b.threshold);
+  } catch (colorErr) {
+    console.error('Error querying donate colors:', colorErr.message);
+  }
+
+  const hofCounts = {};
+  try {
+    const hofResults = await executeQuery("SELECT member_id, COUNT(*) as count FROM hof_tbl GROUP BY member_id");
+    hofResults.forEach(h => {
+      hofCounts[h.member_id] = h.count;
+    });
+  } catch (hofErr) {
+    console.error('Error querying HOF counts:', hofErr.message);
+  }
+
+  let hofBadge = null;
+  try {
+    const hofBadgeTpl = await executeQuery("SELECT url, size FROM template_tpl WHERE name = 'hof_badge' LIMIT 1");
+    if (hofBadgeTpl.length > 0) {
+      hofBadge = { url: hofBadgeTpl[0].url, size: hofBadgeTpl[0].size || '20px' };
+    }
+  } catch (hofBadgeErr) {
+    console.error('Error querying HOF badge template:', hofBadgeErr.message);
+  }
+
+  return { badges, donateColors, hofCounts, hofBadge };
 }
 
 async function updateAlertCall(value = 1) {
@@ -449,85 +551,126 @@ async function queryMemberbyName(name) {
 async function queryMatchGoal(match_id, goal_status = 0) {
   let status;
   let icon = "";
-  let url = "";
-  let size = ""
-  let offsetTop;
-  let offsetStart;
   const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
   if (goal_status == 0) {
     status = " <= 2";
     icon = "⚽";
-    url = `${baseUrl}/ball_ico.png`;
-    size = "md";
-    offsetTop = "xs";
-    offsetStart = "xs";
   } else if (goal_status == 3) {
     status = " = 3";
     icon = "👟";
-    url = `${baseUrl}/boot_ico.png`;
-    size = "lg";
-    offsetTop = "sm";
-    offsetStart = "none";
   }
 
-  query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status,match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl WHERE match_goal_tbl.match_id=${match_id} and match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id group by member_tbl.id`
+  query = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal 
+    FROM match_goal_tbl, member_tbl, goal_status_tbl 
+    WHERE match_goal_tbl.match_id=${match_id} 
+      AND match_goal_tbl.member_id = member_tbl.id 
+      AND match_goal_tbl.status ${status} 
+      AND match_goal_tbl.status=goal_status_tbl.id 
+    GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate`;
 
-  let member_list = " ";
   const match_goals = await executeQuery(query);
-  let i = 0;
-  if (match_goals.length > 0) {
-
-    member_list = "";
-    for (const member of match_goals) {
-      //console.log(`${member.name} ${match_id}`) ;
-      //console.log(member) ;
-
-      if (i > 0) {
-        member_list += ", "
-      }
-      if (member.goal > 1) {
-        member_list += `+(${member.goal})`;
-      }
-      if (member.alias == '') {
-        member_list += member.name;
-      } else {
-        member_list += member.alias;
-      }
-      if (member.statusid == 2) {
-        member_list += "🥅";
-      } else if (member.statusid == 1) {
-        member_list += "🔄";
-      }
-      //member_list += member.name ;
-      i++;
-      //console.log(member) ;
-    }
-    //if (i == 0) member_list = "-" ;
-
+  if (match_goals.length === 0) {
+    return null;
   }
-  const box =
-  {
-    type: "box",
-    layout: "baseline",
-    //"margin": "xs",
-    "flex": 1,
-    contents: [
-      {
-        "type": "icon",
-        "size": size,
-        "url": url,
-        "offsetTop": offsetTop
-      },
+
+  const assets = await fetchDisplayAssets();
+  const rows = [];
+
+  for (const member of match_goals) {
+    const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
+
+    let nameText = info.name;
+    if (member.goal > 1) {
+      nameText = `+(${member.goal})${nameText}`;
+    }
+    if (member.statusid == 2) {
+      nameText += "🥅";
+    } else if (member.statusid == 1) {
+      nameText += "🔄";
+    }
+
+    const rowContents = [
       {
         type: "text",
-        text: `${member_list}`,
-        size: "xs"
+        text: icon,
+        size: "xs",
+        flex: 0,
+        color: "#a0a8c0",
+        gravity: "center"
       }
-    ],
-    "spacing": "sm",
-    "offsetStart": offsetStart
+    ];
+
+    const badgeSize = info.badgeSize || '16px';
+    if (info.badgeUrl) {
+      rowContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: badgeSize,
+        height: badgeSize,
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: info.badgeUrl,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            animated: true
+          }
+        ],
+        margin: 'xs'
+      });
+    }
+
+    if (info.hofCount && info.hofCount > 0) {
+      const hSize = info.hofBadgeSize || '16px';
+      for (let c = 0; c < info.hofCount; c++) {
+        rowContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: hSize,
+          height: hSize,
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: info.hofBadgeUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true
+            }
+          ],
+          margin: 'xs'
+        });
+      }
+    }
+
+    rowContents.push({
+      type: "text",
+      text: nameText,
+      size: "xs",
+      color: info.nameColor || (goal_status === 3 ? '#bbddff' : '#ddddff'),
+      flex: 1,
+      margin: "sm"
+    });
+
+    rows.push({
+      type: "box",
+      layout: "horizontal",
+      margin: "xs",
+      alignItems: "center",
+      contents: rowContents
+    });
   }
-  return box;
+
+  return {
+    type: "box",
+    layout: "vertical",
+    margin: "xs",
+    paddingStart: "sm",
+    contents: rows
+  };
 }
 
 async function getTeamColorWeek(week_id) {
@@ -850,35 +993,6 @@ async function getMatchWeek(week_id = 0) {
         const goalBox = await queryMatchGoal(match.id, 0);
         const assistBox = await queryMatchGoal(match.id, 3);
 
-        const styleGoalBox = (box, isAssist) => {
-          if (!box) return null;
-          const textNode = box.contents && box.contents[1];
-          if (!textNode) return null;
-          const textVal = textNode.text ? textNode.text.trim() : '';
-          if (textVal === '' || textVal === ' ') return null;
-          return {
-            type: 'box',
-            layout: 'horizontal',
-            margin: 'xs',
-            paddingStart: 'sm',
-            contents: [
-              { type: 'text', text: isAssist ? '\ud83d\udc5f' : '\u26bd', size: 'xs', flex: 0 },
-              {
-                type: 'text',
-                text: textVal,
-                size: 'xs',
-                color: isAssist ? '#bbddff' : '#ddddff',
-                flex: 1,
-                margin: 'sm',
-                wrap: true
-              }
-            ]
-          };
-        };
-
-        const scorerRow = styleGoalBox(goalBox, false);
-        const assistRow = styleGoalBox(assistBox, true);
-
         const cardContents = [
           {
             type: 'text',
@@ -907,8 +1021,8 @@ async function getMatchWeek(week_id = 0) {
           }
         ];
 
-        if (scorerRow) cardContents.push(scorerRow);
-        if (assistRow) cardContents.push(assistRow);
+        if (goalBox) cardContents.push(goalBox);
+        if (assistBox) cardContents.push(assistBox);
 
         bodyContents.push({
           type: 'box',
@@ -1034,6 +1148,7 @@ async function getTeamWeek(week_id = 0) {
 
     if (team_colors.length > 0) {
       const carousel = { type: 'carousel', contents: [] };
+      const assets = await fetchDisplayAssets();
 
       for (const team of team_colors) {
         const teamColor = await getTeamColor(team.color);
@@ -1063,35 +1178,97 @@ async function getTeamWeek(week_id = 0) {
         bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
 
         // ── Member list ──
-        query = `select member_team_week_tbl.*, member_tbl.name AS line_name from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
+        query = `select member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
         console.log(query);
         const team_members = await executeQuery(query);
         if (team_members.length > 0) {
           let idx = 0;
           for (const member of team_members) {
             const isFirst = idx === 0;
+            const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
+            
+            const rowContents = [
+              {
+                type: 'text',
+                text: `${idx + 1}.`,
+                size: 'xs',
+                color: '#555577',
+                flex: 0,
+                margin: 'none'
+              }
+            ];
+
+            const nameBoxContents = [];
+            const badgeSize = info.badgeSize || '16px';
+            if (info.badgeUrl) {
+              nameBoxContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: badgeSize,
+                height: badgeSize,
+                flex: 0,
+                contents: [
+                  {
+                    type: 'image',
+                    url: info.badgeUrl,
+                    size: 'full',
+                    aspectRatio: '1:1',
+                    aspectMode: 'cover',
+                    animated: true
+                  }
+                ],
+                margin: 'xs'
+              });
+            }
+
+            if (info.hofCount && info.hofCount > 0) {
+              const hSize = info.hofBadgeSize || '16px';
+              for (let c = 0; c < info.hofCount; c++) {
+                nameBoxContents.push({
+                  type: 'box',
+                  layout: 'vertical',
+                  width: hSize,
+                  height: hSize,
+                  flex: 0,
+                  contents: [
+                    {
+                      type: 'image',
+                      url: info.hofBadgeUrl,
+                      size: 'full',
+                      aspectRatio: '1:1',
+                      aspectMode: 'cover',
+                      animated: true
+                    }
+                  ],
+                  margin: 'xs'
+                });
+              }
+            }
+
+            nameBoxContents.push({
+              type: 'text',
+              text: info.name,
+              size: 'sm',
+              color: info.nameColor || '#ddddff',
+              flex: 1,
+              margin: 'sm'
+            });
+
+            rowContents.push({
+              type: 'box',
+              layout: 'horizontal',
+              flex: 1,
+              margin: 'sm',
+              alignItems: 'center',
+              contents: nameBoxContents
+            });
+
             bodyContents.push({
               type: 'box',
               layout: 'horizontal',
               margin: 'xs',
-              contents: [
-                {
-                  type: 'text',
-                  text: `${idx + 1}.`,
-                  size: 'xs',
-                  color: '#555577',
-                  flex: 0,
-                  margin: 'none'
-                },
-                {
-                  type: 'text',
-                  text: member.line_name.replace('@', ''),
-                  size: 'sm',
-                  color: '#ddddff',
-                  flex: 1,
-                  margin: 'sm'
-                }
-              ]
+              alignItems: 'center',
+              contents: rowContents
             });
             idx++;
           }
@@ -1220,100 +1397,18 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         const dateStr = await getFormatDate(date, 'short');
         const titleText = type === 0 ? "สมาชิกที่ยังไม่จ่ายค่าสนาม" : "ลงชื่อ";
 
-        // Fetch rank badges from template_tpl
-        const badges = {};
-        try {
-          const badgeResults = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'rank_badge'");
-          badgeResults.forEach(r => {
-            badges[r.value] = { url: r.url, size: r.size };
-          });
-        } catch (badgeErr) {
-          console.error('Error querying rank badges:', badgeErr.message);
-        }
-
-        // Fetch donate colors from template_tpl
-        const donateColors = [];
-        try {
-          const colorResults = await executeQuery("SELECT value, code FROM template_tpl WHERE name = 'donate_color'");
-          colorResults.forEach(r => {
-            donateColors.push({
-              threshold: parseInt(r.value, 10),
-              color: r.code
-            });
-          });
-          donateColors.sort((a, b) => a.threshold - b.threshold);
-        } catch (colorErr) {
-          console.error('Error querying donate colors:', colorErr.message);
-        }
-
-        // Fetch HOF counts from hof_tbl
-        const hofCounts = {};
-        try {
-          const hofResults = await executeQuery("SELECT member_id, COUNT(*) as count FROM hof_tbl GROUP BY member_id");
-          hofResults.forEach(h => {
-            hofCounts[h.member_id] = h.count;
-          });
-        } catch (hofErr) {
-          console.error('Error querying HOF counts:', hofErr.message);
-        }
-
-        // Fetch default HOF badge URL and size
-        let hofBadgeUrl = 'https://bearbit.org/pic/crown.gif';
-        let hofBadgeSize = '20px';
-        try {
-          const hofBadgeTpl = await executeQuery("SELECT url, size FROM template_tpl WHERE name = 'hof_badge' LIMIT 1");
-          if (hofBadgeTpl.length > 0) {
-            hofBadgeUrl = hofBadgeTpl[0].url;
-            hofBadgeSize = hofBadgeTpl[0].size || '20px';
-          }
-        } catch (hofBadgeErr) {
-          console.error('Error querying HOF badge template:', hofBadgeErr.message);
-        }
-        if (hofBadgeUrl && !hofBadgeUrl.startsWith('http://') && !hofBadgeUrl.startsWith('https://')) {
-          const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-          hofBadgeUrl = hofBadgeUrl.startsWith('/') ? `${baseUrl}${hofBadgeUrl}` : `${baseUrl}/${hofBadgeUrl}`;
-        }
-        if (hofBadgeUrl && hofBadgeUrl.startsWith('http://')) {
-          hofBadgeUrl = hofBadgeUrl.replace('http://', 'https://');
-        }
+        const assets = await fetchDisplayAssets();
 
         for (const member of result) {
-          //let donate = await getDonateBadge(member.donate);
-          let donate = '';
-          let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
-          name_display = (name_display || '').replace('@', '');
-          const badgeInfo = badges[String(member.rank || 0)] || null;
-          let badgeUrl = badgeInfo ? badgeInfo.url : null;
-          const badgeSize = badgeInfo ? (badgeInfo.size || '20px') : '20px';
-          if (badgeUrl) {
-            if (!badgeUrl.startsWith('http://') && !badgeUrl.startsWith('https://')) {
-              const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-              badgeUrl = badgeUrl.startsWith('/') ? `${baseUrl}${badgeUrl}` : `${baseUrl}/${badgeUrl}`;
-            }
-            if (badgeUrl.startsWith('http://')) {
-              badgeUrl = badgeUrl.replace('http://', 'https://');
-            }
-          }
-
-          let nameColor = null;
-          const memberDonate = member.donate || 0;
-          if (memberDonate >= 100) {
-            let matched = null;
-            for (const dc of donateColors) {
-              if (dc.threshold <= memberDonate) {
-                matched = dc;
-              } else {
-                break;
-              }
-            }
-            if (matched) {
-              nameColor = matched.color;
-            }
-          }
-
-          const hofCount = hofCounts[member.id] || 0;
-
-          console.log(`[DEBUG_BADGE] name: ${name_display}, rank: ${member.rank}, raw: ${badgeInfo ? badgeInfo.url : undefined}, size: ${badgeSize}, resolved: ${badgeUrl}, donate: ${memberDonate}, color: ${nameColor}, hofCount: ${hofCount}`);
+          const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
+          const name_display = info.name;
+          const badgeUrl = info.badgeUrl;
+          const badgeSize = info.badgeSize;
+          const nameColor = info.nameColor;
+          const hofCount = info.hofCount;
+          const hofBadgeUrl = info.hofBadgeUrl;
+          const hofBadgeSize = info.hofBadgeSize;
+          const donate = '';
 
           if (type == 1) {
             if (member.team_id == 100) {
@@ -1627,12 +1722,15 @@ async function getTopStat(limit = 10, type = 0) {
     icon = "📊";
   }
 
-  query = `SELECT member_tbl.name, member_tbl.alias, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl , week_tbl WHERE match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.team_id <> 101 group by member_tbl.id order by goal DESC limit ${limit}`;
+  query = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl , week_tbl WHERE match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.team_id <> 101 group by member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate order by goal DESC limit ${limit}`;
 
   if (type == 4) {
     query = `SELECT 
+    member_tbl.id,
     member_tbl.name, 
     member_tbl.alias, 
+    member_tbl.rank,
+    member_tbl.donate,
     SUM(table_week_tbl.pts) 
         / sum(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS pts,
         sum(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS m
@@ -1641,7 +1739,7 @@ JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_i
 JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
 JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
 WHERE week_tbl.year = YEAR(CURRENT_DATE())
-GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias
+GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
 HAVING COUNT(table_week_tbl.id) > (
     SELECT COUNT(*) * 0.5
     FROM week_tbl
@@ -1652,6 +1750,7 @@ ORDER BY pts DESC limit ${limit}`;
 
   const result = await executeQuery(query);
   if (result.length > 0) {
+    const assets = await fetchDisplayAssets();
     const currentYear = new Date().getFullYear();
     const theme = await getTheme();
     const colors = flex.getThemeColors(theme);
@@ -1682,7 +1781,8 @@ ORDER BY pts DESC limit ${limit}`;
     // ── Rank rows ──
     const rankIcons = ['🥇', '🥈', '🥉'];
     result.forEach((member, i) => {
-      const displayName = (member.alias && member.alias !== '' ? member.alias : member.name).replace('@', '');
+      const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
+      
       let valText = "";
       if (type == 4) {
         valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
@@ -1693,39 +1793,100 @@ ORDER BY pts DESC limit ${limit}`;
       const rankLabel = rankIcons[i] || `${i + 1}.`;
       const isTop = i === 0;
 
+      const rowContents = [
+        {
+          type: 'text',
+          text: rankLabel,
+          size: 'xs',
+          flex: 0,
+          color: colors.textMuted,
+          margin: 'none',
+          gravity: 'center'
+        }
+      ];
+
+      const nameBoxContents = [];
+      const badgeSize = info.badgeSize || '16px';
+      if (info.badgeUrl) {
+        nameBoxContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: badgeSize,
+          height: badgeSize,
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: info.badgeUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true
+            }
+          ],
+          margin: 'xs'
+        });
+      }
+
+      if (info.hofCount && info.hofCount > 0) {
+        const hSize = info.hofBadgeSize || '16px';
+        for (let c = 0; c < info.hofCount; c++) {
+          nameBoxContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: hSize,
+            height: hSize,
+            flex: 0,
+            contents: [
+              {
+                type: 'image',
+                url: info.hofBadgeUrl,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                animated: true
+              }
+            ],
+            margin: 'xs'
+          });
+        }
+      }
+
+      nameBoxContents.push({
+        type: 'text',
+        text: info.name,
+        size: 'xs',
+        color: info.nameColor || (isTop ? colors.textPrimary : colors.textMutedLight),
+        weight: isTop ? 'bold' : 'regular',
+        flex: 1,
+        margin: 'sm'
+      });
+
+      rowContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        flex: 3,
+        margin: 'sm',
+        alignItems: 'center',
+        contents: nameBoxContents
+      });
+
+      rowContents.push({
+        type: 'text',
+        text: valText,
+        size: 'xs',
+        color: isTop ? colors.textAccent : colors.textMutedLight,
+        weight: isTop ? 'bold' : 'regular',
+        flex: 2,
+        align: 'end'
+      });
+
       bodyContents.push({
         type: 'box',
         layout: 'horizontal',
         margin: 'xs',
-        contents: [
-          {
-            type: 'text',
-            text: rankLabel,
-            size: 'xs',
-            flex: 0,
-            color: colors.textMuted,
-            margin: 'none',
-            gravity: 'center'
-          },
-          {
-            type: 'text',
-            text: displayName,
-            size: 'xs',
-            color: isTop ? colors.textPrimary : colors.textMutedLight,
-            weight: isTop ? 'bold' : 'regular',
-            flex: 3,
-            margin: 'sm'
-          },
-          {
-            type: 'text',
-            text: valText,
-            size: 'xs',
-            color: isTop ? colors.textAccent : colors.textMutedLight,
-            weight: isTop ? 'bold' : 'regular',
-            flex: 2,
-            align: 'end'
-          }
-        ]
+        alignItems: 'center',
+        contents: rowContents
       });
     });
 
@@ -2241,30 +2402,50 @@ async function getCurrentMatch() {
       teamB: currentDbRow.team_b_goal ?? 0
     };
 
+    const assets = await fetchDisplayAssets();
+
     // Scorers: goal_status <= 2
-    const scorerQ = `SELECT member_tbl.name, member_tbl.alias, match_goal_tbl.status as statusid, count(*) as goal
+    const scorerQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, match_goal_tbl.status as statusid, count(*) as goal
       FROM match_goal_tbl
       JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
       WHERE match_goal_tbl.match_id = ${currentDbRow.id} AND match_goal_tbl.status <= 2
-      GROUP BY member_tbl.id, match_goal_tbl.status`;
+      GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate`;
     const scorerRows = await executeQuery(scorerQ);
-    scorers = scorerRows.map(r => ({
-      name: r.alias && r.alias !== '' ? r.alias : r.name,
-      goal: r.goal,
-      ownGoal: r.statusid === 2
-    }));
+    scorers = scorerRows.map(r => {
+      const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
+      return {
+        name: info.name,
+        goal: r.goal,
+        ownGoal: r.statusid === 2,
+        badgeUrl: info.badgeUrl,
+        badgeSize: info.badgeSize,
+        nameColor: info.nameColor,
+        hofCount: info.hofCount,
+        hofBadgeUrl: info.hofBadgeUrl,
+        hofBadgeSize: info.hofBadgeSize
+      };
+    });
 
     // Assists: goal_status = 3
-    const assistQ = `SELECT member_tbl.name, member_tbl.alias, count(*) as assist
+    const assistQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, count(*) as assist
       FROM match_goal_tbl
       JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
       WHERE match_goal_tbl.match_id = ${currentDbRow.id} AND match_goal_tbl.status = 3
-      GROUP BY member_tbl.id`;
+      GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate`;
     const assistRows = await executeQuery(assistQ);
-    assists = assistRows.map(r => ({
-      name: r.alias && r.alias !== '' ? r.alias : r.name,
-      assist: r.assist
-    }));
+    assists = assistRows.map(r => {
+      const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
+      return {
+        name: info.name,
+        assist: r.assist,
+        badgeUrl: info.badgeUrl,
+        badgeSize: info.badgeSize,
+        nameColor: info.nameColor,
+        hofCount: info.hofCount,
+        hofBadgeUrl: info.hofBadgeUrl,
+        hofBadgeSize: info.hofBadgeSize
+      };
+    });
   }
 
   // ── Week table (team, GD, pts) ──
