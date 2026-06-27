@@ -159,9 +159,13 @@ async function checkZbarimgInstalled() {
 // Function to reply to LINE user using SDK
 async function replyMessage(replyToken, messages) {
     try {
+        console.log('[DEBUG] Reply payload:', JSON.stringify(messages, null, 2));
         await client.replyMessage(replyToken, messages);
     } catch (error) {
         console.error('Error replying message:', error);
+        if (error.originalError && error.originalError.response) {
+            console.error('[DEBUG] LINE API error body:', JSON.stringify(error.originalError.response.data));
+        }
         throw error;
     }
 }
