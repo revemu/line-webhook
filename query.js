@@ -1239,7 +1239,8 @@ async function getMemberWeek0(type = 0, isFlex = true) {
       let goal = 0;
       let goal_str = "\n=== รายชื่อโกล์ ===\n";
       for (const member of result) {
-        let donate = await getDonateBadge(member.donate);
+        //let donate = await getDonateBadge(member.donate);
+        let donate = '';
         let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
         name_display = (name_display || '').replace('@', '');
 
