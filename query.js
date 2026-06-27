@@ -1777,7 +1777,7 @@ ORDER BY pts DESC limit ${limit}`;
       ]
     });
 
-    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+    //bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
 
     // ── Rank rows ──
     const rankIcons = ['🥇', '🥈', '🥉'];
@@ -1808,7 +1808,7 @@ ORDER BY pts DESC limit ${limit}`;
 
       const nameBoxContents = [];
       const badgeSize = info.badgeSize || '16px';
-      if (info.badgeUrl) {
+      /*if (info.badgeUrl) {
         nameBoxContents.push({
           type: 'box',
           layout: 'vertical',
@@ -1827,9 +1827,9 @@ ORDER BY pts DESC limit ${limit}`;
           ],
           margin: 'xs'
         });
-      }
+      }*/
 
-      if (info.hofCount && info.hofCount > 0) {
+      /*if (info.hofCount && info.hofCount > 0) {
         const hSize = info.hofBadgeSize || '16px';
         for (let c = 0; c < info.hofCount; c++) {
           nameBoxContents.push({
@@ -1851,7 +1851,7 @@ ORDER BY pts DESC limit ${limit}`;
             margin: 'xs'
           });
         }
-      }
+      }*/
 
       nameBoxContents.push({
         type: 'text',
