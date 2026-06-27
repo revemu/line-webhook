@@ -969,7 +969,8 @@ function makeMemberColumn(p, index, colors) {
       ],
       margin: 'xs'
     });
-  } else {
+  }
+  /*else {
     contents.push({
       type: 'box',
       layout: 'vertical',
@@ -979,7 +980,7 @@ function makeMemberColumn(p, index, colors) {
       contents: [{ type: 'filler' }],
       margin: 'xs'
     });
-  }
+  }*/
 
   contents.push({
     type: 'text',

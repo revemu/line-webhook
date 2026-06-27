@@ -1328,7 +1328,8 @@ async function getMemberWeek(type = 0) {
       let goal_str = "\n=== รายชื่อโกล์ ===\n";
       let index = 0;
       for (const member of result) {
-        let donate = await getDonateBadge(member.donate);
+        //let donate = await getDonateBadge(member.donate);
+        let donate = '';
 
         if (type == 1) {
           if (member.team_id == 100) {
