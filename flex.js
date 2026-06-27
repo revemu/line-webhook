@@ -987,7 +987,7 @@ function makeMemberColumn(p, index, colors) {
     text: `${p.donate || ''}${p.name}`,
     size: 'sm',
     weight: 'bold',
-    color: colors.memberNameSpecial,
+    color: p.nameColor || colors.memberNameSpecial,
     flex: 1,
     margin: 'sm'
   });

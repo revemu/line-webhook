@@ -60,6 +60,22 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for template_tpl.rank_badge:', migErr.message);
     }
 
+    // Auto-migration to add default donate colors to template_tpl if none exist
+    try {
+      const [donateColors] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'donate_color'");
+      if (donateColors.length === 0) {
+        console.log('Inserting default donate colors in template_tpl...');
+        await connection.query("INSERT INTO template_tpl (name, value, code) VALUES " +
+          "('donate_color', '100', '#10b981'), " + // emerald/green
+          "('donate_color', '200', '#3b82f6'), " + // blue
+          "('donate_color', '300', '#f59e0b'), " + // amber/gold
+          "('donate_color', '500', '#ec4899')");   // pink/rose
+        console.log('✅ Default donate colors inserted successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for template_tpl.donate_color:', migErr.message);
+    }
+
     connection.release();
   } catch (error) {
     console.error('❌ Error connecting to MySQL database:', error.message);
@@ -1186,8 +1202,24 @@ async function getMemberWeek0(type = 0, isFlex = true) {
           console.error('Error querying rank badges:', badgeErr.message);
         }
 
+        // Fetch donate colors from template_tpl
+        const donateColors = [];
+        try {
+          const colorResults = await executeQuery("SELECT value, code FROM template_tpl WHERE name = 'donate_color'");
+          colorResults.forEach(r => {
+            donateColors.push({
+              threshold: parseInt(r.value, 10),
+              color: r.code
+            });
+          });
+          donateColors.sort((a, b) => a.threshold - b.threshold);
+        } catch (colorErr) {
+          console.error('Error querying donate colors:', colorErr.message);
+        }
+
         for (const member of result) {
-          let donate = await getDonateBadge(member.donate);
+          //let donate = await getDonateBadge(member.donate);
+          let donate = '';
           let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
           name_display = (name_display || '').replace('@', '');
           const badgeInfo = badges[String(member.rank || 0)] || null;
@@ -1202,20 +1234,37 @@ async function getMemberWeek0(type = 0, isFlex = true) {
               badgeUrl = badgeUrl.replace('http://', 'https://');
             }
           }
-          console.log(`[DEBUG_BADGE] name: ${name_display}, rank: ${member.rank}, raw: ${badgeInfo ? badgeInfo.url : undefined}, size: ${badgeSize}, resolved: ${badgeUrl}`);
+
+          let nameColor = null;
+          const memberDonate = member.donate || 0;
+          if (memberDonate >= 100) {
+            let matched = null;
+            for (const dc of donateColors) {
+              if (dc.threshold <= memberDonate) {
+                matched = dc;
+              } else {
+                break;
+              }
+            }
+            if (matched) {
+              nameColor = matched.color;
+            }
+          }
+
+          console.log(`[DEBUG_BADGE] name: ${name_display}, rank: ${member.rank}, raw: ${badgeInfo ? badgeInfo.url : undefined}, size: ${badgeSize}, resolved: ${badgeUrl}, donate: ${memberDonate}, color: ${nameColor}`);
 
           if (type == 1) {
             if (member.team_id == 100) {
-              goalies.push({ name: name_display, donate, badgeUrl, badgeSize });
+              goalies.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor });
             } else {
               if (players.length < max_players) {
-                players.push({ name: name_display, donate, badgeUrl, badgeSize });
+                players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor });
               } else {
-                reserves.push({ name: name_display, donate, badgeUrl, badgeSize });
+                reserves.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor });
               }
             }
           } else {
-            players.push({ name: name_display, donate, badgeUrl, badgeSize });
+            players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor });
           }
         }
 
