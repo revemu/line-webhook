@@ -1188,6 +1188,7 @@ async function getMemberWeek0(type = 0, isFlex = true) {
               badgeUrl = badgeUrl.replace('http://', 'https://');
             }
           }
+          console.log(`[DEBUG_BADGE] name: ${name_display}, rank: ${member.rank}, raw: ${badges[String(member.rank || 0)]}, resolved: ${badgeUrl}`);
 
           if (type == 1) {
             if (member.team_id == 100) {

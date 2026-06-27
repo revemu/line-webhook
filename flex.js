@@ -951,19 +951,28 @@ function makeMemberColumn(p, index, colors) {
 
   if (p.badgeUrl) {
     contents.push({
-      type: 'image',
-      url: p.badgeUrl,
-      size: 'xxs',
-      aspectRatio: '1:1',
-      aspectMode: 'cover',
+      type: 'box',
+      layout: 'vertical',
+      width: '20px',
+      height: '20px',
       flex: 0,
+      contents: [
+        {
+          type: 'image',
+          url: p.badgeUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover'
+        }
+      ],
       margin: 'xs'
     });
   } else {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      width: '30px', // Matches 'xxs' image width (30px)
+      width: '20px',
+      height: '20px',
       flex: 0,
       contents: [{ type: 'filler' }],
       margin: 'xs'
