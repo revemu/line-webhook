@@ -1201,7 +1201,7 @@ async function getTeamWeek(week_id = 0) {
             const nameBoxContents = [];
             const badgeSize = info.badgeSize || '16px';
             if (info.badgeUrl) {
-              /*
+
               nameBoxContents.push({
                 type: 'box',
                 layout: 'vertical',
@@ -1220,15 +1220,6 @@ async function getTeamWeek(week_id = 0) {
                 ],
                 margin: 'xs'
               });
-              */
-              nameBoxContents.push({
-                type: 'image',
-                url: info.badgeUrl,
-                size: badgeSize,
-                aspectRatio: '1:1',
-                aspectMode: 'cover',
-                animated: true
-              })
             }
 
             if (info.hofCount && info.hofCount > 0) {
