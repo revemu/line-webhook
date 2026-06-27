@@ -76,6 +76,35 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for template_tpl.donate_color:', migErr.message);
     }
 
+    // Auto-migration to create hof_tpl if not exists
+    try {
+      console.log('Verifying HOF table exists...');
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS hof_tpl (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          member_id INT NOT NULL,
+          type VARCHAR(50) NOT NULL,
+          year INT NOT NULL,
+          FOREIGN KEY (member_id) REFERENCES member_tbl(id)
+        )
+      `);
+      console.log('✅ HOF table verified/created successfully');
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for hof_tpl table:', migErr.message);
+    }
+
+    // Auto-migration to insert default hof_badge in template_tpl if not exists
+    try {
+      const [hofBadge] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'hof_badge'");
+      if (hofBadge.length === 0) {
+        console.log('Inserting default HOF badge in template_tpl...');
+        await connection.query("INSERT INTO template_tpl (name, value, url, size) VALUES ('hof_badge', 'default', 'https://bearbit.org/pic/crown.gif', '20px')");
+        console.log('✅ Default HOF badge inserted successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for template_tpl.hof_badge:', migErr.message);
+    }
+
     connection.release();
   } catch (error) {
     console.error('❌ Error connecting to MySQL database:', error.message);
@@ -1217,6 +1246,37 @@ async function getMemberWeek0(type = 0, isFlex = true) {
           console.error('Error querying donate colors:', colorErr.message);
         }
 
+        // Fetch HOF counts from hof_tpl
+        const hofCounts = {};
+        try {
+          const hofResults = await executeQuery("SELECT member_id, COUNT(*) as count FROM hof_tpl GROUP BY member_id");
+          hofResults.forEach(h => {
+            hofCounts[h.member_id] = h.count;
+          });
+        } catch (hofErr) {
+          console.error('Error querying HOF counts:', hofErr.message);
+        }
+
+        // Fetch default HOF badge URL and size
+        let hofBadgeUrl = 'https://bearbit.org/pic/crown.gif';
+        let hofBadgeSize = '20px';
+        try {
+          const hofBadgeTpl = await executeQuery("SELECT url, size FROM template_tpl WHERE name = 'hof_badge' LIMIT 1");
+          if (hofBadgeTpl.length > 0) {
+            hofBadgeUrl = hofBadgeTpl[0].url;
+            hofBadgeSize = hofBadgeTpl[0].size || '20px';
+          }
+        } catch (hofBadgeErr) {
+          console.error('Error querying HOF badge template:', hofBadgeErr.message);
+        }
+        if (hofBadgeUrl && !hofBadgeUrl.startsWith('http://') && !hofBadgeUrl.startsWith('https://')) {
+          const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+          hofBadgeUrl = hofBadgeUrl.startsWith('/') ? `${baseUrl}${hofBadgeUrl}` : `${baseUrl}/${hofBadgeUrl}`;
+        }
+        if (hofBadgeUrl && hofBadgeUrl.startsWith('http://')) {
+          hofBadgeUrl = hofBadgeUrl.replace('http://', 'https://');
+        }
+
         for (const member of result) {
           //let donate = await getDonateBadge(member.donate);
           let donate = '';
@@ -1251,20 +1311,22 @@ async function getMemberWeek0(type = 0, isFlex = true) {
             }
           }
 
-          console.log(`[DEBUG_BADGE] name: ${name_display}, rank: ${member.rank}, raw: ${badgeInfo ? badgeInfo.url : undefined}, size: ${badgeSize}, resolved: ${badgeUrl}, donate: ${memberDonate}, color: ${nameColor}`);
+          const hofCount = hofCounts[member.id] || 0;
+
+          console.log(`[DEBUG_BADGE] name: ${name_display}, rank: ${member.rank}, raw: ${badgeInfo ? badgeInfo.url : undefined}, size: ${badgeSize}, resolved: ${badgeUrl}, donate: ${memberDonate}, color: ${nameColor}, hofCount: ${hofCount}`);
 
           if (type == 1) {
             if (member.team_id == 100) {
-              goalies.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor });
+              goalies.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize });
             } else {
               if (players.length < max_players) {
-                players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor });
+                players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize });
               } else {
-                reserves.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor });
+                reserves.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize });
               }
             }
           } else {
-            players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor });
+            players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize });
           }
         }
 
@@ -2250,7 +2312,70 @@ async function setTheme(themeName) {
   }
 }
 
+async function updateHof() {
+  try {
+    const currentYear = new Date().getFullYear();
+    
+    // 1. Get current year top scorer(s)
+    const scorers = await executeQuery(`
+      SELECT member_id, COUNT(*) as count 
+      FROM match_goal_tbl
+      JOIN match_stat_tbl ON match_goal_tbl.match_id = match_stat_tbl.id
+      JOIN week_tbl ON match_stat_tbl.week_id = week_tbl.id
+      WHERE match_goal_tbl.status < 2 
+        AND YEAR(week_tbl.date) = ${currentYear}
+        AND member_id <> 121 AND member_id <> 169
+      GROUP BY member_id
+    `);
+    
+    // 2. Get current year top assist(s)
+    const assists = await executeQuery(`
+      SELECT member_id, COUNT(*) as count 
+      FROM match_goal_tbl
+      JOIN match_stat_tbl ON match_goal_tbl.match_id = match_stat_tbl.id
+      JOIN week_tbl ON match_stat_tbl.week_id = week_tbl.id
+      WHERE match_goal_tbl.status = 3 
+        AND YEAR(week_tbl.date) = ${currentYear}
+        AND member_id <> 121 AND member_id <> 169
+      GROUP BY member_id
+    `);
+    
+    // Find max counts and filter
+    let topScorers = [];
+    if (scorers && scorers.length > 0) {
+      const maxGoals = Math.max(...scorers.map(s => s.count));
+      if (maxGoals > 0) {
+        topScorers = scorers.filter(s => s.count === maxGoals).map(s => s.member_id);
+      }
+    }
+    
+    let topAssists = [];
+    if (assists && assists.length > 0) {
+      const maxAssists = Math.max(...assists.map(a => a.count));
+      if (maxAssists > 0) {
+        topAssists = assists.filter(a => a.count === maxAssists).map(a => a.member_id);
+      }
+    }
+
+    // Delete existing records for current year
+    await executeQuery(`DELETE FROM hof_tpl WHERE year = ${currentYear} AND type IN ('scorer', 'assist')`);
+    
+    // Insert new records
+    for (const memberId of topScorers) {
+      await executeQuery("INSERT INTO hof_tpl (member_id, type, year) VALUES (?, 'scorer', ?)", [memberId, currentYear]);
+    }
+    for (const memberId of topAssists) {
+      await executeQuery("INSERT INTO hof_tpl (member_id, type, year) VALUES (?, 'assist', ?)", [memberId, currentYear]);
+    }
+    
+    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}`);
+  } catch (err) {
+    console.error('Error updating HOF records:', err.message);
+  }
+}
+
 module.exports = {
+  updateHof,
   testConnection,
   executeQuery,
   queryWeekDate,

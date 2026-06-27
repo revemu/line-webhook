@@ -961,7 +961,7 @@ function makeMemberColumn(p, index, colors) {
         {
           type: 'image',
           url: p.badgeUrl,
-          size: badgeSize,
+          size: 'full',
           aspectRatio: '1:1',
           aspectMode: 'cover',
           animated: true
@@ -969,6 +969,30 @@ function makeMemberColumn(p, index, colors) {
       ],
       margin: 'xs'
     });
+  }
+
+  if (p.hofCount && p.hofCount > 0) {
+    const hSize = p.hofBadgeSize || '20px';
+    for (let c = 0; c < p.hofCount; c++) {
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: hSize,
+        height: hSize,
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: p.hofBadgeUrl || 'https://bearbit.org/pic/crown.gif',
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            animated: true
+          }
+        ],
+        margin: 'xs'
+      });
+    }
   }
   /*else {
     contents.push({

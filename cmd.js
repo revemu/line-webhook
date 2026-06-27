@@ -339,6 +339,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             break;
         case 'top':
             const limit = param != '' ? Number(param) : 10;
+            await db.updateHof();
             const stats = await Promise.all([
                 db.getTopStat(limit, 0),
                 db.getTopStat(limit, 1),
