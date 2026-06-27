@@ -709,7 +709,7 @@ function buildNowFlex(matchInfo, theme) {
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'xs', color: colors.textMutedLight, flex: 3, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'xs', color: colors.tdc(row.team), flex: 3, weight: i === 0 ? 'bold' : 'regular' },
           { type: 'text', text: gdStr, size: 'xs', color: row.gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
           { type: 'text', text: `${row.pts}`, size: 'xs', color: colors.textPrimary, flex: 1, align: 'end', weight: 'bold' }
         ]
@@ -1111,9 +1111,9 @@ function buildLiveFlex(matchInfo, theme) {
       layout: 'horizontal',
       margin: 'xs',
       contents: [
-        { type: 'text', text: 'ทีม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 3 },
-        { type: 'text', text: 'GD', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'แต้ม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'end' }
+        { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 3 },
+        { type: 'text', text: 'GD', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'แต้ม', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'end' }
       ]
     });
 
@@ -1125,9 +1125,9 @@ function buildLiveFlex(matchInfo, theme) {
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'sm', color: colors.textMutedLight, flex: 3, weight: i === 0 ? 'bold' : 'regular' },
-          { type: 'text', text: gdStr, size: 'sm', color: row.gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
-          { type: 'text', text: `${row.pts}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'end', weight: 'bold' }
+          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'xs', color: colors.tdc(row.team), flex: 3, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: gdStr, size: 'xs', color: row.gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
+          { type: 'text', text: `${row.pts}`, size: 'xs', color: colors.textPrimary, flex: 1, align: 'end', weight: 'bold' }
         ]
       });
     });
