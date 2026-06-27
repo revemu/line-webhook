@@ -147,7 +147,7 @@ const getThemeColors = (themeName) => {
       textMutedDark: '#555577',
       textMutedLight: '#aaaacc',
       textAccent: '#e94560',
-      memberNameSpecial: '#38bdf8',
+      memberNameSpecial: '#ffffff',
       tdc: (name) => {
         const n = (name || '').toLowerCase();
         if (n === 'black') return '#999999';
