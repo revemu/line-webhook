@@ -338,7 +338,11 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = `ลงชื่อเตะบอล เสาร์ที่ ${await db.getFormatDate(next_sat)} ได้`;
             break;
         case 'top':
-            const limit = param != '' ? Number(param) : 10;
+            let limit = param != '' ? Number(param) : 10;
+            if (limit > 25) {
+                limit = 25;
+            }
+
             await db.updateHof();
             const stats = await Promise.all([
                 db.getTopStat(limit, 0),
