@@ -2520,6 +2520,36 @@ async function updateHof() {
         AND member_id <> 121 AND member_id <> 169
       GROUP BY member_id
     `);
+
+    // 3. Get current year top average pts
+    const avgPts = await executeQuery(`
+      SELECT 
+        member_team_week_tbl.member_id,
+        SUM(table_week_tbl.pts) / sum(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS count
+      FROM member_team_week_tbl
+      JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
+      JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
+      JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
+      WHERE week_tbl.year = ${currentYear}
+      GROUP BY member_team_week_tbl.member_id
+      HAVING COUNT(table_week_tbl.id) > (
+          SELECT COUNT(*) * 0.5
+          FROM week_tbl
+          WHERE week_tbl.year = ${currentYear}
+      )
+    `);
+
+    // 4. Get current year top own goal(s)
+    const ownGoals = await executeQuery(`
+      SELECT member_id, COUNT(*) as count 
+      FROM match_goal_tbl
+      JOIN match_stat_tbl ON match_goal_tbl.match_id = match_stat_tbl.id
+      JOIN week_tbl ON match_stat_tbl.week_id = week_tbl.id
+      WHERE match_goal_tbl.status = 2 
+        AND YEAR(week_tbl.date) = ${currentYear}
+        AND member_id <> 121 AND member_id <> 169
+      GROUP BY member_id
+    `);
     
     // Find max counts and filter
     let topScorers = [];
@@ -2538,8 +2568,24 @@ async function updateHof() {
       }
     }
 
+    let topAvgPts = [];
+    if (avgPts && avgPts.length > 0) {
+      const maxAvg = Math.max(...avgPts.map(p => Number(p.count)));
+      if (maxAvg > 0) {
+        topAvgPts = avgPts.filter(p => Number(p.count) === maxAvg).map(p => p.member_id);
+      }
+    }
+
+    let topOwnGoals = [];
+    if (ownGoals && ownGoals.length > 0) {
+      const maxOwn = Math.max(...ownGoals.map(o => o.count));
+      if (maxOwn > 0) {
+        topOwnGoals = ownGoals.filter(o => o.count === maxOwn).map(o => o.member_id);
+      }
+    }
+
     // Delete existing records for current year
-    await executeQuery(`DELETE FROM hof_tbl WHERE year = ${currentYear} AND type IN ('scorer', 'assist')`);
+    await executeQuery("DELETE FROM hof_tbl WHERE year = ? AND type IN ('scorer', 'assist', 'avg_pts', 'own_goal')", [currentYear]);
     
     // Insert new records
     for (const memberId of topScorers) {
@@ -2548,8 +2594,14 @@ async function updateHof() {
     for (const memberId of topAssists) {
       await executeQuery("INSERT INTO hof_tbl (member_id, type, year) VALUES (?, 'assist', ?)", [memberId, currentYear]);
     }
+    for (const memberId of topAvgPts) {
+      await executeQuery("INSERT INTO hof_tbl (member_id, type, year) VALUES (?, 'avg_pts', ?)", [memberId, currentYear]);
+    }
+    for (const memberId of topOwnGoals) {
+      await executeQuery("INSERT INTO hof_tbl (member_id, type, year) VALUES (?, 'own_goal', ?)", [memberId, currentYear]);
+    }
     
-    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}`);
+    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Avg Pts: ${topAvgPts.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}`);
   } catch (err) {
     console.error('Error updating HOF records:', err.message);
   }
