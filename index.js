@@ -49,8 +49,12 @@ app.use((req, res, next) => {
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
 
+// Serve static assets from project directory and 'pic' folder
+app.use('/img', express.static(path.join(__dirname, 'img')));
+app.use(express.static(__dirname));
+
 // Serve green_dot.png static asset
-app.get('/green_dot.png', (req, res) => {
+app.get('/img/green_dot.png', (req, res) => {
     res.sendFile(path.join(__dirname, 'green_dot.png'));
 });
 

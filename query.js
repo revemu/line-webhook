@@ -1178,7 +1178,11 @@ async function getMemberWeek0(type = 0, isFlex = true) {
           let donate = await getDonateBadge(member.donate);
           let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
           name_display = (name_display || '').replace('@', '');
-          const badgeUrl = badges[String(member.rank || 0)] || null;
+          let badgeUrl = badges[String(member.rank || 0)] || null;
+          if (badgeUrl && !badgeUrl.startsWith('http://') && !badgeUrl.startsWith('https://')) {
+            const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+            badgeUrl = badgeUrl.startsWith('/') ? `${baseUrl}${badgeUrl}` : `${baseUrl}/${badgeUrl}`;
+          }
 
           if (type == 1) {
             if (member.team_id == 100) {
