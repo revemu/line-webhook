@@ -160,7 +160,13 @@ const getThemeColors = (themeName) => {
   }
 };
 
-const getBaseUrl = () => global.baseWebhookUrl || 'https://api.revemu.org';
+const getBaseUrl = () => {
+  let url = global.baseWebhookUrl || 'https://api.revemu.org';
+  if (url.startsWith('http://')) {
+    url = url.replace('http://', 'https://');
+  }
+  return url;
+};
 
 /**
  * Build a Flex bubble for /schedule
