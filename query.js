@@ -94,11 +94,17 @@ async function testConnection() {
 
     // Auto-migration to insert default hof_badge in template_tpl if not exists
     try {
-      const [hofBadge] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'hof_badge'");
-      if (hofBadge.length === 0) {
+      const [hofBadgeDefault] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'hof_badge' AND value = 'default'");
+      if (hofBadgeDefault.length === 0) {
         console.log('Inserting default HOF badge in template_tpl...');
         await connection.query("INSERT INTO template_tpl (name, value, url, size) VALUES ('hof_badge', 'default', 'https://bearbit.org/pic/crown.gif', '20px')");
         console.log('✅ Default HOF badge inserted successfully');
+      }
+      const [hofBadgeMulti] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'hof_badge' AND value = 'multi'");
+      if (hofBadgeMulti.length === 0) {
+        console.log('Inserting multi HOF badge in template_tpl...');
+        await connection.query("INSERT INTO template_tpl (name, value, url, size) VALUES ('hof_badge', 'multi', 'https://bearbit.org/pic/crown.gif', '20px')");
+        console.log('✅ Multi HOF badge inserted successfully');
       }
     } catch (migErr) {
       console.error('⚠️ Database migration failed for template_tpl.hof_badge:', migErr.message);
@@ -156,8 +162,17 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
   }
 
   const hofCount = hofCounts[member.id] || 0;
-  let hofBadgeUrl = hofBadge ? hofBadge.url : 'https://bearbit.org/pic/crown.gif';
-  let hofBadgeSize = hofBadge ? (hofBadge.size || '20px') : '20px';
+  let selectedHofBadge = null;
+  if (hofCount > 1 && hofBadge && hofBadge['multi']) {
+    selectedHofBadge = hofBadge['multi'];
+  } else if (hofCount > 0 && hofBadge && hofBadge['default']) {
+    selectedHofBadge = hofBadge['default'];
+  } else if (hofCount > 0 && hofBadge) {
+    selectedHofBadge = Object.values(hofBadge)[0];
+  }
+
+  let hofBadgeUrl = selectedHofBadge ? selectedHofBadge.url : (hofCount > 0 ? 'https://bearbit.org/pic/crown.gif' : null);
+  let hofBadgeSize = selectedHofBadge ? (selectedHofBadge.size || '20px') : '20px';
   if (hofBadgeUrl && !hofBadgeUrl.startsWith('http://') && !hofBadgeUrl.startsWith('https://')) {
     const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
     hofBadgeUrl = hofBadgeUrl.startsWith('/') ? `${baseUrl}${hofBadgeUrl}` : `${baseUrl}/${hofBadgeUrl}`;
@@ -212,12 +227,12 @@ async function fetchDisplayAssets() {
     console.error('Error querying HOF counts:', hofErr.message);
   }
 
-  let hofBadge = null;
+  const hofBadge = {};
   try {
-    const hofBadgeTpl = await executeQuery("SELECT url, size FROM template_tpl WHERE name = 'hof_badge' LIMIT 1");
-    if (hofBadgeTpl.length > 0) {
-      hofBadge = { url: hofBadgeTpl[0].url, size: hofBadgeTpl[0].size || '20px' };
-    }
+    const hofBadgeTpls = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'hof_badge'");
+    hofBadgeTpls.forEach(r => {
+      hofBadge[r.value] = { url: r.url, size: r.size || '20px' };
+    });
   } catch (hofBadgeErr) {
     console.error('Error querying HOF badge template:', hofBadgeErr.message);
   }
@@ -622,28 +637,26 @@ async function queryMatchGoal(match_id, goal_status = 0) {
       });
     }
 
-    if (info.hofCount && info.hofCount > 0) {
+    if (info.hofCount && info.hofCount > 0 && info.hofBadgeUrl) {
       const hSize = info.hofBadgeSize || '16px';
-      for (let c = 0; c < info.hofCount; c++) {
-        rowContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: hSize,
-          height: hSize,
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: info.hofBadgeUrl,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              animated: true
-            }
-          ],
-          margin: 'xs'
-        });
-      }
+      rowContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: hSize,
+        height: hSize,
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: info.hofBadgeUrl,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            animated: true
+          }
+        ],
+        margin: 'xs'
+      });
     }
 
     rowContents.push({
@@ -1222,28 +1235,26 @@ async function getTeamWeek(week_id = 0) {
               });
             }
 
-            if (info.hofCount && info.hofCount > 0) {
+            if (info.hofCount && info.hofCount > 0 && info.hofBadgeUrl) {
               const hSize = info.hofBadgeSize || '16px';
-              for (let c = 0; c < info.hofCount; c++) {
-                nameBoxContents.push({
-                  type: 'box',
-                  layout: 'vertical',
-                  width: hSize,
-                  height: hSize,
-                  flex: 0,
-                  contents: [
-                    {
-                      type: 'image',
-                      url: info.hofBadgeUrl,
-                      size: 'full',
-                      aspectRatio: '1:1',
-                      aspectMode: 'cover',
-                      animated: true
-                    }
-                  ],
-                  margin: 'xs'
-                });
-              }
+              nameBoxContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: hSize,
+                height: hSize,
+                flex: 0,
+                contents: [
+                  {
+                    type: 'image',
+                    url: info.hofBadgeUrl,
+                    size: 'full',
+                    aspectRatio: '1:1',
+                    aspectMode: 'cover',
+                    animated: true
+                  }
+                ],
+                margin: 'xs'
+              });
             }
 
             nameBoxContents.push({
@@ -1808,7 +1819,7 @@ ORDER BY pts DESC limit ${limit}`;
 
       const nameBoxContents = [];
       const badgeSize = info.badgeSize || '16px';
-      /*if (info.badgeUrl) {
+      if (info.badgeUrl) {
         nameBoxContents.push({
           type: 'box',
           layout: 'vertical',
@@ -1827,31 +1838,29 @@ ORDER BY pts DESC limit ${limit}`;
           ],
           margin: 'xs'
         });
-      }*/
+      }
 
-      /*if (info.hofCount && info.hofCount > 0) {
+      if (info.hofCount && info.hofCount > 0 && info.hofBadgeUrl) {
         const hSize = info.hofBadgeSize || '16px';
-        for (let c = 0; c < info.hofCount; c++) {
-          nameBoxContents.push({
-            type: 'box',
-            layout: 'vertical',
-            width: hSize,
-            height: hSize,
-            flex: 0,
-            contents: [
-              {
-                type: 'image',
-                url: info.hofBadgeUrl,
-                size: 'full',
-                aspectRatio: '1:1',
-                aspectMode: 'cover',
-                animated: true
-              }
-            ],
-            margin: 'xs'
-          });
-        }
-      }*/
+        nameBoxContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: hSize,
+          height: hSize,
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: info.hofBadgeUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true
+            }
+          ],
+          margin: 'xs'
+        });
+      }
 
       nameBoxContents.push({
         type: 'text',

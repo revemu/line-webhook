@@ -499,28 +499,26 @@ function buildNowFlex(matchInfo, theme) {
         });
       }
 
-      if (s.hofCount && s.hofCount > 0) {
+      if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
         const hSize = s.hofBadgeSize || '16px';
-        for (let c = 0; c < s.hofCount; c++) {
-          rowContents.push({
-            type: 'box',
-            layout: 'vertical',
-            width: hSize,
-            height: hSize,
-            flex: 0,
-            contents: [
-              {
-                type: 'image',
-                url: s.hofBadgeUrl,
-                size: 'full',
-                aspectRatio: '1:1',
-                aspectMode: 'cover',
-                animated: true
-              }
-            ],
-            margin: 'xs'
-          });
-        }
+        rowContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: hSize,
+          height: hSize,
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: s.hofBadgeUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true
+            }
+          ],
+          margin: 'xs'
+        });
       }
 
       rowContents.push({
@@ -573,28 +571,26 @@ function buildNowFlex(matchInfo, theme) {
         });
       }
 
-      if (a.hofCount && a.hofCount > 0) {
+      if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
         const hSize = a.hofBadgeSize || '16px';
-        for (let c = 0; c < a.hofCount; c++) {
-          rowContents.push({
-            type: 'box',
-            layout: 'vertical',
-            width: hSize,
-            height: hSize,
-            flex: 0,
-            contents: [
-              {
-                type: 'image',
-                url: a.hofBadgeUrl,
-                size: 'full',
-                aspectRatio: '1:1',
-                aspectMode: 'cover',
-                animated: true
-              }
-            ],
-            margin: 'xs'
-          });
-        }
+        rowContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: hSize,
+          height: hSize,
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: a.hofBadgeUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true
+            }
+          ],
+          margin: 'xs'
+        });
       }
 
       rowContents.push({
@@ -973,28 +969,26 @@ function buildLiveFlex(matchInfo, theme) {
               });
             }
 
-            if (s.hofCount && s.hofCount > 0) {
+            if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
               const hSize = s.hofBadgeSize || '16px';
-              for (let c = 0; c < s.hofCount; c++) {
-                rowContents.push({
-                  type: 'box',
-                  layout: 'vertical',
-                  width: hSize,
-                  height: hSize,
-                  flex: 0,
-                  contents: [
-                    {
-                      type: 'image',
-                      url: s.hofBadgeUrl,
-                      size: 'full',
-                      aspectRatio: '1:1',
-                      aspectMode: 'cover',
-                      animated: true
-                    }
-                  ],
-                  margin: 'xs'
-                });
-              }
+              rowContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: hSize,
+                height: hSize,
+                flex: 0,
+                contents: [
+                  {
+                    type: 'image',
+                    url: s.hofBadgeUrl,
+                    size: 'full',
+                    aspectRatio: '1:1',
+                    aspectMode: 'cover',
+                    animated: true
+                  }
+                ],
+                margin: 'xs'
+              });
             }
 
             rowContents.push({
@@ -1045,28 +1039,26 @@ function buildLiveFlex(matchInfo, theme) {
               });
             }
 
-            if (a.hofCount && a.hofCount > 0) {
+            if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
               const hSize = a.hofBadgeSize || '16px';
-              for (let c = 0; c < a.hofCount; c++) {
-                rowContents.push({
-                  type: 'box',
-                  layout: 'vertical',
-                  width: hSize,
-                  height: hSize,
-                  flex: 0,
-                  contents: [
-                    {
-                      type: 'image',
-                      url: a.hofBadgeUrl,
-                      size: 'full',
-                      aspectRatio: '1:1',
-                      aspectMode: 'cover',
-                      animated: true
-                    }
-                  ],
-                  margin: 'xs'
-                });
-              }
+              rowContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: hSize,
+                height: hSize,
+                flex: 0,
+                contents: [
+                  {
+                    type: 'image',
+                    url: a.hofBadgeUrl,
+                    size: 'full',
+                    aspectRatio: '1:1',
+                    aspectMode: 'cover',
+                    animated: true
+                  }
+                ],
+                margin: 'xs'
+              });
             }
 
             rowContents.push({
@@ -1207,28 +1199,26 @@ function makeMemberColumn(p, index, colors) {
     });
   }
 
-  if (p.hofCount && p.hofCount > 0) {
+  if (p.hofCount && p.hofCount > 0 && p.hofBadgeUrl) {
     const hSize = p.hofBadgeSize || '20px';
-    for (let c = 0; c < p.hofCount; c++) {
-      contents.push({
-        type: 'box',
-        layout: 'vertical',
-        width: hSize,
-        height: hSize,
-        flex: 0,
-        contents: [
-          {
-            type: 'image',
-            url: p.hofBadgeUrl || 'https://bearbit.org/pic/crown.gif',
-            size: 'full',
-            aspectRatio: '1:1',
-            aspectMode: 'cover',
-            animated: true
-          }
-        ],
-        margin: 'xs'
-      });
-    }
+    contents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: hSize,
+      height: hSize,
+      flex: 0,
+      contents: [
+        {
+          type: 'image',
+          url: p.hofBadgeUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover',
+          animated: true
+        }
+      ],
+      margin: 'xs'
+    });
   }
   /*else {
     contents.push({
