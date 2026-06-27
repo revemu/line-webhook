@@ -1179,9 +1179,14 @@ async function getMemberWeek0(type = 0, isFlex = true) {
           let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
           name_display = (name_display || '').replace('@', '');
           let badgeUrl = badges[String(member.rank || 0)] || null;
-          if (badgeUrl && !badgeUrl.startsWith('http://') && !badgeUrl.startsWith('https://')) {
-            const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-            badgeUrl = badgeUrl.startsWith('/') ? `${baseUrl}${badgeUrl}` : `${baseUrl}/${badgeUrl}`;
+          if (badgeUrl) {
+            if (!badgeUrl.startsWith('http://') && !badgeUrl.startsWith('https://')) {
+              const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+              badgeUrl = badgeUrl.startsWith('/') ? `${baseUrl}${badgeUrl}` : `${baseUrl}/${badgeUrl}`;
+            }
+            if (badgeUrl.startsWith('http://')) {
+              badgeUrl = badgeUrl.replace('http://', 'https://');
+            }
           }
 
           if (type == 1) {

@@ -974,7 +974,7 @@ function makeMemberColumn(p, index, colors) {
       width: '20px',
       height: '20px',
       flex: 0,
-      contents: []
+      contents: [{ type: 'filler' }]
     });
   }
 
@@ -1047,7 +1047,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       if (p2) {
         cols.push(makeMemberColumn(p2, i + 2, colors));
       } else {
-        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [] });
+        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
       }
 
       rows.push({
