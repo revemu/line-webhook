@@ -689,15 +689,18 @@ function buildNowFlex(matchInfo, theme) {
     bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
     bodyContents.push({ type: 'text', text: '📊 ตารางคะแนน', size: 'sm', weight: 'bold', color: colors.textPrimary, margin: 'md' });
 
-    // Header row
+     // Header row
     bodyContents.push({
       type: 'box',
       layout: 'horizontal',
       margin: 'xs',
       contents: [
-        { type: 'text', text: 'ทีม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 3 },
+        { type: 'text', text: 'ทีม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 4 },
+        { type: 'text', text: 'W', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center', margin: 'lg' },
+        { type: 'text', text: 'D', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'L', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
         { type: 'text', text: 'GD', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'แต้ม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'end' }
+        { type: 'text', text: 'PTS', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' }
       ]
     });
 
@@ -709,9 +712,12 @@ function buildNowFlex(matchInfo, theme) {
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'sm', color: colors.tdc(row.team), flex: 3, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'sm', color: colors.tdc(row.team), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: `${row.w}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center', margin: 'lg' },
+          { type: 'text', text: `${row.d}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: `${row.l}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
           { type: 'text', text: gdStr, size: 'sm', color: row.gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
-          { type: 'text', text: `${row.pts}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'end', weight: 'bold' }
+          { type: 'text', text: `${row.pts}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
         ]
       });
     });
@@ -1111,9 +1117,12 @@ function buildLiveFlex(matchInfo, theme) {
       layout: 'horizontal',
       margin: 'xs',
       contents: [
-        { type: 'text', text: 'ทีม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 3 },
+        { type: 'text', text: 'ทีม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 4 },
+        { type: 'text', text: 'W', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center', margin: 'lg' },
+        { type: 'text', text: 'D', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'L', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
         { type: 'text', text: 'GD', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'แต้ม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'end' }
+        { type: 'text', text: 'PTS', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' }
       ]
     });
 
@@ -1125,9 +1134,12 @@ function buildLiveFlex(matchInfo, theme) {
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'sm', color: colors.tdc(row.team), flex: 3, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'sm', color: colors.tdc(row.team), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: `${row.w}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center', margin: 'lg' },
+          { type: 'text', text: `${row.d}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: `${row.l}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
           { type: 'text', text: gdStr, size: 'sm', color: row.gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
-          { type: 'text', text: `${row.pts}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'end', weight: 'bold' }
+          { type: 'text', text: `${row.pts}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
         ]
       });
     });

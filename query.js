@@ -2465,6 +2465,9 @@ async function getCurrentMatch() {
     if (tableRows && tableRows.length > 0) {
       table = tableRows.map(r => ({
         team: r.color,
+        w: r.w,
+        d: r.d,
+        l: r.l,
         gd: (r.G - r.A),
         pts: r.pts
       }));
