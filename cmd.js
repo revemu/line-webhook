@@ -348,7 +348,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             ]);
 
             const carousel = flex.tpl_carousel;
-            carousel.contents = stats;
+            carousel.contents = stats.filter(s => s != null);
             const date = new Date();
             altText = `Top ${limit} Stat (${date.getFullYear()})`;
             msg = carousel;
