@@ -76,11 +76,11 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for template_tpl.donate_color:', migErr.message);
     }
 
-    // Auto-migration to create hof_tpl if not exists
+    // Auto-migration to create hof_tbl if not exists
     try {
       console.log('Verifying HOF table exists...');
       await connection.query(`
-        CREATE TABLE IF NOT EXISTS hof_tpl (
+        CREATE TABLE IF NOT EXISTS hof_tbl (
           id INT AUTO_INCREMENT PRIMARY KEY,
           member_id INT NOT NULL,
           type VARCHAR(50) NOT NULL,
@@ -90,7 +90,7 @@ async function testConnection() {
       `);
       console.log('✅ HOF table verified/created successfully');
     } catch (migErr) {
-      console.error('⚠️ Database migration failed for hof_tpl table:', migErr.message);
+      console.error('⚠️ Database migration failed for hof_tbl table:', migErr.message);
     }
 
     // Auto-migration to insert default hof_badge in template_tpl if not exists
@@ -1246,10 +1246,10 @@ async function getMemberWeek0(type = 0, isFlex = true) {
           console.error('Error querying donate colors:', colorErr.message);
         }
 
-        // Fetch HOF counts from hof_tpl
+        // Fetch HOF counts from hof_tbl
         const hofCounts = {};
         try {
-          const hofResults = await executeQuery("SELECT member_id, COUNT(*) as count FROM hof_tpl GROUP BY member_id");
+          const hofResults = await executeQuery("SELECT member_id, COUNT(*) as count FROM hof_tbl GROUP BY member_id");
           hofResults.forEach(h => {
             hofCounts[h.member_id] = h.count;
           });
@@ -2358,14 +2358,14 @@ async function updateHof() {
     }
 
     // Delete existing records for current year
-    await executeQuery(`DELETE FROM hof_tpl WHERE year = ${currentYear} AND type IN ('scorer', 'assist')`);
+    await executeQuery(`DELETE FROM hof_tbl WHERE year = ${currentYear} AND type IN ('scorer', 'assist')`);
     
     // Insert new records
     for (const memberId of topScorers) {
-      await executeQuery("INSERT INTO hof_tpl (member_id, type, year) VALUES (?, 'scorer', ?)", [memberId, currentYear]);
+      await executeQuery("INSERT INTO hof_tbl (member_id, type, year) VALUES (?, 'scorer', ?)", [memberId, currentYear]);
     }
     for (const memberId of topAssists) {
-      await executeQuery("INSERT INTO hof_tpl (member_id, type, year) VALUES (?, 'assist', ?)", [memberId, currentYear]);
+      await executeQuery("INSERT INTO hof_tbl (member_id, type, year) VALUES (?, 'assist', ?)", [memberId, currentYear]);
     }
     
     console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}`);
