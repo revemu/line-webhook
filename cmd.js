@@ -23,9 +23,22 @@ async function process_cmd(cmd_str, member, quoteToken) {
         param = param.replace(/text/gi, '').trim();
     }
 
+    let rank_val = 0;
+    if (cmd === 'setrank') {
+        const parts = param.split(/\s+/).filter(Boolean);
+        if (parts.length > 1) {
+            const possibleVal = parts.pop();
+            const parsed = parseInt(possibleVal, 10);
+            if (!isNaN(parsed)) {
+                rank_val = parsed;
+                param = parts.join(' ').trim();
+            }
+        }
+    }
+
     let member_id = member.id;
     let member_name = member.name;
-    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team'].includes(cmd);
+    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank'].includes(cmd);
     let is_mention = false;
 
     if (is_mention_cmd && param.startsWith('@')) {
@@ -232,6 +245,15 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'topscorer':
         case 'topassist':
             msg = "ให้ใช้ /top แทน";
+            break;
+        case 'setrank':
+            if (is_mention) {
+                await db.updateMemberRank(member_id, rank_val);
+                msg = `ปรับระดับ (rank) ของ ${member_name} เป็น ${rank_val} เรียบร้อยครับ`;
+            } else {
+                msg = `กรุณาระบุชื่อสมาชิก: /setrank @ชื่อสมาชิก ระดับ`;
+            }
+            msg_type = 0;
             break;
         case 'theme':
             if (param === 'black' || param === 'white') {

@@ -23,6 +23,31 @@ async function testConnection() {
   try {
     const connection = await pool.getConnection();
     console.log('✅ Connected to MySQL database successfully');
+
+    // Auto-migration to add rank column to member_tbl if not exists
+    try {
+      const [columns] = await connection.query("SHOW COLUMNS FROM member_tbl LIKE 'rank'");
+      if (columns.length === 0) {
+        console.log('Adding rank column to member_tbl...');
+        await connection.query("ALTER TABLE member_tbl ADD COLUMN rank INT DEFAULT 0");
+        console.log('✅ rank column added successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for member_tbl.rank:', migErr.message);
+    }
+
+    // Auto-migration to add default rank badge to template_tpl if not exists
+    try {
+      const [badgeTemplates] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'rank_badge' AND value = '1'");
+      if (badgeTemplates.length === 0) {
+        console.log('Inserting default rank badge in template_tpl...');
+        await connection.query("INSERT INTO template_tpl (name, value, url) VALUES ('rank_badge', '1', 'https://bearbit.org/pic/crown.gif')");
+        console.log('✅ Default rank badge inserted successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for template_tpl.rank_badge:', migErr.message);
+    }
+
     connection.release();
   } catch (error) {
     console.error('❌ Error connecting to MySQL database:', error.message);
@@ -60,6 +85,11 @@ async function updateMember(member_id, value, type = 0) {
   } else if (type == 1) {
     //query = `update member_team_week_tbl set team_id=${value} where member_id=${member_id} and week_id=${week_id}`
   }
+}
+
+async function updateMemberRank(member_id, rank) {
+  const query = "update member_tbl set rank=? where id=?";
+  return await executeQuery(query, [rank, member_id]);
 }
 
 async function resetMemberTeam() {
@@ -366,17 +396,18 @@ async function queryMatchGoal(match_id, goal_status = 0) {
   let size = ""
   let offsetTop;
   let offsetStart;
+  const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
   if (goal_status == 0) {
     status = " <= 2";
     icon = "⚽";
-    url = "https://api.revemu.org/ball_ico.png";
+    url = `${baseUrl}/ball_ico.png`;
     size = "md";
     offsetTop = "xs";
     offsetStart = "xs";
   } else if (goal_status == 3) {
     status = " = 3";
     icon = "👟";
-    url = "https://api.revemu.org/boot_ico.png";
+    url = `${baseUrl}/boot_ico.png`;
     size = "lg";
     offsetTop = "sm";
     offsetStart = "none";
@@ -1114,7 +1145,7 @@ async function getMemberWeek0(type = 0, isFlex = true) {
     const max_players = res[0].max;
     const date = new Date(res[0].date);
 
-    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0";
@@ -1132,23 +1163,35 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         const dateStr = await getFormatDate(date, 'short');
         const titleText = type === 0 ? "สมาชิกที่ยังไม่จ่ายค่าสนาม" : "ลงชื่อ";
 
+        // Fetch rank badges from template_tpl
+        const badges = {};
+        try {
+          const badgeResults = await executeQuery("SELECT value, url FROM template_tpl WHERE name = 'rank_badge'");
+          badgeResults.forEach(r => {
+            badges[r.value] = r.url;
+          });
+        } catch (badgeErr) {
+          console.error('Error querying rank badges:', badgeErr.message);
+        }
+
         for (const member of result) {
           let donate = await getDonateBadge(member.donate);
           let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
           name_display = (name_display || '').replace('@', '');
+          const badgeUrl = badges[String(member.rank || 0)] || null;
 
           if (type == 1) {
             if (member.team_id == 100) {
-              goalies.push({ name: name_display, donate });
+              goalies.push({ name: name_display, donate, badgeUrl });
             } else {
               if (players.length < max_players) {
-                players.push({ name: name_display, donate });
+                players.push({ name: name_display, donate, badgeUrl });
               } else {
-                reserves.push({ name: name_display, donate });
+                reserves.push({ name: name_display, donate, badgeUrl });
               }
             }
           } else {
-            players.push({ name: name_display, donate });
+            players.push({ name: name_display, donate, badgeUrl });
           }
         }
 
@@ -2144,6 +2187,7 @@ module.exports = {
   getMatchWeek,
   getTableWeek,
   updateMember,
+  updateMemberRank,
   updateMemberDebt,
   updateMemberWeek,
   updateMaxNumberWeek,

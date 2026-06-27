@@ -38,6 +38,14 @@ function formatDate(curDate) {
 // Create LINE SDK client
 const client = new Client(config);
 
+// Middleware to dynamically capture base URL from request host (for Nginx proxy support)
+app.use((req, res, next) => {
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['host'] || req.get('host');
+    global.baseWebhookUrl = `${proto}://${host}`;
+    next();
+});
+
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
 

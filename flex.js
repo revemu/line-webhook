@@ -119,6 +119,7 @@ const getThemeColors = (themeName) => {
       textMutedDark: '#475569',
       textMutedLight: '#334155',
       textAccent: '#dc2626',
+      memberNameSpecial: '#0284c7',
       tdc: (name) => {
         const n = (name || '').toLowerCase();
         if (n === 'black') return '#0f172a';
@@ -146,6 +147,7 @@ const getThemeColors = (themeName) => {
       textMutedDark: '#555577',
       textMutedLight: '#aaaacc',
       textAccent: '#e94560',
+      memberNameSpecial: '#38bdf8',
       tdc: (name) => {
         const n = (name || '').toLowerCase();
         if (n === 'black') return '#999999';
@@ -157,6 +159,8 @@ const getThemeColors = (themeName) => {
     };
   }
 };
+
+const getBaseUrl = () => global.baseWebhookUrl || 'https://api.revemu.org';
 
 /**
  * Build a Flex bubble for /schedule
@@ -439,7 +443,7 @@ function buildNowFlex(matchInfo, theme) {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
-        contents: makeHeaderContents('image', 'https://api.revemu.org/green_pulse_true.png', 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
+        contents: makeHeaderContents('image', `${getBaseUrl()}/green_pulse_true.png`, 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
       },
       // Score row: TeamA  score  TeamB
       {
@@ -747,7 +751,7 @@ function buildLiveFlex(matchInfo, theme) {
         contents: [
           {
             type: 'image',
-            url: 'https://api.revemu.org/green_pulse_true.png',
+            url: `${getBaseUrl()}/green_pulse_true.png`,
             size: 'full',
             aspectRatio: '1:1',
             aspectMode: 'cover',
@@ -933,6 +937,66 @@ function buildLiveFlex(matchInfo, theme) {
   };
 }
 
+function makeMemberColumn(p, index, colors) {
+  const contents = [
+    {
+      type: 'box',
+      layout: 'vertical',
+      width: '22px',
+      contents: [
+        { type: 'text', text: `${index}.`, size: 'sm', color: colors.textMuted, align: 'end' }
+      ]
+    }
+  ];
+
+  if (p.badgeUrl) {
+    contents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: '20px',
+      height: '20px',
+      flex: 0,
+      contents: [
+        {
+          type: 'image',
+          url: p.badgeUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover'
+        }
+      ],
+      margin: 'xs'
+    });
+  } else {
+    contents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: '20px',
+      height: '20px',
+      flex: 0,
+      contents: []
+    });
+  }
+
+  contents.push({
+    type: 'text',
+    text: `${p.donate || ''}${p.name}`,
+    size: 'sm',
+    weight: 'bold',
+    color: colors.memberNameSpecial,
+    flex: 1,
+    margin: 'sm'
+  });
+
+  return {
+    type: 'box',
+    layout: 'horizontal',
+    flex: 1,
+    alignItems: 'center',
+    contents: contents
+  };
+}
+
 function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme) {
   const bodyContents = [];
   const finalImageUrl = imageUrl || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuyGBcXBYCphjV9yKqgZyNEWCvdbbLtn6ILg&s';
@@ -977,41 +1041,11 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       const p2 = players[i + 1];
 
       const cols = [
-        {
-          type: 'box',
-          layout: 'horizontal',
-          flex: 1,
-          contents: [
-            {
-              type: 'box',
-              layout: 'vertical',
-              width: '22px',
-              contents: [
-                { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMuted, align: 'end' }
-              ]
-            },
-            { type: 'text', text: `${p1.donate}${p1.name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
-          ]
-        }
+        makeMemberColumn(p1, i + 1, colors)
       ];
 
       if (p2) {
-        cols.push({
-          type: 'box',
-          layout: 'horizontal',
-          flex: 1,
-          contents: [
-            {
-              type: 'box',
-              layout: 'vertical',
-              width: '22px',
-              contents: [
-                { type: 'text', text: `${i + 2}.`, size: 'sm', color: colors.textMuted, align: 'end' }
-              ]
-            },
-            { type: 'text', text: `${p2.donate}${p2.name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
-          ]
-        });
+        cols.push(makeMemberColumn(p2, i + 2, colors));
       } else {
         cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [] });
       }
@@ -1045,22 +1079,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
 
     const reserveRows = [];
     for (let i = 0; i < reserves.length; i++) {
-      reserveRows.push({
-        type: 'box',
-        layout: 'horizontal',
-        margin: 'xs',
-        contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            width: '22px',
-            contents: [
-              { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMuted, align: 'end' }
-            ]
-          },
-          { type: 'text', text: `${reserves[i].donate}${reserves[i].name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
-        ]
-      });
+      reserveRows.push(makeMemberColumn(reserves[i], i + 1, colors));
     }
     bodyContents.push({
       type: 'box',
@@ -1083,22 +1102,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
 
     const goalieRows = [];
     for (let i = 0; i < goalies.length; i++) {
-      goalieRows.push({
-        type: 'box',
-        layout: 'horizontal',
-        margin: 'xs',
-        contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            width: '22px',
-            contents: [
-              { type: 'text', text: `${i + 1}.`, size: 'sm', color: colors.textMuted, align: 'end' }
-            ]
-          },
-          { type: 'text', text: `${goalies[i].donate}${goalies[i].name}`, size: 'sm', color: colors.textPrimary, flex: 1, margin: 'sm' }
-        ]
-      });
+      goalieRows.push(makeMemberColumn(goalies[i], i + 1, colors));
     }
     bodyContents.push({
       type: 'box',
