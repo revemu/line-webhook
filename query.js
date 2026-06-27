@@ -36,12 +36,24 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for member_tbl.rank:', migErr.message);
     }
 
+    // Auto-migration to add size column to template_tpl if not exists
+    try {
+      const [columns] = await connection.query("SHOW COLUMNS FROM template_tpl LIKE 'size'");
+      if (columns.length === 0) {
+        console.log('Adding size column to template_tpl...');
+        await connection.query("ALTER TABLE template_tpl ADD COLUMN size VARCHAR(50) DEFAULT NULL");
+        console.log('✅ size column added successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for template_tpl.size:', migErr.message);
+    }
+
     // Auto-migration to add default rank badge to template_tpl if not exists
     try {
       const [badgeTemplates] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'rank_badge' AND value = '1'");
       if (badgeTemplates.length === 0) {
         console.log('Inserting default rank badge in template_tpl...');
-        await connection.query("INSERT INTO template_tpl (name, value, url) VALUES ('rank_badge', '1', 'https://bearbit.org/pic/crown.gif')");
+        await connection.query("INSERT INTO template_tpl (name, value, url, size) VALUES ('rank_badge', '1', 'https://bearbit.org/pic/crown.gif', '20px')");
         console.log('✅ Default rank badge inserted successfully');
       }
     } catch (migErr) {
@@ -1166,9 +1178,9 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         // Fetch rank badges from template_tpl
         const badges = {};
         try {
-          const badgeResults = await executeQuery("SELECT value, url FROM template_tpl WHERE name = 'rank_badge'");
+          const badgeResults = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'rank_badge'");
           badgeResults.forEach(r => {
-            badges[r.value] = r.url;
+            badges[r.value] = { url: r.url, size: r.size };
           });
         } catch (badgeErr) {
           console.error('Error querying rank badges:', badgeErr.message);
@@ -1178,7 +1190,9 @@ async function getMemberWeek0(type = 0, isFlex = true) {
           let donate = await getDonateBadge(member.donate);
           let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
           name_display = (name_display || '').replace('@', '');
-          let badgeUrl = badges[String(member.rank || 0)] || null;
+          const badgeInfo = badges[String(member.rank || 0)] || null;
+          let badgeUrl = badgeInfo ? badgeInfo.url : null;
+          const badgeSize = badgeInfo ? (badgeInfo.size || '20px') : '20px';
           if (badgeUrl) {
             if (!badgeUrl.startsWith('http://') && !badgeUrl.startsWith('https://')) {
               const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
@@ -1188,20 +1202,20 @@ async function getMemberWeek0(type = 0, isFlex = true) {
               badgeUrl = badgeUrl.replace('http://', 'https://');
             }
           }
-          console.log(`[DEBUG_BADGE] name: ${name_display}, rank: ${member.rank}, raw: ${badges[String(member.rank || 0)]}, resolved: ${badgeUrl}`);
+          console.log(`[DEBUG_BADGE] name: ${name_display}, rank: ${member.rank}, raw: ${badgeInfo ? badgeInfo.url : undefined}, size: ${badgeSize}, resolved: ${badgeUrl}`);
 
           if (type == 1) {
             if (member.team_id == 100) {
-              goalies.push({ name: name_display, donate, badgeUrl });
+              goalies.push({ name: name_display, donate, badgeUrl, badgeSize });
             } else {
               if (players.length < max_players) {
-                players.push({ name: name_display, donate, badgeUrl });
+                players.push({ name: name_display, donate, badgeUrl, badgeSize });
               } else {
-                reserves.push({ name: name_display, donate, badgeUrl });
+                reserves.push({ name: name_display, donate, badgeUrl, badgeSize });
               }
             }
           } else {
-            players.push({ name: name_display, donate, badgeUrl });
+            players.push({ name: name_display, donate, badgeUrl, badgeSize });
           }
         }
 

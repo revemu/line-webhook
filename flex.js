@@ -949,18 +949,19 @@ function makeMemberColumn(p, index, colors) {
     }
   ];
 
+  const badgeSize = p.badgeSize || '20px';
   if (p.badgeUrl) {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      width: '20px',
-      height: '20px',
+      width: badgeSize,
+      height: badgeSize,
       flex: 0,
       contents: [
         {
           type: 'image',
           url: p.badgeUrl,
-          size: '32px',
+          size: badgeSize,
           aspectRatio: '1:1',
           aspectMode: 'cover',
           animated: true
@@ -972,8 +973,8 @@ function makeMemberColumn(p, index, colors) {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      width: '20px',
-      height: '20px',
+      width: badgeSize,
+      height: badgeSize,
       flex: 0,
       contents: [{ type: 'filler' }],
       margin: 'xs'
