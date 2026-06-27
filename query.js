@@ -1892,7 +1892,7 @@ ORDER BY pts DESC limit ${limit}`;
 
     return {
       type: 'bubble',
-      size: 'hecto',
+      size: 'kilo',
       header: {
         type: 'box',
         layout: 'vertical',
