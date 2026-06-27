@@ -962,7 +962,8 @@ function makeMemberColumn(p, index, colors) {
           url: p.badgeUrl,
           size: 'full',
           aspectRatio: '1:1',
-          aspectMode: 'cover'
+          aspectMode: 'cover',
+          animated: true
         }
       ],
       margin: 'xs'
