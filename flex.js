@@ -1580,7 +1580,7 @@ function buildWelcomeFlex(displayName, theme) {
 function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
- 
+
   const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
   const textPrimary = isWhite ? '#0f172a' : '#ffffff';
   const textMuted = isWhite ? '#64748b' : '#a0a8c0';
@@ -1655,7 +1655,7 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
               contents: [
                 {
                   type: 'text',
-                  text: 'MATCH REGISTER',
+                  text: '⚽ ลงชื่อเตะบอล',
                   color: isWhite ? '#dc2626' : '#fca5a5',
                   size: 'xxs',
                   weight: 'bold'
@@ -1670,13 +1670,6 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
           layout: 'vertical',
           spacing: 'xs',
           contents: [
-            {
-              type: 'text',
-              text: '⚽ ลงชื่อเตะบอลสัปดาห์นี้',
-              weight: 'bold',
-              size: 'lg',
-              color: textPrimary
-            },
             {
               type: 'text',
               text: `📅 วันเสาร์ที่ ${dateStr}`,
@@ -1703,7 +1696,7 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
               contents: [
                 {
                   type: 'text',
-                  text: '👥 สมาชิกที่ลงชื่อแล้ว',
+                  text: '👥 ลงชื่อ',
                   size: 'sm',
                   weight: 'bold',
                   color: textPrimary,
