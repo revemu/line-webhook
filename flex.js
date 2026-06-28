@@ -1426,12 +1426,19 @@ function buildWelcomeFlex(displayName, theme) {
   return {
     type: 'bubble',
     size: 'large',
-    hero: {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80',
-      size: 'full',
-      aspectRatio: '20:10',
-      aspectMode: 'cover'
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          size: 'full',
+          aspectRatio: '20:10',
+          aspectMode: 'cover'
+        }
+      ]
     },
     body: {
       type: 'box',
@@ -1544,12 +1551,19 @@ function buildRegisterFlex(theme) {
   return {
     type: 'bubble',
     size: 'large',
-    hero: {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80',
-      size: 'full',
-      aspectRatio: '20:10',
-      aspectMode: 'cover'
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          size: 'full',
+          aspectRatio: '20:10',
+          aspectMode: 'cover'
+        }
+      ]
     },
     body: {
       type: 'box',
