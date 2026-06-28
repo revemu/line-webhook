@@ -1589,8 +1589,28 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
   const cardBg = isWhite ? '#f8fafc' : '#16122d';
   const cardBorder = isWhite ? '#e2e8f0' : '#2a2a4a';
 
-  const percentage = Math.min(Math.round((currentCount / maxPlayers) * 100), 100);
-  const fillWidth = percentage > 0 ? `${percentage}%` : '1%';
+  const progressContents = [];
+  if (currentCount > 0) {
+    progressContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: buttonColor,
+      height: '8px',
+      cornerRadius: 'md',
+      flex: currentCount
+    });
+  }
+  const remaining = maxPlayers - currentCount;
+  if (remaining > 0) {
+    progressContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: isWhite ? '#e2e8f0' : '#2a2a4a',
+      height: '8px',
+      cornerRadius: 'md',
+      flex: remaining
+    });
+  }
 
   return {
     type: 'bubble',
@@ -1698,24 +1718,13 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
                 }
               ]
             },
-            // Progress Bar Track
+            // Progress Bar Track Container
             {
               type: 'box',
-              layout: 'vertical',
-              backgroundColor: isWhite ? '#e2e8f0' : '#2a2a4a',
+              layout: 'horizontal',
               height: '8px',
-              cornerRadius: 'md',
               margin: 'sm',
-              contents: [
-                {
-                  type: 'box',
-                  layout: 'vertical',
-                  backgroundColor: buttonColor,
-                  height: '8px',
-                  cornerRadius: 'md',
-                  width: fillWidth
-                }
-              ]
+              contents: progressContents
             }
           ]
         },
@@ -1742,7 +1751,7 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
           },
           style: 'primary',
           color: buttonColor,
-          height: 'md',
+          height: 'sm',
           margin: 'sm'
         }
       ]
