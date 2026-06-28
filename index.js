@@ -223,20 +223,15 @@ async function handleJoinedMember(event) {
                     const line_name = `@${res.displayName}`;
                     console.log(`add new member ${member.userId}: ${line_name}`);
                     await db.newMember(member.userId, line_name);
+                    const theme = await db.getTheme();
+                    const welcomeBubble = flex.buildWelcomeFlex(line_name, theme);
                     const replyMessages = [
                         {
-                            "type": "textV2",
-                            "text": "ยินดีต้อนรับ {user1}!\n\nพิมพ์ +1 เพื่อลงชื่อ",
-                            "substitution": {
-                                "user1": {
-                                    "type": "mention",
-                                    "mentionee": {
-                                        "type": "user",
-                                        "userId": member.userId
-                                    }
-                                }
-                            }
-                        }]
+                            type: 'flex',
+                            altText: `ยินดีต้อนรับ ${res.displayName} สู่ทีม! 🎉`,
+                            contents: welcomeBubble
+                        }
+                    ];
                     await replyMessage(replyToken, replyMessages);
                 }
             }

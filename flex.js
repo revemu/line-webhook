@@ -1411,6 +1411,129 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   };
 }
 
+function buildWelcomeFlex(displayName, theme) {
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+  
+  const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
+  const textPrimary = isWhite ? '#0f172a' : '#ffffff';
+  const textMuted = isWhite ? '#64748b' : '#a0a8c0';
+  const cardBg = isWhite ? '#f8fafc' : '#16122d';
+  const cardBorder = isWhite ? '#e2e8f0' : '#2a2a4a';
+  const accentColor = isWhite ? '#15803d' : '#44cc66';
+  const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Vibrant green
+
+  return {
+    type: 'bubble',
+    size: 'large',
+    hero: {
+      type: 'image',
+      url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80',
+      size: 'full',
+      aspectRatio: '20:10',
+      aspectMode: 'cover'
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: bgMain,
+      spacing: 'md',
+      paddingAll: 'lg',
+      contents: [
+        // Badge Row
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: isWhite ? '#e0f2fe' : '#0c4a6e',
+              cornerRadius: 'md',
+              paddingStart: 'md',
+              paddingEnd: 'md',
+              paddingTop: 'xs',
+              paddingBottom: 'xs',
+              contents: [
+                {
+                  type: 'text',
+                  text: 'NEW MEMBER',
+                  color: isWhite ? '#0369a1' : '#38bdf8',
+                  size: 'xxs',
+                  weight: 'bold'
+                }
+              ]
+            }
+          ]
+        },
+        // Member Name
+        {
+          type: 'text',
+          text: displayName,
+          weight: 'bold',
+          size: '3xl',
+          color: textPrimary
+        },
+        // Welcome Text
+        {
+          type: 'text',
+          text: 'ยินดีต้อนรับเข้าร่วมทีมเตะบอลก๊วนเราครับ! ดีใจที่ได้คุณมาร่วมสนุกด้วยกัน ขอให้สนุกกับการเล่นฟุตบอลนะครับ ⚽',
+          wrap: true,
+          size: 'sm',
+          color: textMuted,
+          lineSpacing: '1.4'
+        },
+        {
+          type: 'separator',
+          color: isWhite ? '#e2e8f0' : '#2a2a4a',
+          margin: 'md'
+        },
+        // Quick Action Box
+        {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: cardBg,
+          borderColor: cardBorder,
+          borderWidth: '1px',
+          cornerRadius: 'md',
+          paddingAll: 'md',
+          spacing: 'xs',
+          contents: [
+            {
+              type: 'text',
+              text: '⚡ ลงชื่อเล่นสัปดาห์นี้',
+              weight: 'bold',
+              size: 'sm',
+              color: accentColor
+            },
+            {
+              type: 'text',
+              text: 'กดปุ่มลงชื่อด้านล่าง หรือพิมพ์ +1 เพื่อบันทึกรายชื่อของคุณเข้าตารางเล่นของสัปดาห์นี้ทันที',
+              wrap: true,
+              size: 'xs',
+              color: textMuted,
+              lineSpacing: '1.3'
+            }
+          ]
+        },
+        // Action Button
+        {
+          type: 'button',
+          action: {
+            type: 'message',
+            label: '👍 ลงชื่อเข้าเล่น (+1)',
+            text: '+1'
+          },
+          style: 'primary',
+          color: buttonColor,
+          height: 'sm',
+          margin: 'sm'
+        }
+      ]
+    }
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -1421,5 +1544,6 @@ module.exports = {
   buildNowFlex,
   buildLiveFlex,
   buildMemberWeekFlex,
+  buildWelcomeFlex,
   getThemeColors
 };
