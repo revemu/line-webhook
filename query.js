@@ -1804,7 +1804,7 @@ ORDER BY pts DESC limit ${limit}`;
 
       const rankLabel = rankIcons[i] || `${i + 1}.`;
       const isTop = i === 0;
-
+      let rowContents = [];
       /*const rowContents = [
         {
           type: 'text',
