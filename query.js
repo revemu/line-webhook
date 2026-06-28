@@ -1805,7 +1805,7 @@ ORDER BY pts DESC limit ${limit}`;
       const rankLabel = rankIcons[i] || `${i + 1}.`;
       const isTop = i === 0;
 
-      const rowContents = [
+      /*const rowContents = [
         {
           type: 'text',
           text: rankLabel,
@@ -1815,7 +1815,7 @@ ORDER BY pts DESC limit ${limit}`;
           margin: 'none',
           gravity: 'center'
         }
-      ];
+      ];*/
 
       const nameBoxContents = [];
       const badgeSize = info.badgeSize || '16px';
@@ -1864,9 +1864,10 @@ ORDER BY pts DESC limit ${limit}`;
 
       nameBoxContents.push({
         type: 'text',
-        text: info.name,
+        text: rankLabel + " " + info.name,
         size: 'xs',
-        color: info.nameColor || (isTop ? colors.textPrimary : colors.textMutedLight),
+        //color: info.nameColor || (isTop ? colors.textPrimary : colors.textMutedLight),
+        color: colors.textMutedLight,
         //weight: isTop ? 'bold' : 'regular',
         flex: 1,
         margin: 'sm'
