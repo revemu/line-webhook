@@ -1425,7 +1425,7 @@ function buildWelcomeFlex(displayName, theme) {
 
   return {
     type: 'bubble',
-    size: 'large',
+    size: 'mega',
     header: {
       type: 'box',
       layout: 'vertical',
@@ -1550,7 +1550,7 @@ function buildRegisterFlex(theme) {
 
   return {
     type: 'bubble',
-    size: 'large',
+    size: 'mega',
     header: {
       type: 'box',
       layout: 'vertical',
