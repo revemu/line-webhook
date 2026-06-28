@@ -689,7 +689,7 @@ function buildNowFlex(matchInfo, theme) {
     bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
     bodyContents.push({ type: 'text', text: '📊 ตารางคะแนน', size: 'sm', weight: 'bold', color: colors.textPrimary, margin: 'md' });
 
-     // Header row
+    // Header row
     bodyContents.push({
       type: 'box',
       layout: 'horizontal',
@@ -1383,6 +1383,45 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     });
   }
 
+  // Quick Action Buttons
+  const isWhite = colors.name === 'white';
+  const buttonRegisterColor = isWhite ? '#16a34a' : '#22c55e'; // Green
+  const buttonCancelColor = isWhite ? '#dc2626' : '#ef4444'; // Red
+
+  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'md',
+    margin: 'md',
+    contents: [
+      {
+        type: 'button',
+        action: {
+          type: 'message',
+          label: '👍 ลงชื่อ (+1)',
+          text: '+1'
+        },
+        style: 'primary',
+        color: buttonRegisterColor,
+        height: 'sm',
+        flex: 1
+      },
+      {
+        type: 'button',
+        action: {
+          type: 'message',
+          label: '❌ ยกเลิก (-1)',
+          text: '-1'
+        },
+        style: 'secondary',
+        color: buttonCancelColor,
+        height: 'sm',
+        flex: 1
+      }
+    ]
+  });
+
   return {
     type: 'bubble',
     size: 'giga',
@@ -1414,7 +1453,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
 function buildWelcomeFlex(displayName, theme) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
-  
+
   const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
   const textPrimary = isWhite ? '#0f172a' : '#ffffff';
   const textMuted = isWhite ? '#64748b' : '#a0a8c0';
@@ -1541,7 +1580,7 @@ function buildWelcomeFlex(displayName, theme) {
 function buildRegisterFlex(theme) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
-  
+
   const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
   const textPrimary = isWhite ? '#0f172a' : '#ffffff';
   const textMuted = isWhite ? '#64748b' : '#a0a8c0';
@@ -1601,9 +1640,9 @@ function buildRegisterFlex(theme) {
         // Title
         {
           type: 'text',
-          text: 'ลงชื่อเตะบอลสัปดาห์นี้ ⚽',
+          text: '⚽ ลงชื่อเตะบอลสัปดาห์นี้',
           weight: 'bold',
-          size: 'xxl',
+          size: 'lg',
           color: textPrimary
         },
         // Description Text
