@@ -340,7 +340,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'top':
             let limit = param != '' ? Number(param) : 10;
             if (limit > 25) {
-                limit = 25;
+                //limit = 25;
             }
 
             await db.updateHof();
