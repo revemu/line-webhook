@@ -1867,7 +1867,7 @@ ORDER BY pts DESC limit ${limit}`;
         text: info.name,
         size: 'xs',
         color: info.nameColor || (isTop ? colors.textPrimary : colors.textMutedLight),
-        weight: isTop ? 'bold' : 'regular',
+        //weight: isTop ? 'bold' : 'regular',
         flex: 1,
         margin: 'sm'
       });
@@ -1886,7 +1886,7 @@ ORDER BY pts DESC limit ${limit}`;
         text: valText,
         size: 'xs',
         color: isTop ? colors.textAccent : colors.textMutedLight,
-        weight: isTop ? 'bold' : 'regular',
+        //weight: isTop ? 'bold' : 'regular',
         flex: 2,
         align: 'end'
       });
