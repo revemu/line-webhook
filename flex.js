@@ -1591,7 +1591,7 @@ function buildRegisterFlex(theme) {
           type: 'text',
           text: 'ลงชื่อเตะบอลสัปดาห์นี้ ⚽',
           weight: 'bold',
-          size: '2xl',
+          size: 'xxl',
           color: textPrimary
         },
         // Description Text
