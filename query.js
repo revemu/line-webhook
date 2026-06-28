@@ -2161,6 +2161,14 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
       const bC = lastPlay[b] === slot - 1 ? consecPlay[b] : 0;
       if (aC >= 2 || bC >= 2) continue;
 
+      // Hard constraint: no consecutive matches can have the exact same pairing
+      if (slot > 0) {
+        const [prevA, prevB] = schedule[slot - 1];
+        if ((a === prevA && b === prevB) || (a === prevB && b === prevA)) {
+          continue;
+        }
+      }
+
       // Special constraint: match 1 and match 2 of each round must not share any team (no 2-streak between match 1 & 2)
       if (numTeams >= 4 && slot % cycleLen === 1) {
         const [prevA, prevB] = schedule[slot - 1];
