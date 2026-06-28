@@ -1657,7 +1657,7 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
                   type: 'text',
                   text: '⚽ ลงชื่อเตะบอล',
                   color: isWhite ? '#dc2626' : '#fca5a5',
-                  size: 'xxs',
+                  size: 'md',
                   weight: 'bold'
                 }
               ]
