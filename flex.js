@@ -1533,6 +1533,98 @@ function buildWelcomeFlex(displayName, theme) {
     }
   };
 }
+function buildRegisterFlex(theme) {
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+  
+  const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
+  const textPrimary = isWhite ? '#0f172a' : '#ffffff';
+  const textMuted = isWhite ? '#64748b' : '#a0a8c0';
+  const accentColor = isWhite ? '#15803d' : '#44cc66';
+  const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Vibrant green
+
+  return {
+    type: 'bubble',
+    size: 'large',
+    hero: {
+      type: 'image',
+      url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80',
+      size: 'full',
+      aspectRatio: '20:10',
+      aspectMode: 'cover'
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: bgMain,
+      spacing: 'md',
+      paddingAll: 'lg',
+      contents: [
+        // Badge Row
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: isWhite ? '#fee2e2' : '#7f1d1d',
+              cornerRadius: 'md',
+              paddingStart: 'md',
+              paddingEnd: 'md',
+              paddingTop: 'xs',
+              paddingBottom: 'xs',
+              contents: [
+                {
+                  type: 'text',
+                  text: 'MATCH REGISTER',
+                  color: isWhite ? '#dc2626' : '#fca5a5',
+                  size: 'xxs',
+                  weight: 'bold'
+                }
+              ]
+            }
+          ]
+        },
+        // Title
+        {
+          type: 'text',
+          text: 'ลงชื่อเตะบอลสัปดาห์นี้ ⚽',
+          weight: 'bold',
+          size: '2xl',
+          color: textPrimary
+        },
+        // Description Text
+        {
+          type: 'text',
+          text: 'เปิดลงชื่อสำหรับแมตช์เตะบอลสัปดาห์นี้แล้วครับ สมาชิกทุกคนสามารถกดปุ่มลงชื่อด้านล่าง หรือพิมพ์ +1 ในแชทได้เลย!',
+          wrap: true,
+          size: 'sm',
+          color: textMuted,
+          lineSpacing: '1.4'
+        },
+        {
+          type: 'separator',
+          color: isWhite ? '#e2e8f0' : '#2a2a4a',
+          margin: 'md'
+        },
+        // Action Button
+        {
+          type: 'button',
+          action: {
+            type: 'message',
+            label: '👍 ลงชื่อเข้าเล่น (+1)',
+            text: '+1'
+          },
+          style: 'primary',
+          color: buttonColor,
+          height: 'md',
+          margin: 'sm'
+        }
+      ]
+    }
+  };
+}
 
 module.exports = {
   report_template,
@@ -1545,5 +1637,6 @@ module.exports = {
   buildLiveFlex,
   buildMemberWeekFlex,
   buildWelcomeFlex,
+  buildRegisterFlex,
   getThemeColors
 };

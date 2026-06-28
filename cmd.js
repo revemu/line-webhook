@@ -264,6 +264,17 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             msg_type = 0;
             break;
+        case 'register':
+        case 'join':
+        case 'play':
+        case 'ลงชื่อ':
+        case 'reg': {
+            const theme = await db.getTheme();
+            msg = flex.buildRegisterFlex(theme);
+            altText = "⚽ ลงชื่อเตะบอลสัปดาห์นี้";
+            msg_type = 1;
+            break;
+        }
         case 'schedule': {
             const theme = await db.getTheme();
             const args = param.split(/\s+/).filter(Boolean);
