@@ -1705,7 +1705,7 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
               backgroundColor: isWhite ? '#e2e8f0' : '#2a2a4a',
               height: '8px',
               cornerRadius: 'md',
-              marginTop: 'sm',
+              margin: 'sm',
               contents: [
                 {
                   type: 'box',
