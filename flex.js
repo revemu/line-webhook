@@ -1577,15 +1577,20 @@ function buildWelcomeFlex(displayName, theme) {
     }
   };
 }
-function buildRegisterFlex(theme) {
+function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
-
+ 
   const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
   const textPrimary = isWhite ? '#0f172a' : '#ffffff';
   const textMuted = isWhite ? '#64748b' : '#a0a8c0';
   const accentColor = isWhite ? '#15803d' : '#44cc66';
   const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Vibrant green
+  const cardBg = isWhite ? '#f8fafc' : '#16122d';
+  const cardBorder = isWhite ? '#e2e8f0' : '#2a2a4a';
+
+  const percentage = Math.min(Math.round((currentCount / maxPlayers) * 100), 100);
+  const fillWidth = percentage > 0 ? `${percentage}%` : '1%';
 
   return {
     type: 'bubble',
@@ -1637,13 +1642,82 @@ function buildRegisterFlex(theme) {
             }
           ]
         },
-        // Title
+        // Title & Date
         {
-          type: 'text',
-          text: '⚽ ลงชื่อเตะบอลสัปดาห์นี้',
-          weight: 'bold',
-          size: 'lg',
-          color: textPrimary
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'xs',
+          contents: [
+            {
+              type: 'text',
+              text: '⚽ ลงชื่อเตะบอลสัปดาห์นี้',
+              weight: 'bold',
+              size: 'lg',
+              color: textPrimary
+            },
+            {
+              type: 'text',
+              text: `📅 วันเสาร์ที่ ${dateStr}`,
+              weight: 'bold',
+              size: 'md',
+              color: accentColor
+            }
+          ]
+        },
+        // Summary & Progress Bar Box
+        {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: cardBg,
+          borderColor: cardBorder,
+          borderWidth: 'normal',
+          cornerRadius: 'md',
+          paddingAll: 'md',
+          spacing: 'xs',
+          contents: [
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                {
+                  type: 'text',
+                  text: '👥 สมาชิกที่ลงชื่อแล้ว',
+                  size: 'sm',
+                  weight: 'bold',
+                  color: textPrimary,
+                  flex: 1
+                },
+                {
+                  type: 'text',
+                  text: `${currentCount} / ${maxPlayers} คน`,
+                  size: 'sm',
+                  weight: 'bold',
+                  color: accentColor,
+                  align: 'end',
+                  flex: 1
+                }
+              ]
+            },
+            // Progress Bar Track
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: isWhite ? '#e2e8f0' : '#2a2a4a',
+              height: '8px',
+              cornerRadius: 'md',
+              marginTop: 'sm',
+              contents: [
+                {
+                  type: 'box',
+                  layout: 'vertical',
+                  backgroundColor: buttonColor,
+                  height: '8px',
+                  cornerRadius: 'md',
+                  width: fillWidth
+                }
+              ]
+            }
+          ]
         },
         // Description Text
         {
@@ -1656,7 +1730,7 @@ function buildRegisterFlex(theme) {
         {
           type: 'separator',
           color: isWhite ? '#e2e8f0' : '#2a2a4a',
-          margin: 'md'
+          margin: 'sm'
         },
         // Action Button
         {
