@@ -277,7 +277,7 @@ async function resetMemberTeam() {
 }
 
 async function newMember(lineID, name) {
-  const query = "insert into member_tbl values(null, ?, 0, 0, 0, ?, ?, 0)";
+  const query = "insert into member_tbl (name, power, donate, team_id, alias, line_user_id, week_id) values(?, 0, 0, 0, ?, ?, 0)";
   const res = await executeQuery(query, [name, name.replace('@', ''), lineID]);
   return res;
 }
