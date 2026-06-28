@@ -1597,7 +1597,8 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
       backgroundColor: buttonColor,
       height: '8px',
       cornerRadius: 'md',
-      flex: currentCount
+      flex: currentCount,
+      contents: [{ type: 'filler' }]
     });
   }
   const remaining = maxPlayers - currentCount;
@@ -1608,7 +1609,8 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
       backgroundColor: isWhite ? '#e2e8f0' : '#2a2a4a',
       height: '8px',
       cornerRadius: 'md',
-      flex: remaining
+      flex: remaining,
+      contents: [{ type: 'filler' }]
     });
   }
 
