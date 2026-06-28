@@ -1819,7 +1819,7 @@ ORDER BY pts DESC limit ${limit}`;
 
       const nameBoxContents = [];
       const badgeSize = info.badgeSize || '16px';
-      if (info.badgeUrl) {
+      /*if (info.badgeUrl) {
         nameBoxContents.push({
           type: 'box',
           layout: 'vertical',
@@ -1860,7 +1860,7 @@ ORDER BY pts DESC limit ${limit}`;
           ],
           margin: 'xs'
         });
-      }
+      }*/
 
       nameBoxContents.push({
         type: 'text',
