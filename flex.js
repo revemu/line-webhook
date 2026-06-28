@@ -1480,8 +1480,7 @@ function buildWelcomeFlex(displayName, theme) {
           text: 'ยินดีต้อนรับเข้าร่วมทีมเตะบอลก๊วนเราครับ! ดีใจที่ได้คุณมาร่วมสนุกด้วยกัน ขอให้สนุกกับการเล่นฟุตบอลนะครับ ⚽',
           wrap: true,
           size: 'sm',
-          color: textMuted,
-          lineSpacing: '1.4'
+          color: textMuted
         },
         {
           type: 'separator',
@@ -1494,7 +1493,7 @@ function buildWelcomeFlex(displayName, theme) {
           layout: 'vertical',
           backgroundColor: cardBg,
           borderColor: cardBorder,
-          borderWidth: '1px',
+          borderWidth: 'normal',
           cornerRadius: 'md',
           paddingAll: 'md',
           spacing: 'xs',
@@ -1511,8 +1510,7 @@ function buildWelcomeFlex(displayName, theme) {
               text: 'กดปุ่มลงชื่อด้านล่าง หรือพิมพ์ +1 เพื่อบันทึกรายชื่อของคุณเข้าตารางเล่นของสัปดาห์นี้ทันที',
               wrap: true,
               size: 'xs',
-              color: textMuted,
-              lineSpacing: '1.3'
+              color: textMuted
             }
           ]
         },
@@ -1600,8 +1598,7 @@ function buildRegisterFlex(theme) {
           text: 'เปิดลงชื่อสำหรับแมตช์เตะบอลสัปดาห์นี้แล้วครับ สมาชิกทุกคนสามารถกดปุ่มลงชื่อด้านล่าง หรือพิมพ์ +1 ในแชทได้เลย!',
           wrap: true,
           size: 'sm',
-          color: textMuted,
-          lineSpacing: '1.4'
+          color: textMuted
         },
         {
           type: 'separator',
