@@ -1297,15 +1297,25 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   // Progress Bar showing member signup progress
   const progressContents = [];
   const isWhite = colors.name === 'white';
-  const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Green progress bar color
   const currentCount = players.length;
   const totalSlots = Number(maxPlayers) || 20;
+
+  // Determine progress bar color based on percentage
+  let barColor;
+  const ratio = totalSlots > 0 ? (currentCount / totalSlots) : 0;
+  if (ratio >= 1.0) {
+    barColor = isWhite ? '#dc2626' : '#ef4444'; // Red
+  } else if (ratio > 0.8) {
+    barColor = isWhite ? '#ca8a04' : '#eab308'; // Yellow
+  } else {
+    barColor = isWhite ? '#16a34a' : '#22c55e'; // Green
+  }
 
   if (currentCount > 0) {
     progressContents.push({
       type: 'box',
       layout: 'vertical',
-      backgroundColor: buttonColor,
+      backgroundColor: barColor,
       height: '8px',
       cornerRadius: 'md',
       flex: currentCount,
@@ -1628,12 +1638,24 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
   const cardBg = isWhite ? '#f8fafc' : '#16122d';
   const cardBorder = isWhite ? '#e2e8f0' : '#2a2a4a';
 
+  // Determine progress bar color based on percentage
+  let barColor;
+  const totalSlots = Number(maxPlayers) || 20;
+  const ratio = totalSlots > 0 ? (currentCount / totalSlots) : 0;
+  if (ratio >= 1.0) {
+    barColor = isWhite ? '#dc2626' : '#ef4444'; // Red
+  } else if (ratio > 0.8) {
+    barColor = isWhite ? '#ca8a04' : '#eab308'; // Yellow
+  } else {
+    barColor = isWhite ? '#16a34a' : '#22c55e'; // Green
+  }
+
   const progressContents = [];
   if (currentCount > 0) {
     progressContents.push({
       type: 'box',
       layout: 'vertical',
-      backgroundColor: buttonColor,
+      backgroundColor: barColor,
       height: '8px',
       cornerRadius: 'md',
       flex: currentCount,
