@@ -1344,7 +1344,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     contents: progressContents
   });
 
-  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+  //bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
 
   // Players section
   if (players.length > 0) {
