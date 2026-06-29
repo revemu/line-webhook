@@ -1294,7 +1294,47 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     contents: countParts
   });
 
-  bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+  // Progress Bar showing member signup progress
+  const progressContents = [];
+  const isWhite = colors.name === 'white';
+  const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Green progress bar color
+  const currentCount = players.length;
+  const totalSlots = Number(maxPlayers) || 20;
+
+  if (currentCount > 0) {
+    progressContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: buttonColor,
+      height: '8px',
+      cornerRadius: 'md',
+      flex: currentCount,
+      contents: [{ type: 'filler' }]
+    });
+  }
+
+  const remaining = totalSlots - currentCount;
+  if (remaining > 0) {
+    progressContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: isWhite ? '#e2e8f0' : '#2a2a4a',
+      height: '8px',
+      cornerRadius: 'md',
+      flex: remaining,
+      contents: [{ type: 'filler' }]
+    });
+  }
+
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    height: '8px',
+    margin: 'sm',
+    contents: progressContents
+  });
+
+  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
 
   // Players section
   if (players.length > 0) {
@@ -1384,7 +1424,6 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   }
 
   // Quick Action Buttons
-  const isWhite = colors.name === 'white';
   const buttonRegisterColor = isWhite ? '#16a34a' : '#22c55e'; // Green
   const buttonCancelColor = isWhite ? '#dc2626' : '#ef4444'; // Red
 
