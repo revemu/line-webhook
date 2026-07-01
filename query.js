@@ -36,6 +36,18 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for member_tbl.rank:', migErr.message);
     }
 
+    // Auto-migration to add auto_reg column to member_tbl if not exists
+    try {
+      const [columns] = await connection.query("SHOW COLUMNS FROM member_tbl LIKE 'auto_reg'");
+      if (columns.length === 0) {
+        console.log('Adding auto_reg column to member_tbl...');
+        await connection.query("ALTER TABLE member_tbl ADD COLUMN auto_reg INT DEFAULT 0");
+        console.log('✅ auto_reg column added successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for member_tbl.auto_reg:', migErr.message);
+    }
+
     // Auto-migration to add size column to template_tpl if not exists
     try {
       const [columns] = await connection.query("SHOW COLUMNS FROM template_tpl LIKE 'size'");
@@ -406,6 +418,26 @@ async function newWeek(week_date) {
     const res = await executeQuery(query);
     //console.log(res) ;
     //return res ;
+    const new_week_id = res.insertId;
+
+    // Auto-register members with auto_reg = 1
+    try {
+      const autoRegMembers = await executeQuery("SELECT id, name FROM member_tbl WHERE auto_reg = 1");
+      for (const member of autoRegMembers) {
+        // Check if member is already registered for this week to avoid duplicates
+        const existQuery = "SELECT 1 FROM member_team_week_tbl WHERE week_id = ? AND member_id = ?";
+        const existRes = await executeQuery(existQuery, [new_week_id, member.id]);
+        if (existRes.length === 0) {
+          const insertQuery = "insert into member_team_week_tbl values(null, ?, ?, 0, ?, 0, 0)";
+          await executeQuery(insertQuery, [member.id, member.name, new_week_id]);
+          console.log(`[Auto-Reg] Registered ${member.name} (ID: ${member.id}) for week ID ${new_week_id}`);
+        } else {
+          console.log(`[Auto-Reg] Member ${member.name} (ID: ${member.id}) already registered for week ID ${new_week_id}`);
+        }
+      }
+    } catch (regErr) {
+      console.error('⚠️ Auto-registration failed:', regErr.message);
+    }
   } else {
     console.log(date_str + " already exist!");
   }

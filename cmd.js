@@ -274,30 +274,13 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'play':
         case 'ลงชื่อ':
         case 'reg': {
-            const theme = await db.getTheme();
-            const week = await db.queryWeekID(0);
-            let dateStr = "";
-            let currentCount = 0;
-            let maxPlayers = 24;
-
-            if (week && week.length > 0) {
-                const week_id = week[0].id;
-                const dateObj = new Date(week[0].date);
-                dateStr = await db.getFormatDate(dateObj, 'short');
-                maxPlayers = week[0].max;
-
-                const countRes = await db.executeQuery(
-                    "SELECT COUNT(*) as count FROM member_team_week_tbl WHERE week_id = ?",
-                    [week_id]
-                );
-                if (countRes && countRes.length > 0) {
-                    currentCount = countRes[0].count;
-                }
+            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex);
+            if (is_flex && typeof msg === 'object') {
+                msg_type = 1;
+                altText = altText || "ลงชื่อเตะบอล";
+            } else {
+                msg_type = 2;
             }
-
-            msg = flex.buildRegisterFlex(dateStr, currentCount, maxPlayers, theme);
-            altText = "⚽ ลงชื่อเตะบอลสัปดาห์นี้";
-            msg_type = 1;
             break;
         }
         case 'schedule': {
