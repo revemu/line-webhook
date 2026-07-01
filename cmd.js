@@ -264,6 +264,11 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             msg_type = 0;
             break;
+        case 'newweek': {
+            const next_sat = getNextSaturday();
+            await db.newWeek(next_sat);
+            // falls through
+        }
         case 'register':
         case 'join':
         case 'play':
@@ -363,11 +368,6 @@ async function process_cmd(cmd_str, member, quoteToken) {
 
 
 
-        case 'newweek':
-            const next_sat = getNextSaturday();
-            await db.newWeek(next_sat);
-            msg = `ลงชื่อเตะบอล เสาร์ที่ ${await db.getFormatDate(next_sat)} ได้`;
-            break;
         case 'top':
             let limit = param != '' ? Number(param) : 10;
             if (limit > 25) {
