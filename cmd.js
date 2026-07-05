@@ -264,6 +264,9 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             msg_type = 0;
             break;
+        case 'showautoreg':
+        case 'whoautoreg':
+        case 'autoregshow':
         case 'autoreglist':
             param = 'list';
             // falls through
