@@ -2609,6 +2609,16 @@ async function updateHof() {
   }
 }
 
+async function updateMemberAutoReg(member_id, auto_reg) {
+  const query = "update member_tbl set auto_reg=? where id=?";
+  return await module.exports.executeQuery(query, [auto_reg, member_id]);
+}
+
+async function getAutoRegList() {
+  const query = "SELECT id, name FROM member_tbl WHERE auto_reg = 1 ORDER BY name ASC";
+  return await module.exports.executeQuery(query);
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -2645,5 +2655,7 @@ module.exports = {
   getScheduleText,
   getCurrentMatch,
   getTheme,
-  setTheme
+  setTheme,
+  updateMemberAutoReg,
+  getAutoRegList
 };

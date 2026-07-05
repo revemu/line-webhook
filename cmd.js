@@ -38,7 +38,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
 
     let member_id = member.id;
     let member_name = member.name;
-    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank'].includes(cmd);
+    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'autoreg', '+autoreg', '-autoreg'].includes(cmd);
     let is_mention = false;
 
     if (is_mention_cmd && param.startsWith('@')) {
@@ -48,7 +48,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             console.log(`mentioned member - ${param}, id: ${mention[0].id}`);
             member_id = mention[0].id;
             member_name = param;
-            if (cmd != '+1' && cmd != '-1') {
+            if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg') {
                 if (!await db.IsMemberWeek(member_id)) {
                     return [{
                         type: 'text',
@@ -261,6 +261,38 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 msg = `เปลี่ยนธีมเป็น ${param} เรียบร้อยครับ`;
             } else {
                 msg = `กรุณาระบุธีม: /theme black หรือ /theme white`;
+            }
+            msg_type = 0;
+            break;
+        case 'autoreglist':
+            param = 'list';
+            // falls through
+        case 'autoreg':
+        case '+autoreg':
+            if (param.toLowerCase() === 'list') {
+                const list = await db.getAutoRegList();
+                if (list.length === 0) {
+                    msg = "ไม่มีสมาชิกในระบบลงชื่ออัตโนมัติ";
+                } else {
+                    msg = "รายชื่อสมาชิกลงชื่ออัตโนมัติ:\n" + list.map((m, idx) => `${idx + 1}. ${m.name}`).join('\n');
+                }
+                msg_type = 0;
+                break;
+            }
+            await db.updateMemberAutoReg(member_id, 1);
+            if (is_mention) {
+                msg = `เพิ่ม ${member_name} ในรายชื่อลงชื่ออัตโนมัติสำเร็จ`;
+            } else {
+                msg = `เพิ่มคุณ ${member_name} ในรายชื่อลงชื่ออัตโนมัติสำเร็จ`;
+            }
+            msg_type = 0;
+            break;
+        case '-autoreg':
+            await db.updateMemberAutoReg(member_id, 0);
+            if (is_mention) {
+                msg = `นำ ${member_name} ออกจากรายชื่อลงชื่ออัตโนมัติสำเร็จ`;
+            } else {
+                msg = `นำคุณ ${member_name} ออกจากรายชื่อลงชื่ออัตโนมัติสำเร็จ`;
             }
             msg_type = 0;
             break;
