@@ -460,29 +460,6 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 text: msg
             }];
         case 1:
-            if (['autoreg', '+autoreg', '-autoreg'].includes(cmd) && target_line_user_id) {
-                return [
-                    {
-                        type: 'textV2',
-                        quoteToken: quoteToken,
-                        text: '{user}',
-                        substitution: {
-                            user: {
-                                type: 'mention',
-                                mentionee: {
-                                    type: 'user',
-                                    userId: target_line_user_id
-                                }
-                            }
-                        }
-                    },
-                    {
-                        type: 'flex',
-                        altText: altText,
-                        contents: msg,
-                    }
-                ];
-            }
             return {
                 type: 'flex',
                 altText: altText,
