@@ -271,34 +271,29 @@ async function process_cmd(cmd_str, member, quoteToken) {
             param = 'list';
             // falls through
         case 'autoreg':
-        case '+autoreg':
+        case '+autoreg': {
+            const theme = await db.getTheme();
             if (param.toLowerCase() === 'list') {
                 const list = await db.getAutoRegList();
-                if (list.length === 0) {
-                    msg = "ไม่มีสมาชิกในระบบลงชื่ออัตโนมัติ";
-                } else {
-                    msg = "รายชื่อสมาชิกลงชื่ออัตโนมัติ:\n" + list.map((m, idx) => `${idx + 1}. ${m.name}`).join('\n');
-                }
-                msg_type = 0;
+                msg = flex.buildAutoRegFlex('list', null, list, theme);
+                altText = "สมาชิกลงชื่ออัตโนมัติ";
+                msg_type = 1;
                 break;
             }
             await db.updateMemberAutoReg(member_id, 1);
-            if (is_mention) {
-                msg = `เพิ่ม ${member_name} ในรายชื่อลงชื่ออัตโนมัติสำเร็จ`;
-            } else {
-                msg = `เพิ่มคุณ ${member_name} ในรายชื่อลงชื่ออัตโนมัติสำเร็จ`;
-            }
-            msg_type = 0;
+            msg = flex.buildAutoRegFlex('add', member_name, null, theme);
+            altText = `สมัครลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
+            msg_type = 1;
             break;
-        case '-autoreg':
+        }
+        case '-autoreg': {
+            const theme = await db.getTheme();
             await db.updateMemberAutoReg(member_id, 0);
-            if (is_mention) {
-                msg = `นำ ${member_name} ออกจากรายชื่อลงชื่ออัตโนมัติสำเร็จ`;
-            } else {
-                msg = `นำคุณ ${member_name} ออกจากรายชื่อลงชื่ออัตโนมัติสำเร็จ`;
-            }
-            msg_type = 0;
+            msg = flex.buildAutoRegFlex('remove', member_name, null, theme);
+            altText = `ยกเลิกลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
+            msg_type = 1;
             break;
+        }
         case 'newweek': {
             const next_sat = getNextSaturday();
             await db.newWeek(next_sat);

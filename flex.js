@@ -1815,6 +1815,265 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
   };
 }
 
+function buildAutoRegFlex(action, memberName, list, theme) {
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+
+  const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
+  const textPrimary = isWhite ? '#0f172a' : '#ffffff';
+  const textMuted = isWhite ? '#64748b' : '#a0a8c0';
+  const cardBg = isWhite ? '#f8fafc' : '#16122d';
+  const cardBorder = isWhite ? '#e2e8f0' : '#2a2a4a';
+  const accentColor = isWhite ? '#15803d' : '#44cc66';
+  const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Vibrant green
+
+  let badgeText = '';
+  let badgeBg = '';
+  let badgeTextColor = '';
+  let title = '';
+  let description = '';
+  let bodyContents = [];
+
+  if (action === 'list') {
+    badgeText = '👤 AUTO REG LIST';
+    badgeBg = isWhite ? '#e0f2fe' : '#0c4a6e';
+    badgeTextColor = isWhite ? '#0369a1' : '#38bdf8';
+    title = 'สมาชิกลงชื่ออัตโนมัติ';
+    
+    if (!list || list.length === 0) {
+      bodyContents.push({
+        type: 'text',
+        text: 'ไม่มีสมาชิกในระบบลงชื่ออัตโนมัติ',
+        color: textMuted,
+        size: 'sm',
+        style: 'italic',
+        align: 'center',
+        margin: 'md'
+      });
+    } else {
+      // List each member
+      const listContents = list.map((m, idx) => {
+        return {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'md',
+          margin: idx > 0 ? 'sm' : 'none',
+          contents: [
+            {
+              type: 'text',
+              text: `${idx + 1}.`,
+              color: accentColor,
+              weight: 'bold',
+              size: 'sm',
+              flex: 0
+            },
+            {
+              type: 'text',
+              text: m.name,
+              color: textPrimary,
+              weight: 'bold',
+              size: 'sm',
+              flex: 1
+            }
+          ]
+        };
+      });
+
+      bodyContents.push({
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: cardBg,
+        borderColor: cardBorder,
+        borderWidth: 'normal',
+        cornerRadius: 'md',
+        paddingAll: 'md',
+        margin: 'md',
+        contents: listContents
+      });
+    }
+  } else if (action === 'add') {
+    badgeText = '✅ AUTO REG ACTIVE';
+    badgeBg = isWhite ? '#dcfce7' : '#064e3b';
+    badgeTextColor = isWhite ? '#15803d' : '#4ade80';
+    title = 'สมัครลงชื่ออัตโนมัติสำเร็จ';
+    description = `เพิ่มคุณ ${memberName} ในรายชื่อลงชื่ออัตโนมัติสำเร็จแล้ว\n\nระบบจะลงชื่อเข้าเล่นให้คุณโดยอัตโนมัติเมื่อมีการเปิดรอบสัปดาห์ใหม่ ⚽`;
+    
+    bodyContents.push({
+      type: 'text',
+      text: description,
+      wrap: true,
+      size: 'sm',
+      color: textMuted,
+      margin: 'md'
+    });
+  } else if (action === 'remove') {
+    badgeText = '❌ AUTO REG INACTIVE';
+    badgeBg = isWhite ? '#fee2e2' : '#7f1d1d';
+    badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
+    title = 'ยกเลิกลงชื่ออัตโนมัติ';
+    description = `นำคุณ ${memberName} ออกจากรายชื่อลงชื่ออัตโนมัติเรียบร้อยแล้ว`;
+    
+    bodyContents.push({
+      type: 'text',
+      text: description,
+      wrap: true,
+      size: 'sm',
+      color: textMuted,
+      margin: 'md'
+    });
+  }
+
+  // Construct footer buttons
+  const footerButtons = [];
+  if (action === 'list') {
+    footerButtons.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '➕ สมัครลงชื่ออัตโนมัติ',
+        text: '/autoreg'
+      },
+      style: 'primary',
+      color: buttonColor,
+      height: 'sm',
+      margin: 'sm'
+    });
+    footerButtons.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '➖ ยกเลิกลงชื่ออัตโนมัติ',
+        text: '/-autoreg'
+      },
+      style: 'primary',
+      color: isWhite ? '#ef4444' : '#b91c1c',
+      height: 'sm',
+      margin: 'sm'
+    });
+  } else if (action === 'add') {
+    footerButtons.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '📋 ดูรายชื่อทั้งหมด',
+        text: '/autoreglist'
+      },
+      style: 'primary',
+      color: buttonColor,
+      height: 'sm',
+      margin: 'sm'
+    });
+    footerButtons.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '➖ ยกเลิกลงชื่ออัตโนมัติ',
+        text: '/-autoreg'
+      },
+      style: 'primary',
+      color: isWhite ? '#ef4444' : '#b91c1c',
+      height: 'sm',
+      margin: 'sm'
+    });
+  } else if (action === 'remove') {
+    footerButtons.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '📋 ดูรายชื่อทั้งหมด',
+        text: '/autoreglist'
+      },
+      style: 'primary',
+      color: buttonColor,
+      height: 'sm',
+      margin: 'sm'
+    });
+    footerButtons.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '➕ สมัครลงชื่ออัตโนมัติ',
+        text: '/autoreg'
+      },
+      style: 'primary',
+      color: isWhite ? '#64748b' : '#334155',
+      height: 'sm',
+      margin: 'sm'
+    });
+  }
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          size: 'full',
+          aspectRatio: '20:10',
+          aspectMode: 'cover'
+        }
+      ]
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: bgMain,
+      spacing: 'md',
+      paddingAll: 'lg',
+      contents: [
+        // Badge Row
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: badgeBg,
+              cornerRadius: 'md',
+              paddingStart: 'md',
+              paddingEnd: 'md',
+              paddingTop: 'xs',
+              paddingBottom: 'xs',
+              contents: [
+                {
+                  type: 'text',
+                  text: badgeText,
+                  color: badgeTextColor,
+                  size: 'xxs',
+                  weight: 'bold'
+                }
+              ]
+            }
+          ]
+        },
+        // Title
+        {
+          type: 'text',
+          text: title,
+          weight: 'bold',
+          size: 'xl',
+          color: textPrimary
+        },
+        // Body contents (list or description)
+        ...bodyContents,
+        {
+          type: 'separator',
+          color: isWhite ? '#e2e8f0' : '#2a2a4a',
+          margin: 'md'
+        },
+        // Action Buttons
+        ...footerButtons
+      ]
+    }
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -1827,5 +2086,6 @@ module.exports = {
   buildMemberWeekFlex,
   buildWelcomeFlex,
   buildRegisterFlex,
+  buildAutoRegFlex,
   getThemeColors
 };
