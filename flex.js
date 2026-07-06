@@ -1839,7 +1839,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
     badgeBg = isWhite ? '#e0f2fe' : '#0c4a6e';
     badgeTextColor = isWhite ? '#0369a1' : '#38bdf8';
     title = 'สมาชิกลงชื่ออัตโนมัติ';
-    
+
     if (!list || list.length === 0) {
       bodyContents.push({
         type: 'text',
@@ -1897,7 +1897,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
     badgeTextColor = isWhite ? '#15803d' : '#4ade80';
     title = 'สมัครลงชื่ออัตโนมัติสำเร็จ';
     description = `เพิ่มคุณ ${memberName} ในรายชื่อลงชื่ออัตโนมัติสำเร็จแล้ว\n\nระบบจะลงชื่อเข้าเล่นให้คุณโดยอัตโนมัติเมื่อมีการเปิดรอบสัปดาห์ใหม่ ⚽`;
-    
+
     bodyContents.push({
       type: 'text',
       text: description,
@@ -1912,7 +1912,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
     badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
     title = 'ยกเลิกลงชื่ออัตโนมัติ';
     description = `นำคุณ ${memberName} ออกจากรายชื่อลงชื่ออัตโนมัติเรียบร้อยแล้ว`;
-    
+
     bodyContents.push({
       type: 'text',
       text: description,
@@ -1931,7 +1931,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
       action: {
         type: 'message',
         label: '➕ สมัครลงชื่ออัตโนมัติ',
-        text: '/autoreg'
+        text: '+autoreg'
       },
       style: 'primary',
       color: buttonColor,
@@ -1943,7 +1943,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
       action: {
         type: 'message',
         label: '➖ ยกเลิกลงชื่ออัตโนมัติ',
-        text: '/-autoreg'
+        text: '-autoreg'
       },
       style: 'primary',
       color: isWhite ? '#ef4444' : '#b91c1c',
@@ -1968,7 +1968,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
       action: {
         type: 'message',
         label: '➖ ยกเลิกลงชื่ออัตโนมัติ',
-        text: '/-autoreg'
+        text: '-autoreg'
       },
       style: 'primary',
       color: isWhite ? '#ef4444' : '#b91c1c',

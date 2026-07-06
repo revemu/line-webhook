@@ -38,6 +38,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
 
     let member_id = member.id;
     let member_name = member.name;
+    let target_line_user_id = member.line_user_id;
     const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'autoreg', '+autoreg', '-autoreg'].includes(cmd);
     let is_mention = false;
 
@@ -48,6 +49,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             console.log(`mentioned member - ${param}, id: ${mention[0].id}`);
             member_id = mention[0].id;
             member_name = param;
+            target_line_user_id = mention[0].line_user_id;
             if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg') {
                 if (!await db.IsMemberWeek(member_id)) {
                     return [{
@@ -458,6 +460,29 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 text: msg
             }];
         case 1:
+            if (['autoreg', '+autoreg', '-autoreg'].includes(cmd) && target_line_user_id) {
+                return [
+                    {
+                        type: 'textV2',
+                        quoteToken: quoteToken,
+                        text: '{user}',
+                        substitution: {
+                            user: {
+                                type: 'mention',
+                                mentionee: {
+                                    type: 'user',
+                                    userId: target_line_user_id
+                                }
+                            }
+                        }
+                    },
+                    {
+                        type: 'flex',
+                        altText: altText,
+                        contents: msg,
+                    }
+                ];
+            }
             return {
                 type: 'flex',
                 altText: altText,
