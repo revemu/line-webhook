@@ -1499,7 +1499,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   };
 }
 
-function buildWelcomeFlex(displayName, theme) {
+function buildWelcomeFlex(displayName, theme, imageUrl) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
@@ -1521,7 +1521,7 @@ function buildWelcomeFlex(displayName, theme) {
       contents: [
         {
           type: 'image',
-          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          url: imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
           size: 'full',
           aspectRatio: '20:10',
           aspectMode: 'cover'
@@ -1815,7 +1815,7 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
   };
 }
 
-function buildAutoRegFlex(action, memberName, list, theme) {
+function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
@@ -2012,7 +2012,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
       contents: [
         {
           type: 'image',
-          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          url: imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
           size: 'full',
           aspectRatio: '20:10',
           aspectMode: 'cover'

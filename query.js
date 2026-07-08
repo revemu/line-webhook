@@ -122,6 +122,30 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for template_tpl.hof_badge:', migErr.message);
     }
 
+    // Auto-migration to insert default welcome image in template_tpl if not exists
+    try {
+      const [welcomeDefault] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'welcome' AND value = 'header'");
+      if (welcomeDefault.length === 0) {
+        console.log('Inserting default welcome header in template_tpl...');
+        await connection.query("INSERT INTO template_tpl (name, value, url) VALUES ('welcome', 'header', 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg')");
+        console.log('✅ Default welcome header inserted successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for template_tpl.welcome:', migErr.message);
+    }
+
+    // Auto-migration to insert default autoreg image in template_tpl if not exists
+    try {
+      const [autoregDefault] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'autoreg' AND value = 'header'");
+      if (autoregDefault.length === 0) {
+        console.log('Inserting default autoreg header in template_tpl...');
+        await connection.query("INSERT INTO template_tpl (name, value, url) VALUES ('autoreg', 'header', 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg')");
+        console.log('✅ Default autoreg header inserted successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for template_tpl.autoreg:', migErr.message);
+    }
+
     connection.release();
   } catch (error) {
     console.error('❌ Error connecting to MySQL database:', error.message);
@@ -2657,5 +2681,6 @@ module.exports = {
   getTheme,
   setTheme,
   updateMemberAutoReg,
-  getAutoRegList
+  getAutoRegList,
+  getTemplate
 };

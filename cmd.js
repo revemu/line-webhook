@@ -275,23 +275,27 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'autoreg':
         case '+autoreg': {
             const theme = await db.getTheme();
+            const autoregTpl = await db.getTemplate('autoreg', 'header');
+            const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
             if (param.toLowerCase() === 'list') {
                 const list = await db.getAutoRegList();
-                msg = flex.buildAutoRegFlex('list', null, list, theme);
+                msg = flex.buildAutoRegFlex('list', null, list, theme, autoregImageUrl);
                 altText = "สมาชิกลงชื่ออัตโนมัติ";
                 msg_type = 1;
                 break;
             }
             await db.updateMemberAutoReg(member_id, 1);
-            msg = flex.buildAutoRegFlex('add', member_name, null, theme);
+            msg = flex.buildAutoRegFlex('add', member_name, null, theme, autoregImageUrl);
             altText = `สมัครลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
             msg_type = 1;
             break;
         }
         case '-autoreg': {
             const theme = await db.getTheme();
+            const autoregTpl = await db.getTemplate('autoreg', 'header');
+            const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
             await db.updateMemberAutoReg(member_id, 0);
-            msg = flex.buildAutoRegFlex('remove', member_name, null, theme);
+            msg = flex.buildAutoRegFlex('remove', member_name, null, theme, autoregImageUrl);
             altText = `ยกเลิกลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
             msg_type = 1;
             break;
