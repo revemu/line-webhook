@@ -1183,6 +1183,33 @@ function buildLiveFlex(matchInfo, theme) {
   };
 }
 
+function makeBoxButton(label, text, color, flexVal = 1) {
+  return {
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: color,
+    cornerRadius: 'md',
+    paddingTop: 'sm',
+    paddingBottom: 'sm',
+    action: {
+      type: 'message',
+      label: label,
+      text: text
+    },
+    contents: [
+      {
+        type: 'text',
+        text: label,
+        color: '#ffffff',
+        align: 'center',
+        weight: 'bold',
+        size: 'sm'
+      }
+    ],
+    flex: flexVal
+  };
+}
+
 function makeMemberColumn(p, index, colors) {
   const contents = [];
   if (index !== null && index !== undefined && index !== '') {
@@ -1617,18 +1644,7 @@ function buildWelcomeFlex(displayName, theme, imageUrl) {
           margin: 'sm',
           contents: [
             { type: 'filler' },
-            {
-              type: 'button',
-              action: {
-                type: 'message',
-                label: '👍 ลงชื่อเข้าเล่น (+1)',
-                text: '+1'
-              },
-              style: 'primary',
-              color: buttonColor,
-              height: 'sm',
-              flex: 4
-            },
+            makeBoxButton('👍 ลงชื่อเข้าเล่น (+1)', '+1', buttonColor, 4),
             { type: 'filler' }
           ]
         }
@@ -1955,28 +1971,8 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       spacing: 'sm',
       margin: 'sm',
       contents: [
-        {
-          type: 'button',
-          action: {
-            type: 'message',
-            label: '➕ สมัครลงชื่อ',
-            text: '+autoreg'
-          },
-          style: 'primary',
-          color: buttonColor,
-          height: 'sm'
-        },
-        {
-          type: 'button',
-          action: {
-            type: 'message',
-            label: '➖ ยกเลิก',
-            text: '-autoreg'
-          },
-          style: 'primary',
-          color: isWhite ? '#ef4444' : '#b91c1c',
-          height: 'sm'
-        }
+        makeBoxButton('➕ สมัครลงชื่อ', '+autoreg', buttonColor),
+        makeBoxButton('➖ ยกเลิก', '-autoreg', isWhite ? '#ef4444' : '#b91c1c')
       ]
     });
   } else if (action === 'add') {
@@ -1986,28 +1982,8 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       spacing: 'sm',
       margin: 'sm',
       contents: [
-        {
-          type: 'button',
-          action: {
-            type: 'message',
-            label: '📋 ดูรายชื่อ',
-            text: '/autoreglist'
-          },
-          style: 'primary',
-          color: buttonColor,
-          height: 'sm'
-        },
-        {
-          type: 'button',
-          action: {
-            type: 'message',
-            label: '➖ ยกเลิก',
-            text: '-autoreg'
-          },
-          style: 'primary',
-          color: isWhite ? '#ef4444' : '#b91c1c',
-          height: 'sm'
-        }
+        makeBoxButton('📋 ดูรายชื่อ', '/autoreglist', buttonColor),
+        makeBoxButton('➖ ยกเลิก', '-autoreg', isWhite ? '#ef4444' : '#b91c1c')
       ]
     });
   } else if (action === 'remove') {
@@ -2017,28 +1993,8 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       spacing: 'sm',
       margin: 'sm',
       contents: [
-        {
-          type: 'button',
-          action: {
-            type: 'message',
-            label: '📋 ดูรายชื่อ',
-            text: '/autoreglist'
-          },
-          style: 'primary',
-          color: buttonColor,
-          height: 'sm'
-        },
-        {
-          type: 'button',
-          action: {
-            type: 'message',
-            label: '➕ สมัครลงชื่อ',
-            text: '/autoreg'
-          },
-          style: 'primary',
-          color: isWhite ? '#64748b' : '#334155',
-          height: 'sm'
-        }
+        makeBoxButton('📋 ดูรายชื่อ', '/autoreglist', buttonColor),
+        makeBoxButton('➕ สมัครลงชื่อ', '/autoreg', isWhite ? '#64748b' : '#334155')
       ]
     });
   }
