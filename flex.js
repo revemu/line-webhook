@@ -2045,7 +2045,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
                   type: 'text',
                   text: badgeText,
                   color: badgeTextColor,
-                  size: 'xl',
+                  size: 'sm',
                   weight: 'bold'
                 }
               ]
