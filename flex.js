@@ -1835,7 +1835,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
   let bodyContents = [];
 
   if (action === 'list') {
-    badgeText = '👤 AUTO REG LIST';
+    badgeText = '👤 สมาชิกลงชื่ออัตโนมัติ';
     badgeBg = isWhite ? '#e0f2fe' : '#0c4a6e';
     badgeTextColor = isWhite ? '#0369a1' : '#38bdf8';
     title = 'สมาชิกลงชื่ออัตโนมัติ';
@@ -1892,7 +1892,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
       });
     }
   } else if (action === 'add') {
-    badgeText = '✅ AUTO REG ACTIVE';
+    badgeText = '✅ สมัครลงชื่ออัตโนมัติสำเร็จ';
     badgeBg = isWhite ? '#dcfce7' : '#064e3b';
     badgeTextColor = isWhite ? '#15803d' : '#4ade80';
     title = 'สมัครลงชื่ออัตโนมัติสำเร็จ';
@@ -1907,7 +1907,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
       margin: 'md'
     });
   } else if (action === 'remove') {
-    badgeText = '❌ AUTO REG INACTIVE';
+    badgeText = '❌ ยกเลิกลงชื่ออัตโนมัติ';
     badgeBg = isWhite ? '#fee2e2' : '#7f1d1d';
     badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
     title = 'ยกเลิกลงชื่ออัตโนมัติ';
@@ -2045,7 +2045,7 @@ function buildAutoRegFlex(action, memberName, list, theme) {
                   type: 'text',
                   text: badgeText,
                   color: badgeTextColor,
-                  size: 'xxs',
+                  size: 'xl',
                   weight: 'bold'
                 }
               ]
@@ -2053,13 +2053,13 @@ function buildAutoRegFlex(action, memberName, list, theme) {
           ]
         },
         // Title
-        {
+        /*{
           type: 'text',
           text: title,
           weight: 'bold',
           size: 'xl',
           color: textPrimary
-        },
+        },*/
         // Body contents (list or description)
         ...bodyContents,
         {
