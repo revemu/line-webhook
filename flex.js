@@ -1472,30 +1472,8 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     spacing: 'md',
     margin: 'md',
     contents: [
-      {
-        type: 'button',
-        action: {
-          type: 'message',
-          label: '👍 ลงชื่อ (+1)',
-          text: '+1'
-        },
-        style: 'primary',
-        color: buttonRegisterColor,
-        height: 'sm',
-        flex: 1
-      },
-      {
-        type: 'button',
-        action: {
-          type: 'message',
-          label: '❌ ยกเลิก (-1)',
-          text: '-1'
-        },
-        style: 'secondary',
-        color: buttonCancelColor,
-        height: 'sm',
-        flex: 1
-      }
+      makeBoxButton('👍 ลงชื่อ (+1)', '+1', buttonRegisterColor),
+      makeBoxButton('❌ ยกเลิก (-1)', '-1', buttonCancelColor)
     ]
   });
 
