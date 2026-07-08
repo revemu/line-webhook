@@ -1184,16 +1184,17 @@ function buildLiveFlex(matchInfo, theme) {
 }
 
 function makeMemberColumn(p, index, colors) {
-  const contents = [
-    {
+  const contents = [];
+  if (index !== null && index !== undefined && index !== '') {
+    contents.push({
       type: 'box',
       layout: 'vertical',
       width: '22px',
       contents: [
         { type: 'text', text: `${index}.`, size: 'sm', color: colors.textMuted, align: 'end' }
       ]
-    }
-  ];
+    });
+  }
 
   const badgeSize = p.badgeSize || '20px';
   if (p.badgeUrl) {
@@ -1851,32 +1852,13 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
         margin: 'md'
       });
     } else {
-      // List each member
+      // List each member with badge and color
       const listContents = list.map((m, idx) => {
-        return {
-          type: 'box',
-          layout: 'horizontal',
-          spacing: 'md',
-          margin: idx > 0 ? 'sm' : 'none',
-          contents: [
-            {
-              type: 'text',
-              text: `${idx + 1}.`,
-              color: accentColor,
-              weight: 'bold',
-              size: 'sm',
-              flex: 0
-            },
-            {
-              type: 'text',
-              text: m.name,
-              color: textPrimary,
-              weight: 'bold',
-              size: 'sm',
-              flex: 1
-            }
-          ]
-        };
+        const col = makeMemberColumn(m, idx + 1, colors);
+        if (idx > 0) {
+          col.margin = 'sm';
+        }
+        return col;
       });
 
       bodyContents.push({
@@ -1896,7 +1878,9 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
     badgeBg = isWhite ? '#dcfce7' : '#064e3b';
     badgeTextColor = isWhite ? '#15803d' : '#4ade80';
     title = 'สมัครลงชื่ออัตโนมัติสำเร็จ';
-    description = `เพิ่มคุณ ${memberName} ในรายชื่อลงชื่ออัตโนมัติสำเร็จแล้ว\n\nระบบจะลงชื่อเข้าเล่นให้คุณโดยอัตโนมัติเมื่อมีการเปิดรอบสัปดาห์ใหม่ ⚽`;
+    
+    const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
+    description = `เพิ่มคุณ ${displayMember.name} ในรายชื่อลงชื่ออัตโนมัติสำเร็จแล้ว\n\nระบบจะลงชื่อเข้าเล่นให้คุณโดยอัตโนมัติเมื่อมีการเปิดรอบสัปดาห์ใหม่ ⚽`;
 
     bodyContents.push({
       type: 'text',
@@ -1906,12 +1890,28 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       color: textMuted,
       margin: 'md'
     });
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: cardBg,
+      borderColor: cardBorder,
+      borderWidth: 'normal',
+      cornerRadius: 'md',
+      paddingAll: 'md',
+      margin: 'md',
+      contents: [
+        makeMemberColumn(displayMember, '', colors)
+      ]
+    });
   } else if (action === 'remove') {
     badgeText = '❌ ยกเลิกลงชื่ออัตโนมัติ';
     badgeBg = isWhite ? '#fee2e2' : '#7f1d1d';
     badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
     title = 'ยกเลิกลงชื่ออัตโนมัติ';
-    description = `นำคุณ ${memberName} ออกจากรายชื่อลงชื่ออัตโนมัติเรียบร้อยแล้ว`;
+    
+    const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
+    description = `นำคุณ ${displayMember.name} ออกจากรายชื่อลงชื่ออัตโนมัติเรียบร้อยแล้ว`;
 
     bodyContents.push({
       type: 'text',
@@ -1920,6 +1920,20 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       size: 'sm',
       color: textMuted,
       margin: 'md'
+    });
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: cardBg,
+      borderColor: cardBorder,
+      borderWidth: 'normal',
+      cornerRadius: 'md',
+      paddingAll: 'md',
+      margin: 'md',
+      contents: [
+        makeMemberColumn(displayMember, '', colors)
+      ]
     });
   }
 

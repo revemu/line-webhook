@@ -2639,8 +2639,25 @@ async function updateMemberAutoReg(member_id, auto_reg) {
 }
 
 async function getAutoRegList() {
-  const query = "SELECT id, name FROM member_tbl WHERE auto_reg = 1 ORDER BY name ASC";
-  return await module.exports.executeQuery(query);
+  const query = "SELECT * FROM member_tbl WHERE auto_reg = 1 ORDER BY name ASC";
+  const result = await executeQuery(query);
+  if (result.length > 0) {
+    const assets = await fetchDisplayAssets();
+    return result.map(member => {
+      return resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
+    });
+  }
+  return [];
+}
+
+async function getMemberDisplayInfo(memberId) {
+  const query = "SELECT * FROM member_tbl WHERE id = ?";
+  const result = await executeQuery(query, [memberId]);
+  if (result.length > 0) {
+    const assets = await fetchDisplayAssets();
+    return resolveMemberDisplayInfo(result[0], assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
+  }
+  return null;
 }
 
 module.exports = {
@@ -2682,5 +2699,6 @@ module.exports = {
   setTheme,
   updateMemberAutoReg,
   getAutoRegList,
-  getTemplate
+  getTemplate,
+  getMemberDisplayInfo
 };
