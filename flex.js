@@ -1612,16 +1612,25 @@ function buildWelcomeFlex(displayName, theme, imageUrl) {
         },
         // Action Button
         {
-          type: 'button',
-          action: {
-            type: 'message',
-            label: '👍 ลงชื่อเข้าเล่น (+1)',
-            text: '+1'
-          },
-          style: 'primary',
-          color: buttonColor,
-          height: 'sm',
-          margin: 'sm'
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'sm',
+          contents: [
+            { type: 'filler' },
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '👍 ลงชื่อเข้าเล่น (+1)',
+                text: '+1'
+              },
+              style: 'primary',
+              color: buttonColor,
+              height: 'sm',
+              flex: 4
+            },
+            { type: 'filler' }
+          ]
         }
       ]
     }
@@ -1941,78 +1950,96 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   const footerButtons = [];
   if (action === 'list') {
     footerButtons.push({
-      type: 'button',
-      action: {
-        type: 'message',
-        label: '➕ สมัครลงชื่ออัตโนมัติ',
-        text: '+autoreg'
-      },
-      style: 'primary',
-      color: buttonColor,
-      height: 'sm',
-      margin: 'sm'
-    });
-    footerButtons.push({
-      type: 'button',
-      action: {
-        type: 'message',
-        label: '➖ ยกเลิกลงชื่ออัตโนมัติ',
-        text: '-autoreg'
-      },
-      style: 'primary',
-      color: isWhite ? '#ef4444' : '#b91c1c',
-      height: 'sm',
-      margin: 'sm'
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      margin: 'sm',
+      contents: [
+        {
+          type: 'button',
+          action: {
+            type: 'message',
+            label: '➕ สมัครลงชื่อ',
+            text: '+autoreg'
+          },
+          style: 'primary',
+          color: buttonColor,
+          height: 'sm'
+        },
+        {
+          type: 'button',
+          action: {
+            type: 'message',
+            label: '➖ ยกเลิก',
+            text: '-autoreg'
+          },
+          style: 'primary',
+          color: isWhite ? '#ef4444' : '#b91c1c',
+          height: 'sm'
+        }
+      ]
     });
   } else if (action === 'add') {
     footerButtons.push({
-      type: 'button',
-      action: {
-        type: 'message',
-        label: '📋 ดูรายชื่อทั้งหมด',
-        text: '/autoreglist'
-      },
-      style: 'primary',
-      color: buttonColor,
-      height: 'sm',
-      margin: 'sm'
-    });
-    footerButtons.push({
-      type: 'button',
-      action: {
-        type: 'message',
-        label: '➖ ยกเลิกลงชื่ออัตโนมัติ',
-        text: '-autoreg'
-      },
-      style: 'primary',
-      color: isWhite ? '#ef4444' : '#b91c1c',
-      height: 'sm',
-      margin: 'sm'
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      margin: 'sm',
+      contents: [
+        {
+          type: 'button',
+          action: {
+            type: 'message',
+            label: '📋 ดูรายชื่อ',
+            text: '/autoreglist'
+          },
+          style: 'primary',
+          color: buttonColor,
+          height: 'sm'
+        },
+        {
+          type: 'button',
+          action: {
+            type: 'message',
+            label: '➖ ยกเลิก',
+            text: '-autoreg'
+          },
+          style: 'primary',
+          color: isWhite ? '#ef4444' : '#b91c1c',
+          height: 'sm'
+        }
+      ]
     });
   } else if (action === 'remove') {
     footerButtons.push({
-      type: 'button',
-      action: {
-        type: 'message',
-        label: '📋 ดูรายชื่อทั้งหมด',
-        text: '/autoreglist'
-      },
-      style: 'primary',
-      color: buttonColor,
-      height: 'sm',
-      margin: 'sm'
-    });
-    footerButtons.push({
-      type: 'button',
-      action: {
-        type: 'message',
-        label: '➕ สมัครลงชื่ออัตโนมัติ',
-        text: '/autoreg'
-      },
-      style: 'primary',
-      color: isWhite ? '#64748b' : '#334155',
-      height: 'sm',
-      margin: 'sm'
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      margin: 'sm',
+      contents: [
+        {
+          type: 'button',
+          action: {
+            type: 'message',
+            label: '📋 ดูรายชื่อ',
+            text: '/autoreglist'
+          },
+          style: 'primary',
+          color: buttonColor,
+          height: 'sm'
+        },
+        {
+          type: 'button',
+          action: {
+            type: 'message',
+            label: '➕ สมัครลงชื่อ',
+            text: '/autoreg'
+          },
+          style: 'primary',
+          color: isWhite ? '#64748b' : '#334155',
+          height: 'sm'
+        }
+      ]
     });
   }
 
