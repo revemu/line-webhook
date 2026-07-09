@@ -2662,7 +2662,7 @@ async function updateHof() {
       JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
       JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
       WHERE week_tbl.year = ${currentYear}
-      GROUP BY member_tbl.id
+      GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
       HAVING COUNT(table_week_tbl.id) > (
           SELECT COUNT(*) * 0.5
           FROM week_tbl
@@ -2697,7 +2697,11 @@ async function updateHof() {
 
     let topPlayers = [];
     if (players && players.length > 0) {
-      const validPlayers = players.filter(p => p.pts !== null && p.pts !== undefined && !isNaN(p.pts));
+      const validPlayers = players.map(p => ({
+        id: p.id,
+        pts: parseFloat(p.pts)
+      })).filter(p => !isNaN(p.pts));
+
       if (validPlayers.length > 0) {
         const maxPts = Math.max(...validPlayers.map(p => p.pts));
         topPlayers = validPlayers.filter(p => p.pts === maxPts).map(p => p.id);
@@ -2708,9 +2712,9 @@ async function updateHof() {
     await syncHofRecords('scorer', currentYear, topScorers);
     await syncHofRecords('assist', currentYear, topAssists);
     await syncHofRecords('own_goal', currentYear, topOwnGoals);
-    await syncHofRecords('player', currentYear, topPlayers);
+    await syncHofRecords('avg_pts', currentYear, topPlayers);
 
-    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players: ${topPlayers.join(', ')}`);
+    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Avg Pts): ${topPlayers.join(', ')}`);
   } catch (err) {
     console.error('Error updating HOF records:', err.message);
   }
