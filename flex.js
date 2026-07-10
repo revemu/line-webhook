@@ -1223,6 +1223,27 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     });
   }
 
+  if (p.pictureUrl) {
+    contents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: '20px',
+      height: '20px',
+      cornerRadius: '100px',
+      flex: 0,
+      contents: [
+        {
+          type: 'image',
+          url: p.pictureUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover'
+        }
+      ],
+      margin: 'xs'
+    });
+  }
+
   const badgeSize = p.badgeSize || '20px';
   if (p.badgeUrl) {
     contents.push({
