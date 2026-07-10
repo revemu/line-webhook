@@ -2232,6 +2232,22 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   bodyContents.push(makeStatRow('🏟️', 'นัดที่ลงเล่น (Matches)', stats.matches.year, stats.matches.alltime, false));
   bodyContents.push(makeStatRow('📅', 'สัปดาห์ที่ร่วม (Weeks)', stats.weeks.year, stats.weeks.alltime, true));
 
+  bodyContents.push({ type: 'separator', margin: 'md', color: separatorColor });
+
+  const buttonColor = isWhite ? '#16a34a' : '#22c55e';
+  const topStatsColor = isWhite ? '#64748b' : '#334155';
+
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'md',
+    contents: [
+      makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
+      makeBoxButton('👍 ลงชื่อเตะ (+1)', '+1', buttonColor)
+    ]
+  });
+
   return {
     type: 'bubble',
     size: 'giga',
