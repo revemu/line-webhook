@@ -240,7 +240,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     hofCount,
     hofBadgeUrl,
     hofBadgeSize,
-    pictureUrl: member.picture_url === 'none' ? null : member.picture_url
+    pictureUrl: member.picture_url
   };
 }
 
@@ -1529,9 +1529,6 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
                 member.picture_url = profile.pictureUrl;
                 await updateMemberPictureUrl(member.id, profile.pictureUrl);
                 console.log(`Auto-updated avatar picture for member ID ${member.id} from LINE`);
-              } else {
-                member.picture_url = 'none';
-                await updateMemberPictureUrl(member.id, 'none');
               }
             } catch (err) {
               console.error(`[LINE-API] Error auto-updating Line profile picture for member ID ${member.id} (user ID: ${member.line_user_id}):`, err.message);
@@ -1544,12 +1541,6 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
                 console.error(`[LINE-API] Response Data:`, JSON.stringify(err.originalError.response.data));
               } else if (err.response) {
                 console.error(`[LINE-API] Response Data:`, JSON.stringify(err.response.data));
-              }
-              const is404 = err.statusCode === 404 || (err.response && err.response.status === 404);
-              if (is404) {
-                member.picture_url = 'none';
-                await updateMemberPictureUrl(member.id, 'none');
-                console.log(`User not found (404) for member ID ${member.id}. Marked avatar as 'none' to prevent retry spam.`);
               }
             }
           }
