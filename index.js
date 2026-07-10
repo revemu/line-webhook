@@ -263,11 +263,25 @@ async function handleMessage(event) {
     const { source, message } = event;
     const { userId, groupId } = source;
 
+    console.log(`[handleMessage] Querying LINE profile for userId: ${userId}, groupId: ${groupId || 'none'}`);
     // Parallel fetch member and group profile if applicable
     const [member, groupProfile] = await Promise.all([
         db.queryMemberbyLineID(userId),
-        groupId ? client.getGroupMemberProfile(groupId, userId).catch(() => null) : null
+        groupId ? client.getGroupMemberProfile(groupId, userId).catch((err) => {
+            console.error(`[handleMessage] getGroupMemberProfile failed:`, err.message);
+            if (err.statusCode) {
+                console.error(`[handleMessage] LINE API Status Code: ${err.statusCode}`);
+            }
+            if (err.originalError && err.originalError.response) {
+                console.error(`[handleMessage] LINE API Response Data:`, JSON.stringify(err.originalError.response.data));
+            }
+            return null;
+        }) : null
     ]);
+
+    if (groupProfile) {
+        console.log(`[handleMessage] Successfully fetched profile from LINE: displayName=${groupProfile.displayName}, pictureUrl=${groupProfile.pictureUrl}`);
+    }
 
     if (groupId && groupProfile && groupProfile.displayName) {
         await manageMember(source, member, groupProfile.displayName, groupProfile.pictureUrl);

@@ -2,6 +2,7 @@ const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const { Client } = require('@line/bot-sdk');
 require('dotenv').config({ quiet: true });
 const flex = require('./flex');
 
@@ -1454,23 +1455,32 @@ async function getMemberNY() {
 
 }
 
+let lineClientInstance = null;
+function getLineClient() {
+  if (!lineClientInstance) {
+    const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    if (token) {
+      lineClientInstance = new Client({
+        channelAccessToken: token
+      });
+    }
+  }
+  return lineClientInstance;
+}
+
 async function fetchLineProfile(lineUserId, groupId = null) {
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-  if (!token) {
-    console.warn("LINE_CHANNEL_ACCESS_TOKEN is not configured.");
+  const client = getLineClient();
+  if (!client) {
+    console.warn("LINE Bot SDK Client is not configured.");
     return null;
   }
-  const url = groupId
-    ? `https://api.line.me/v2/bot/group/${groupId}/member/${lineUserId}`
-    : `https://api.line.me/v2/bot/profile/${lineUserId}`;
-
-  console.log(`[LINE-API] Fetching profile from URL: ${url}`);
-  const response = await axios.get(url, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-  return response.data;
+  if (groupId) {
+    console.log(`[LINE-API] Fetching profile from LINE SDK: getGroupMemberProfile(groupId: ${groupId}, userId: ${lineUserId})`);
+    return await client.getGroupMemberProfile(groupId, lineUserId);
+  } else {
+    console.log(`[LINE-API] Fetching profile from LINE SDK: getProfile(userId: ${lineUserId})`);
+    return await client.getProfile(lineUserId);
+  }
 }
 
 async function updateMemberPictureUrl(memberId, pictureUrl) {
@@ -1525,11 +1535,18 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
               }
             } catch (err) {
               console.error(`[LINE-API] Error auto-updating Line profile picture for member ID ${member.id} (user ID: ${member.line_user_id}):`, err.message);
-              if (err.response) {
+              if (err.statusCode) {
+                console.error(`[LINE-API] Response Status: ${err.statusCode}`);
+              } else if (err.response) {
                 console.error(`[LINE-API] Response Status: ${err.response.status}`);
+              }
+              if (err.originalError && err.originalError.response) {
+                console.error(`[LINE-API] Response Data:`, JSON.stringify(err.originalError.response.data));
+              } else if (err.response) {
                 console.error(`[LINE-API] Response Data:`, JSON.stringify(err.response.data));
               }
-              if (err.response && err.response.status === 404) {
+              const is404 = err.statusCode === 404 || (err.response && err.response.status === 404);
+              if (is404) {
                 member.picture_url = 'none';
                 await updateMemberPictureUrl(member.id, 'none');
                 console.log(`User not found (404) for member ID ${member.id}. Marked avatar as 'none' to prevent retry spam.`);
