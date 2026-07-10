@@ -309,9 +309,11 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'me':
         case 'my': {
             const theme = await db.getTheme();
+            const statTpl = await db.getTemplate('stat', 'header');
+            const statsImageUrl = statTpl ? statTpl.url : null;
             const statsData = await db.getMemberStats(member_id);
             if (statsData) {
-                msg = flex.buildMemberStatsFlex(statsData, theme);
+                msg = flex.buildMemberStatsFlex(statsData, theme, statsImageUrl);
                 altText = `สถิติส่วนตัวของ ${statsData.member.name}`;
                 msg_type = 1;
             } else {
