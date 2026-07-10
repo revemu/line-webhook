@@ -2235,7 +2235,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   bodyContents.push({ type: 'separator', margin: 'md', color: separatorColor });
 
   const buttonColor = isWhite ? '#16a34a' : '#22c55e';
-  const topStatsColor = isWhite ? '#64748b' : '#334155';
+  const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
 
   bodyContents.push({
     type: 'box',
@@ -2244,7 +2244,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     margin: 'md',
     contents: [
       makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
-      makeBoxButton('👍 ลงชื่อเตะ (+1)', '+1', buttonColor)
+      makeBoxButton('👍 สถิติส่วนตัว', '/stat', buttonColor)
     ]
   });
 
