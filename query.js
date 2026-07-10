@@ -1784,13 +1784,13 @@ async function getTopStat(limit = 10, type = 0) {
     icon = "👟";
   } else if (type == 2) {
     status = "= 2";
-    header = `Top ${limit} Own Goal`;
+    header = `สปายฝั่งตรงข้าม`;
     icon = "🥅";
   } else if (type == 4) {
     header = `Top ${limit} Avg Pts`;
     icon = "📊";
   } else if (type == 5) {
-    header = `ซึมเศร้าสะสมประจำปี`;
+    header = `ซึมเศร้าสะสม`;
     icon = "📉";
   }
 
