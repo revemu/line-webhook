@@ -2048,6 +2048,19 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
+  let finalImageUrl = imageUrl;
+  if (finalImageUrl) {
+    if (!finalImageUrl.startsWith('http://') && !finalImageUrl.startsWith('https://')) {
+      const baseUrl = getBaseUrl();
+      finalImageUrl = finalImageUrl.startsWith('/') ? `${baseUrl}${finalImageUrl}` : `${baseUrl}/${finalImageUrl}`;
+    }
+    if (finalImageUrl.startsWith('http://')) {
+      finalImageUrl = finalImageUrl.replace('http://', 'https://');
+    }
+  } else {
+    finalImageUrl = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
+  }
+
   const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
   const bgHeader = isWhite ? '#f1f5f9' : '#1a1a2e';
   const separatorColor = isWhite ? '#e2e8f0' : '#2a2a4a';
@@ -2229,7 +2242,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
       contents: [
         {
           type: 'image',
-          url: imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          url: finalImageUrl,
           size: 'full',
           aspectRatio: '20:6',
           aspectMode: 'cover'
