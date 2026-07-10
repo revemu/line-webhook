@@ -1526,29 +1526,6 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
         const assets = await fetchDisplayAssets();
 
         for (const member of result) {
-          if (!member.picture_url && member.line_user_id) {
-            try {
-              const profile = await fetchLineProfile(member.line_user_id, groupId);
-              if (profile && profile.pictureUrl) {
-                member.picture_url = profile.pictureUrl;
-                await updateMemberPictureUrl(member.id, profile.pictureUrl);
-                console.log(`Auto-updated avatar picture for member ID ${member.id} from LINE`);
-              }
-            } catch (err) {
-              console.error(`[LINE-API] Error auto-updating Line profile picture for member ID ${member.id} (user ID: ${member.line_user_id}):`, err.message);
-              if (err.statusCode) {
-                console.error(`[LINE-API] Response Status: ${err.statusCode}`);
-              } else if (err.response) {
-                console.error(`[LINE-API] Response Status: ${err.response.status}`);
-              }
-              if (err.originalError && err.originalError.response) {
-                console.error(`[LINE-API] Response Data:`, JSON.stringify(err.originalError.response.data));
-              } else if (err.response) {
-                console.error(`[LINE-API] Response Data:`, JSON.stringify(err.response.data));
-              }
-            }
-          }
-
           const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
           const name_display = info.name;
           const badgeUrl = info.badgeUrl;
