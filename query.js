@@ -2782,16 +2782,26 @@ async function getMemberStats(memberId) {
     WHERE mtw.member_id = ?
   `;
 
-  const [goalResult, ptResult] = await Promise.all([
+  const dateQuery = `
+    SELECT MIN(w.date) as first_match_date
+    FROM member_team_week_tbl mtw
+    JOIN week_tbl w ON mtw.week_id = w.id
+    WHERE mtw.member_id = ?
+  `;
+
+  const [goalResult, ptResult, dateResult] = await Promise.all([
     executeQuery(goalQuery, [memberId]),
-    executeQuery(ptQuery, [memberId])
+    executeQuery(ptQuery, [memberId]),
+    executeQuery(dateQuery, [memberId])
   ]);
 
   const goals = goalResult[0] || {};
   const pts = ptResult[0] || {};
+  const firstMatchDate = dateResult[0] ? dateResult[0].first_match_date : null;
 
   return {
     member: memberInfo,
+    firstMatchDate,
     stats: {
       goals: {
         year: Number(goals.goals_year || 0),

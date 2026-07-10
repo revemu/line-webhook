@@ -2044,13 +2044,29 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
 }
 
 function buildMemberStatsFlex(data, theme) {
-  const { member, stats } = data;
+  const { member, stats, firstMatchDate } = data;
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
   const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
   const bgHeader = isWhite ? '#f1f5f9' : '#1a1a2e';
   const separatorColor = isWhite ? '#e2e8f0' : '#2a2a4a';
+
+  let durationText = '';
+  if (firstMatchDate) {
+    const firstDate = new Date(firstMatchDate);
+    const now = new Date();
+    let years = now.getFullYear() - firstDate.getFullYear();
+    let months = now.getMonth() - firstDate.getMonth();
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    const parts = [];
+    if (years > 0) parts.push(`${years} ปี`);
+    if (months > 0 || years === 0) parts.push(`${months} เดือน`);
+    durationText = ` (${parts.join(' ')})`;
+  }
 
   const makeStatRow = (icon, label, yearVal, allTimeVal, isEven) => {
     const rowBg = isEven ? (isWhite ? '#f8fafc' : '#12192c') : null;
@@ -2063,7 +2079,7 @@ function buildMemberStatsFlex(data, theme) {
         {
           type: 'text',
           text: `${icon} ${label}`,
-          size: 'sm',
+          size: 'xs',
           color: colors.textPrimary,
           weight: 'bold',
           flex: 4
@@ -2071,7 +2087,7 @@ function buildMemberStatsFlex(data, theme) {
         {
           type: 'text',
           text: String(yearVal),
-          size: 'sm',
+          size: 'xs',
           color: colors.textAccent,
           weight: 'bold',
           align: 'center',
@@ -2080,7 +2096,7 @@ function buildMemberStatsFlex(data, theme) {
         {
           type: 'text',
           text: String(allTimeVal),
-          size: 'sm',
+          size: 'xs',
           color: colors.textMutedLight,
           weight: 'bold',
           align: 'center',
@@ -2098,7 +2114,7 @@ function buildMemberStatsFlex(data, theme) {
 
   // ── Header card with player info ──
   const playerContents = [];
-  
+
   if (member.badgeUrl) {
     playerContents.push({
       type: 'box',
@@ -2141,12 +2157,14 @@ function buildMemberStatsFlex(data, theme) {
 
   playerContents.push({
     type: 'text',
-    text: member.name,
+    text: `${member.name}${durationText}`,
     weight: 'bold',
-    size: 'lg',
+    size: 'md',
+    wrap: true,
     color: member.nameColor || colors.textPrimary,
     margin: 'sm',
-    gravity: 'center'
+    gravity: 'center',
+    flex: 1
   });
 
   bodyContents.push({
@@ -2185,9 +2203,9 @@ function buildMemberStatsFlex(data, theme) {
     layout: 'horizontal',
     paddingAll: 'sm',
     contents: [
-      { type: 'text', text: 'ประเภทสถิติ', size: 'xs', color: colors.textMutedDark, weight: 'bold', flex: 4 },
-      { type: 'text', text: `ปีนี้ (${currentYear})`, size: 'xs', color: colors.textMutedDark, weight: 'bold', align: 'center', flex: 2 },
-      { type: 'text', text: 'ทั้งหมด', size: 'xs', color: colors.textMutedDark, weight: 'bold', align: 'center', flex: 2 }
+      { type: 'text', text: 'ประเภทสถิติ', size: 'xxs', color: colors.textMutedDark, weight: 'bold', flex: 4 },
+      { type: 'text', text: `ปีนี้ (${currentYear})`, size: 'xxs', color: colors.textMutedDark, weight: 'bold', align: 'center', flex: 2 },
+      { type: 'text', text: 'ทั้งหมด', size: 'xxs', color: colors.textMutedDark, weight: 'bold', align: 'center', flex: 2 }
     ]
   });
 
@@ -2203,7 +2221,7 @@ function buildMemberStatsFlex(data, theme) {
 
   return {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     header: {
       type: 'box',
       layout: 'vertical',
