@@ -218,6 +218,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
   }
 
   return {
+    id: member.id,
     name: name_display,
     badgeUrl,
     badgeSize,

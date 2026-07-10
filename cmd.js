@@ -286,7 +286,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             await db.updateMemberAutoReg(member_id, 1);
             const memberInfo = await db.getMemberDisplayInfo(member_id);
-            msg = flex.buildAutoRegFlex('add', memberInfo, null, theme, autoregImageUrl);
+            const list = await db.getAutoRegList();
+            msg = flex.buildAutoRegFlex('add', memberInfo, list, theme, autoregImageUrl);
             altText = `สมัครลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
             msg_type = 1;
             break;
@@ -297,7 +298,8 @@ async function process_cmd(cmd_str, member, quoteToken) {
             const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
             await db.updateMemberAutoReg(member_id, 0);
             const memberInfo = await db.getMemberDisplayInfo(member_id);
-            msg = flex.buildAutoRegFlex('remove', memberInfo, null, theme, autoregImageUrl);
+            const list = await db.getAutoRegList();
+            msg = flex.buildAutoRegFlex('remove', memberInfo, list, theme, autoregImageUrl);
             altText = `ยกเลิกลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
             msg_type = 1;
             break;

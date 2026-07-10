@@ -1210,7 +1210,7 @@ function makeBoxButton(label, text, color, flexVal = 1) {
   };
 }
 
-function makeMemberColumn(p, index, colors) {
+function makeMemberColumn(p, index, colors, isCurrent = false) {
   const contents = [];
   if (index !== null && index !== undefined && index !== '') {
     contents.push({
@@ -1218,7 +1218,7 @@ function makeMemberColumn(p, index, colors) {
       layout: 'vertical',
       width: '22px',
       contents: [
-        { type: 'text', text: `${index}.`, size: 'sm', color: colors.textMuted, align: 'end' }
+        { type: 'text', text: `${index}.`, size: 'sm', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'end' }
       ]
     });
   }
@@ -1278,23 +1278,43 @@ function makeMemberColumn(p, index, colors) {
     });
   }*/
 
+  let displayName = `${p.donate || ''}${p.name}`;
+  let textColor = p.nameColor || colors.memberNameSpecial;
+  if (isCurrent) {
+    displayName += ' (คุณ) 👈';
+    textColor = colors.textAccent;
+  }
+
   contents.push({
     type: 'text',
-    text: `${p.donate || ''}${p.name}`,
+    text: displayName,
     size: 'sm',
     weight: 'bold',
-    color: p.nameColor || colors.memberNameSpecial,
+    color: textColor,
     flex: 1,
     margin: 'sm'
   });
 
-  return {
+  const rowObj = {
     type: 'box',
     layout: 'horizontal',
     flex: 1,
     alignItems: 'center',
     contents: contents
   };
+
+  if (isCurrent) {
+    rowObj.backgroundColor = colors.bgCurrent;
+    rowObj.borderColor = colors.borderCurrent;
+    rowObj.borderWidth = 'semiBold';
+    rowObj.cornerRadius = 'md';
+    rowObj.paddingStart = 'sm';
+    rowObj.paddingEnd = 'sm';
+    rowObj.paddingTop = 'xs';
+    rowObj.paddingBottom = 'xs';
+  }
+
+  return rowObj;
 }
 
 function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme) {
@@ -1843,39 +1863,6 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
     badgeBg = isWhite ? '#e0f2fe' : '#0c4a6e';
     badgeTextColor = isWhite ? '#0369a1' : '#38bdf8';
     title = 'สมาชิกลงชื่ออัตโนมัติ';
-
-    if (!list || list.length === 0) {
-      bodyContents.push({
-        type: 'text',
-        text: 'ไม่มีสมาชิกในระบบลงชื่ออัตโนมัติ',
-        color: textMuted,
-        size: 'sm',
-        style: 'italic',
-        align: 'center',
-        margin: 'md'
-      });
-    } else {
-      // List each member with badge and color
-      const listContents = list.map((m, idx) => {
-        const col = makeMemberColumn(m, idx + 1, colors);
-        if (idx > 0) {
-          col.margin = 'sm';
-        }
-        return col;
-      });
-
-      bodyContents.push({
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: cardBg,
-        borderColor: cardBorder,
-        borderWidth: 'normal',
-        cornerRadius: 'md',
-        paddingAll: 'md',
-        margin: 'md',
-        contents: listContents
-      });
-    }
   } else if (action === 'add') {
     badgeText = '✅ สมัครลงชื่ออัตโนมัติสำเร็จ';
     badgeBg = isWhite ? '#dcfce7' : '#064e3b';
@@ -1892,20 +1879,6 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       size: 'sm',
       color: textMuted,
       margin: 'md'
-    });
-
-    bodyContents.push({
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: cardBg,
-      borderColor: cardBorder,
-      borderWidth: 'normal',
-      cornerRadius: 'md',
-      paddingAll: 'md',
-      margin: 'md',
-      contents: [
-        makeMemberColumn(displayMember, '', colors)
-      ]
     });
   } else if (action === 'remove') {
     badgeText = '❌ ยกเลิกลงชื่ออัตโนมัติ';
@@ -1924,6 +1897,29 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       color: textMuted,
       margin: 'md'
     });
+  }
+
+  const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
+  if (!list || list.length === 0) {
+    bodyContents.push({
+      type: 'text',
+      text: 'ไม่มีสมาชิกในระบบลงชื่ออัตโนมัติ',
+      color: textMuted,
+      size: 'sm',
+      style: 'italic',
+      align: 'center',
+      margin: 'md'
+    });
+  } else {
+    // List each member with badge and color
+    const listContents = list.map((m, idx) => {
+      const isCurrent = displayMember && m.id === displayMember.id;
+      const col = makeMemberColumn(m, idx + 1, colors, isCurrent);
+      if (idx > 0) {
+        col.margin = 'sm';
+      }
+      return col;
+    });
 
     bodyContents.push({
       type: 'box',
@@ -1934,9 +1930,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       cornerRadius: 'md',
       paddingAll: 'md',
       margin: 'md',
-      contents: [
-        makeMemberColumn(displayMember, '', colors)
-      ]
+      contents: listContents
     });
   }
 
