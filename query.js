@@ -1268,7 +1268,7 @@ async function getTeamWeek(week_id = 0) {
         //bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
 
         // ── Member list ──
-        query = `select member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
+        query = `select member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
         console.log(query);
         const team_members = await executeQuery(query);
         if (team_members.length > 0) {
@@ -1287,6 +1287,46 @@ async function getTeamWeek(week_id = 0) {
                 margin: 'none'
               }
             ];
+
+            const avatarUrl = info.pictureUrl;
+            if (avatarUrl) {
+              rowContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: '16px',
+                height: '16px',
+                cornerRadius: '100px',
+                contents: [
+                  {
+                    type: 'image',
+                    url: avatarUrl,
+                    size: 'full',
+                    aspectMode: 'cover',
+                    aspectRatio: '1:1'
+                  }
+                ],
+                flex: 0,
+                margin: 'xs'
+              });
+            } else {
+              rowContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: '16px',
+                height: '16px',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '⚽',
+                    size: '10px',
+                    align: 'center',
+                    gravity: 'center'
+                  }
+                ],
+                flex: 0,
+                margin: 'xs'
+              });
+            }
 
             const nameBoxContents = [];
             const badgeSize = info.badgeSize || '16px';
