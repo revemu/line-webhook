@@ -2232,6 +2232,12 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   bodyContents.push(makeStatRow('🏟️', 'นัดที่ลงเล่น (Matches)', stats.matches.year, stats.matches.alltime, false));
   bodyContents.push(makeStatRow('📅', 'สัปดาห์ที่ร่วม (Weeks)', stats.weeks.year, stats.weeks.alltime, true));
 
+  bodyContents.push(makeStatRow('📈', '% ชนะ (Win %)', stats.win.yearPct + '%', stats.win.alltimePct + '%', false));
+
+  const champYearStr = `${stats.champ.year} (${stats.champ.yearPct}%)`;
+  const champAlltimeStr = `${stats.champ.alltime} (${stats.champ.alltimePct}%)`;
+  bodyContents.push(makeStatRow('👑', 'แชมป์ประจำสัปดาห์', champYearStr, champAlltimeStr, true));
+
   const bottomYearStr = `${stats.bottom.year} (${stats.bottom.yearPct}%)`;
   const bottomAlltimeStr = `${stats.bottom.alltime} (${stats.bottom.alltimePct}%)`;
   bodyContents.push(makeStatRow('📉', 'ซึมเศร้าประจำสัปดาห์', bottomYearStr, bottomAlltimeStr, false));

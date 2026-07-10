@@ -2767,15 +2767,17 @@ async function getMemberStats(memberId) {
     WHERE mgt.member_id = ?
   `;
 
-  // Query pts, matches, weeks
+  // Query pts, matches, weeks, wins
   const ptQuery = `
     SELECT 
       SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN tw.pts ELSE 0 END) as pts_year,
       SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN (tw.w + tw.d + tw.l) ELSE 0 END) as matches_year,
       COUNT(DISTINCT CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN w.id ELSE NULL END) as weeks_year,
+      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN tw.w ELSE 0 END) as wins_year,
       SUM(tw.pts) as pts_alltime,
       SUM(tw.w + tw.d + tw.l) as matches_alltime,
-      COUNT(DISTINCT w.id) as weeks_alltime
+      COUNT(DISTINCT w.id) as weeks_alltime,
+      SUM(tw.w) as wins_alltime
     FROM member_team_week_tbl mtw
     JOIN table_week_tbl tw ON mtw.team_id = tw.team_week_id
     JOIN week_tbl w ON tw.week_id = w.id
@@ -2804,22 +2806,46 @@ async function getMemberStats(memberId) {
     WHERE mtw.member_id = ? AND bt.rn = 1
   `;
 
-  const [goalResult, ptResult, dateResult, bottomResult] = await Promise.all([
+  const champQuery = `
+    WITH champ_teams AS (
+      SELECT week_id, team_week_id,
+             ROW_NUMBER() OVER (PARTITION BY week_id ORDER BY pts DESC, (g - a) DESC) as rn
+      FROM table_week_tbl
+    )
+    SELECT 
+      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as champ_year,
+      COUNT(*) as champ_alltime
+    FROM member_team_week_tbl mtw
+    JOIN champ_teams ct ON mtw.week_id = ct.week_id AND mtw.team_id = ct.team_week_id
+    JOIN week_tbl w ON mtw.week_id = w.id
+    WHERE mtw.member_id = ? AND ct.rn = 1
+  `;
+
+  const [goalResult, ptResult, dateResult, bottomResult, champResult] = await Promise.all([
     executeQuery(goalQuery, [memberId]),
     executeQuery(ptQuery, [memberId]),
     executeQuery(dateQuery, [memberId]),
-    executeQuery(bottomQuery, [memberId])
+    executeQuery(bottomQuery, [memberId]),
+    executeQuery(champQuery, [memberId])
   ]);
 
   const goals = goalResult[0] || {};
   const pts = ptResult[0] || {};
   const firstMatchDate = dateResult[0] ? dateResult[0].first_match_date : null;
   const bottom = bottomResult[0] || {};
+  const champ = champResult[0] || {};
 
   const bottomYear = Number(bottom.bottom_year || 0);
   const bottomAllTime = Number(bottom.bottom_alltime || 0);
+  const champYear = Number(champ.champ_year || 0);
+  const champAllTime = Number(champ.champ_alltime || 0);
   const weeksYear = Number(pts.weeks_year || 0);
   const weeksAlltime = Number(pts.weeks_alltime || 0);
+
+  const winsYear = Number(pts.wins_year || 0);
+  const winsAlltime = Number(pts.wins_alltime || 0);
+  const matchesYear = Number(pts.matches_year || 0);
+  const matchesAlltime = Number(pts.matches_alltime || 0);
 
   return {
     member: memberInfo,
@@ -2838,22 +2864,32 @@ async function getMemberStats(memberId) {
         alltime: Number(goals.owngoals_alltime || 0)
       },
       matches: {
-        year: Number(pts.matches_year || 0),
-        alltime: Number(pts.matches_alltime || 0)
+        year: matchesYear,
+        alltime: matchesAlltime
       },
       weeks: {
         year: weeksYear,
         alltime: weeksAlltime
       },
       avgpts: {
-        year: pts.matches_year > 0 ? Number((pts.pts_year / pts.matches_year).toFixed(2)) : 0,
-        alltime: pts.matches_alltime > 0 ? Number((pts.pts_alltime / pts.matches_alltime).toFixed(2)) : 0
+        year: matchesYear > 0 ? Number((pts.pts_year / matchesYear).toFixed(2)) : 0,
+        alltime: matchesAlltime > 0 ? Number((pts.pts_alltime / matchesAlltime).toFixed(2)) : 0
       },
       bottom: {
         year: bottomYear,
         yearPct: weeksYear > 0 ? Number((bottomYear / weeksYear * 100).toFixed(1)) : 0,
         alltime: bottomAllTime,
         alltimePct: weeksAlltime > 0 ? Number((bottomAllTime / weeksAlltime * 100).toFixed(1)) : 0
+      },
+      champ: {
+        year: champYear,
+        yearPct: weeksYear > 0 ? Number((champYear / weeksYear * 100).toFixed(1)) : 0,
+        alltime: champAllTime,
+        alltimePct: weeksAlltime > 0 ? Number((champAllTime / weeksAlltime * 100).toFixed(1)) : 0
+      },
+      win: {
+        yearPct: matchesYear > 0 ? Number((winsYear / matchesYear * 100).toFixed(1)) : 0,
+        alltimePct: matchesAlltime > 0 ? Number((winsAlltime / matchesAlltime * 100).toFixed(1)) : 0
       }
     }
   };
