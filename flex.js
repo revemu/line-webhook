@@ -2235,7 +2235,8 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
           url: member.hofBadgeUrl,
           size: 'full',
           aspectRatio: '1:1',
-          aspectMode: 'cover'
+          aspectMode: 'cover',
+          animated: true
         }
       ],
       margin: 'xs'
