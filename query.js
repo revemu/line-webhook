@@ -1791,6 +1791,22 @@ async function getTopStat(limit = 10, type = 0) {
   let status = "";
   const res = await getTemplate('top', type);
   let url = res ? res.url : '';
+  if (url) {
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      const getBaseUrl = () => {
+        let u = global.baseWebhookUrl || 'https://api.revemu.org';
+        if (u.startsWith('http://')) {
+          u = u.replace('http://', 'https://');
+        }
+        return u;
+      };
+      const baseUrl = getBaseUrl();
+      url = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
+    }
+    if (url.startsWith('http://')) {
+      url = url.replace('http://', 'https://');
+    }
+  }
 
   if (type == 0) {
     status = "< 2";
@@ -1838,11 +1854,6 @@ HAVING COUNT(table_week_tbl.id) > (
 ORDER BY pts DESC limit ${limit}`;
   } else if (type == 5) {
     query = `
-      WITH bottom_teams AS (
-        SELECT week_id, team_week_id,
-               ROW_NUMBER() OVER (PARTITION BY week_id ORDER BY pts ASC, (g - a) ASC) as rn
-        FROM table_week_tbl
-      )
       SELECT 
         member_tbl.id,
         member_tbl.name, 
@@ -1851,10 +1862,18 @@ ORDER BY pts DESC limit ${limit}`;
         member_tbl.donate,
         COUNT(*) as goal
       FROM member_team_week_tbl mtw
-      JOIN bottom_teams bt ON mtw.week_id = bt.week_id AND mtw.team_id = bt.team_week_id
+      JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
       JOIN member_tbl ON mtw.member_id = member_tbl.id
       JOIN week_tbl w ON mtw.week_id = w.id
-      WHERE w.year = YEAR(CURRENT_DATE()) AND bt.rn = 1 AND member_tbl.id <> 121 AND member_tbl.id <> 169 AND member_tbl.team_id <> 101
+      WHERE w.year = YEAR(CURRENT_DATE()) 
+        AND member_tbl.id <> 121 AND member_tbl.id <> 169 AND member_tbl.team_id <> 101
+        AND tw.team_week_id = (
+          SELECT t2.team_week_id
+          FROM table_week_tbl t2
+          WHERE t2.week_id = tw.week_id
+          ORDER BY t2.pts ASC, (t2.g - t2.a) ASC
+          LIMIT 1
+        )
       GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
       ORDER BY goal DESC
       LIMIT ${limit}
@@ -2836,33 +2855,35 @@ async function getMemberStats(memberId) {
   `;
 
   const bottomQuery = `
-    WITH bottom_teams AS (
-      SELECT week_id, team_week_id,
-             ROW_NUMBER() OVER (PARTITION BY week_id ORDER BY pts ASC, (g - a) ASC) as rn
-      FROM table_week_tbl
-    )
     SELECT 
       SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as bottom_year,
       COUNT(*) as bottom_alltime
     FROM member_team_week_tbl mtw
-    JOIN bottom_teams bt ON mtw.week_id = bt.week_id AND mtw.team_id = bt.team_week_id
+    JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
     JOIN week_tbl w ON mtw.week_id = w.id
-    WHERE mtw.member_id = ? AND bt.rn = 1
+    WHERE mtw.member_id = ? AND tw.team_week_id = (
+      SELECT t2.team_week_id
+      FROM table_week_tbl t2
+      WHERE t2.week_id = tw.week_id
+      ORDER BY t2.pts ASC, (t2.g - t2.a) ASC
+      LIMIT 1
+    )
   `;
 
   const champQuery = `
-    WITH champ_teams AS (
-      SELECT week_id, team_week_id,
-             ROW_NUMBER() OVER (PARTITION BY week_id ORDER BY pts DESC, (g - a) DESC) as rn
-      FROM table_week_tbl
-    )
     SELECT 
       SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as champ_year,
       COUNT(*) as champ_alltime
     FROM member_team_week_tbl mtw
-    JOIN champ_teams ct ON mtw.week_id = ct.week_id AND mtw.team_id = ct.team_week_id
+    JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
     JOIN week_tbl w ON mtw.week_id = w.id
-    WHERE mtw.member_id = ? AND ct.rn = 1
+    WHERE mtw.member_id = ? AND tw.team_week_id = (
+      SELECT t2.team_week_id
+      FROM table_week_tbl t2
+      WHERE t2.week_id = tw.week_id
+      ORDER BY t2.pts DESC, (t2.g - t2.a) DESC
+      LIMIT 1
+    )
   `;
 
   const [goalResult, ptResult, dateResult, bottomResult, champResult] = await Promise.all([
