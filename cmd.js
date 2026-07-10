@@ -337,7 +337,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             const carousel = flex.tpl_carousel;
             carousel.contents = stats.filter(x => x !== null && x !== undefined);
             const date = new Date();
-            altText = `Bottom & Own Goal Leaderboard (${date.getFullYear()})`;
+            altText = `ทำเนียบซึมเศร้าประจำปี (${date.getFullYear()})`;
             msg = carousel;
             msg_type = 1;
             break;
