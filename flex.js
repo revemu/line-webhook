@@ -1306,7 +1306,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
   if (isCurrent) {
     rowObj.backgroundColor = colors.bgCurrent;
     rowObj.borderColor = colors.borderCurrent;
-    rowObj.borderWidth = 'semiBold';
+    rowObj.borderWidth = 'semi-bold';
     rowObj.cornerRadius = 'md';
     rowObj.paddingStart = 'sm';
     rowObj.paddingEnd = 'sm';
