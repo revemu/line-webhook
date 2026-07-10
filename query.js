@@ -1458,7 +1458,7 @@ async function getMemberNY() {
 let lineClientInstance = null;
 function getLineClient() {
   if (!lineClientInstance) {
-    const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    const token = process.env.CUR_CHANNEL_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN;
     if (token) {
       lineClientInstance = new Client({
         channelAccessToken: token
