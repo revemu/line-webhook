@@ -48,6 +48,18 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for member_tbl.auto_reg:', migErr.message);
     }
 
+    // Auto-migration to add picture_url column to member_tbl if not exists
+    try {
+      const [columns] = await connection.query("SHOW COLUMNS FROM member_tbl LIKE 'picture_url'");
+      if (columns.length === 0) {
+        console.log('Adding picture_url column to member_tbl...');
+        await connection.query("ALTER TABLE member_tbl ADD COLUMN picture_url VARCHAR(512) DEFAULT NULL");
+        console.log('✅ picture_url column added successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for member_tbl.picture_url:', migErr.message);
+    }
+
     // Auto-migration to add size column to template_tpl if not exists
     try {
       const [columns] = await connection.query("SHOW COLUMNS FROM template_tpl LIKE 'size'");
@@ -225,7 +237,8 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     nameColor,
     hofCount,
     hofBadgeUrl,
-    hofBadgeSize
+    hofBadgeSize,
+    pictureUrl: member.picture_url
   };
 }
 
@@ -313,10 +326,15 @@ async function resetMemberTeam() {
 
 }
 
-async function newMember(lineID, name) {
-  const query = "insert into member_tbl (name, power, donate, team_id, alias, line_user_id, week_id) values(?, 0, 0, 0, ?, ?, 0)";
-  const res = await executeQuery(query, [name, name.replace('@', ''), lineID]);
+async function newMember(lineID, name, pictureUrl = null) {
+  const query = "insert into member_tbl (name, power, donate, team_id, alias, line_user_id, week_id, picture_url) values(?, 0, 0, 0, ?, ?, 0, ?)";
+  const res = await executeQuery(query, [name, name.replace('@', ''), lineID, pictureUrl]);
   return res;
+}
+
+async function updateMemberInfo(member_id, name, pictureUrl = null) {
+  let query = "update member_tbl set name = ?, picture_url = ? where id = ?";
+  return await executeQuery(query, [name, pictureUrl, member_id]);
 }
 
 function shuffleArray(array) {
@@ -2934,6 +2952,7 @@ module.exports = {
   getMatchWeek,
   getTableWeek,
   updateMember,
+  updateMemberInfo,
   updateMemberRank,
   updateMemberDebt,
   updateMemberWeek,

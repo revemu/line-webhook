@@ -2126,14 +2126,73 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   const bodyContents = [];
 
   // ── Header card with player info ──
-  const playerContents = [];
+  const playerProfileBlock = [];
 
-  if (member.badgeUrl) {
-    playerContents.push({
+  // Profile Avatar Box (Left)
+  if (member.pictureUrl) {
+    playerProfileBlock.push({
       type: 'box',
       layout: 'vertical',
-      width: member.badgeSize || '32px',
-      height: member.badgeSize || '32px',
+      width: '44px',
+      height: '44px',
+      cornerRadius: '100px',
+      flex: 0,
+      contents: [
+        {
+          type: 'image',
+          url: member.pictureUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover'
+        }
+      ]
+    });
+  } else {
+    // Fallback: Default placeholder avatar/icon if no pictureUrl is available
+    playerProfileBlock.push({
+      type: 'box',
+      layout: 'vertical',
+      width: '44px',
+      height: '44px',
+      cornerRadius: '100px',
+      backgroundColor: isWhite ? '#e2e8f0' : '#1e1e38',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flex: 0,
+      contents: [
+        {
+          type: 'text',
+          text: '👤',
+          size: 'lg',
+          align: 'center',
+          gravity: 'center'
+        }
+      ]
+    });
+  }
+
+  // Name & Badges Info Box (Right)
+  const infoContents = [];
+
+  // Top Row: Name and Duration
+  infoContents.push({
+    type: 'text',
+    text: `${member.name}${durationText}`,
+    weight: 'bold',
+    size: 'sm',
+    wrap: true,
+    color: member.nameColor || colors.textPrimary,
+    gravity: 'center'
+  });
+
+  // Bottom Row: Badges
+  const badgesRow = [];
+  if (member.badgeUrl) {
+    badgesRow.push({
+      type: 'box',
+      layout: 'vertical',
+      width: member.badgeSize || '20px',
+      height: member.badgeSize || '20px',
       flex: 0,
       contents: [
         {
@@ -2143,17 +2202,16 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
           aspectRatio: '1:1',
           aspectMode: 'cover'
         }
-      ],
-      margin: 'xs'
+      ]
     });
   }
 
   if (member.hofCount && member.hofCount > 0 && member.hofBadgeUrl) {
-    playerContents.push({
+    badgesRow.push({
       type: 'box',
       layout: 'vertical',
-      width: member.hofBadgeSize || '32px',
-      height: member.hofBadgeSize || '32px',
+      width: member.hofBadgeSize || '20px',
+      height: member.hofBadgeSize || '20px',
       flex: 0,
       contents: [
         {
@@ -2168,16 +2226,24 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     });
   }
 
-  playerContents.push({
-    type: 'text',
-    text: `${member.name}${durationText}`,
-    weight: 'bold',
-    size: 'md',
-    wrap: true,
-    color: member.nameColor || colors.textPrimary,
-    margin: 'sm',
-    gravity: 'center',
-    flex: 1
+  if (badgesRow.length > 0) {
+    infoContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'xs',
+      spacing: 'xs',
+      alignItems: 'center',
+      contents: badgesRow
+    });
+  }
+
+  playerProfileBlock.push({
+    type: 'box',
+    layout: 'vertical',
+    flex: 1,
+    margin: 'md',
+    justifyContent: 'center',
+    contents: infoContents
   });
 
   bodyContents.push({
@@ -2193,7 +2259,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
         layout: 'horizontal',
         alignItems: 'center',
         flex: 1,
-        contents: playerContents
+        contents: playerProfileBlock
       },
       {
         type: 'text',

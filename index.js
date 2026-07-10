@@ -243,28 +243,17 @@ async function handleJoinedMember(event) {
     }
 }
 
-async function manageMember(source, member, line_name) {
-    //const res = await client.getGroupMemberProfile(source.groupId, source.userId) ;
-    //client.getGroupMemberProfile()
-    //const res = await client.getProfile(source.userId) ;
-    //client.getGroupMemberProfile() ;
-    /*let displayName ;
-    if (res) {
-        console.log(res) ;
-        displayName = '@' + res.displayName ;
-    }*/
+async function manageMember(source, member, line_name, pictureUrl) {
     line_name = `@${line_name}`;
     if (member.length > 0) {
-        //console.log(member) ;
-        if (line_name == member[0].name) {
-            //console.log(`existing member ${source.userId}: ${member[0].name}`);
-        } else {
-            console.log(`update existing member name ${source.userId}: ${member[0].name} => ${line_name}`);
-            await db.updateMember(member[0].id, line_name, 0);
+        const existingPic = member[0].picture_url;
+        if (line_name !== member[0].name || (pictureUrl && pictureUrl !== existingPic)) {
+            console.log(`update existing member info ${source.userId}: ${member[0].name} => ${line_name}, pic update: ${pictureUrl !== existingPic}`);
+            await db.updateMemberInfo(member[0].id, line_name, pictureUrl);
         }
     } else {
         console.log(`add new member ${source.userId}: ${line_name}`);
-        await db.newMember(source.userId, line_name);
+        await db.newMember(source.userId, line_name, pictureUrl);
     }
 
 }
@@ -281,7 +270,7 @@ async function handleMessage(event) {
     ]);
 
     if (groupId && groupProfile && groupProfile.displayName) {
-        await manageMember(source, member, groupProfile.displayName);
+        await manageMember(source, member, groupProfile.displayName, groupProfile.pictureUrl);
     }
 
     if (member.length === 0) return;
