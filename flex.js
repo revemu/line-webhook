@@ -2190,21 +2190,9 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   // Name & Badges Info Box (Right)
   const infoContents = [];
 
-  // Top Row: Name and Duration
-  infoContents.push({
-    type: 'text',
-    text: `${member.name}${durationText}`,
-    weight: 'bold',
-    size: 'sm',
-    wrap: true,
-    color: member.nameColor || colors.textPrimary,
-    gravity: 'center'
-  });
-
-  // Bottom Row: Badges
-  const badgesRow = [];
+  // Badges (placed in front of the name)
   if (member.badgeUrl) {
-    badgesRow.push({
+    infoContents.push({
       type: 'box',
       layout: 'vertical',
       width: member.badgeSize || '20px',
@@ -2223,7 +2211,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   }
 
   if (member.hofCount && member.hofCount > 0 && member.hofBadgeUrl) {
-    badgesRow.push({
+    infoContents.push({
       type: 'box',
       layout: 'vertical',
       width: member.hofBadgeSize || '20px',
@@ -2243,23 +2231,25 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     });
   }
 
-  if (badgesRow.length > 0) {
-    infoContents.push({
-      type: 'box',
-      layout: 'horizontal',
-      margin: 'xs',
-      spacing: 'xs',
-      alignItems: 'center',
-      contents: badgesRow
-    });
-  }
+  // Name and Duration
+  infoContents.push({
+    type: 'text',
+    text: `${member.name}${durationText}`,
+    weight: 'bold',
+    size: 'sm',
+    wrap: true,
+    color: member.nameColor || colors.textPrimary,
+    gravity: 'center',
+    margin: 'sm',
+    flex: 1
+  });
 
   playerProfileBlock.push({
     type: 'box',
-    layout: 'vertical',
+    layout: 'horizontal',
     flex: 1,
     margin: 'md',
-    justifyContent: 'center',
+    alignItems: 'center',
     contents: infoContents
   });
 
