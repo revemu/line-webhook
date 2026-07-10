@@ -12,7 +12,7 @@ function getNextSaturday() {
     return date;
 }
 
-async function process_cmd(cmd_str, member, quoteToken) {
+async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
     const pos = cmd_str.indexOf(" ");
     const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
     let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
@@ -86,7 +86,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             }
             await db.updateMaxNumberWeek(Number(param));
 
-            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex);
+            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
             if (is_flex && typeof msg === 'object') {
                 msg_type = 1;
                 altText = altText || "ลงชื่อเตะบอล";
@@ -114,7 +114,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 msg_type = 0;
                 break;
             }
-            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex);
+            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
             if (is_flex && typeof msg === 'object') {
                 msg_type = 1;
                 altText = altText || "ลงชื่อเตะบอล";
@@ -126,7 +126,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             if (await db.unregisterMember(member_id)) {
                 console.log(`${chat_type} ${member_name} พบข้อมูลลงทะเบียน!`);
             }
-            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex);
+            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
             if (is_flex && typeof msg === 'object') {
                 msg_type = 1;
                 altText = altText || "ลงชื่อเตะบอล";
@@ -352,7 +352,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'play':
         case 'ลงชื่อ':
         case 'reg': {
-            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex);
+            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
             if (is_flex && typeof msg === 'object') {
                 msg_type = 1;
                 altText = altText || "ลงชื่อเตะบอล";

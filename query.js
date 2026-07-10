@@ -1454,13 +1454,17 @@ async function getMemberNY() {
 
 }
 
-async function fetchLineProfile(lineUserId) {
+async function fetchLineProfile(lineUserId, groupId = null) {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!token) {
     console.warn("LINE_CHANNEL_ACCESS_TOKEN is not configured.");
     return null;
   }
-  const response = await axios.get(`https://api.line.me/v2/bot/profile/${lineUserId}`, {
+  const url = groupId
+    ? `https://api.line.me/v2/bot/group/${groupId}/member/${lineUserId}`
+    : `https://api.line.me/v2/bot/profile/${lineUserId}`;
+
+  const response = await axios.get(url, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -1473,7 +1477,7 @@ async function updateMemberPictureUrl(memberId, pictureUrl) {
   return await executeQuery(query, [pictureUrl, memberId]);
 }
 
-async function getMemberWeek0(type = 0, isFlex = true) {
+async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
   let header = "";
   let body = "";
   let sub = {};
@@ -1509,7 +1513,7 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         for (const member of result) {
           if (!member.picture_url && member.line_user_id) {
             try {
-              const profile = await fetchLineProfile(member.line_user_id);
+              const profile = await fetchLineProfile(member.line_user_id, groupId);
               if (profile && profile.pictureUrl) {
                 member.picture_url = profile.pictureUrl;
                 await updateMemberPictureUrl(member.id, profile.pictureUrl);
@@ -1519,11 +1523,12 @@ async function getMemberWeek0(type = 0, isFlex = true) {
                 await updateMemberPictureUrl(member.id, 'none');
               }
             } catch (err) {
-              console.error(`Error auto-updating Line profile picture for member ${member.id}:`, err.message);
               if (err.response && err.response.status === 404) {
                 member.picture_url = 'none';
                 await updateMemberPictureUrl(member.id, 'none');
-                console.log(`User not found (404). Marked avatar picture for member ID ${member.id} as 'none' to prevent retry spam.`);
+                console.log(`User not found (404) for member ID ${member.id}. Marked avatar as 'none' to prevent retry spam.`);
+              } else {
+                console.error(`Error auto-updating Line profile picture for member ${member.id}:`, err.message);
               }
             }
           }

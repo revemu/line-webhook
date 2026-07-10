@@ -363,7 +363,7 @@ async function handleTextMessage(event, member) {
 
     if (['/', 'x', '+', '-'].includes(op)) {
         const cmd_str = text.substring(index);
-        const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken);
+        const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
         await replyMessage(replyToken, replyMessages);
     } else {
         const h = new Date().getHours();
