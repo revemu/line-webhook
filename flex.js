@@ -2234,7 +2234,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
 
   const bottomYearStr = `${stats.bottom.year} (${stats.bottom.yearPct}%)`;
   const bottomAlltimeStr = `${stats.bottom.alltime} (${stats.bottom.alltimePct}%)`;
-  bodyContents.push(makeStatRow('📉', 'บ๊วยประจำสัปดาห์', bottomYearStr, bottomAlltimeStr, false));
+  bodyContents.push(makeStatRow('📉', 'ซึมเศร้าประจำสัปดาห์', bottomYearStr, bottomAlltimeStr, false));
 
   bodyContents.push({ type: 'separator', margin: 'md', color: separatorColor });
 
