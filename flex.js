@@ -2309,7 +2309,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   // ── Rows ──
   bodyContents.push(makeStatRow('⚽', 'ประตู (Goals)', stats.goals.year, stats.goals.alltime, false));
   bodyContents.push(makeStatRow('👟', 'แอสซิสต์ (Assists)', stats.assists.year, stats.assists.alltime, true));
-  bodyContents.push(makeStatRow('🥅', 'สปายฝั่งตรงข้าม', stats.owngoals.year, stats.owngoals.alltime, false));
+  bodyContents.push(makeStatRow('🥅', 'สปายฝั่งตรงข้าม (OG)', stats.owngoals.year, stats.owngoals.alltime, false));
   bodyContents.push(makeStatRow('📊', 'คะแนนเฉลี่ย (Avg Pts)', stats.avgpts.year.toFixed(2), stats.avgpts.alltime.toFixed(2), true));
   bodyContents.push(makeStatRow('🏟️', 'นัดที่ลงเล่น (Matches)', stats.matches.year, stats.matches.alltime, false));
   bodyContents.push(makeStatRow('📅', 'สัปดาห์ที่ร่วม (Weeks)', stats.weeks.year, stats.weeks.alltime, true));
