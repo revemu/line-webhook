@@ -2053,11 +2053,10 @@ function buildMemberStatsFlex(data, theme) {
   const separatorColor = isWhite ? '#e2e8f0' : '#2a2a4a';
 
   const makeStatRow = (icon, label, yearVal, allTimeVal, isEven) => {
-    const rowBg = isEven ? (isWhite ? '#f8fafc' : '#12192c') : 'transparent';
-    return {
+    const rowBg = isEven ? (isWhite ? '#f8fafc' : '#12192c') : null;
+    const rowObj = {
       type: 'box',
       layout: 'horizontal',
-      backgroundColor: rowBg,
       paddingAll: 'sm',
       alignItems: 'center',
       contents: [
@@ -2089,6 +2088,10 @@ function buildMemberStatsFlex(data, theme) {
         }
       ]
     };
+    if (rowBg) {
+      rowObj.backgroundColor = rowBg;
+    }
+    return rowObj;
   };
 
   const bodyContents = [];
