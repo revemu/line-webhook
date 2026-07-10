@@ -1458,7 +1458,11 @@ async function getMemberNY() {
 let lineClientInstance = null;
 function getLineClient() {
   if (!lineClientInstance) {
-    const token = process.env.CUR_CHANNEL_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    const entrypoint = require.main ? require.main.filename : '';
+    const useCur = entrypoint.includes('index4.js') || entrypoint.includes('index3.js') || entrypoint.includes('index2.js');
+    const token = useCur 
+      ? (process.env.CUR_CHANNEL_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN)
+      : (process.env.LINE_CHANNEL_ACCESS_TOKEN || process.env.CUR_CHANNEL_ACCESS_TOKEN);
     if (token) {
       lineClientInstance = new Client({
         channelAccessToken: token
