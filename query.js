@@ -2748,6 +2748,79 @@ async function getMemberDisplayInfo(memberId) {
   return null;
 }
 
+async function getMemberStats(memberId) {
+  const memberInfo = await getMemberDisplayInfo(memberId);
+  if (!memberInfo) return null;
+
+  // Query goals, assists, own goals
+  const goalQuery = `
+    SELECT 
+      SUM(CASE WHEN mgt.status < 2 AND w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as goals_year,
+      SUM(CASE WHEN mgt.status < 2 THEN 1 ELSE 0 END) as goals_alltime,
+      SUM(CASE WHEN mgt.status = 3 AND w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as assists_year,
+      SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END) as assists_alltime,
+      SUM(CASE WHEN mgt.status = 2 AND w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as owngoals_year,
+      SUM(CASE WHEN mgt.status = 2 THEN 1 ELSE 0 END) as owngoals_alltime
+    FROM match_goal_tbl mgt
+    JOIN match_stat_tbl mst ON mgt.match_id = mst.id
+    JOIN week_tbl w ON mst.week_id = w.id
+    WHERE mgt.member_id = ?
+  `;
+
+  // Query pts, matches, weeks
+  const ptQuery = `
+    SELECT 
+      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN tw.pts ELSE 0 END) as pts_year,
+      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN (tw.w + tw.d + tw.l) ELSE 0 END) as matches_year,
+      COUNT(DISTINCT CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN w.id ELSE NULL END) as weeks_year,
+      SUM(tw.pts) as pts_alltime,
+      SUM(tw.w + tw.d + tw.l) as matches_alltime,
+      COUNT(DISTINCT w.id) as weeks_alltime
+    FROM member_team_week_tbl mtw
+    JOIN table_week_tbl tw ON mtw.team_id = tw.team_week_id
+    JOIN week_tbl w ON tw.week_id = w.id
+    WHERE mtw.member_id = ?
+  `;
+
+  const [goalResult, ptResult] = await Promise.all([
+    executeQuery(goalQuery, [memberId]),
+    executeQuery(ptQuery, [memberId])
+  ]);
+
+  const goals = goalResult[0] || {};
+  const pts = ptResult[0] || {};
+
+  return {
+    member: memberInfo,
+    stats: {
+      goals: {
+        year: Number(goals.goals_year || 0),
+        alltime: Number(goals.goals_alltime || 0)
+      },
+      assists: {
+        year: Number(goals.assists_year || 0),
+        alltime: Number(goals.assists_alltime || 0)
+      },
+      owngoals: {
+        year: Number(goals.owngoals_year || 0),
+        alltime: Number(goals.owngoals_alltime || 0)
+      },
+      matches: {
+        year: Number(pts.matches_year || 0),
+        alltime: Number(pts.matches_alltime || 0)
+      },
+      weeks: {
+        year: Number(pts.weeks_year || 0),
+        alltime: Number(pts.weeks_alltime || 0)
+      },
+      avgpts: {
+        year: pts.matches_year > 0 ? Number((pts.pts_year / pts.matches_year).toFixed(2)) : 0,
+        alltime: pts.matches_alltime > 0 ? Number((pts.pts_alltime / pts.matches_alltime).toFixed(2)) : 0
+      }
+    }
+  };
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -2788,5 +2861,6 @@ module.exports = {
   updateMemberAutoReg,
   getAutoRegList,
   getTemplate,
-  getMemberDisplayInfo
+  getMemberDisplayInfo,
+  getMemberStats
 };

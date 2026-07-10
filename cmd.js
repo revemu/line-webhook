@@ -39,7 +39,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let member_id = member.id;
     let member_name = member.name;
     let target_line_user_id = member.line_user_id;
-    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'autoreg', '+autoreg', '-autoreg'].includes(cmd);
+    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my'].includes(cmd);
     let is_mention = false;
 
     if (is_mention_cmd && param.startsWith('@')) {
@@ -50,7 +50,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             member_id = mention[0].id;
             member_name = param;
             target_line_user_id = mention[0].line_user_id;
-            if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg') {
+            if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg' && cmd != 'stat' && cmd != 'mystat' && cmd != 'me' && cmd != 'my') {
                 if (!await db.IsMemberWeek(member_id)) {
                     return [{
                         type: 'text',
@@ -302,6 +302,22 @@ async function process_cmd(cmd_str, member, quoteToken) {
             msg = flex.buildAutoRegFlex('remove', memberInfo, list, theme, autoregImageUrl);
             altText = `ยกเลิกลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
             msg_type = 1;
+            break;
+        }
+        case 'stat':
+        case 'mystat':
+        case 'me':
+        case 'my': {
+            const theme = await db.getTheme();
+            const statsData = await db.getMemberStats(member_id);
+            if (statsData) {
+                msg = flex.buildMemberStatsFlex(statsData, theme);
+                altText = `สถิติส่วนตัวของ ${statsData.member.name}`;
+                msg_type = 1;
+            } else {
+                msg = "ไม่พบข้อมูลสถิติของสมาชิกท่านนี้";
+                msg_type = 0;
+            }
             break;
         }
         case 'newweek': {

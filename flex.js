@@ -2043,6 +2043,188 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   };
 }
 
+function buildMemberStatsFlex(data, theme) {
+  const { member, stats } = data;
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+
+  const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
+  const bgHeader = isWhite ? '#f1f5f9' : '#1a1a2e';
+  const separatorColor = isWhite ? '#e2e8f0' : '#2a2a4a';
+
+  const makeStatRow = (icon, label, yearVal, allTimeVal, isEven) => {
+    const rowBg = isEven ? (isWhite ? '#f8fafc' : '#12192c') : 'transparent';
+    return {
+      type: 'box',
+      layout: 'horizontal',
+      backgroundColor: rowBg,
+      paddingAll: 'sm',
+      alignItems: 'center',
+      contents: [
+        {
+          type: 'text',
+          text: `${icon} ${label}`,
+          size: 'sm',
+          color: colors.textPrimary,
+          weight: 'bold',
+          flex: 4
+        },
+        {
+          type: 'text',
+          text: String(yearVal),
+          size: 'sm',
+          color: colors.textAccent,
+          weight: 'bold',
+          align: 'center',
+          flex: 2
+        },
+        {
+          type: 'text',
+          text: String(allTimeVal),
+          size: 'sm',
+          color: colors.textMutedLight,
+          weight: 'bold',
+          align: 'center',
+          flex: 2
+        }
+      ]
+    };
+  };
+
+  const bodyContents = [];
+
+  // ── Header card with player info ──
+  const playerContents = [];
+  
+  if (member.badgeUrl) {
+    playerContents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: member.badgeSize || '32px',
+      height: member.badgeSize || '32px',
+      flex: 0,
+      contents: [
+        {
+          type: 'image',
+          url: member.badgeUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover'
+        }
+      ],
+      margin: 'xs'
+    });
+  }
+
+  if (member.hofCount && member.hofCount > 0 && member.hofBadgeUrl) {
+    playerContents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: member.hofBadgeSize || '32px',
+      height: member.hofBadgeSize || '32px',
+      flex: 0,
+      contents: [
+        {
+          type: 'image',
+          url: member.hofBadgeUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover'
+        }
+      ],
+      margin: 'xs'
+    });
+  }
+
+  playerContents.push({
+    type: 'text',
+    text: member.name,
+    weight: 'bold',
+    size: 'lg',
+    color: member.nameColor || colors.textPrimary,
+    margin: 'sm',
+    gravity: 'center'
+  });
+
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    backgroundColor: bgHeader,
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    alignItems: 'center',
+    contents: [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        alignItems: 'center',
+        flex: 1,
+        contents: playerContents
+      },
+      {
+        type: 'text',
+        text: '⚽ สถิติส่วนตัว',
+        size: 'sm',
+        color: colors.textMuted,
+        align: 'end',
+        gravity: 'center',
+        flex: 0
+      }
+    ]
+  });
+
+  bodyContents.push({ type: 'separator', margin: 'md', color: separatorColor });
+
+  // ── Column Headers ──
+  const currentYear = new Date().getFullYear();
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    paddingAll: 'sm',
+    contents: [
+      { type: 'text', text: 'ประเภทสถิติ', size: 'xs', color: colors.textMutedDark, weight: 'bold', flex: 4 },
+      { type: 'text', text: `ปีนี้ (${currentYear})`, size: 'xs', color: colors.textMutedDark, weight: 'bold', align: 'center', flex: 2 },
+      { type: 'text', text: 'ทั้งหมด', size: 'xs', color: colors.textMutedDark, weight: 'bold', align: 'center', flex: 2 }
+    ]
+  });
+
+  bodyContents.push({ type: 'separator', margin: 'xs', color: separatorColor });
+
+  // ── Rows ──
+  bodyContents.push(makeStatRow('⚽', 'ประตู (Goals)', stats.goals.year, stats.goals.alltime, false));
+  bodyContents.push(makeStatRow('👟', 'แอสซิสต์ (Assists)', stats.assists.year, stats.assists.alltime, true));
+  bodyContents.push(makeStatRow('🥅', 'ทำเข้าประตูตัวเอง', stats.owngoals.year, stats.owngoals.alltime, false));
+  bodyContents.push(makeStatRow('📊', 'คะแนนเฉลี่ย (Avg Pts)', stats.avgpts.year.toFixed(2), stats.avgpts.alltime.toFixed(2), true));
+  bodyContents.push(makeStatRow('🏟️', 'นัดที่ลงเล่น (Matches)', stats.matches.year, stats.matches.alltime, false));
+  bodyContents.push(makeStatRow('📅', 'สัปดาห์ที่ร่วม (Weeks)', stats.weeks.year, stats.weeks.alltime, true));
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          size: 'full',
+          aspectRatio: '20:6',
+          aspectMode: 'cover'
+        }
+      ]
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: bgMain,
+      paddingAll: 'md',
+      contents: bodyContents
+    }
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -2056,5 +2238,6 @@ module.exports = {
   buildWelcomeFlex,
   buildRegisterFlex,
   buildAutoRegFlex,
+  buildMemberStatsFlex,
   getThemeColors
 };
