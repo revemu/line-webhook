@@ -2204,7 +2204,8 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
           url: member.badgeUrl,
           size: 'full',
           aspectRatio: '1:1',
-          aspectMode: 'cover'
+          aspectMode: 'cover',
+          animated: true
         }
       ]
     });
