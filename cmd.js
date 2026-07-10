@@ -324,7 +324,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
         }
         case 'bottom':
         case 'testbottom': {
-            let limit = param != '' ? Number(param) : 10;
+            let limit = param != '' ? Number(param) : 30;
             if (limit > 25) {
                 //limit = 25;
             }
@@ -430,7 +430,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
 
 
         case 'top':
-            let limit = param != '' ? Number(param) : 10;
+            let limit = param != '' ? Number(param) : 30;
             if (limit > 25) {
                 //limit = 25;
             }
