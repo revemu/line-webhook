@@ -1497,6 +1497,22 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     ]
   });
 
+  const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
+  const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
+  const personalStatsColor = isWhite ? '#0284c7' : '#0ea5e9';
+
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'xs',
+    contents: [
+      makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
+      makeBoxButton('📉 ทำเนียบซึมเศร้า', '/bottom', bottomStatsColor),
+      makeBoxButton('📊 สถิติส่วนตัว', '/stat', personalStatsColor)
+    ]
+  });
+
   return {
     type: 'bubble',
     size: 'giga',
@@ -2312,6 +2328,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
 
   const buttonColor = isWhite ? '#16a34a' : '#22c55e';
   const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
+  const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
 
   bodyContents.push({
     type: 'box',
@@ -2320,6 +2337,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     margin: 'md',
     contents: [
       makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
+      makeBoxButton('📉 ทำเนียบซึมเศร้า', '/bottom', bottomStatsColor),
       makeBoxButton('👍 สถิติส่วนตัว', '/stat', buttonColor)
     ]
   });
