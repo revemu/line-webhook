@@ -1868,9 +1868,9 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
     badgeBg = isWhite ? '#dcfce7' : '#064e3b';
     badgeTextColor = isWhite ? '#15803d' : '#4ade80';
     title = 'สมัครลงชื่ออัตโนมัติสำเร็จ';
-    
+
     const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
-    description = `เพิ่มคุณ ${displayMember.name} ในรายชื่อลงชื่ออัตโนมัติสำเร็จแล้ว\n\nระบบจะลงชื่อเข้าเล่นให้คุณโดยอัตโนมัติเมื่อมีการเปิดรอบสัปดาห์ใหม่ ⚽`;
+    description = `เพิ่มคุณ ${displayMember.name} ในรายชื่อลงชื่ออัตโนมัติสำเร็จแล้ว\n\nระบบจะลงชื่อเข้าเล่นให้คุณโดยอัตโนมัติ เมื่อมีการเปิดรอบสัปดาห์ใหม่ ⚽`;
 
     bodyContents.push({
       type: 'text',
@@ -1885,7 +1885,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
     badgeBg = isWhite ? '#fee2e2' : '#7f1d1d';
     badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
     title = 'ยกเลิกลงชื่ออัตโนมัติ';
-    
+
     const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
     description = `นำคุณ ${displayMember.name} ออกจากรายชื่อลงชื่ออัตโนมัติเรียบร้อยแล้ว`;
 
