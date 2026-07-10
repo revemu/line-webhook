@@ -1789,6 +1789,9 @@ async function getTopStat(limit = 10, type = 0) {
   } else if (type == 4) {
     header = `Top ${limit} Avg Pts`;
     icon = "📊";
+  } else if (type == 5) {
+    header = `ซึมเศร้าสะสมประจำปี`;
+    icon = "📉";
   }
 
   query = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl , week_tbl WHERE match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.team_id <> 101 group by member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate order by goal DESC limit ${limit}`;
@@ -1815,6 +1818,29 @@ HAVING COUNT(table_week_tbl.id) > (
     WHERE week_tbl.year = YEAR(CURRENT_DATE())
 )
 ORDER BY pts DESC limit ${limit}`;
+  } else if (type == 5) {
+    query = `
+      WITH bottom_teams AS (
+        SELECT week_id, team_week_id,
+               ROW_NUMBER() OVER (PARTITION BY week_id ORDER BY pts ASC, (g - a) ASC) as rn
+        FROM table_week_tbl
+      )
+      SELECT 
+        member_tbl.id,
+        member_tbl.name, 
+        member_tbl.alias, 
+        member_tbl.rank,
+        member_tbl.donate,
+        COUNT(*) as goal
+      FROM member_team_week_tbl mtw
+      JOIN bottom_teams bt ON mtw.week_id = bt.week_id AND mtw.team_id = bt.team_week_id
+      JOIN member_tbl ON mtw.member_id = member_tbl.id
+      JOIN week_tbl w ON mtw.week_id = w.id
+      WHERE w.year = YEAR(CURRENT_DATE()) AND bt.rn = 1 AND member_tbl.id <> 121 AND member_tbl.id <> 169 AND member_tbl.team_id <> 101
+      GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
+      ORDER BY goal DESC
+      LIMIT ${limit}
+    `;
   }
 
   const result = await executeQuery(query);

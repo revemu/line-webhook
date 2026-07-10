@@ -39,7 +39,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
     let member_id = member.id;
     let member_name = member.name;
     let target_line_user_id = member.line_user_id;
-    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'bottom', 'testbottom'].includes(cmd);
+    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my'].includes(cmd);
     let is_mention = false;
 
     if (is_mention_cmd && param.startsWith('@')) {
@@ -50,7 +50,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
             member_id = mention[0].id;
             member_name = param;
             target_line_user_id = mention[0].line_user_id;
-            if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg' && cmd != 'stat' && cmd != 'mystat' && cmd != 'me' && cmd != 'my' && cmd != 'bottom' && cmd != 'testbottom') {
+            if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg' && cmd != 'stat' && cmd != 'mystat' && cmd != 'me' && cmd != 'my') {
                 if (!await db.IsMemberWeek(member_id)) {
                     return [{
                         type: 'text',
@@ -324,18 +324,22 @@ async function process_cmd(cmd_str, member, quoteToken) {
         }
         case 'bottom':
         case 'testbottom': {
-            const theme = await db.getTheme();
-            const statTpl = await db.getTemplate('stat', 'header');
-            const statsImageUrl = statTpl ? statTpl.url : null;
-            const statsData = await db.getMemberStats(member_id);
-            if (statsData) {
-                msg = flex.buildMemberStatsFlex(statsData, theme, statsImageUrl);
-                altText = `สถิติส่วนตัวบ๊วยของ ${statsData.member.name}`;
-                msg_type = 1;
-            } else {
-                msg = "ไม่พบข้อมูลสถิติของสมาชิกท่านนี้";
-                msg_type = 0;
+            let limit = param != '' ? Number(param) : 10;
+            if (limit > 25) {
+                //limit = 25;
             }
+            await db.updateHof();
+            const stats = await Promise.all([
+                db.getTopStat(limit, 5), // Top Weekly Bottoms / Depression
+                db.getTopStat(limit, 2)  // Top Own Goals
+            ]);
+
+            const carousel = flex.tpl_carousel;
+            carousel.contents = stats.filter(x => x !== null && x !== undefined);
+            const date = new Date();
+            altText = `Bottom & Own Goal Leaderboard (${date.getFullYear()})`;
+            msg = carousel;
+            msg_type = 1;
             break;
         }
         case 'newweek': {
