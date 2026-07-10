@@ -2789,15 +2789,37 @@ async function getMemberStats(memberId) {
     WHERE mtw.member_id = ?
   `;
 
-  const [goalResult, ptResult, dateResult] = await Promise.all([
+  const bottomQuery = `
+    WITH bottom_teams AS (
+      SELECT week_id, team_week_id,
+             ROW_NUMBER() OVER (PARTITION BY week_id ORDER BY pts ASC, (g - a) ASC) as rn
+      FROM table_week_tbl
+    )
+    SELECT 
+      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as bottom_year,
+      COUNT(*) as bottom_alltime
+    FROM member_team_week_tbl mtw
+    JOIN bottom_teams bt ON mtw.week_id = bt.week_id AND mtw.team_id = bt.team_week_id
+    JOIN week_tbl w ON mtw.week_id = w.id
+    WHERE mtw.member_id = ? AND bt.rn = 1
+  `;
+
+  const [goalResult, ptResult, dateResult, bottomResult] = await Promise.all([
     executeQuery(goalQuery, [memberId]),
     executeQuery(ptQuery, [memberId]),
-    executeQuery(dateQuery, [memberId])
+    executeQuery(dateQuery, [memberId]),
+    executeQuery(bottomQuery, [memberId])
   ]);
 
   const goals = goalResult[0] || {};
   const pts = ptResult[0] || {};
   const firstMatchDate = dateResult[0] ? dateResult[0].first_match_date : null;
+  const bottom = bottomResult[0] || {};
+
+  const bottomYear = Number(bottom.bottom_year || 0);
+  const bottomAllTime = Number(bottom.bottom_alltime || 0);
+  const weeksYear = Number(pts.weeks_year || 0);
+  const weeksAlltime = Number(pts.weeks_alltime || 0);
 
   return {
     member: memberInfo,
@@ -2820,12 +2842,18 @@ async function getMemberStats(memberId) {
         alltime: Number(pts.matches_alltime || 0)
       },
       weeks: {
-        year: Number(pts.weeks_year || 0),
-        alltime: Number(pts.weeks_alltime || 0)
+        year: weeksYear,
+        alltime: weeksAlltime
       },
       avgpts: {
         year: pts.matches_year > 0 ? Number((pts.pts_year / pts.matches_year).toFixed(2)) : 0,
         alltime: pts.matches_alltime > 0 ? Number((pts.pts_alltime / pts.matches_alltime).toFixed(2)) : 0
+      },
+      bottom: {
+        year: bottomYear,
+        yearPct: weeksYear > 0 ? Number((bottomYear / weeksYear * 100).toFixed(1)) : 0,
+        alltime: bottomAllTime,
+        alltimePct: weeksAlltime > 0 ? Number((bottomAllTime / weeksAlltime * 100).toFixed(1)) : 0
       }
     }
   };
