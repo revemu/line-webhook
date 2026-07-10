@@ -271,7 +271,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
         case 'autoregshow':
         case 'autoreglist':
             param = 'list';
-            // falls through
+        // falls through
         case 'autoreg':
         case '+autoreg': {
             const theme = await db.getTheme();
@@ -440,7 +440,7 @@ async function process_cmd(cmd_str, member, quoteToken) {
                 db.getTopStat(limit, 0),
                 db.getTopStat(limit, 1),
                 db.getTopStat(limit, 4),
-                db.getTopStat(limit, 2)
+                //db.getTopStat(limit, 2)
             ]);
 
             const carousel = flex.tpl_carousel;
