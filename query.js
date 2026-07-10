@@ -1,6 +1,7 @@
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 require('dotenv').config({ quiet: true });
 const flex = require('./flex');
 
@@ -1453,6 +1454,30 @@ async function getMemberNY() {
 
 }
 
+async function fetchLineProfile(lineUserId) {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (!token) {
+    console.warn("LINE_CHANNEL_ACCESS_TOKEN is not configured.");
+    return null;
+  }
+  try {
+    const response = await axios.get(`https://api.line.me/v2/bot/profile/${lineUserId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    return response.data;
+  } catch (err) {
+    console.error(`Error calling Line profile API:`, err.message);
+    return null;
+  }
+}
+
+async function updateMemberPictureUrl(memberId, pictureUrl) {
+  const query = "update member_tbl set picture_url = ? where id = ?";
+  return await executeQuery(query, [pictureUrl, memberId]);
+}
+
 async function getMemberWeek0(type = 0, isFlex = true) {
   let header = "";
   let body = "";
@@ -1466,7 +1491,7 @@ async function getMemberWeek0(type = 0, isFlex = true) {
     const max_players = res[0].max;
     const date = new Date(res[0].date);
 
-    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0";
@@ -1487,6 +1512,19 @@ async function getMemberWeek0(type = 0, isFlex = true) {
         const assets = await fetchDisplayAssets();
 
         for (const member of result) {
+          if (!member.picture_url && member.line_user_id) {
+            try {
+              const profile = await fetchLineProfile(member.line_user_id);
+              if (profile && profile.pictureUrl) {
+                member.picture_url = profile.pictureUrl;
+                await updateMemberPictureUrl(member.id, profile.pictureUrl);
+                console.log(`Auto-updated avatar picture for member ID ${member.id} from LINE`);
+              }
+            } catch (err) {
+              console.error(`Failed to auto-update Line profile picture for member ${member.id}:`, err.message);
+            }
+          }
+
           const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
           const name_display = info.name;
           const badgeUrl = info.badgeUrl;
