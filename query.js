@@ -1464,6 +1464,7 @@ async function fetchLineProfile(lineUserId, groupId = null) {
     ? `https://api.line.me/v2/bot/group/${groupId}/member/${lineUserId}`
     : `https://api.line.me/v2/bot/profile/${lineUserId}`;
 
+  console.log(`[LINE-API] Fetching profile from URL: ${url}`);
   const response = await axios.get(url, {
     headers: {
       'Authorization': `Bearer ${token}`
@@ -1523,12 +1524,15 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
                 await updateMemberPictureUrl(member.id, 'none');
               }
             } catch (err) {
+              console.error(`[LINE-API] Error auto-updating Line profile picture for member ID ${member.id} (user ID: ${member.line_user_id}):`, err.message);
+              if (err.response) {
+                console.error(`[LINE-API] Response Status: ${err.response.status}`);
+                console.error(`[LINE-API] Response Data:`, JSON.stringify(err.response.data));
+              }
               if (err.response && err.response.status === 404) {
                 member.picture_url = 'none';
                 await updateMemberPictureUrl(member.id, 'none');
                 console.log(`User not found (404) for member ID ${member.id}. Marked avatar as 'none' to prevent retry spam.`);
-              } else {
-                console.error(`Error auto-updating Line profile picture for member ${member.id}:`, err.message);
               }
             }
           }
