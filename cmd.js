@@ -118,18 +118,6 @@ async function process_cmd(cmd_str, member, quoteToken) {
             if (is_flex && typeof msg === 'object') {
                 msg_type = 1;
                 altText = altText || "ลงชื่อเตะบอล";
-
-                const theme = await db.getTheme();
-                const statTpl = await db.getTemplate('stat', 'header');
-                const statsImageUrl = statTpl ? statTpl.url : null;
-                const statsData = await db.getMemberStats(member_id);
-                if (statsData) {
-                    const statsBubble = flex.buildMemberStatsFlex(statsData, theme, statsImageUrl);
-                    msg = {
-                        type: 'carousel',
-                        contents: [statsBubble, msg]
-                    };
-                }
             } else {
                 msg_type = 2;
             }
