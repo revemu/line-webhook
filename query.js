@@ -239,7 +239,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     hofCount,
     hofBadgeUrl,
     hofBadgeSize,
-    pictureUrl: member.picture_url
+    pictureUrl: member.picture_url === 'none' ? null : member.picture_url
   };
 }
 
@@ -1460,17 +1460,12 @@ async function fetchLineProfile(lineUserId) {
     console.warn("LINE_CHANNEL_ACCESS_TOKEN is not configured.");
     return null;
   }
-  try {
-    const response = await axios.get(`https://api.line.me/v2/bot/profile/${lineUserId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    return response.data;
-  } catch (err) {
-    console.error(`Error calling Line profile API:`, err.message);
-    return null;
-  }
+  const response = await axios.get(`https://api.line.me/v2/bot/profile/${lineUserId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return response.data;
 }
 
 async function updateMemberPictureUrl(memberId, pictureUrl) {
@@ -1519,9 +1514,17 @@ async function getMemberWeek0(type = 0, isFlex = true) {
                 member.picture_url = profile.pictureUrl;
                 await updateMemberPictureUrl(member.id, profile.pictureUrl);
                 console.log(`Auto-updated avatar picture for member ID ${member.id} from LINE`);
+              } else {
+                member.picture_url = 'none';
+                await updateMemberPictureUrl(member.id, 'none');
               }
             } catch (err) {
-              console.error(`Failed to auto-update Line profile picture for member ${member.id}:`, err.message);
+              console.error(`Error auto-updating Line profile picture for member ${member.id}:`, err.message);
+              if (err.response && err.response.status === 404) {
+                member.picture_url = 'none';
+                await updateMemberPictureUrl(member.id, 'none');
+                console.log(`User not found (404). Marked avatar picture for member ID ${member.id} as 'none' to prevent retry spam.`);
+              }
             }
           }
 
