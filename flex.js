@@ -1533,7 +1533,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
           type: 'image',
           url: p.badgeUrl,
           size: 'full',
-          //aspectRatio: '1:1',
+          aspectRatio: '1:1',
           aspectMode: 'cover',
           animated: true
         }
@@ -1555,7 +1555,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
             type: 'image',
             url: hb.url,
             size: 'full',
-            //aspectRatio: '1:1',
+            aspectRatio: '1:1',
             aspectMode: 'cover',
             animated: true
           }
@@ -1576,7 +1576,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
           type: 'image',
           url: p.hofBadgeUrl,
           size: 'full',
-          //aspectRatio: '1:1',
+          aspectRatio: '1:1',
           aspectMode: 'cover',
           animated: true
         }
