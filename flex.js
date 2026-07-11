@@ -2127,7 +2127,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   const isWhite = colors.name === 'white';
 
   let finalImageUrl = imageUrl;
-  if (finalImageUrl) {
+  if (finalImageUrl && finalImageUrl.toLowerCase() !== 'none') {
     if (!finalImageUrl.startsWith('http://') && !finalImageUrl.startsWith('https://')) {
       const baseUrl = getBaseUrl();
       finalImageUrl = finalImageUrl.startsWith('/') ? `${baseUrl}${finalImageUrl}` : `${baseUrl}/${finalImageUrl}`;
@@ -2135,7 +2135,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     if (finalImageUrl.startsWith('http://')) {
       finalImageUrl = finalImageUrl.replace('http://', 'https://');
     }
-  } else {
+  } else if (!finalImageUrl) {
     finalImageUrl = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
   }
 
