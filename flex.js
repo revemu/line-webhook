@@ -1525,7 +1525,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      width: badgeSize,
+      //width: badgeSize,
       height: badgeSize,
       flex: 0,
       contents: [
@@ -1533,7 +1533,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
           type: 'image',
           url: p.badgeUrl,
           size: 'full',
-          aspectRatio: '1:1',
+          //aspectRatio: '1:1',
           aspectMode: 'cover',
           animated: true
         }
@@ -1568,7 +1568,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      width: hSize,
+      //width: hSize,
       height: hSize,
       flex: 0,
       contents: [
@@ -1576,7 +1576,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
           type: 'image',
           url: p.hofBadgeUrl,
           size: 'full',
-          aspectRatio: '1:1',
+          //aspectRatio: '1:1',
           aspectMode: 'cover',
           animated: true
         }
