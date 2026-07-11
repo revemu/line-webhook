@@ -1525,7 +1525,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      //width: badgeSize,
+      width: badgeSize,
       height: badgeSize,
       flex: 0,
       contents: [
@@ -1547,7 +1547,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
       contents.push({
         type: 'box',
         layout: 'vertical',
-        //width: hb.size || '20px',
+        width: hb.size || '20px',
         height: hb.size || '20px',
         flex: 0,
         contents: [
@@ -1568,7 +1568,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      //width: hSize,
+      width: hSize,
       height: hSize,
       flex: 0,
       contents: [
