@@ -1526,7 +1526,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
       type: 'box',
       layout: 'vertical',
       width: badgeSize,
-      //height: badgeSize,
+      height: badgeSize,
       flex: 0,
       contents: [
         {
