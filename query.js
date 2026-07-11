@@ -1330,7 +1330,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
                 size: 'xs',
                 color: colors.textMuted,
                 flex: 0,
-                margin: 'none',
+                margin: 'xxs',
                 weight: 'bold'
               }
             ];
