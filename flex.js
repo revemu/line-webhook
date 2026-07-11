@@ -312,24 +312,9 @@ function buildScheduleFlex(sched, theme) {
     margin: 'sm'
   });
 
-  return {
+  const bubble = {
     type: 'bubble',
     size: 'giga',
-    header: {
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: colors.bgHeader,
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: sched.imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-          size: 'full',
-          aspectRatio: '10:3',
-          aspectMode: 'cover'
-        }
-      ]
-    },
     body: {
       type: 'box',
       layout: 'vertical',
@@ -338,6 +323,27 @@ function buildScheduleFlex(sched, theme) {
       contents: bodyContents
     }
   };
+
+  const headerUrl = sched.imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
+  if (headerUrl && headerUrl.toLowerCase() !== 'none') {
+    bubble.header = {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgHeader,
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: headerUrl,
+          size: 'full',
+          aspectRatio: '10:3',
+          aspectMode: 'cover'
+        }
+      ]
+    };
+  }
+
+  return bubble;
 }
 
 /**
@@ -723,24 +729,9 @@ function buildNowFlex(matchInfo, theme) {
     });
   }
 
-  return {
+  const bubble = {
     type: 'bubble',
     size: 'mega',
-    header: {
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: colors.bgHeader,
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-          size: 'full',
-          aspectRatio: '20:7',
-          aspectMode: 'cover'
-        }
-      ]
-    },
     body: {
       type: 'box',
       layout: 'vertical',
@@ -749,6 +740,27 @@ function buildNowFlex(matchInfo, theme) {
       contents: bodyContents
     }
   };
+
+  const headerUrl = matchInfo.imageUrl || (matchInfo.sched && matchInfo.sched.imageUrl) || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
+  if (headerUrl && headerUrl.toLowerCase() !== 'none') {
+    bubble.header = {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgHeader,
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: headerUrl,
+          size: 'full',
+          aspectRatio: '20:7',
+          aspectMode: 'cover'
+        }
+      ]
+    };
+  }
+
+  return bubble;
 }
 
 /**
@@ -1155,24 +1167,9 @@ function buildLiveFlex(matchInfo, theme) {
     margin: 'sm'
   });
 
-  return {
+  const bubble = {
     type: 'bubble',
     size: 'giga',
-    header: {
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: colors.bgHeader,
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-          size: 'full',
-          aspectRatio: '10:3',
-          aspectMode: 'cover'
-        }
-      ]
-    },
     body: {
       type: 'box',
       layout: 'vertical',
@@ -1181,6 +1178,27 @@ function buildLiveFlex(matchInfo, theme) {
       contents: bodyContents
     }
   };
+
+  const headerUrl = imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
+  if (headerUrl && headerUrl.toLowerCase() !== 'none') {
+    bubble.header = {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgHeader,
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: headerUrl,
+          size: 'full',
+          aspectRatio: '10:3',
+          aspectMode: 'cover'
+        }
+      ]
+    };
+  }
+
+  return bubble;
 }
 
 function makeBoxButton(label, text, color, flexVal = 1) {
@@ -1534,10 +1552,20 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     ]
   });
 
-  return {
+  const bubble = {
     type: 'bubble',
     size: 'giga',
-    header: {
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'md',
+      contents: bodyContents
+    }
+  };
+
+  if (finalImageUrl && finalImageUrl.toLowerCase() !== 'none') {
+    bubble.header = {
       type: 'box',
       layout: 'vertical',
       backgroundColor: colors.bgHeader,
@@ -1551,15 +1579,10 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
           aspectMode: 'cover'
         }
       ]
-    },
-    body: {
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: colors.bgMain,
-      paddingAll: 'md',
-      contents: bodyContents
-    }
-  };
+    };
+  }
+
+  return bubble;
 }
 
 function buildWelcomeFlex(displayName, theme, imageUrl) {
@@ -1574,23 +1597,9 @@ function buildWelcomeFlex(displayName, theme, imageUrl) {
   const accentColor = isWhite ? '#15803d' : '#44cc66';
   const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Vibrant green
 
-  return {
+  const bubble = {
     type: 'bubble',
     size: 'mega',
-    header: {
-      type: 'box',
-      layout: 'vertical',
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-          size: 'full',
-          aspectRatio: '20:10',
-          aspectMode: 'cover'
-        }
-      ]
-    },
     body: {
       type: 'box',
       layout: 'vertical',
@@ -1687,7 +1696,7 @@ function buildWelcomeFlex(displayName, theme, imageUrl) {
     }
   };
 }
-function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
+function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme, imageUrl = null) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
@@ -1736,23 +1745,9 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme) {
     });
   }
 
-  return {
+  const bubble = {
     type: 'bubble',
     size: 'mega',
-    header: {
-      type: 'box',
-      layout: 'vertical',
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-          size: 'full',
-          aspectRatio: '20:10',
-          aspectMode: 'cover'
-        }
-      ]
-    },
     body: {
       type: 'box',
       layout: 'vertical',
@@ -2008,23 +2003,9 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
     });
   }
 
-  return {
+  const bubble = {
     type: 'bubble',
     size: 'mega',
-    header: {
-      type: 'box',
-      layout: 'vertical',
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-          size: 'full',
-          aspectRatio: '20:10',
-          aspectMode: 'cover'
-        }
-      ]
-    },
     body: {
       type: 'box',
       layout: 'vertical',
@@ -2355,10 +2336,20 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     ]
   });
 
-  return {
+  const bubble = {
     type: 'bubble',
     size: 'giga',
-    header: {
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: bgMain,
+      paddingAll: 'md',
+      contents: bodyContents
+    }
+  };
+
+  if (finalImageUrl && finalImageUrl.toLowerCase() !== 'none') {
+    bubble.header = {
       type: 'box',
       layout: 'vertical',
       paddingAll: 'none',
@@ -2371,15 +2362,10 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
           aspectMode: 'cover'
         }
       ]
-    },
-    body: {
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: bgMain,
-      paddingAll: 'md',
-      contents: bodyContents
-    }
-  };
+    };
+  }
+
+  return bubble;
 }
 
 module.exports = {
