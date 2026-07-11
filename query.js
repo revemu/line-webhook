@@ -1281,7 +1281,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
 
     if (team_colors.length > 0) {
       const theme = await getTheme();
-      const colors = getThemeColors(theme);
+      const colors = flex.getThemeColors(theme);
       const carousel = { type: 'carousel', contents: [] };
       const assets = await fetchDisplayAssets();
 
