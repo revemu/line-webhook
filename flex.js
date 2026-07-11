@@ -1418,7 +1418,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
         type: 'box',
         layout: 'vertical',
         flex: 0,
-        alignItems: 'end',
+        alignItems: 'flex-end',
         contents: [
           {
             type: 'text',

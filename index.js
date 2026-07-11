@@ -162,6 +162,9 @@ async function replyMessage(replyToken, messages) {
         await client.replyMessage(replyToken, messages);
     } catch (error) {
         console.error('Error replying message:', error);
+        if (error.originalError && error.originalError.response && error.originalError.response.data) {
+            console.error('LINE API Error Details:', JSON.stringify(error.originalError.response.data, null, 2));
+        }
         throw error;
     }
 }
