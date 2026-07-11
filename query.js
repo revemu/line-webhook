@@ -279,28 +279,32 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
       if (!badge) {
         badge = hofBadge['default'] || Object.values(hofBadge)[0] || { url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
       }
-      let bUrl = badge.url;
+      let bUrl = badge.url ? badge.url.trim() : null;
       let bSize = badge.size || '20px';
-      if (bUrl && !bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
-        const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-        bUrl = bUrl.startsWith('/') ? `${baseUrl}${bUrl}` : `${baseUrl}/${bUrl}`;
+      if (bUrl && bUrl.toLowerCase() !== 'none' && bUrl !== '') {
+        if (!bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
+          const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+          bUrl = bUrl.startsWith('/') ? `${baseUrl}${bUrl}` : `${baseUrl}/${bUrl}`;
+        }
+        if (bUrl.startsWith('http://')) {
+          bUrl = bUrl.replace('http://', 'https://');
+        }
+        hofBadges.push({ url: bUrl, size: bSize });
       }
-      if (bUrl && bUrl.startsWith('http://')) {
-        bUrl = bUrl.replace('http://', 'https://');
-      }
-      hofBadges.push({ url: bUrl, size: bSize });
     }
   } else if (hofCount > 0) {
     let badge = hofBadge['default'] || Object.values(hofBadge)[0] || { url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
-    let bUrl = badge.url;
-    if (bUrl && !bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
-      const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-      bUrl = bUrl.startsWith('/') ? `${baseUrl}${bUrl}` : `${baseUrl}/${bUrl}`;
+    let bUrl = badge.url ? badge.url.trim() : null;
+    if (bUrl && bUrl.toLowerCase() !== 'none' && bUrl !== '') {
+      if (!bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
+        const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+        bUrl = bUrl.startsWith('/') ? `${baseUrl}${bUrl}` : `${baseUrl}/${bUrl}`;
+      }
+      if (bUrl.startsWith('http://')) {
+        bUrl = bUrl.replace('http://', 'https://');
+      }
+      hofBadges.push({ url: bUrl, size: badge.size || '20px' });
     }
-    if (bUrl && bUrl.startsWith('http://')) {
-      bUrl = bUrl.replace('http://', 'https://');
-    }
-    hofBadges.push({ url: bUrl, size: badge.size || '20px' });
   }
 
   let selectedHofBadge = null;
@@ -322,6 +326,17 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     hofBadgeUrl = hofBadgeUrl.replace('http://', 'https://');
   }
 
+  let pictureUrl = member.picture_url ? member.picture_url.trim() : null;
+  if (pictureUrl) {
+    if (pictureUrl.toLowerCase() === 'none' || pictureUrl.toLowerCase() === 'null' || pictureUrl === '') {
+      pictureUrl = null;
+    } else {
+      if (pictureUrl.startsWith('http://')) {
+        pictureUrl = pictureUrl.replace('http://', 'https://');
+      }
+    }
+  }
+
   return {
     id: member.id,
     name: name_display,
@@ -332,7 +347,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     hofBadgeUrl,
     hofBadgeSize,
     hofBadges,
-    pictureUrl: member.picture_url
+    pictureUrl
   };
 }
 
@@ -792,7 +807,7 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
     }
     isFirst = false;
 
-    const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
+    const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
 
     let nameText = info.name;
     if (member.goal > 1) {
@@ -840,7 +855,7 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
             url: info.badgeUrl,
             size: 'full',
             aspectRatio: '1:1',
-            aspectMode: 'cover',
+            aspectMode: 'fit',
             animated: true
           }
         ],
@@ -862,7 +877,7 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
               url: hb.url,
               size: 'full',
               aspectRatio: '1:1',
-              aspectMode: 'cover',
+              aspectMode: 'fit',
               animated: true
             }
           ],
@@ -1165,8 +1180,17 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     if (matches.length > 0) {
       const theme = await getTheme();
       const colors = flex.getThemeColors(theme);
-      const imgTpl = await getTemplate('matchweek', 'header');
-      const headerUrl = imgTpl ? imgTpl.url : null;
+       const imgTpl = await getTemplate('matchweek', 'header');
+       let headerUrl = imgTpl && imgTpl.url ? imgTpl.url.trim() : null;
+       if (headerUrl && headerUrl.toLowerCase() !== 'none') {
+         if (!headerUrl.startsWith('http://') && !headerUrl.startsWith('https://')) {
+           const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+           headerUrl = headerUrl.startsWith('/') ? `${baseUrl}${headerUrl}` : `${baseUrl}/${headerUrl}`;
+         }
+         if (headerUrl.startsWith('http://')) {
+           headerUrl = headerUrl.replace('http://', 'https://');
+         }
+       }
 
       const date = new Date(res[0].date);
       const date_str = await getFormatDate(date);
