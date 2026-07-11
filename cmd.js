@@ -386,7 +386,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 }
             }
 
-            const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, 2, 3, endTime);
+            const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, 1.5, 3, endTime);
             if (schedJson) {
                 msg = flex.buildScheduleFlex(schedJson, theme);
                 altText = `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`;
