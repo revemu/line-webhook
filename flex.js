@@ -485,7 +485,20 @@ function buildNowFlex(matchInfo, theme) {
       { type: 'text', text: '⚽', size: 'xs', flex: 0, color: colors.textMuted, gravity: 'center' }
     ];
 
+    let isFirst = true;
     for (const s of scorers) {
+      if (!isFirst) {
+        itemContents.push({
+          type: 'text',
+          text: '•',
+          size: 'xs',
+          color: colors.textMutedDark,
+          flex: 0,
+          margin: 'md',
+          gravity: 'center'
+        });
+      }
+      isFirst = false;
       const og = s.ownGoal ? '🥅' : '';
       const nameText = s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
 
@@ -569,7 +582,7 @@ function buildNowFlex(matchInfo, theme) {
         layout: 'horizontal',
         alignItems: 'center',
         contents: scorerContents,
-        margin: 'sm',
+        margin: 'md',
         flex: 0
       });
     }
@@ -589,7 +602,20 @@ function buildNowFlex(matchInfo, theme) {
       { type: 'text', text: '👟', size: 'xs', flex: 0, color: colors.textMuted, gravity: 'center' }
     ];
 
+    let isFirst = true;
     for (const a of assists) {
+      if (!isFirst) {
+        itemContents.push({
+          type: 'text',
+          text: '•',
+          size: 'xs',
+          color: colors.textMutedDark,
+          flex: 0,
+          margin: 'md',
+          gravity: 'center'
+        });
+      }
+      isFirst = false;
       const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
 
       const assistContents = [];
@@ -672,7 +698,7 @@ function buildNowFlex(matchInfo, theme) {
         layout: 'horizontal',
         alignItems: 'center',
         contents: assistContents,
-        margin: 'sm',
+        margin: 'md',
         flex: 0
       });
     }
@@ -1028,7 +1054,20 @@ function buildLiveFlex(matchInfo, theme) {
           const itemContents = [
             { type: 'text', text: '⚽', size: 'sm', flex: 0, color: colors.textMuted, gravity: 'center' }
           ];
+          let isFirst = true;
           for (const s of scorers) {
+            if (!isFirst) {
+              itemContents.push({
+                type: 'text',
+                text: '•',
+                size: 'sm',
+                color: colors.textMutedDark,
+                flex: 0,
+                margin: 'md',
+                gravity: 'center'
+              });
+            }
+            isFirst = false;
             const og = s.ownGoal ? '🥅' : '';
             const nameText = s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
 
@@ -1112,7 +1151,7 @@ function buildLiveFlex(matchInfo, theme) {
               layout: 'horizontal',
               alignItems: 'center',
               contents: scorerContents,
-              margin: 'sm',
+              margin: 'md',
               flex: 0
             });
           }
@@ -1129,7 +1168,20 @@ function buildLiveFlex(matchInfo, theme) {
           const itemContents = [
             { type: 'text', text: '👟', size: 'sm', flex: 0, color: colors.textMuted, gravity: 'center' }
           ];
+          let isFirst = true;
           for (const a of assists) {
+            if (!isFirst) {
+              itemContents.push({
+                type: 'text',
+                text: '•',
+                size: 'sm',
+                color: colors.textMutedDark,
+                flex: 0,
+                margin: 'md',
+                gravity: 'center'
+              });
+            }
+            isFirst = false;
             const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
 
             const assistContents = [];
@@ -1212,7 +1264,7 @@ function buildLiveFlex(matchInfo, theme) {
               layout: 'horizontal',
               alignItems: 'center',
               contents: assistContents,
-              margin: 'sm',
+              margin: 'md',
               flex: 0
             });
           }

@@ -723,7 +723,21 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
 
   await Promise.all(match_goals.map(member => ensureMemberPicture(member, groupId)));
 
+  let isFirst = true;
   for (const member of match_goals) {
+    if (!isFirst) {
+      itemContents.push({
+        type: "text",
+        text: "•",
+        size: "xs",
+        color: "#7878a8",
+        flex: 0,
+        margin: "md",
+        gravity: "center"
+      });
+    }
+    isFirst = false;
+
     const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
 
     let nameText = info.name;
@@ -817,7 +831,7 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
       layout: 'horizontal',
       alignItems: 'center',
       contents: scorerContents,
-      margin: 'sm',
+      margin: 'md',
       flex: 0
     });
   }
