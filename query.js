@@ -12,15 +12,37 @@ const client = new Client({
 });
 
 const failedProfileFetches = new Set();
+let lastGroupId = null;
 
-async function ensureMemberPicture(member) {
+async function ensureMemberPicture(member, groupId = null) {
   if (member && !member.picture_url && member.line_user_id) {
-    if (failedProfileFetches.has(member.line_user_id)) {
+    if (groupId) {
+      lastGroupId = groupId;
+    }
+    const effectiveGroupId = groupId || lastGroupId;
+    
+    const cacheKey = effectiveGroupId ? `${member.line_user_id}_${effectiveGroupId}` : member.line_user_id;
+    if (failedProfileFetches.has(cacheKey)) {
       return;
     }
+
     try {
       console.log(`[ensureMemberPicture] picture_url is empty for member ${member.name} (${member.id}), fetching from LINE API...`);
-      const profile = await client.getProfile(member.line_user_id);
+      let profile;
+      if (effectiveGroupId) {
+        console.log(`[ensureMemberPicture] Fetching profile via getGroupMemberProfile(groupId: ${effectiveGroupId}, userId: ${member.line_user_id})`);
+        try {
+          profile = await client.getGroupMemberProfile(effectiveGroupId, member.line_user_id);
+        } catch (groupErr) {
+          console.warn(`[ensureMemberPicture] getGroupMemberProfile failed: ${groupErr.message}. Trying direct profile...`);
+        }
+      }
+
+      if (!profile) {
+        console.log(`[ensureMemberPicture] Fetching profile via getProfile(userId: ${member.line_user_id})`);
+        profile = await client.getProfile(member.line_user_id);
+      }
+
       if (profile && profile.pictureUrl) {
         console.log(`[ensureMemberPicture] Successfully fetched profile from LINE: pictureUrl=${profile.pictureUrl}`);
         await executeQuery("UPDATE member_tbl SET picture_url = ? WHERE id = ?", [profile.pictureUrl, member.id]);
@@ -28,7 +50,7 @@ async function ensureMemberPicture(member) {
       }
     } catch (err) {
       console.error(`[ensureMemberPicture] failed to fetch profile for user ${member.line_user_id}:`, err.message);
-      failedProfileFetches.add(member.line_user_id);
+      failedProfileFetches.add(cacheKey);
     }
   }
 }
@@ -1248,7 +1270,7 @@ function teamDisplayColor(colorName, code) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.40 ? '#ffffff' : code;
 }
 
-async function getTeamWeek(week_id = 0) {
+async function getTeamWeek(week_id = 0, groupId = null) {
 
   let query = "";
   let res;
@@ -1300,7 +1322,7 @@ async function getTeamWeek(week_id = 0) {
         console.log(query);
         const team_members = await executeQuery(query);
         if (team_members.length > 0) {
-          await Promise.all(team_members.map(member => ensureMemberPicture(member)));
+          await Promise.all(team_members.map(member => ensureMemberPicture(member, groupId)));
           let idx = 0;
           for (const member of team_members) {
             const isFirst = idx === 0;
@@ -1594,7 +1616,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
 
         const assets = await fetchDisplayAssets();
 
-        await Promise.all(result.map(member => ensureMemberPicture(member)));
+        await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
 
         for (const member of result) {
           const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
@@ -2899,11 +2921,11 @@ async function updateMemberAutoReg(member_id, auto_reg) {
   return await module.exports.executeQuery(query, [auto_reg, member_id]);
 }
 
-async function getAutoRegList() {
+async function getAutoRegList(groupId = null) {
   const query = "SELECT * FROM member_tbl WHERE auto_reg = 1 ORDER BY name ASC";
   const result = await executeQuery(query);
   if (result.length > 0) {
-    await Promise.all(result.map(member => ensureMemberPicture(member)));
+    await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
     const assets = await fetchDisplayAssets();
     return result.map(member => {
       return resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
@@ -2912,19 +2934,19 @@ async function getAutoRegList() {
   return [];
 }
 
-async function getMemberDisplayInfo(memberId) {
+async function getMemberDisplayInfo(memberId, groupId = null) {
   const query = "SELECT * FROM member_tbl WHERE id = ?";
   const result = await executeQuery(query, [memberId]);
   if (result.length > 0) {
-    await ensureMemberPicture(result[0]);
+    await ensureMemberPicture(result[0], groupId);
     const assets = await fetchDisplayAssets();
     return resolveMemberDisplayInfo(result[0], assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
   }
   return null;
 }
 
-async function getMemberStats(memberId) {
-  const memberInfo = await getMemberDisplayInfo(memberId);
+async function getMemberStats(memberId, groupId = null) {
+  const memberInfo = await getMemberDisplayInfo(memberId, groupId);
   if (!memberInfo) return null;
 
   // Query goals, assists, own goals

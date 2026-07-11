@@ -206,7 +206,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 if (team_res == 0) {
                     week = await db.queryWeekID(0)
                     //console.log(week) ;
-                    msg = await db.getTeamWeek(week[0].id);
+                    msg = await db.getTeamWeek(week[0].id, groupId);
                     //console.log(msg) ;
                     altText = `Team Week - ${week[0].date}`;
                     msg_type = 1;
@@ -226,7 +226,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         case 'teamweek':
             week = await db.queryWeekID(0)
             //console.log(week) ;
-            msg = await db.getTeamWeek(week[0].id);
+            msg = await db.getTeamWeek(week[0].id, groupId);
             //console.log(msg) ;
             altText = `Team Week - ${week[0].date}`;
             msg_type = 1;
@@ -278,15 +278,15 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const autoregTpl = await db.getTemplate('autoreg', 'header');
             const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
             if (param.toLowerCase() === 'list') {
-                const list = await db.getAutoRegList();
+                const list = await db.getAutoRegList(groupId);
                 msg = flex.buildAutoRegFlex('list', null, list, theme, autoregImageUrl);
                 altText = "สมาชิกลงชื่ออัตโนมัติ";
                 msg_type = 1;
                 break;
             }
             await db.updateMemberAutoReg(member_id, 1);
-            const memberInfo = await db.getMemberDisplayInfo(member_id);
-            const list = await db.getAutoRegList();
+            const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
+            const list = await db.getAutoRegList(groupId);
             msg = flex.buildAutoRegFlex('add', memberInfo, list, theme, autoregImageUrl);
             altText = `สมัครลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
             msg_type = 1;
@@ -297,8 +297,8 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const autoregTpl = await db.getTemplate('autoreg', 'header');
             const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
             await db.updateMemberAutoReg(member_id, 0);
-            const memberInfo = await db.getMemberDisplayInfo(member_id);
-            const list = await db.getAutoRegList();
+            const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
+            const list = await db.getAutoRegList(groupId);
             msg = flex.buildAutoRegFlex('remove', memberInfo, list, theme, autoregImageUrl);
             altText = `ยกเลิกลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
             msg_type = 1;
@@ -311,7 +311,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const theme = await db.getTheme();
             const statTpl = await db.getTemplate('stat', 'header');
             const statsImageUrl = statTpl ? statTpl.url : null;
-            const statsData = await db.getMemberStats(member_id);
+            const statsData = await db.getMemberStats(member_id, groupId);
             if (statsData) {
                 msg = flex.buildMemberStatsFlex(statsData, theme, statsImageUrl);
                 altText = `สถิติส่วนตัวของ ${statsData.member.name}`;
