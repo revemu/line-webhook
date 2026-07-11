@@ -1426,12 +1426,6 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
             weight: 'bold',
             size: 'lg',
             color: colors.textAccent
-          },
-          {
-            type: 'text',
-            text: 'คน',
-            size: 'xxs',
-            color: colors.textMuted
           }
         ]
       }
