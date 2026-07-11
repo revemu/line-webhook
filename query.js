@@ -6,6 +6,34 @@ const { Client } = require('@line/bot-sdk');
 require('dotenv').config({ quiet: true });
 const flex = require('./flex');
 
+const client = new Client({
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
+  channelSecret: process.env.LINE_CHANNEL_SECRET || '',
+});
+
+const failedProfileFetches = new Set();
+
+async function ensureMemberPicture(member) {
+  if (member && !member.picture_url && member.line_user_id) {
+    if (failedProfileFetches.has(member.line_user_id)) {
+      return;
+    }
+    try {
+      console.log(`[ensureMemberPicture] picture_url is empty for member ${member.name} (${member.id}), fetching from LINE API...`);
+      const profile = await client.getProfile(member.line_user_id);
+      if (profile && profile.pictureUrl) {
+        console.log(`[ensureMemberPicture] Successfully fetched profile from LINE: pictureUrl=${profile.pictureUrl}`);
+        await executeQuery("UPDATE member_tbl SET picture_url = ? WHERE id = ?", [profile.pictureUrl, member.id]);
+        member.picture_url = profile.pictureUrl;
+      }
+    } catch (err) {
+      console.error(`[ensureMemberPicture] failed to fetch profile for user ${member.line_user_id}:`, err.message);
+      failedProfileFetches.add(member.line_user_id);
+    }
+  }
+}
+
+
 const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -1272,6 +1300,7 @@ async function getTeamWeek(week_id = 0) {
         console.log(query);
         const team_members = await executeQuery(query);
         if (team_members.length > 0) {
+          await Promise.all(team_members.map(member => ensureMemberPicture(member)));
           let idx = 0;
           for (const member of team_members) {
             const isFirst = idx === 0;
@@ -1564,6 +1593,8 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
         const titleText = type === 0 ? "สมาชิกที่ยังไม่จ่ายค่าสนาม" : "ลงชื่อ";
 
         const assets = await fetchDisplayAssets();
+
+        await Promise.all(result.map(member => ensureMemberPicture(member)));
 
         for (const member of result) {
           const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
@@ -2872,6 +2903,7 @@ async function getAutoRegList() {
   const query = "SELECT * FROM member_tbl WHERE auto_reg = 1 ORDER BY name ASC";
   const result = await executeQuery(query);
   if (result.length > 0) {
+    await Promise.all(result.map(member => ensureMemberPicture(member)));
     const assets = await fetchDisplayAssets();
     return result.map(member => {
       return resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
@@ -2884,6 +2916,7 @@ async function getMemberDisplayInfo(memberId) {
   const query = "SELECT * FROM member_tbl WHERE id = ?";
   const result = await executeQuery(query, [memberId]);
   if (result.length > 0) {
+    await ensureMemberPicture(result[0]);
     const assets = await fetchDisplayAssets();
     return resolveMemberDisplayInfo(result[0], assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
   }

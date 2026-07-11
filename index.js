@@ -263,7 +263,7 @@ async function handleMessage(event) {
     const { source, message } = event;
     const { userId, groupId } = source;
 
-    console.log(`[handleMessage] Querying LINE profile for userId: ${userId}, groupId: ${groupId || 'none'}`);
+    //console.log(`[handleMessage] Querying LINE profile for userId: ${userId}, groupId: ${groupId || 'none'}`);
     // Parallel fetch member and group profile if applicable
     const [member, groupProfile] = await Promise.all([
         db.queryMemberbyLineID(userId),
@@ -280,7 +280,7 @@ async function handleMessage(event) {
     ]);
 
     if (groupProfile) {
-        console.log(`[handleMessage] Successfully fetched profile from LINE: displayName=${groupProfile.displayName}, pictureUrl=${groupProfile.pictureUrl}`);
+        //console.log(`[handleMessage] Successfully fetched profile from LINE: displayName=${groupProfile.displayName}, pictureUrl=${groupProfile.pictureUrl}`);
     }
 
     if (groupId && groupProfile && groupProfile.displayName) {
