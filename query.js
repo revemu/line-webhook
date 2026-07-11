@@ -683,7 +683,7 @@ async function queryMemberbyName(name) {
   return res;
 }
 
-async function queryMatchGoal(match_id, goal_status = 0) {
+async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
   let status;
   let icon = "";
   const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
@@ -695,13 +695,13 @@ async function queryMatchGoal(match_id, goal_status = 0) {
     icon = "👟";
   }
 
-  query = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal 
+  query = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal 
     FROM match_goal_tbl, member_tbl, goal_status_tbl 
     WHERE match_goal_tbl.match_id=${match_id} 
       AND match_goal_tbl.member_id = member_tbl.id 
       AND match_goal_tbl.status ${status} 
       AND match_goal_tbl.status=goal_status_tbl.id 
-    GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate`;
+    GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
 
   const match_goals = await executeQuery(query);
   if (match_goals.length === 0) {
@@ -710,6 +710,8 @@ async function queryMatchGoal(match_id, goal_status = 0) {
 
   const assets = await fetchDisplayAssets();
   const rows = [];
+
+  await Promise.all(match_goals.map(member => ensureMemberPicture(member, groupId)));
 
   for (const member of match_goals) {
     const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
@@ -734,6 +736,28 @@ async function queryMatchGoal(match_id, goal_status = 0) {
         gravity: "center"
       }
     ];
+
+    const avatarUrl = info.pictureUrl;
+    if (avatarUrl) {
+      rowContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: '20px',
+        height: '20px',
+        cornerRadius: '100px',
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: avatarUrl,
+            size: 'full',
+            aspectMode: 'cover',
+            aspectRatio: '1:1'
+          }
+        ],
+        margin: 'xs'
+      });
+    }
 
     const badgeSize = info.badgeSize || '16px';
     if (info.badgeUrl) {
@@ -1059,7 +1083,7 @@ async function getTableWeek(week_id = 0) {
   }
 }
 
-async function getMatchWeek(week_id = 0) {
+async function getMatchWeek(week_id = 0, groupId = null) {
 
   res = await queryWeekID(week_id);
   console.log(res);
@@ -1123,8 +1147,8 @@ async function getMatchWeek(week_id = 0) {
         const team_a = team_colors.filter(t => t.id === match.team_a_id)[0];
         const team_b = team_colors.filter(t => t.id === match.team_b_id)[0];
 
-        const goalBox = await queryMatchGoal(match.id, 0);
-        const assistBox = await queryMatchGoal(match.id, 3);
+        const goalBox = await queryMatchGoal(match.id, 0, groupId);
+        const assistBox = await queryMatchGoal(match.id, 3, groupId);
 
         const cardContents = [
           {
@@ -2630,7 +2654,7 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
 // ── Live current/next match lookup ──
 // Reads the schedule list from schedule.json but re-queries match_stat_tbl
 // for the latest match_num so it is always up to date.
-async function getCurrentMatch() {
+async function getCurrentMatch(groupId = null) {
   const jsonPath = path.join(__dirname, 'schedule.json');
   if (!require('fs').existsSync(jsonPath)) return null;
 
@@ -2675,12 +2699,29 @@ async function getCurrentMatch() {
     const assets = await fetchDisplayAssets();
 
     // Scorers: goal_status <= 2
-    const scorerQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, match_goal_tbl.status as statusid, count(*) as goal
+    const scorerQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, match_goal_tbl.status as statusid, count(*) as goal
       FROM match_goal_tbl
       JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
       WHERE match_goal_tbl.match_id = ${currentDbRow.id} AND match_goal_tbl.status <= 2
-      GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate`;
-    const scorerRows = await executeQuery(scorerQ);
+      GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
+
+    // Assists: goal_status = 3
+    const assistQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, count(*) as assist
+      FROM match_goal_tbl
+      JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
+      WHERE match_goal_tbl.match_id = ${currentDbRow.id} AND match_goal_tbl.status = 3
+      GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
+
+    const [scorerRows, assistRows] = await Promise.all([
+      executeQuery(scorerQ),
+      executeQuery(assistQ)
+    ]);
+
+    await Promise.all([
+      ...scorerRows.map(r => ensureMemberPicture(r, groupId)),
+      ...assistRows.map(r => ensureMemberPicture(r, groupId))
+    ]);
+
     scorers = scorerRows.map(r => {
       const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
       return {
@@ -2692,17 +2733,11 @@ async function getCurrentMatch() {
         nameColor: info.nameColor,
         hofCount: info.hofCount,
         hofBadgeUrl: info.hofBadgeUrl,
-        hofBadgeSize: info.hofBadgeSize
+        hofBadgeSize: info.hofBadgeSize,
+        pictureUrl: info.pictureUrl
       };
     });
 
-    // Assists: goal_status = 3
-    const assistQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, count(*) as assist
-      FROM match_goal_tbl
-      JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
-      WHERE match_goal_tbl.match_id = ${currentDbRow.id} AND match_goal_tbl.status = 3
-      GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate`;
-    const assistRows = await executeQuery(assistQ);
     assists = assistRows.map(r => {
       const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge);
       return {
@@ -2713,7 +2748,8 @@ async function getCurrentMatch() {
         nameColor: info.nameColor,
         hofCount: info.hofCount,
         hofBadgeUrl: info.hofBadgeUrl,
-        hofBadgeSize: info.hofBadgeSize
+        hofBadgeSize: info.hofBadgeSize,
+        pictureUrl: info.pictureUrl
       };
     });
   }

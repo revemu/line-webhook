@@ -234,7 +234,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             break;
         case 'matchweek':
             week = await db.queryWeekID(0)
-            msg = await db.getMatchWeek(week[0].id);
+            msg = await db.getMatchWeek(week[0].id, groupId);
             //msg = await db.getMatchWeek(272) ;
             altText = `Match Week - ${week[0].date}`;
             msg_type = 1;
@@ -398,7 +398,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         }
         case 'now': {
             const theme = await db.getTheme();
-            const matchInfo = await db.getCurrentMatch();
+            const matchInfo = await db.getCurrentMatch(groupId);
             if (!matchInfo) {
                 msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
                 break;
@@ -415,7 +415,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         }
         case 'live': {
             const theme = await db.getTheme();
-            const matchInfo = await db.getCurrentMatch();
+            const matchInfo = await db.getCurrentMatch(groupId);
             if (!matchInfo || !matchInfo.sched) {
                 msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
                 break;

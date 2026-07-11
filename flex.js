@@ -489,6 +489,27 @@ function buildNowFlex(matchInfo, theme) {
         { type: 'text', text: '⚽', size: 'xs', flex: 0, color: colors.textMuted }
       ];
 
+      if (s.pictureUrl) {
+        rowContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: '20px',
+          height: '20px',
+          cornerRadius: '100px',
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: s.pictureUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover'
+            }
+          ],
+          margin: 'xs'
+        });
+      }
+
       const badgeSize = s.badgeSize || '16px';
       if (s.badgeUrl) {
         rowContents.push({
@@ -560,6 +581,27 @@ function buildNowFlex(matchInfo, theme) {
       const rowContents = [
         { type: 'text', text: '👟', size: 'xs', flex: 0, color: colors.textMuted }
       ];
+
+      if (a.pictureUrl) {
+        rowContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: '20px',
+          height: '20px',
+          cornerRadius: '100px',
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: a.pictureUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover'
+            }
+          ],
+          margin: 'xs'
+        });
+      }
 
       const badgeSize = a.badgeSize || '16px';
       if (a.badgeUrl) {
@@ -971,6 +1013,27 @@ function buildLiveFlex(matchInfo, theme) {
               { type: 'text', text: '⚽', size: 'sm', flex: 0, color: colors.textMuted }
             ];
 
+            if (s.pictureUrl) {
+              rowContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: '20px',
+                height: '20px',
+                cornerRadius: '100px',
+                flex: 0,
+                contents: [
+                  {
+                    type: 'image',
+                    url: s.pictureUrl,
+                    size: 'full',
+                    aspectRatio: '1:1',
+                    aspectMode: 'cover'
+                  }
+                ],
+                margin: 'xs'
+              });
+            }
+
             const badgeSize = s.badgeSize || '16px';
             if (s.badgeUrl) {
               rowContents.push({
@@ -1040,6 +1103,27 @@ function buildLiveFlex(matchInfo, theme) {
             const rowContents = [
               { type: 'text', text: '👟', size: 'sm', flex: 0, color: colors.textMuted }
             ];
+
+            if (a.pictureUrl) {
+              rowContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: '20px',
+                height: '20px',
+                cornerRadius: '100px',
+                flex: 0,
+                contents: [
+                  {
+                    type: 'image',
+                    url: a.pictureUrl,
+                    size: 'full',
+                    aspectRatio: '1:1',
+                    aspectMode: 'cover'
+                  }
+                ],
+                margin: 'xs'
+              });
+            }
 
             const badgeSize = a.badgeSize || '16px';
             if (a.badgeUrl) {
