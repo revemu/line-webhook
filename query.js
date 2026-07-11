@@ -2573,33 +2573,42 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
   lines.push('─'.repeat(30));
 
+  let actualSlotMin = slotMin;
+  if (endTimeStr && matchups.length > 0) {
+    const totalMinutes = calculatedTotalHours * 60;
+    actualSlotMin = totalMinutes / matchups.length;
+  }
+
   matchups.forEach((m, i) => {
     // New round header every cycleLen matches
     if (i % cycleLen === 0) {
       lines.push(`▶ รอบที่ ${Math.floor(i / cycleLen) + 1}`);
     }
 
-    const slotStart = startTotal + i * slotMin;
+    const slotStart = Math.round(startTotal + i * actualSlotMin);
     const resting = teams.filter((_, idx) => idx !== m[0] && idx !== m[1]).join(', ');
     lines.push(`[${i + 1}] ${toTime(slotStart)}-${toTime(slotStart + matchMin)}  ${teams[m[0]]} vs ${teams[m[1]]}  (พัก: ${resting})`);
   });
 
   lines.push('─'.repeat(30));
-  const displayEndTime = endTimeStr ? endTimeStr.replace('.', ':') : toTime(startTotal + matchups.length * slotMin);
+  const displayEndTime = endTimeStr ? endTimeStr.replace('.', ':') : toTime(Math.round(startTotal + matchups.length * actualSlotMin));
   lines.push(`สิ้นสุด ${displayEndTime} น.`);
 
   // ── Build schedule JSON ──
-  const scheduleMatches = matchups.map((m, i) => ({
-    matchNo: i + 1,
-    round: Math.floor(i / cycleLen) + 1,
-    startTime: toTime(startTotal + i * slotMin),
-    endTime: toTime(startTotal + i * slotMin + matchMin),
-    teamA: teams[m[0]],
-    teamAId: shuffledColors[m[0]].id,
-    teamB: teams[m[1]],
-    teamBId: shuffledColors[m[1]].id,
-    resting: teams.filter((_, idx) => idx !== m[0] && idx !== m[1])
-  }));
+  const scheduleMatches = matchups.map((m, i) => {
+    const slotStart = Math.round(startTotal + i * actualSlotMin);
+    return {
+      matchNo: i + 1,
+      round: Math.floor(i / cycleLen) + 1,
+      startTime: toTime(slotStart),
+      endTime: toTime(slotStart + matchMin),
+      teamA: teams[m[0]],
+      teamAId: shuffledColors[m[0]].id,
+      teamB: teams[m[1]],
+      teamBId: shuffledColors[m[1]].id,
+      resting: teams.filter((_, idx) => idx !== m[0] && idx !== m[1])
+    };
+  });
 
   // ── Sync with match_stat_tbl to find current & next match ──
   let currentMatchNo = 1;
