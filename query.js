@@ -11,7 +11,6 @@ const client = new Client({
   channelSecret: process.env.LINE_CHANNEL_SECRET || '',
 });
 
-const failedProfileFetches = new Set();
 let lastGroupId = null;
 
 async function ensureMemberPicture(member, groupId = null) {
@@ -20,11 +19,6 @@ async function ensureMemberPicture(member, groupId = null) {
       lastGroupId = groupId;
     }
     const effectiveGroupId = groupId || lastGroupId;
-    
-    const cacheKey = effectiveGroupId ? `${member.line_user_id}_${effectiveGroupId}` : member.line_user_id;
-    if (failedProfileFetches.has(cacheKey)) {
-      return;
-    }
 
     try {
       console.log(`[ensureMemberPicture] picture_url is empty for member ${member.name} (${member.id}), fetching from LINE API...`);
@@ -50,7 +44,6 @@ async function ensureMemberPicture(member, groupId = null) {
       }
     } catch (err) {
       console.error(`[ensureMemberPicture] failed to fetch profile for user ${member.line_user_id}:`, err.message);
-      failedProfileFetches.add(cacheKey);
     }
   }
 }
