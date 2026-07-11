@@ -1280,6 +1280,8 @@ async function getTeamWeek(week_id = 0, groupId = null) {
     const date_str = await getFormatDate(date);
 
     if (team_colors.length > 0) {
+      const theme = await getTheme();
+      const colors = getThemeColors(theme);
       const carousel = { type: 'carousel', contents: [] };
       const assets = await fetchDisplayAssets();
 
@@ -1326,7 +1328,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
                 type: 'text',
                 text: `${idx + 1}.`,
                 size: 'xs',
-                color: '#ffffffff',
+                color: colors.textMuted,
                 flex: 0,
                 margin: 'none',
                 weight: 'bold'
@@ -1424,7 +1426,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
               type: 'text',
               text: info.name,
               size: 'sm',
-              color: info.nameColor || '#ddddff',
+              color: info.nameColor || colors.textPrimary,
               flex: 1,
               margin: 'sm',
               weight: 'bold'
@@ -1453,19 +1455,20 @@ async function getTeamWeek(week_id = 0, groupId = null) {
             type: 'text',
             text: 'ยังไม่มีสมาชิกในทีมนี้',
             size: 'xs',
-            color: '#555577',
+            color: colors.textMutedDark,
             align: 'center',
             margin: 'md'
           });
         }
 
+        const teamHeaderColor = teamColor && teamColor.code ? teamColor.code : colors.bgHeader;
         carousel.contents.push({
           type: 'bubble',
           size: 'micro',
           header: {
             type: 'box',
             layout: 'vertical',
-            backgroundColor: '#0f3460',
+            backgroundColor: teamHeaderColor,
             paddingAll: 'none',
             contents: [
               {
@@ -1480,7 +1483,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
           body: {
             type: 'box',
             layout: 'vertical',
-            backgroundColor: '#0d0d1a',
+            backgroundColor: colors.bgMain,
             paddingAll: 'sm',
             contents: bodyContents
           }
