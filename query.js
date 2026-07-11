@@ -826,7 +826,6 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
     type: "box",
     layout: "horizontal",
     alignItems: "center",
-    wrap: true,
     contents: itemContents
   };
 }

@@ -579,7 +579,6 @@ function buildNowFlex(matchInfo, theme) {
       layout: 'horizontal',
       margin: 'sm',
       alignItems: 'center',
-      wrap: true,
       contents: itemContents
     });
   }
@@ -683,7 +682,6 @@ function buildNowFlex(matchInfo, theme) {
       layout: 'horizontal',
       margin: 'xs',
       alignItems: 'center',
-      wrap: true,
       contents: itemContents
     });
   }
@@ -1124,7 +1122,6 @@ function buildLiveFlex(matchInfo, theme) {
             layout: 'horizontal',
             margin: 'xs',
             alignItems: 'center',
-            wrap: true,
             contents: itemContents
           });
         }
@@ -1225,7 +1222,6 @@ function buildLiveFlex(matchInfo, theme) {
             layout: 'horizontal',
             margin: 'xs',
             alignItems: 'center',
-            wrap: true,
             contents: itemContents
           });
         }
