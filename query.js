@@ -1326,9 +1326,10 @@ async function getTeamWeek(week_id = 0, groupId = null) {
                 type: 'text',
                 text: `${idx + 1}.`,
                 size: 'xs',
-                color: '#555577',
+                color: '#ffffffff',
                 flex: 0,
-                margin: 'none'
+                margin: 'none',
+                weight: 'bold'
               }
             ];
 
@@ -1425,7 +1426,8 @@ async function getTeamWeek(week_id = 0, groupId = null) {
               size: 'sm',
               color: info.nameColor || '#ddddff',
               flex: 1,
-              margin: 'sm'
+              margin: 'sm',
+              weight: 'bold'
             });
 
             rowContents.push({
@@ -1545,7 +1547,7 @@ function getLineClient() {
   if (!lineClientInstance) {
     const entrypoint = require.main ? require.main.filename : '';
     const useCur = entrypoint.includes('index4.js') || entrypoint.includes('index3.js') || entrypoint.includes('index2.js');
-    const token = useCur 
+    const token = useCur
       ? (process.env.CUR_CHANNEL_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN)
       : (process.env.LINE_CHANNEL_ACCESS_TOKEN || process.env.CUR_CHANNEL_ACCESS_TOKEN);
     if (token) {
