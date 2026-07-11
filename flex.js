@@ -819,7 +819,7 @@ function buildNowFlex(matchInfo, theme) {
 
   const bubble = {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     body: {
       type: 'box',
       layout: 'vertical',
