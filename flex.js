@@ -1262,7 +1262,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
           animated: true
         }
       ],
-      margin: 'xs'
+      margin: 'sm'
     });
   }
 
@@ -1284,7 +1284,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
           animated: true
         }
       ],
-      margin: 'xs'
+      margin: 'sm'
     });
   }
   /*else {
@@ -2249,7 +2249,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
           animated: true
         }
       ],
-      margin: 'xs'
+      margin: 'sm'
     });
   }
 

@@ -1393,7 +1393,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
                     animated: true
                   }
                 ],
-                margin: 'xs'
+                margin: 'sm'
               });
             }
 
@@ -1415,7 +1415,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
                     animated: true
                   }
                 ],
-                margin: 'xs'
+                margin: 'sm'
               });
             }
 
