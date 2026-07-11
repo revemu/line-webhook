@@ -790,8 +790,6 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
     gravity: "center"
   });
 
-  await Promise.all(match_goals.map(member => ensureMemberPicture(member, groupId)));
-
   let isFirst = true;
   for (const member of match_goals) {
     if (!isFirst) {
@@ -820,26 +818,6 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
     }
 
     const scorerContents = [];
-    const avatarUrl = info.pictureUrl;
-    if (avatarUrl) {
-      scorerContents.push({
-        type: 'box',
-        layout: 'vertical',
-        width: '20px',
-        height: '20px',
-        cornerRadius: '100px',
-        flex: 0,
-        contents: [
-          {
-            type: 'image',
-            url: avatarUrl,
-            size: 'full',
-            aspectMode: 'cover',
-            aspectRatio: '1:1'
-          }
-        ]
-      });
-    }
 
     const badgeSize = info.badgeSize || '16px';
     if (info.badgeUrl) {
