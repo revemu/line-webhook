@@ -1227,8 +1227,8 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      width: '20px',
-      height: '20px',
+      width: '24px',
+      height: '24px',
       cornerRadius: '100px',
       flex: 0,
       contents: [
@@ -2170,8 +2170,8 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     playerProfileBlock.push({
       type: 'box',
       layout: 'vertical',
-      width: '44px',
-      height: '44px',
+      width: '64px',
+      height: '64px',
       cornerRadius: '100px',
       flex: 0,
       contents: [
@@ -2189,8 +2189,8 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     playerProfileBlock.push({
       type: 'box',
       layout: 'vertical',
-      width: '44px',
-      height: '44px',
+      width: '64px',
+      height: '64px',
       cornerRadius: '100px',
       backgroundColor: isWhite ? '#e2e8f0' : '#1e1e38',
       alignItems: 'center',
@@ -2200,7 +2200,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
         {
           type: 'text',
           text: '👤',
-          size: 'lg',
+          size: '3xl',
           align: 'center',
           gravity: 'center'
         }

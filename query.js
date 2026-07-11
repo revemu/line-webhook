@@ -1337,8 +1337,8 @@ async function getTeamWeek(week_id = 0, groupId = null) {
               rowContents.push({
                 type: 'box',
                 layout: 'vertical',
-                width: '16px',
-                height: '16px',
+                width: '24px',
+                height: '24px',
                 cornerRadius: '100px',
                 contents: [
                   {
@@ -1356,13 +1356,14 @@ async function getTeamWeek(week_id = 0, groupId = null) {
               rowContents.push({
                 type: 'box',
                 layout: 'vertical',
-                width: '16px',
-                height: '16px',
+                width: '24px',
+                height: '24px',
+                cornerRadius: '100px',
                 contents: [
                   {
                     type: 'text',
                     text: '⚽',
-                    size: '10px',
+                    size: '14px',
                     align: 'center',
                     gravity: 'center'
                   }
