@@ -545,7 +545,28 @@ function buildNowFlex(matchInfo, theme) {
         });
       }
 
-      if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
+      if (s.hofBadges && s.hofBadges.length > 0) {
+        for (const hb of s.hofBadges) {
+          scorerContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: hb.size || '16px',
+            height: hb.size || '16px',
+            flex: 0,
+            contents: [
+              {
+                type: 'image',
+                url: hb.url,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                animated: true
+              }
+            ],
+            margin: 'xs'
+          });
+        }
+      } else if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
         const hSize = s.hofBadgeSize || '16px';
         scorerContents.push({
           type: 'box',
@@ -661,7 +682,28 @@ function buildNowFlex(matchInfo, theme) {
         });
       }
 
-      if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
+      if (a.hofBadges && a.hofBadges.length > 0) {
+        for (const hb of a.hofBadges) {
+          assistContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: hb.size || '16px',
+            height: hb.size || '16px',
+            flex: 0,
+            contents: [
+              {
+                type: 'image',
+                url: hb.url,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                animated: true
+              }
+            ],
+            margin: 'xs'
+          });
+        }
+      } else if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
         const hSize = a.hofBadgeSize || '16px';
         assistContents.push({
           type: 'box',
@@ -1114,7 +1156,28 @@ function buildLiveFlex(matchInfo, theme) {
               });
             }
 
-            if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
+            if (s.hofBadges && s.hofBadges.length > 0) {
+              for (const hb of s.hofBadges) {
+                scorerContents.push({
+                  type: 'box',
+                  layout: 'vertical',
+                  width: hb.size || '16px',
+                  height: hb.size || '16px',
+                  flex: 0,
+                  contents: [
+                    {
+                      type: 'image',
+                      url: hb.url,
+                      size: 'full',
+                      aspectRatio: '1:1',
+                      aspectMode: 'cover',
+                      animated: true
+                    }
+                  ],
+                  margin: 'xs'
+                });
+              }
+            } else if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
               const hSize = s.hofBadgeSize || '16px';
               scorerContents.push({
                 type: 'box',
@@ -1227,7 +1290,28 @@ function buildLiveFlex(matchInfo, theme) {
               });
             }
 
-            if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
+            if (a.hofBadges && a.hofBadges.length > 0) {
+              for (const hb of a.hofBadges) {
+                assistContents.push({
+                  type: 'box',
+                  layout: 'vertical',
+                  width: hb.size || '16px',
+                  height: hb.size || '16px',
+                  flex: 0,
+                  contents: [
+                    {
+                      type: 'image',
+                      url: hb.url,
+                      size: 'full',
+                      aspectRatio: '1:1',
+                      aspectMode: 'cover',
+                      animated: true
+                    }
+                  ],
+                  margin: 'xs'
+                });
+              }
+            } else if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
               const hSize = a.hofBadgeSize || '16px';
               assistContents.push({
                 type: 'box',
@@ -1458,7 +1542,28 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     });
   }
 
-  if (p.hofCount && p.hofCount > 0 && p.hofBadgeUrl) {
+  if (p.hofBadges && p.hofBadges.length > 0) {
+    for (const hb of p.hofBadges) {
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: hb.size || '20px',
+        height: hb.size || '20px',
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: hb.url,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            animated: true
+          }
+        ],
+        margin: 'sm'
+      });
+    }
+  } else if (p.hofCount && p.hofCount > 0 && p.hofBadgeUrl) {
     const hSize = p.hofBadgeSize || '20px';
     contents.push({
       type: 'box',
@@ -2498,7 +2603,28 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     });
   }
 
-  if (member.hofCount && member.hofCount > 0 && member.hofBadgeUrl) {
+  if (member.hofBadges && member.hofBadges.length > 0) {
+    for (const hb of member.hofBadges) {
+      infoContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: hb.size || '20px',
+        height: hb.size || '20px',
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: hb.url,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            animated: true
+          }
+        ],
+        margin: 'sm'
+      });
+    }
+  } else if (member.hofCount && member.hofCount > 0 && member.hofBadgeUrl) {
     infoContents.push({
       type: 'box',
       layout: 'vertical',
