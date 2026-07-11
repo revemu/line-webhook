@@ -709,7 +709,17 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
   }
 
   const assets = await fetchDisplayAssets();
-  const rows = [];
+  const itemContents = [];
+
+  // Icon at the very front of the single row
+  itemContents.push({
+    type: "text",
+    text: icon,
+    size: "xs",
+    flex: 0,
+    color: "#a0a8c0",
+    gravity: "center"
+  });
 
   await Promise.all(match_goals.map(member => ensureMemberPicture(member, groupId)));
 
@@ -726,20 +736,10 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
       nameText += "🔄";
     }
 
-    const rowContents = [
-      {
-        type: "text",
-        text: icon,
-        size: "xs",
-        flex: 0,
-        color: "#a0a8c0",
-        gravity: "center"
-      }
-    ];
-
+    const scorerContents = [];
     const avatarUrl = info.pictureUrl;
     if (avatarUrl) {
-      rowContents.push({
+      scorerContents.push({
         type: 'box',
         layout: 'vertical',
         width: '20px',
@@ -754,14 +754,13 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
             aspectMode: 'cover',
             aspectRatio: '1:1'
           }
-        ],
-        margin: 'xs'
+        ]
       });
     }
 
     const badgeSize = info.badgeSize || '16px';
     if (info.badgeUrl) {
-      rowContents.push({
+      scorerContents.push({
         type: 'box',
         layout: 'vertical',
         width: badgeSize,
@@ -783,7 +782,7 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
 
     if (info.hofCount && info.hofCount > 0 && info.hofBadgeUrl) {
       const hSize = info.hofBadgeSize || '16px';
-      rowContents.push({
+      scorerContents.push({
         type: 'box',
         layout: 'vertical',
         width: hSize,
@@ -803,30 +802,32 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
       });
     }
 
-    rowContents.push({
+    scorerContents.push({
       type: "text",
       text: nameText,
       size: "xs",
       color: info.nameColor || (goal_status === 3 ? '#bbddff' : '#ddddff'),
-      flex: 1,
-      margin: "sm"
+      flex: 0,
+      margin: "xs",
+      weight: 'bold'
     });
 
-    rows.push({
-      type: "box",
-      layout: "horizontal",
-      margin: "xs",
-      alignItems: "center",
-      contents: rowContents
+    itemContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      alignItems: 'center',
+      contents: scorerContents,
+      margin: 'sm',
+      flex: 0
     });
   }
 
   return {
     type: "box",
-    layout: "vertical",
-    margin: "xs",
-    paddingStart: "sm",
-    contents: rows
+    layout: "horizontal",
+    alignItems: "center",
+    wrap: true,
+    contents: itemContents
   };
 }
 

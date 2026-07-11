@@ -481,16 +481,17 @@ function buildNowFlex(matchInfo, theme) {
 
   // ── Scorers ──
   if (scorers && scorers.length > 0) {
+    const itemContents = [
+      { type: 'text', text: '⚽', size: 'xs', flex: 0, color: colors.textMuted, gravity: 'center' }
+    ];
+
     for (const s of scorers) {
       const og = s.ownGoal ? '🥅' : '';
       const nameText = s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
 
-      const rowContents = [
-        { type: 'text', text: '⚽', size: 'xs', flex: 0, color: colors.textMuted }
-      ];
-
+      const scorerContents = [];
       if (s.pictureUrl) {
-        rowContents.push({
+        scorerContents.push({
           type: 'box',
           layout: 'vertical',
           width: '20px',
@@ -505,14 +506,13 @@ function buildNowFlex(matchInfo, theme) {
               aspectRatio: '1:1',
               aspectMode: 'cover'
             }
-          ],
-          margin: 'xs'
+          ]
         });
       }
 
       const badgeSize = s.badgeSize || '16px';
       if (s.badgeUrl) {
-        rowContents.push({
+        scorerContents.push({
           type: 'box',
           layout: 'vertical',
           width: badgeSize,
@@ -534,7 +534,7 @@ function buildNowFlex(matchInfo, theme) {
 
       if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
         const hSize = s.hofBadgeSize || '16px';
-        rowContents.push({
+        scorerContents.push({
           type: 'box',
           layout: 'vertical',
           width: hSize,
@@ -554,36 +554,48 @@ function buildNowFlex(matchInfo, theme) {
         });
       }
 
-      rowContents.push({
+      scorerContents.push({
         type: 'text',
         text: nameText,
         size: 'xs',
         color: s.nameColor || colors.textMutedLight,
-        flex: 1,
-        margin: 'sm'
+        flex: 0,
+        margin: 'xs',
+        weight: 'bold'
       });
 
-      bodyContents.push({
+      itemContents.push({
         type: 'box',
         layout: 'horizontal',
-        margin: 'sm',
         alignItems: 'center',
-        contents: rowContents
+        contents: scorerContents,
+        margin: 'sm',
+        flex: 0
       });
     }
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'sm',
+      alignItems: 'center',
+      wrap: true,
+      contents: itemContents
+    });
   }
 
   // ── Assists ──
   if (assists && assists.length > 0) {
+    const itemContents = [
+      { type: 'text', text: '👟', size: 'xs', flex: 0, color: colors.textMuted, gravity: 'center' }
+    ];
+
     for (const a of assists) {
       const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
 
-      const rowContents = [
-        { type: 'text', text: '👟', size: 'xs', flex: 0, color: colors.textMuted }
-      ];
-
+      const assistContents = [];
       if (a.pictureUrl) {
-        rowContents.push({
+        assistContents.push({
           type: 'box',
           layout: 'vertical',
           width: '20px',
@@ -598,14 +610,13 @@ function buildNowFlex(matchInfo, theme) {
               aspectRatio: '1:1',
               aspectMode: 'cover'
             }
-          ],
-          margin: 'xs'
+          ]
         });
       }
 
       const badgeSize = a.badgeSize || '16px';
       if (a.badgeUrl) {
-        rowContents.push({
+        assistContents.push({
           type: 'box',
           layout: 'vertical',
           width: badgeSize,
@@ -627,7 +638,7 @@ function buildNowFlex(matchInfo, theme) {
 
       if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
         const hSize = a.hofBadgeSize || '16px';
-        rowContents.push({
+        assistContents.push({
           type: 'box',
           layout: 'vertical',
           width: hSize,
@@ -647,23 +658,34 @@ function buildNowFlex(matchInfo, theme) {
         });
       }
 
-      rowContents.push({
+      assistContents.push({
         type: 'text',
         text: nameText,
         size: 'xs',
         color: a.nameColor || colors.textMutedLight,
-        flex: 1,
-        margin: 'sm'
+        flex: 0,
+        margin: 'xs',
+        weight: 'bold'
       });
 
-      bodyContents.push({
+      itemContents.push({
         type: 'box',
         layout: 'horizontal',
-        margin: 'xs',
         alignItems: 'center',
-        contents: rowContents
+        contents: assistContents,
+        margin: 'sm',
+        flex: 0
       });
     }
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'xs',
+      alignItems: 'center',
+      wrap: true,
+      contents: itemContents
+    });
   }
 
   // ── Next Match ──
@@ -1005,16 +1027,16 @@ function buildLiveFlex(matchInfo, theme) {
       if (isCurrent) {
         const detailRows = [];
         if (scorers && scorers.length > 0) {
+          const itemContents = [
+            { type: 'text', text: '⚽', size: 'sm', flex: 0, color: colors.textMuted, gravity: 'center' }
+          ];
           for (const s of scorers) {
             const og = s.ownGoal ? '🥅' : '';
             const nameText = s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
 
-            const rowContents = [
-              { type: 'text', text: '⚽', size: 'sm', flex: 0, color: colors.textMuted }
-            ];
-
+            const scorerContents = [];
             if (s.pictureUrl) {
-              rowContents.push({
+              scorerContents.push({
                 type: 'box',
                 layout: 'vertical',
                 width: '20px',
@@ -1029,14 +1051,13 @@ function buildLiveFlex(matchInfo, theme) {
                     aspectRatio: '1:1',
                     aspectMode: 'cover'
                   }
-                ],
-                margin: 'xs'
+                ]
               });
             }
 
             const badgeSize = s.badgeSize || '16px';
             if (s.badgeUrl) {
-              rowContents.push({
+              scorerContents.push({
                 type: 'box',
                 layout: 'vertical',
                 width: badgeSize,
@@ -1058,7 +1079,7 @@ function buildLiveFlex(matchInfo, theme) {
 
             if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
               const hSize = s.hofBadgeSize || '16px';
-              rowContents.push({
+              scorerContents.push({
                 type: 'box',
                 layout: 'vertical',
                 width: hSize,
@@ -1078,34 +1099,45 @@ function buildLiveFlex(matchInfo, theme) {
               });
             }
 
-            rowContents.push({
+            scorerContents.push({
               type: 'text',
               text: nameText,
               size: 'sm',
               color: s.nameColor || colors.textMutedLight,
-              flex: 1,
-              margin: 'sm'
+              flex: 0,
+              margin: 'xs',
+              weight: 'bold'
             });
 
-            detailRows.push({
+            itemContents.push({
               type: 'box',
               layout: 'horizontal',
-              margin: 'xs',
               alignItems: 'center',
-              contents: rowContents
+              contents: scorerContents,
+              margin: 'sm',
+              flex: 0
             });
           }
+
+          detailRows.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            alignItems: 'center',
+            wrap: true,
+            contents: itemContents
+          });
         }
         if (assists && assists.length > 0) {
+          const itemContents = [
+            { type: 'text', text: '👟', size: 'sm', flex: 0, color: colors.textMuted, gravity: 'center' }
+          ];
           for (const a of assists) {
             const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
 
-            const rowContents = [
-              { type: 'text', text: '👟', size: 'sm', flex: 0, color: colors.textMuted }
-            ];
-
+            const assistContents = [];
             if (a.pictureUrl) {
-              rowContents.push({
+              assistContents.push({
                 type: 'box',
                 layout: 'vertical',
                 width: '20px',
@@ -1120,14 +1152,13 @@ function buildLiveFlex(matchInfo, theme) {
                     aspectRatio: '1:1',
                     aspectMode: 'cover'
                   }
-                ],
-                margin: 'xs'
+                ]
               });
             }
 
             const badgeSize = a.badgeSize || '16px';
             if (a.badgeUrl) {
-              rowContents.push({
+              assistContents.push({
                 type: 'box',
                 layout: 'vertical',
                 width: badgeSize,
@@ -1149,7 +1180,7 @@ function buildLiveFlex(matchInfo, theme) {
 
             if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
               const hSize = a.hofBadgeSize || '16px';
-              rowContents.push({
+              assistContents.push({
                 type: 'box',
                 layout: 'vertical',
                 width: hSize,
@@ -1169,23 +1200,34 @@ function buildLiveFlex(matchInfo, theme) {
               });
             }
 
-            rowContents.push({
+            assistContents.push({
               type: 'text',
               text: nameText,
               size: 'sm',
               color: a.nameColor || colors.textMutedLight,
-              flex: 1,
-              margin: 'sm'
+              flex: 0,
+              margin: 'xs',
+              weight: 'bold'
             });
 
-            detailRows.push({
+            itemContents.push({
               type: 'box',
               layout: 'horizontal',
-              margin: 'xs',
               alignItems: 'center',
-              contents: rowContents
+              contents: assistContents,
+              margin: 'sm',
+              flex: 0
             });
           }
+
+          detailRows.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            alignItems: 'center',
+            wrap: true,
+            contents: itemContents
+          });
         }
 
         if (detailRows.length > 0) {
