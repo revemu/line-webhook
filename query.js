@@ -1108,32 +1108,22 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     const matches = await queryMatchWeek(week_id);
     console.log(matches);
     if (matches.length > 0) {
+      const theme = await getTheme();
+      const colors = flex.getThemeColors(theme);
+      const imgTpl = await getTemplate('matchweek', 'header');
+      const headerUrl = imgTpl ? imgTpl.url : null;
+
       const date = new Date(res[0].date);
       const date_str = await getFormatDate(date);
       let team_colors = await getTeamColorWeek(week_id);
 
       const bodyContents = [];
 
-      // Maps team color name → a readable display color on dark backgrounds
-      const teamDisplayColor = (colorName, code) => {
-        const n = (colorName || '').toLowerCase();
-        if (n === 'black') return '#999999';   // dark grey, readable on dark bg
-        if (n === 'white') return '#ffffff';
-        if (n === 'red') return '#ff5566';   // bright red
-        if (n === 'green') return '#44cc66';   // bright green
-        // fallback: brighten dark DB codes
-        if (!code || code.length < 7) return '#ffffff';
-        const r = parseInt(code.slice(1, 3), 16);
-        const g = parseInt(code.slice(3, 5), 16);
-        const b = parseInt(code.slice(5, 7), 16);
-        return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.40 ? '#ffffff' : code;
-      };
-
       // ── Header ──
       bodyContents.push({
         type: 'box',
         layout: 'vertical',
-        backgroundColor: '#1a1a2e',
+        backgroundColor: colors.bgRound,
         paddingAll: 'md',
         cornerRadius: 'md',
         contents: [
@@ -1142,14 +1132,14 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             text: '\u26bd \u0e1c\u0e25\u0e01\u0e32\u0e23\u0e41\u0e02\u0e48\u0e07\u0e02\u0e31\u0e19',
             weight: 'bold',
             size: 'lg',
-            color: '#ffffff',
+            color: colors.textPrimary,
             align: 'center'
           },
           {
             type: 'text',
             text: `\u0e40\u0e2a\u0e32\u0e23\u0e4c\u0e17\u0e35\u0e48 ${date_str}`,
             size: 'sm',
-            color: '#a0a8c0',
+            color: colors.textMuted,
             align: 'center',
             margin: 'xs'
           }
@@ -1169,7 +1159,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             type: 'text',
             text: `\u0e41\u0e21\u0e15\u0e0a\u0e4c [${match.match_num}]`,
             size: 'xs',
-            color: '#a0a8c0',
+            color: colors.textMuted,
             align: 'center'
           },
           {
@@ -1177,17 +1167,17 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             layout: 'horizontal',
             margin: 'sm',
             contents: [
-              { type: 'text', text: team_a ? team_a.color : '?', size: 'lg', weight: 'bold', color: team_a ? teamDisplayColor(team_a.color, team_a.code) : '#ffffff', flex: 2, align: 'end' },
+              { type: 'text', text: team_a ? team_a.color : '?', size: 'lg', weight: 'bold', color: team_a ? colors.tdc(team_a.color) : colors.textPrimary, flex: 2, align: 'end' },
               {
                 type: 'text',
                 text: `${match.team_a_goal} - ${match.team_b_goal}`,
                 size: 'lg',
                 weight: 'bold',
-                color: '#e94560',
+                color: colors.textAccent,
                 flex: 1,
                 align: 'center'
               },
-              { type: 'text', text: team_b ? team_b.color : '?', size: 'lg', weight: 'bold', color: team_b ? teamDisplayColor(team_b.color, team_b.code) : '#ffffff', flex: 2, align: 'start' }
+              { type: 'text', text: team_b ? team_b.color : '?', size: 'lg', weight: 'bold', color: team_b ? colors.tdc(team_b.color) : colors.textPrimary, flex: 2, align: 'start' }
             ]
           }
         ];
@@ -1198,7 +1188,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         bodyContents.push({
           type: 'box',
           layout: 'vertical',
-          backgroundColor: '#1a1a2e',
+          backgroundColor: colors.bgRound,
           paddingAll: 'sm',
           cornerRadius: 'md',
           margin: 'sm',
@@ -1209,13 +1199,13 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       // ── Standings ──
       const tableRows = await queryTableWeek(week_id);
       if (tableRows && tableRows.length > 0) {
-        bodyContents.push({ type: 'separator', margin: 'md', color: '#2a2a4a' });
+        bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
         bodyContents.push({
           type: 'text',
           text: '\ud83d\udcca \u0e15\u0e32\u0e23\u0e32\u0e07\u0e04\u0e30\u0e41\u0e19\u0e19',
           size: 'sm',
           weight: 'bold',
-          color: '#e0e0ff',
+          color: colors.textPrimary,
           margin: 'md'
         });
 
@@ -1224,12 +1214,12 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           layout: 'horizontal',
           margin: 'xs',
           contents: [
-            { type: 'text', text: '\u0e17\u0e35\u0e21', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 4 },
-            { type: 'text', text: 'W', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center', margin: 'lg' },
-            { type: 'text', text: 'D', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
-            { type: 'text', text: 'L', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
-            { type: 'text', text: 'GD', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' },
-            { type: 'text', text: 'PTS', size: 'xxs', weight: 'bold', color: '#7878a8', flex: 1, align: 'center' }
+            { type: 'text', text: '\u0e17\u0e35\u0e21', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 4 },
+            { type: 'text', text: 'W', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center', margin: 'lg' },
+            { type: 'text', text: 'D', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'L', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'GD', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'PTS', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' }
           ]
         });
 
@@ -1243,43 +1233,48 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             layout: 'horizontal',
             margin: 'xs',
             contents: [
-              { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color}`, size: 'xs', color: teamDisplayColor(row.color, teamColor ? teamColor.code : null), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
-              { type: 'text', text: `${row.w}`, size: 'xs', color: '#aaaacc', flex: 1, align: 'center', margin: 'lg' },
-              { type: 'text', text: `${row.d}`, size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
-              { type: 'text', text: `${row.l}`, size: 'xs', color: '#aaaacc', flex: 1, align: 'center' },
-              { type: 'text', text: gdStr, size: 'xs', color: gd >= 0 ? '#88ff88' : '#ff8888', flex: 1, align: 'center' },
-              { type: 'text', text: `${row.pts}`, size: 'xs', color: '#ffffff', flex: 1, align: 'center', weight: 'bold' }
+              { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color}`, size: 'xs', color: colors.tdc(row.color), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
+              { type: 'text', text: `${row.w}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center', margin: 'lg' },
+              { type: 'text', text: `${row.d}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
+              { type: 'text', text: `${row.l}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
+              { type: 'text', text: gdStr, size: 'xs', color: gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
+              { type: 'text', text: `${row.pts}`, size: 'xs', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
             ]
           });
         });
       }
 
-      return {
+      const bubble = {
         type: 'bubble',
         size: 'giga',
-        header: {
+        body: {
           type: 'box',
           layout: 'vertical',
-          backgroundColor: '#0f3460',
+          backgroundColor: colors.bgMain,
+          paddingAll: 'sm',
+          contents: bodyContents
+        }
+      };
+
+      if (headerUrl && headerUrl.toLowerCase() !== 'none') {
+        bubble.header = {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: colors.bgHeader,
           paddingAll: 'none',
           contents: [
             {
               type: 'image',
-              url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+              url: headerUrl,
               size: 'full',
               aspectRatio: '20:7',
               aspectMode: 'cover'
             }
           ]
-        },
-        body: {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: '#0d0d1a',
-          paddingAll: 'sm',
-          contents: bodyContents
-        }
-      };
+        };
+      }
+
+      return bubble;
     }
 
 
