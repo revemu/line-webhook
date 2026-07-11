@@ -1547,7 +1547,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
       contents.push({
         type: 'box',
         layout: 'vertical',
-        width: hb.size || '20px',
+        //width: hb.size || '20px',
         height: hb.size || '20px',
         flex: 0,
         contents: [
@@ -1555,7 +1555,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
             type: 'image',
             url: hb.url,
             size: 'full',
-            aspectRatio: '1:1',
+            //aspectRatio: '1:1',
             aspectMode: 'cover',
             animated: true
           }
