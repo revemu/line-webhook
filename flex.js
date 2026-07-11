@@ -1358,27 +1358,84 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
 
 function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme) {
   const bodyContents = [];
-  const finalImageUrl = imageUrl || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuyGBcXBYCphjV9yKqgZyNEWCvdbbLtn6ILg&s';
+  let finalImageUrl = imageUrl;
+  if (!finalImageUrl) {
+    finalImageUrl = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuyGBcXBYCphjV9yKqgZyNEWCvdbbLtn6ILg&s';
+  }
   const colors = getThemeColors(theme);
 
-  // Subtitle showing counts
-  const countParts = [];
-  let text_row = `👤 ลงชื่อ: ${players.length}/${maxPlayers}`;
+  // ── Premium Body Header ──
+  const headerSubContents = [];
+  headerSubContents.push({
+    type: 'text',
+    text: `วันเสาร์ที่ ${dateStr}`,
+    size: 'xs',
+    color: colors.textMuted
+  });
 
-  if (reserves.length > 0) {
-    text_row += `, ⏳ สำรอง: ${reserves.length}`;
+  const extraCounts = [];
+  if (goalies.length > 0) extraCounts.push(`🧤 ${goalies.length}`);
+  if (reserves.length > 0) extraCounts.push(`⏳ ${reserves.length}`);
+  if (extraCounts.length > 0) {
+    headerSubContents.push({
+      type: 'text',
+      text: extraCounts.join('  '),
+      size: 'xs',
+      color: colors.textMuted,
+      margin: 'md'
+    });
   }
-  if (goalies.length > 0) {
-    text_row += `,🧤 โกล์: ${goalies.length}`;
-  }
-  countParts.push({ type: 'text', text: `${text_row}`, size: 'sm', color: colors.textMuted, flex: 1 });
-  countParts.push({ type: 'text', text: `⏱️ เสาร์ที่ ${dateStr}`, size: 'sm', color: colors.textMuted, flex: 1, align: 'end' });
 
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
-    margin: 'sm',
-    contents: countParts
+    backgroundColor: colors.bgHeader,
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    alignItems: 'center',
+    contents: [
+      {
+        type: 'box',
+        layout: 'vertical',
+        flex: 1,
+        contents: [
+          {
+            type: 'text',
+            text: title === "ลงชื่อ" ? "⚽ ลงชื่อเตะบอล" : `📋 ${title}`,
+            weight: 'bold',
+            size: 'lg',
+            color: colors.textPrimary
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            contents: headerSubContents
+          }
+        ]
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        flex: 0,
+        alignItems: 'end',
+        contents: [
+          {
+            type: 'text',
+            text: `${players.length}/${maxPlayers}`,
+            weight: 'bold',
+            size: 'lg',
+            color: colors.textAccent
+          },
+          {
+            type: 'text',
+            text: 'คน',
+            size: 'xxs',
+            color: colors.textMuted
+          }
+        ]
+      }
+    ]
   });
 
   // Progress Bar showing member signup progress
@@ -1427,7 +1484,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     type: 'box',
     layout: 'horizontal',
     height: '8px',
-    margin: 'sm',
+    margin: 'md',
     contents: progressContents
   });
 
