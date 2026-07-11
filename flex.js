@@ -292,9 +292,9 @@ function buildScheduleFlex(sched, theme) {
             flex: 6,
             alignItems: 'center',
             contents: [
-              { type: 'text', text: m.teamA, size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
+              { type: 'text', text: m.teamA || '?', size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
               { type: 'text', text: vsText, size: 'sm', color: colors.textMuted, align: 'center', flex: 1, weight: dbMatch ? 'bold' : 'regular' },
-              { type: 'text', text: m.teamB, size: 'sm', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
+              { type: 'text', text: m.teamB || '?', size: 'sm', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
             ]
           }
         ]
@@ -463,17 +463,17 @@ function buildNowFlex(matchInfo, theme) {
         layout: 'horizontal',
         margin: 'md',
         contents: [
-          { type: 'text', text: cur.teamA, size: 'md', weight: 'bold', color: colors.tdc(cur.teamA), flex: 2, align: 'end' },
+          { type: 'text', text: cur.teamA || '?', size: 'md', weight: 'bold', color: colors.tdc(cur.teamA), flex: 2, align: 'end' },
           {
             type: 'text',
-            text: score ? `${score.teamA} - ${score.teamB}` : 'vs',
+            text: score ? `${score.teamA || '?'} - ${score.teamB || '?'}` : 'vs',
             size: 'md',
             weight: 'bold',
             color: colors.textAccent,
             flex: 1,
             align: 'center'
           },
-          { type: 'text', text: cur.teamB, size: 'md', weight: 'bold', color: colors.tdc(cur.teamB), flex: 2, align: 'start' }
+          { type: 'text', text: cur.teamB || '?', size: 'md', weight: 'bold', color: colors.tdc(cur.teamB), flex: 2, align: 'start' }
         ]
       }
     ]
@@ -777,9 +777,9 @@ function buildNowFlex(matchInfo, theme) {
           layout: 'horizontal',
           margin: 'xs',
           contents: [
-            { type: 'text', text: nxt.teamA, size: 'md', weight: 'bold', color: colors.tdc(nxt.teamA), flex: 2, align: 'end' },
+            { type: 'text', text: nxt.teamA || '?', size: 'md', weight: 'bold', color: colors.tdc(nxt.teamA), flex: 2, align: 'end' },
             { type: 'text', text: 'vs', size: 'md', color: colors.textMuted, flex: 1, align: 'center' },
-            { type: 'text', text: nxt.teamB, size: 'md', weight: 'bold', color: colors.tdc(nxt.teamB), flex: 2, align: 'start' }
+            { type: 'text', text: nxt.teamB || '?', size: 'md', weight: 'bold', color: colors.tdc(nxt.teamB), flex: 2, align: 'start' }
           ]
         }
       ]
@@ -808,9 +808,9 @@ function buildNowFlex(matchInfo, theme) {
             layout: 'horizontal',
             margin: 'xs',
             contents: [
-              { type: 'text', text: nxt2.teamA, size: 'md', weight: 'bold', color: colors.tdc(nxt2.teamA), flex: 2, align: 'end' },
+              { type: 'text', text: nxt2.teamA || '?', size: 'md', weight: 'bold', color: colors.tdc(nxt2.teamA), flex: 2, align: 'end' },
               { type: 'text', text: 'vs', size: 'md', color: colors.textMutedDark, flex: 1, align: 'center' },
-              { type: 'text', text: nxt2.teamB, size: 'md', weight: 'bold', color: colors.tdc(nxt2.teamB), flex: 2, align: 'start' }
+              { type: 'text', text: nxt2.teamB || '?', size: 'md', weight: 'bold', color: colors.tdc(nxt2.teamB), flex: 2, align: 'start' }
             ]
           }
         ]
@@ -1058,9 +1058,9 @@ function buildLiveFlex(matchInfo, theme) {
           flex: 6,
           alignItems: 'center',
           contents: [
-            { type: 'text', text: m.teamA, size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
+            { type: 'text', text: m.teamA || '?', size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
             { type: 'text', text: vsText, size: 'sm', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'center', flex: 1, weight: dbMatch || isCurrent ? 'bold' : 'regular' },
-            { type: 'text', text: m.teamB, size: 'sm', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
+            { type: 'text', text: m.teamB || '?', size: 'sm', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
           ]
         }
       ];

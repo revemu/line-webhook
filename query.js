@@ -1246,7 +1246,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             layout: 'horizontal',
             margin: 'sm',
             contents: [
-              { type: 'text', text: team_a ? team_a.color : '?', size: 'lg', weight: 'bold', color: team_a ? colors.tdc(team_a.color) : colors.textPrimary, flex: 2, align: 'end' },
+              { type: 'text', text: team_a && team_a.color ? team_a.color : '?', size: 'lg', weight: 'bold', color: team_a ? colors.tdc(team_a.color) : colors.textPrimary, flex: 2, align: 'end' },
               {
                 type: 'text',
                 text: `${match.team_a_goal} - ${match.team_b_goal}`,
@@ -1256,7 +1256,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
                 flex: 1,
                 align: 'center'
               },
-              { type: 'text', text: team_b ? team_b.color : '?', size: 'lg', weight: 'bold', color: team_b ? colors.tdc(team_b.color) : colors.textPrimary, flex: 2, align: 'start' }
+              { type: 'text', text: team_b && team_b.color ? team_b.color : '?', size: 'lg', weight: 'bold', color: team_b ? colors.tdc(team_b.color) : colors.textPrimary, flex: 2, align: 'start' }
             ]
           }
         ];
