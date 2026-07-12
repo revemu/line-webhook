@@ -2817,9 +2817,9 @@ function buildRegisterClosedFlex(theme, imageUrl = null) {
               contents: [
                 {
                   type: 'text',
-                  text: '🚫 ปิดรับลงชื่อ',
+                  text: '🚫 ระบบปิดรับลงชื่อแล้ว',
                   color: isWhite ? '#b91c1c' : '#fca5a5',
-                  size: 'xs',
+                  size: 'lg',
                   weight: 'bold'
                 }
               ]
@@ -2827,14 +2827,14 @@ function buildRegisterClosedFlex(theme, imageUrl = null) {
           ]
         },
         // Title
-        {
+        /*{
           type: 'text',
           text: 'ระบบปิดรับลงชื่อแล้ว',
           weight: 'bold',
           size: 'lg',
           wrap: true,
           color: textPrimary
-        },
+        },*/
         // Card Container
         {
           type: 'box',
@@ -2875,7 +2875,7 @@ function buildRegisterClosedFlex(theme, imageUrl = null) {
           spacing: 'sm',
           contents: [
             makeBoxButton('📋 ดูรายชื่อเตะ', '/register', buttonColor, 1, 'xs', true),
-            makeBoxButton('👤 รายชื่อออโต้', '/autoreglist', isWhite ? '#64748b' : '#334155', 1, 'xs', true)
+            makeBoxButton('👤 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', isWhite ? '#64748b' : '#334155', 1, 'xs', true)
           ]
         }
       ]
