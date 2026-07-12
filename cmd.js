@@ -284,10 +284,17 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 msg_type = 1;
                 break;
             }
+            const list = await db.getAutoRegList(groupId);
+            const isAlreadyRegistered = list.some(m => m.id === member_id);
+            if (!isAlreadyRegistered && list.length >= 24) {
+                msg = "ไม่สามารถลงชื่อเพิ่มได้ เนื่องจากรายชื่อสมัครลงชื่ออัตโนมัติเต็มแล้ว (สูงสุด 24 คน)";
+                msg_type = 0;
+                break;
+            }
             await db.updateMemberAutoReg(member_id, 1);
             const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
-            const list = await db.getAutoRegList(groupId);
-            msg = flex.buildAutoRegFlex('add', memberInfo, list, theme, autoregImageUrl);
+            const updatedList = isAlreadyRegistered ? list : await db.getAutoRegList(groupId);
+            msg = flex.buildAutoRegFlex('add', memberInfo, updatedList, theme, autoregImageUrl);
             altText = `สมัครลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
             msg_type = 1;
             break;
