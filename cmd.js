@@ -114,8 +114,12 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 const dateStr = `${y}-${m}-${d}`;
                 const weekDate = new Date(`${dateStr}T19:00:00+07:00`);
                 if (new Date() >= weekDate) {
-                    msg = "ขออภัย ระบบปิดรับลงชื่อสำหรับสัปดาห์นี้แล้ว (ปิดลงชื่อทุกวันเสาร์ เวลา 19:00 น. เป็นต้นไป)";
-                    msg_type = 0;
+                    const theme = await db.getTheme();
+                    const registerTpl = await db.getTemplate('register', 'header');
+                    const registerImageUrl = registerTpl ? registerTpl.url : null;
+                    msg = flex.buildRegisterClosedFlex(theme, registerImageUrl);
+                    altText = "ระบบปิดรับลงชื่อแล้ว";
+                    msg_type = 1;
                     break;
                 }
             }

@@ -2779,6 +2779,147 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   return bubble;
 }
 
+function buildRegisterClosedFlex(theme, imageUrl = null) {
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+
+  const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
+  const textPrimary = isWhite ? '#0f172a' : '#ffffff';
+  const textMuted = isWhite ? '#64748b' : '#a0a8c0';
+  const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Vibrant green
+  const cardBg = isWhite ? '#fee2e2' : '#2d1616'; // Subtle red tint
+  const cardBorder = isWhite ? '#fca5a5' : '#4a2a2a';
+
+  const bubble = {
+    type: 'bubble',
+    size: 'mega',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: bgMain,
+      spacing: 'md',
+      contents: [
+        // Badge
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: isWhite ? '#fee2e2' : '#7f1d1d',
+              cornerRadius: 'md',
+              paddingStart: 'md',
+              paddingEnd: 'md',
+              paddingTop: 'xs',
+              paddingBottom: 'xs',
+              contents: [
+                {
+                  type: 'text',
+                  text: '🚫 ปิดรับลงชื่อ',
+                  color: isWhite ? '#b91c1c' : '#fca5a5',
+                  size: 'xs',
+                  weight: 'bold'
+                }
+              ]
+            }
+          ]
+        },
+        // Title
+        {
+          type: 'text',
+          text: 'ระบบปิดรับลงชื่อแล้ว',
+          weight: 'bold',
+          size: 'xl',
+          color: textPrimary
+        },
+        // Card Container
+        {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: cardBg,
+          borderColor: cardBorder,
+          borderWidth: 'normal',
+          cornerRadius: 'md',
+          paddingAll: 'md',
+          contents: [
+            {
+              type: 'text',
+              text: 'ขออภัย ระบบปิดรับลงชื่อสำหรับสัปดาห์นี้แล้ว\n\n(ปิดลงชื่อทุกวันเสาร์ เวลา 19:00 น. เป็นต้นไป จนกว่าจะมีการเปิดรอบสัปดาห์ใหม่ ⚽)',
+              wrap: true,
+              size: 'sm',
+              color: isWhite ? '#991b1b' : '#f87171',
+              weight: 'bold'
+            }
+          ]
+        },
+        // Description/Action Hint
+        {
+          type: 'text',
+          text: 'คุณสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายชื่อผู้เข้าเล่น หรือสมาชิกลงชื่ออัตโนมัติในระบบได้ครับ',
+          wrap: true,
+          size: 'xs',
+          color: textMuted
+        },
+        {
+          type: 'separator',
+          color: isWhite ? '#e2e8f0' : '#2a2a4a',
+          margin: 'sm'
+        },
+        // Footer Buttons
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '📋 ดูรายชื่อเตะ',
+                text: '/register'
+              },
+              style: 'primary',
+              color: buttonColor,
+              height: 'sm'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '👤 รายชื่อออโต้',
+                text: '/autoreglist'
+              },
+              style: 'secondary',
+              height: 'sm'
+            }
+          ]
+        }
+      ]
+    }
+  };
+
+  const headerUrl = imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
+  if (headerUrl && headerUrl.toLowerCase() !== 'none') {
+    bubble.header = {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: headerUrl,
+          size: 'full',
+          aspectRatio: '20:10',
+          aspectMode: 'cover'
+        }
+      ]
+    };
+  }
+
+  return bubble;
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -2792,6 +2933,7 @@ module.exports = {
   buildWelcomeFlex,
   buildRegisterFlex,
   buildAutoRegFlex,
+  buildRegisterClosedFlex,
   buildMemberStatsFlex,
   getThemeColors
 };
