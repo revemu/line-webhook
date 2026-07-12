@@ -1883,6 +1883,17 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     ]
   });
 
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'xs',
+    contents: [
+      makeBoxButton('📋 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', topStatsColor),
+      makeBoxButton('📉 ลงทะเบียนอัตโนมัติ', '+autoreg', bottomStatsColor)
+    ]
+  });
+
   const bubble = {
     type: 'bubble',
     size: 'giga',
@@ -2357,7 +2368,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       spacing: 'sm',
       margin: 'sm',
       contents: [
-        makeBoxButton('📋 ดูรายชื่อ', '/autoreglist', buttonColor),
+        makeBoxButton('📋 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', buttonColor),
         makeBoxButton('➖ ยกเลิก', '-autoreg', isWhite ? '#ef4444' : '#b91c1c')
       ]
     });
@@ -2368,8 +2379,8 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       spacing: 'sm',
       margin: 'sm',
       contents: [
-        makeBoxButton('📋 ดูรายชื่อ', '/autoreglist', buttonColor),
-        makeBoxButton('➕ สมัครลงชื่อ', '/autoreg', isWhite ? '#64748b' : '#334155')
+        makeBoxButton('📋 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', buttonColor),
+        makeBoxButton('➕ ลงทะเบียนอัตโนมัติ', '+autoreg', isWhite ? '#64748b' : '#334155')
       ]
     });
   }
