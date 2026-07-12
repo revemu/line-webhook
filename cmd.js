@@ -104,7 +104,22 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             msg_type = 3;
             //msg = await db.getMemberWeek(1);
             break;
-        case '+1':
+        case '+1': {
+            const activeWeek = await db.queryWeekDate(0);
+            if (activeWeek && activeWeek.length > 0) {
+                const rawDate = new Date(activeWeek[0].date);
+                const y = rawDate.getFullYear();
+                const m = ('0' + (rawDate.getMonth() + 1)).slice(-2);
+                const d = ('0' + rawDate.getDate()).slice(-2);
+                const dateStr = `${y}-${m}-${d}`;
+                const weekDate = new Date(`${dateStr}T19:00:00+07:00`);
+                if (new Date() >= weekDate) {
+                    msg = "ขออภัย ระบบปิดรับลงชื่อสำหรับสัปดาห์นี้แล้ว (ปิดลงชื่อทุกวันเสาร์ เวลา 19:00 น. เป็นต้นไป)";
+                    msg_type = 0;
+                    break;
+                }
+            }
+
             const reg_res2 = await db.registerMember(member_id, member_name);
             if (reg_res2 == 1) {
                 console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`);
@@ -122,6 +137,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 msg_type = 2;
             }
             break;
+        }
         case '-1':
             if (await db.unregisterMember(member_id)) {
                 console.log(`${chat_type} ${member_name} พบข้อมูลลงทะเบียน!`);
