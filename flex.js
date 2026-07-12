@@ -1459,7 +1459,7 @@ function buildLiveFlex(matchInfo, theme) {
   return bubble;
 }
 
-function makeBoxButton(label, text, color, flexVal = 1) {
+function makeBoxButton(label, text, color, flexVal = 1, size = 'sm', wrap = false) {
   return {
     type: 'box',
     layout: 'vertical',
@@ -1479,7 +1479,8 @@ function makeBoxButton(label, text, color, flexVal = 1) {
         color: '#ffffff',
         align: 'center',
         weight: 'bold',
-        size: 'sm'
+        size: size,
+        wrap: wrap
       }
     ],
     flex: flexVal
@@ -2873,27 +2874,8 @@ function buildRegisterClosedFlex(theme, imageUrl = null) {
           layout: 'horizontal',
           spacing: 'sm',
           contents: [
-            {
-              type: 'button',
-              action: {
-                type: 'message',
-                label: '📋 ดูรายชื่อเตะ',
-                text: '/register'
-              },
-              style: 'primary',
-              color: buttonColor,
-              height: 'sm'
-            },
-            {
-              type: 'button',
-              action: {
-                type: 'message',
-                label: '👤 รายชื่อออโต้',
-                text: '/autoreglist'
-              },
-              style: 'secondary',
-              height: 'sm'
-            }
+            makeBoxButton('📋 ดูรายชื่อเตะ', '/register', buttonColor, 1, 'xs', true),
+            makeBoxButton('👤 รายชื่อออโต้', '/autoreglist', isWhite ? '#64748b' : '#334155', 1, 'xs', true)
           ]
         }
       ]
@@ -3015,27 +2997,8 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
           layout: 'horizontal',
           spacing: 'sm',
           contents: [
-            {
-              type: 'button',
-              action: {
-                type: 'message',
-                label: '📋 ดูรายชื่อออโต้',
-                text: '/autoreglist'
-              },
-              style: 'primary',
-              color: buttonColor,
-              height: 'sm'
-            },
-            {
-              type: 'button',
-              action: {
-                type: 'message',
-                label: '➖ ยกเลิก',
-                text: '-autoreg'
-              },
-              style: 'secondary',
-              height: 'sm'
-            }
+            makeBoxButton('📋 ดูรายชื่อออโต้', '/autoreglist', buttonColor, 1, 'xs', true),
+            makeBoxButton('➖ ยกเลิก', '-autoreg', isWhite ? '#ef4444' : '#b91c1c', 1, 'xs', true)
           ]
         }
       ]
