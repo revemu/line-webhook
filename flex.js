@@ -2940,7 +2940,7 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
               contents: [
                 {
                   type: 'text',
-                  text: '🚫 รายชื่อออโต้เต็มแล้ว',
+                  text: '🚫 ลงชื่ออัตโนมัติเต็มแล้ว',
                   color: isWhite ? '#b91c1c' : '#fca5a5',
                   size: 'lg',
                   weight: 'bold'
@@ -2981,7 +2981,7 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
         // Description/Action Hint
         {
           type: 'text',
-          text: 'คุณสามารถตรวจสอบรายชื่อออโต้ในระบบ หรือกดปุ่มยกเลิกการลงชื่อออโต้ของตัวท่านเองได้ครับ',
+          text: 'คุณสามารถตรวจสอบรายชื่อทั้งหมดในระบบได้จากปุ้มด้านล่าง',
           wrap: true,
           size: 'xs',
           color: textMuted
