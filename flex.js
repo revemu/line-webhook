@@ -2940,9 +2940,9 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
               contents: [
                 {
                   type: 'text',
-                  text: '🚫 รายชื่อเต็ม',
+                  text: '🚫 รายชื่อออโต้เต็มแล้ว',
                   color: isWhite ? '#b91c1c' : '#fca5a5',
-                  size: 'xs',
+                  size: 'lg',
                   weight: 'bold'
                 }
               ]
@@ -2950,14 +2950,14 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
           ]
         },
         // Title
-        {
+        /*{
           type: 'text',
           text: 'รายชื่อลงชื่อออโต้เต็มแล้ว',
           weight: 'bold',
           size: 'lg',
           wrap: true,
           color: textPrimary
-        },
+        },*/
         // Card Container
         {
           type: 'box',
@@ -3005,23 +3005,7 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
     }
   };
 
-  const headerUrl = imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
-  if (headerUrl && headerUrl.toLowerCase() !== 'none') {
-    bubble.header = {
-      type: 'box',
-      layout: 'vertical',
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: headerUrl,
-          size: 'full',
-          aspectRatio: '20:10',
-          aspectMode: 'cover'
-        }
-      ]
-    };
-  }
+
 
   return bubble;
 }
