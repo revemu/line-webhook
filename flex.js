@@ -2997,8 +2997,7 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
           layout: 'horizontal',
           spacing: 'sm',
           contents: [
-            makeBoxButton('📋 ดูรายชื่อออโต้', '/autoreglist', buttonColor, 1, 'xs', true),
-            makeBoxButton('➖ ยกเลิก', '-autoreg', isWhite ? '#ef4444' : '#b91c1c', 1, 'xs', true)
+            makeBoxButton('📋 ดูรายชื่อออโต้', '/autoreglist', buttonColor, 1, 'xs', true)
           ]
         }
       ]
