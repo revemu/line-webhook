@@ -307,8 +307,9 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const list = await db.getAutoRegList(groupId);
             const isAlreadyRegistered = list.some(m => m.id === member_id);
             if (!isAlreadyRegistered && list.length >= 24) {
-                msg = "ไม่สามารถลงชื่อเพิ่มได้ เนื่องจากรายชื่อสมัครลงชื่ออัตโนมัติเต็มแล้ว (สูงสุด 24 คน)";
-                msg_type = 0;
+                msg = flex.buildAutoRegFullFlex(theme, autoregImageUrl);
+                altText = "รายชื่อลงชื่อออโต้เต็มแล้ว";
+                msg_type = 1;
                 break;
             }
             await db.updateMemberAutoReg(member_id, 1);
