@@ -542,18 +542,6 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             altText = "Test Carousel";
             msg_type = 1;
             break;
-        case 'test':
-            break;
-            const data1 = {
-                img_url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-                header: 'SoccerBot'
-            };
-
-            msg = flex.replacePlaceholders(flex.report_template, data1);
-            //console.log(msg) ;
-            altText = "Test Bubble";
-            msg_type = 1;
-
         default:
             if (msg == "") {
                 const theme = await db.getTheme();
