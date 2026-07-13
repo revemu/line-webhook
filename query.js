@@ -124,6 +124,35 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for member_tbl.debt:', migErr.message);
     }
 
+    // Auto-migration to add admin column to member_tbl if not exists
+    try {
+      const [columns] = await connection.query("SHOW COLUMNS FROM member_tbl LIKE 'admin'");
+      if (columns.length === 0) {
+        console.log('Adding admin column to member_tbl...');
+        await connection.query("ALTER TABLE member_tbl ADD COLUMN admin INT DEFAULT 0");
+        console.log('✅ admin column added successfully');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for member_tbl.admin:', migErr.message);
+    }
+
+    // Auto-migration to create admin_cmd_tbl if not exists
+    try {
+      console.log('Verifying admin_cmd_tbl exists...');
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS admin_cmd_tbl (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          member_id INT NOT NULL,
+          cmd VARCHAR(50) NOT NULL,
+          param TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('✅ admin_cmd_tbl verified/created successfully');
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for admin_cmd_tbl table:', migErr.message);
+    }
+
     // Auto-migration to add size column to template_tpl if not exists
     try {
       const [columns] = await connection.query("SHOW COLUMNS FROM template_tpl LIKE 'size'");
@@ -253,6 +282,11 @@ async function executeQuery(query, params = []) {
     console.log(error);
     throw error;
   }
+}
+
+async function logAdminCommand(member_id, cmd, param) {
+  const query = "INSERT INTO admin_cmd_tbl (member_id, cmd, param) VALUES (?, ?, ?)";
+  return await executeQuery(query, [member_id, cmd, param]);
 }
 
 function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge, hofAwards = {}) {
@@ -3272,5 +3306,6 @@ module.exports = {
   getAutoRegList,
   getTemplate,
   getMemberDisplayInfo,
-  getMemberStats
+  getMemberStats,
+  logAdminCommand
 };

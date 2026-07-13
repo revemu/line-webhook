@@ -1,6 +1,22 @@
 const db = require('./query');
 const flex = require('./flex');
 
+const ADMIN_COMMANDS = new Set([
+    'setmaxweek',
+    'resetteam',
+    'randomteam',
+    'setrank',
+    'theme',
+    'newweek',
+    '+pay',
+    '+pay2',
+    '-pay',
+    '+team1',
+    '+team2',
+    '+team3',
+    '+team4',
+    '-team'
+]);
 
 function getNextSaturday() {
     const date = new Date();
@@ -25,6 +41,21 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
     const pos = cmd_str.indexOf(" ");
     const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
     let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
+
+    if (ADMIN_COMMANDS.has(cmd)) {
+        if (!member || member.admin !== 1) {
+            return [{
+                type: 'text',
+                quoteToken: quoteToken,
+                text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับผู้ดูแลระบบเท่านั้น)`
+            }];
+        }
+        try {
+            await db.logAdminCommand(member.id, cmd, param);
+        } catch (logErr) {
+            console.error('⚠️ Failed to log admin command:', logErr.message);
+        }
+    }
 
     let is_flex = true;
     if (param.toLowerCase().includes('text')) {
