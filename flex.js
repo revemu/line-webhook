@@ -1954,7 +1954,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   return bubble;
 }
 
-function buildWelcomeFlex(displayName, theme, imageUrl) {
+function buildWelcomeFlex(displayName, theme, imageUrl, dateStr = '') {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
@@ -1964,7 +1964,127 @@ function buildWelcomeFlex(displayName, theme, imageUrl) {
   const cardBg = isWhite ? '#f8fafc' : '#16122d';
   const cardBorder = isWhite ? '#e2e8f0' : '#2a2a4a';
   const accentColor = isWhite ? '#15803d' : '#44cc66';
-  const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Vibrant green
+
+  const bodyContents = [
+    // Badge Row
+    {
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: isWhite ? '#e0f2fe' : '#0c4a6e',
+          cornerRadius: 'md',
+          paddingStart: 'md',
+          paddingEnd: 'md',
+          paddingTop: 'xs',
+          paddingBottom: 'xs',
+          contents: [
+            {
+              type: 'text',
+              text: 'NEW MEMBER',
+              color: isWhite ? '#0369a1' : '#38bdf8',
+              size: 'xxs',
+              weight: 'bold'
+            }
+          ]
+        }
+      ]
+    },
+    // Member Name
+    {
+      type: 'text',
+      text: displayName,
+      weight: 'bold',
+      size: '3xl',
+      color: textPrimary
+    },
+    // Welcome Text
+    {
+      type: 'text',
+      text: 'ยินดีต้อนรับเข้าร่วมทีมเตะบอลก๊วนเราครับ! ดีใจที่ได้คุณมาร่วมสนุกด้วยกัน ⚽\nคุณสามารถใช้งานเมนูบริการด้านล่างนี้ได้ทันทีครับ:',
+      wrap: true,
+      size: 'sm',
+      color: textMuted
+    },
+    {
+      type: 'separator',
+      color: colors.separator,
+      margin: 'md'
+    }
+  ];
+
+  // Section 1: ลงชื่อเตะบอล
+  const buttonRegisterColor = isWhite ? '#16a34a' : '#22c55e'; // Green
+  const buttonCancelColor = isWhite ? '#dc2626' : '#ef4444'; // Red
+
+  bodyContents.push({
+    type: 'text',
+    text: `▶ ลงชื่อสัปดาห์นี้ เสาร์ที่ ${dateStr}`,
+    size: 'sm',
+    weight: 'bold',
+    color: colors.textAccent,
+    margin: 'sm'
+  });
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'md',
+    margin: 'xs',
+    contents: [
+      makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
+      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor)
+    ]
+  });
+
+  // Section 2: ทำเนียบและสถิติ
+  const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
+  const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
+  const personalStatsColor = isWhite ? '#0284c7' : '#0ea5e9';
+
+  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+  bodyContents.push({
+    type: 'text',
+    text: '▶ ทำเนียบและสถิติ',
+    size: 'sm',
+    weight: 'bold',
+    color: colors.textAccent,
+    margin: 'sm'
+  });
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'xs',
+    contents: [
+      makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
+      makeBoxButton('📉 ทำเนียบซึมเศร้า', '/bottom', bottomStatsColor),
+      makeBoxButton('📊 สถิติส่วนตัว', '/stat', personalStatsColor)
+    ]
+  });
+
+  // Section 3: ลงทะเบียนอัตโนมัติ
+  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+  bodyContents.push({
+    type: 'text',
+    text: '▶ ลงทะเบียนอัตโนมัติ',
+    size: 'sm',
+    weight: 'bold',
+    color: colors.textAccent,
+    margin: 'sm'
+  });
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'xs',
+    contents: [
+      makeBoxButton('📋 รายชื่อ', '/autoreglist', topStatsColor),
+      makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor),
+      makeBoxButton('➖ ยกเลิก', '-autoreg', buttonCancelColor)
+    ]
+  });
 
   const bubble = {
     type: 'bubble',
@@ -1975,93 +2095,7 @@ function buildWelcomeFlex(displayName, theme, imageUrl) {
       backgroundColor: bgMain,
       spacing: 'md',
       paddingAll: 'lg',
-      contents: [
-        // Badge Row
-        {
-          type: 'box',
-          layout: 'horizontal',
-          contents: [
-            {
-              type: 'box',
-              layout: 'vertical',
-              backgroundColor: isWhite ? '#e0f2fe' : '#0c4a6e',
-              cornerRadius: 'md',
-              paddingStart: 'md',
-              paddingEnd: 'md',
-              paddingTop: 'xs',
-              paddingBottom: 'xs',
-              contents: [
-                {
-                  type: 'text',
-                  text: 'NEW MEMBER',
-                  color: isWhite ? '#0369a1' : '#38bdf8',
-                  size: 'xxs',
-                  weight: 'bold'
-                }
-              ]
-            }
-          ]
-        },
-        // Member Name
-        {
-          type: 'text',
-          text: displayName,
-          weight: 'bold',
-          size: '3xl',
-          color: textPrimary
-        },
-        // Welcome Text
-        {
-          type: 'text',
-          text: 'ยินดีต้อนรับเข้าร่วมทีมเตะบอลก๊วนเราครับ! ดีใจที่ได้คุณมาร่วมสนุกด้วยกัน ขอให้สนุกกับการเล่นฟุตบอลนะครับ ⚽',
-          wrap: true,
-          size: 'sm',
-          color: textMuted
-        },
-        {
-          type: 'separator',
-          color: isWhite ? '#e2e8f0' : '#2a2a4a',
-          margin: 'md'
-        },
-        // Quick Action Box
-        {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: cardBg,
-          borderColor: cardBorder,
-          borderWidth: 'normal',
-          cornerRadius: 'md',
-          paddingAll: 'md',
-          spacing: 'xs',
-          contents: [
-            {
-              type: 'text',
-              text: '⚡ ลงชื่อเล่นสัปดาห์นี้',
-              weight: 'bold',
-              size: 'sm',
-              color: accentColor
-            },
-            {
-              type: 'text',
-              text: 'กดปุ่มลงชื่อด้านล่าง หรือพิมพ์ +1 เพื่อบันทึกรายชื่อของคุณเข้าตารางเล่นของสัปดาห์นี้ทันที',
-              wrap: true,
-              size: 'xs',
-              color: textMuted
-            }
-          ]
-        },
-        // Action Button
-        {
-          type: 'box',
-          layout: 'horizontal',
-          margin: 'sm',
-          contents: [
-            { type: 'filler' },
-            makeBoxButton('👍 ลงชื่อเข้าเล่น (+1)', '+1', buttonColor, 4),
-            { type: 'filler' }
-          ]
-        }
-      ]
+      contents: bodyContents
     }
   };
 
@@ -3047,10 +3081,32 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
   return bubble;
 }
 
-function buildMenuFlex(dateStr, theme) {
+function buildMenuFlex(dateStr, theme, title = null) {
   const bodyContents = [];
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
+
+  if (title) {
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: isWhite ? '#fee2e2' : '#7f1d1d',
+      borderColor: isWhite ? '#fecaca' : '#991b1b',
+      borderWidth: 'normal',
+      cornerRadius: 'md',
+      paddingAll: 'md',
+      contents: [
+        {
+          type: 'text',
+          text: title,
+          wrap: true,
+          size: 'xs',
+          color: isWhite ? '#b91c1c' : '#fca5a5',
+          weight: 'bold'
+        }
+      ]
+    });
+  }
 
   // Section 1: ลงชื่อเตะบอล
   const buttonRegisterColor = isWhite ? '#16a34a' : '#22c55e'; // Green

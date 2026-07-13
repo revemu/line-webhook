@@ -552,9 +552,14 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             msg_type = 1;
             break;
         default:
-            if (msg == "")
-                msg = "ไม่รู้จักคำสั่งนี้"
-
+            if (msg == "") {
+                const theme = await db.getTheme();
+                const week = await db.queryWeekID(0);
+                const dateStr = week.length > 0 ? week[0].date : '';
+                msg = flex.buildMenuFlex(dateStr, theme, 'ไม่รู้จักคำสั่งนี้');
+                altText = "ไม่รู้จักคำสั่งนี้";
+                msg_type = 1;
+            }
             break;
     }
     if (msg == '') return;

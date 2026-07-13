@@ -227,9 +227,11 @@ async function handleJoinedMember(event) {
                     console.log(`add new member ${member.userId}: ${line_name}`);
                     await db.newMember(member.userId, line_name);
                     const theme = await db.getTheme();
+                    const week = await db.queryWeekID(0);
+                    const dateStr = week.length > 0 ? week[0].date : '';
                     const welcomeTpl = await db.getTemplate('welcome', 'header');
                     const welcomeImageUrl = welcomeTpl ? welcomeTpl.url : null;
-                    const welcomeBubble = flex.buildWelcomeFlex(line_name, theme, welcomeImageUrl);
+                    const welcomeBubble = flex.buildWelcomeFlex(line_name, theme, welcomeImageUrl, dateStr);
                     const replyMessages = [
                         {
                             type: 'flex',
