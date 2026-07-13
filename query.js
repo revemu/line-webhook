@@ -139,7 +139,7 @@ async function testConnection() {
     // Auto-migration to create admin_cmd_tbl if not exists
     try {
       console.log('Verifying admin_cmd_tbl exists...');
-      
+
       // Check if old schema table exists and drop it
       try {
         const [columns] = await connection.query("SHOW COLUMNS FROM admin_cmd_tbl LIKE 'member_id'");
@@ -1238,17 +1238,17 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     if (matches.length > 0) {
       const theme = await getTheme();
       const colors = flex.getThemeColors(theme);
-       const imgTpl = await getTemplate('matchweek', 'header');
-       let headerUrl = imgTpl && imgTpl.url ? imgTpl.url.trim() : null;
-       if (headerUrl && headerUrl.toLowerCase() !== 'none') {
-         if (!headerUrl.startsWith('http://') && !headerUrl.startsWith('https://')) {
-           const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-           headerUrl = headerUrl.startsWith('/') ? `${baseUrl}${headerUrl}` : `${baseUrl}/${headerUrl}`;
-         }
-         if (headerUrl.startsWith('http://')) {
-           headerUrl = headerUrl.replace('http://', 'https://');
-         }
-       }
+      const imgTpl = await getTemplate('matchweek', 'header');
+      let headerUrl = imgTpl && imgTpl.url ? imgTpl.url.trim() : null;
+      if (headerUrl && headerUrl.toLowerCase() !== 'none') {
+        if (!headerUrl.startsWith('http://') && !headerUrl.startsWith('https://')) {
+          const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+          headerUrl = headerUrl.startsWith('/') ? `${baseUrl}${headerUrl}` : `${baseUrl}/${headerUrl}`;
+        }
+        if (headerUrl.startsWith('http://')) {
+          headerUrl = headerUrl.replace('http://', 'https://');
+        }
+      }
 
       const date = new Date(res[0].date);
       const date_str = await getFormatDate(date);
@@ -2215,7 +2215,7 @@ ORDER BY pts DESC limit ${limit}`;
     // ── Rank rows ──
     const rankIcons = ['🥇', '🥈', '🥉'];
     result.forEach((member, i) => {
-    const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+      const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
 
       let valText = "";
       if (type == 4) {
@@ -2413,7 +2413,8 @@ async function getDebtList(type = 0) {
     }
 
   }
-  debt_str += "** ข้อความแจ้งเตือนวันละครั้ง **";
+  debt_str += "** ข้อความแจ้งเตือนวันละครั้ง **\n";
+  debt_str += "สมาชิกจะยังลงชื่อไม่ได้ในสัปดาห์นี้ และจะไม่ถูกเพิ่มจากการลงทะเบียนอัตโนมัติ ถ้ามีการเปิดสัปดาห์ใหม่";
   return [debt_str, sub, debt_count, proceed];
 
 }

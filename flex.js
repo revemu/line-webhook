@@ -3118,7 +3118,7 @@ function buildMenuFlex(dateStr, theme, title = null) {
     size: 'sm',
     weight: 'bold',
     color: colors.textAccent,
-    margin: 'sm'
+    margin: title ? 'sm' : 'none'
   });
   bodyContents.push({
     type: 'box',
