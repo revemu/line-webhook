@@ -1858,7 +1858,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
   bodyContents.push({
     type: 'text',
-    text: '▶ ลงชื่อสัปดาห์นี้ เสาร์ที่ ${dateStr}',
+    text: `▶ ลงชื่อสัปดาห์นี้ เสาร์ที่ ${dateStr}`,
     size: 'sm',
     weight: 'bold',
     color: colors.textAccent,
