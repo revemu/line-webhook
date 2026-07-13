@@ -1857,10 +1857,18 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
 
   bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
   bodyContents.push({
+    type: 'text',
+    text: '▶ เมนูทำรายการ',
+    size: 'sm',
+    weight: 'bold',
+    color: colors.textAccent,
+    margin: 'sm'
+  });
+  bodyContents.push({
     type: 'box',
     layout: 'horizontal',
     spacing: 'md',
-    margin: 'md',
+    margin: 'xs',
     contents: [
       makeBoxButton('👍 ลงชื่อ (+1)', '+1', buttonRegisterColor),
       makeBoxButton('❌ ยกเลิก (-1)', '-1', buttonCancelColor)
