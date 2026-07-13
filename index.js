@@ -390,11 +390,11 @@ async function handleTextMessage(event, member) {
             const [debt_str, sub, debt_count, proceed] = await db.getDebtList(0);
             if (proceed && debt_count > 0) {
                 console.log(`once a day debt call!`);
-                await replyMessage(replyToken, {
+                /*await replyMessage(replyToken, {
                     type: 'textV2',
                     text: debt_str,
                     substitution: sub
-                });
+                });*/
             }
         }
     }
