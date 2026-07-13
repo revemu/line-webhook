@@ -1858,7 +1858,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
   bodyContents.push({
     type: 'text',
-    text: '▶ เมนูทำรายการ',
+    text: '▶ ลงชื่อเตะบอล',
     size: 'sm',
     weight: 'bold',
     color: colors.textAccent,
@@ -1879,6 +1879,15 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
   const personalStatsColor = isWhite ? '#0284c7' : '#0ea5e9';
 
+  bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+  bodyContents.push({
+    type: 'text',
+    text: '▶ ทำเนียบและสถิติ',
+    size: 'sm',
+    weight: 'bold',
+    color: colors.textAccent,
+    margin: 'sm'
+  });
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
@@ -1891,14 +1900,24 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     ]
   });
 
+  bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+  bodyContents.push({
+    type: 'text',
+    text: '▶ ลงทะเบียนอัตโนมัติ',
+    size: 'sm',
+    weight: 'bold',
+    color: colors.textAccent,
+    margin: 'sm'
+  });
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
     spacing: 'sm',
     margin: 'xs',
     contents: [
-      makeBoxButton('📋 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', topStatsColor),
-      makeBoxButton('📉 ลงทะเบียนอัตโนมัติ', '+autoreg', bottomStatsColor)
+      makeBoxButton('📋 รายชื่อ', '/autoreglist', topStatsColor),
+      makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor),
+      makeBoxButton('➖ ยกเลิก', '-autoreg', buttonCancelColor)
     ]
   });
 
