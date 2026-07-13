@@ -105,6 +105,25 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for member_tbl.picture_url:', migErr.message);
     }
 
+    // Auto-migration to rename power to debt in member_tbl if power exists and debt does not
+    try {
+      const [debtCols] = await connection.query("SHOW COLUMNS FROM member_tbl LIKE 'debt'");
+      if (debtCols.length === 0) {
+        const [powerCols] = await connection.query("SHOW COLUMNS FROM member_tbl LIKE 'power'");
+        if (powerCols.length > 0) {
+          console.log('Renaming power column to debt in member_tbl...');
+          await connection.query("ALTER TABLE member_tbl CHANGE COLUMN power debt INT DEFAULT 0");
+          console.log('✅ power column renamed to debt successfully');
+        } else {
+          console.log('Adding debt column to member_tbl...');
+          await connection.query("ALTER TABLE member_tbl ADD COLUMN debt INT DEFAULT 0");
+          console.log('✅ debt column added successfully');
+        }
+      }
+    } catch (migErr) {
+      console.error('⚠️ Database migration failed for member_tbl.debt:', migErr.message);
+    }
+
     // Auto-migration to add size column to template_tpl if not exists
     try {
       const [columns] = await connection.query("SHOW COLUMNS FROM template_tpl LIKE 'size'");
@@ -441,7 +460,7 @@ async function resetMemberTeam() {
 }
 
 async function newMember(lineID, name, pictureUrl = null) {
-  const query = "insert into member_tbl (name, power, donate, team_id, alias, line_user_id, week_id, picture_url) values(?, 0, 0, 0, ?, ?, 0, ?)";
+  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, week_id, picture_url) values(?, 0, 0, 0, ?, ?, 0, ?)";
   const res = await executeQuery(query, [name, name.replace('@', ''), lineID, pictureUrl]);
   return res;
 }
@@ -577,10 +596,14 @@ async function newWeek(week_date) {
     //return res ;
     const new_week_id = res.insertId;
 
-    // Auto-register members with auto_reg = 1
+    // Auto-register members with auto_reg = 1, excluding those with outstanding debt
     try {
-      const autoRegMembers = await executeQuery("SELECT id, name FROM member_tbl WHERE auto_reg = 1");
+      const autoRegMembers = await executeQuery("SELECT id, name, debt FROM member_tbl WHERE auto_reg = 1");
       for (const member of autoRegMembers) {
+        if (member.debt > 0) {
+          console.log(`[Auto-Reg] Skipped ${member.name} (ID: ${member.id}) due to outstanding debt of ${member.debt} baht`);
+          continue;
+        }
         // Check if member is already registered for this week to avoid duplicates
         const existQuery = "SELECT 1 FROM member_team_week_tbl WHERE week_id = ? AND member_id = ?";
         const existRes = await executeQuery(existQuery, [new_week_id, member.id]);
@@ -614,7 +637,7 @@ async function updateMaxNumberWeek(max_number = 24) {
 async function updateMemberDebt(member_id) {
   let query1 = ""
 
-  query1 = "update member_tbl set power=0 where id=?";
+  query1 = "update member_tbl set debt=0 where id=?";
   const res1 = await executeQuery(query1, [member_id]);
 
   //console.log(res) ;
@@ -629,7 +652,7 @@ async function updateMemberWeek(member_id, value, type = 0) {
     let query1 = ""
     if (type == 0) {
       query = "update member_team_week_tbl set pay=? where member_id=? and week_id=?";
-      query1 = "update member_tbl set power=? where id=?";
+      query1 = "update member_tbl set debt=? where id=?";
       const res1 = await executeQuery(query1, [0, member_id]);
     } else if (type == 1) {
       query = "update member_team_week_tbl set team_id=? where member_id=? and week_id=?";
@@ -721,7 +744,7 @@ async function registerMember(member_id, member_name) {
     const check = "SELECT * from member_tbl where id=?";
     const check_res = await executeQuery(check, [member_id]);
     if (check_res.length > 0) {
-      const debt = check_res[0].power;
+      const debt = check_res[0].debt;
       console.log(`ยอดค้าง ${debt}`);
       if (debt > 0) return debt;
     }
@@ -1820,14 +1843,14 @@ async function getMemberWeek(type = 0) {
       start = "+"
     }
 
-    /*const check = `SELECT * from member_tbl where power > 0`;
+    /*const check = `SELECT * from member_tbl where debt > 0`;
     const check_res = await executeQuery(check);
     let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
     let debt_count = 0;
     if (check_res.length > 0) {
       for (const member of check_res) {
         debt_count++;
-        debt_str += `${debt_count}. ${member.name} - ${member.power}บาท\n`;
+        debt_str += `${debt_count}. ${member.name} - ${member.debt}บาท\n`;
       }
     }*/
 
@@ -1905,7 +1928,7 @@ async function getMemberWeek2(type = 0) {
   if (res.length > 0) {
     const week_id = res[0].id;
     const date = new Date(res[0].date);
-    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.power, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and member_tbl.team_id <> 1";
@@ -1932,7 +1955,7 @@ async function getMemberWeek2(type = 0) {
         let donate = '';
         let member_name = member.name;
         if (type == 1) {
-          if (member.power == 1000) {
+          if (member.debt == 1000) {
             goal++;
             goal_str += (goal) + ". " + donate + member_name + "\n";
           } else {
@@ -2304,7 +2327,7 @@ async function getDebtList(type = 0) {
   }
 
   if (proceed) {
-    const check = `SELECT * from member_tbl where power > 0`;
+    const check = `SELECT * from member_tbl where debt > 0`;
     const check_res = await executeQuery(check);
 
     if (check_res.length > 0) {
@@ -2314,7 +2337,7 @@ async function getDebtList(type = 0) {
         let line_id = member.line_user_id;
         if (line_id != null && line_id != "") {
           name = `user${debt_count}`;
-          debt_str += `${debt_count}. {${name}} - ${member.power} บาท\n`;
+          debt_str += `${debt_count}. {${name}} - ${member.debt} บาท\n`;
           sub[name] = {
             "type": "mention",
             "mentionee":
@@ -2324,7 +2347,7 @@ async function getDebtList(type = 0) {
             }
           };
         } else {
-          debt_str += `${debt_count}. ${name} - ${member.power} บาท\n`;
+          debt_str += `${debt_count}. ${name} - ${member.debt} บาท\n`;
         }
       }
       if (type == 0) {

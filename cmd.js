@@ -13,6 +13,15 @@ function getNextSaturday() {
 }
 
 async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
+    if (member && member.debt > 0) {
+        const displayName = (member.name || '').replace('@', '');
+        return [{
+            type: 'text',
+            quoteToken: quoteToken,
+            text: `ขออภัย ${displayName} ยังมียอดค้างชำระ ${member.debt} บาท ไม่สามารถใช้งานคำสั่งได้`
+        }];
+    }
+
     const pos = cmd_str.indexOf(" ");
     const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
     let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
