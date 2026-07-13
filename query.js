@@ -139,16 +139,39 @@ async function testConnection() {
     // Auto-migration to create admin_cmd_tbl if not exists
     try {
       console.log('Verifying admin_cmd_tbl exists...');
+      
+      // Check if old schema table exists and drop it
+      try {
+        const [columns] = await connection.query("SHOW COLUMNS FROM admin_cmd_tbl LIKE 'member_id'");
+        if (columns.length > 0) {
+          console.log('Dropping old admin_cmd_tbl table to apply new schema...');
+          await connection.query("DROP TABLE admin_cmd_tbl");
+        }
+      } catch (e) {
+        // Table might not exist yet, which is fine
+      }
+
       await connection.query(`
         CREATE TABLE IF NOT EXISTS admin_cmd_tbl (
           id INT AUTO_INCREMENT PRIMARY KEY,
-          member_id INT NOT NULL,
-          cmd VARCHAR(50) NOT NULL,
-          param TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          cmd VARCHAR(50) UNIQUE NOT NULL
         )
       `);
       console.log('✅ admin_cmd_tbl verified/created successfully');
+
+      // Pre-populate default admin commands if empty
+      const [existingCmds] = await connection.query("SELECT 1 FROM admin_cmd_tbl LIMIT 1");
+      if (existingCmds.length === 0) {
+        console.log('Pre-populating admin_cmd_tbl with default admin commands...');
+        const defaultCmds = [
+          'setmaxweek', 'resetteam', 'randomteam', 'setrank', 'theme', 'newweek',
+          '+pay', '+pay2', '-pay', '+team1', '+team2', '+team3', '+team4', '-team'
+        ];
+        for (const cmdName of defaultCmds) {
+          await connection.query("INSERT IGNORE INTO admin_cmd_tbl (cmd) VALUES (?)", [cmdName]);
+        }
+        console.log('✅ Default admin commands populated successfully');
+      }
     } catch (migErr) {
       console.error('⚠️ Database migration failed for admin_cmd_tbl table:', migErr.message);
     }
@@ -284,9 +307,9 @@ async function executeQuery(query, params = []) {
   }
 }
 
-async function logAdminCommand(member_id, cmd, param) {
-  const query = "INSERT INTO admin_cmd_tbl (member_id, cmd, param) VALUES (?, ?, ?)";
-  return await executeQuery(query, [member_id, cmd, param]);
+async function getAdminCommands() {
+  const results = await executeQuery("SELECT cmd FROM admin_cmd_tbl");
+  return results.map(r => r.cmd);
 }
 
 function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge, hofAwards = {}) {
@@ -3307,5 +3330,5 @@ module.exports = {
   getTemplate,
   getMemberDisplayInfo,
   getMemberStats,
-  logAdminCommand
+  getAdminCommands
 };
