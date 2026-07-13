@@ -399,6 +399,15 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             await db.newWeek(next_sat);
             // falls through
         }
+        case 'menu': {
+            const theme = await db.getTheme();
+            const week = await db.queryWeekID(0);
+            const dateStr = week.length > 0 ? week[0].date : '';
+            msg = flex.buildMenuFlex(dateStr, theme);
+            altText = "เมนูบริการของบอท";
+            msg_type = 1;
+            break;
+        }
         case 'register':
         case 'join':
         case 'play':

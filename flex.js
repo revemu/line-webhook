@@ -3047,6 +3047,97 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
   return bubble;
 }
 
+function buildMenuFlex(dateStr, theme) {
+  const bodyContents = [];
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+
+  // Section 1: ลงชื่อเตะบอล
+  const buttonRegisterColor = isWhite ? '#16a34a' : '#22c55e'; // Green
+  const buttonCancelColor = isWhite ? '#dc2626' : '#ef4444'; // Red
+
+  bodyContents.push({
+    type: 'text',
+    text: `▶ ลงชื่อสัปดาห์นี้ เสาร์ที่ ${dateStr}`,
+    size: 'sm',
+    weight: 'bold',
+    color: colors.textAccent,
+    margin: 'sm'
+  });
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'md',
+    margin: 'xs',
+    contents: [
+      makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
+      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor)
+    ]
+  });
+
+  // Section 2: ทำเนียบและสถิติ
+  const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
+  const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
+  const personalStatsColor = isWhite ? '#0284c7' : '#0ea5e9';
+
+  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+  bodyContents.push({
+    type: 'text',
+    text: '▶ ทำเนียบและสถิติ',
+    size: 'sm',
+    weight: 'bold',
+    color: colors.textAccent,
+    margin: 'sm'
+  });
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'xs',
+    contents: [
+      makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
+      makeBoxButton('📉 ทำเนียบซึมเศร้า', '/bottom', bottomStatsColor),
+      makeBoxButton('📊 สถิติส่วนตัว', '/stat', personalStatsColor)
+    ]
+  });
+
+  // Section 3: ลงทะเบียนอัตโนมัติ
+  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+  bodyContents.push({
+    type: 'text',
+    text: '▶ ลงทะเบียนอัตโนมัติ',
+    size: 'sm',
+    weight: 'bold',
+    color: colors.textAccent,
+    margin: 'sm'
+  });
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'xs',
+    contents: [
+      makeBoxButton('📋 รายชื่อ', '/autoreglist', topStatsColor),
+      makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor),
+      makeBoxButton('➖ ยกเลิก', '-autoreg', buttonCancelColor)
+    ]
+  });
+
+  const bubble = {
+    type: 'bubble',
+    size: 'giga',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'md',
+      contents: bodyContents
+    }
+  };
+
+  return bubble;
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -3063,5 +3154,6 @@ module.exports = {
   buildRegisterClosedFlex,
   buildAutoRegFullFlex,
   buildMemberStatsFlex,
-  getThemeColors
+  getThemeColors,
+  buildMenuFlex
 };
