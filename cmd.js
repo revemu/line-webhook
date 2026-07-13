@@ -539,6 +539,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             msg = carousel;
             console.log(msg);
 
+            altText = "Test Carousel";
             msg_type = 1;
             break;
         case 'test':
@@ -549,6 +550,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
 
             msg = flex.replacePlaceholders(flex.report_template, data1);
             //console.log(msg) ;
+            altText = "Test Bubble";
             msg_type = 1;
             break;
         default:
