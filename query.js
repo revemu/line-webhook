@@ -2652,33 +2652,44 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     return false;
   }
 
-  backtrack(0);
-
   let matchups = [];
-  if (bestSchedule) {
-    matchups = bestSchedule;
-  } else {
-    // Fallback: original rotating anchor generator
-    console.warn('[schedule] Backtracking solver found no solution, using fallback rotating anchor pool.');
-    const pool = [];
-    let poolRound = 0;
-    while (pool.length < maxMatches) {
-      const anchor = poolRound % numTeams;
-      const others = Array.from({ length: numTeams }, (_, i) => (anchor + 2 + i) % numTeams)
-        .filter(t => t !== anchor);
-
-      for (let j = 0; j < others.length && pool.length < maxMatches; j++) {
-        const opp = others[j];
-        const pair = others.filter((_, k) => k !== j);
-
-        pool.push([anchor, opp]);
-        if (pool.length < maxMatches) {
-          pool.push([pair[0], pair[1]]);
-        }
-      }
-      poolRound++;
+  if (numTeams === 3) {
+    const cycle = [
+      [0, 1],
+      [1, 2],
+      [2, 0]
+    ];
+    for (let i = 0; i < maxMatches; i++) {
+      matchups.push([...cycle[i % 3]]);
     }
-    matchups = pool;
+  } else {
+    backtrack(0);
+
+    if (bestSchedule) {
+      matchups = bestSchedule;
+    } else {
+      // Fallback: original rotating anchor generator
+      console.warn('[schedule] Backtracking solver found no solution, using fallback rotating anchor pool.');
+      const pool = [];
+      let poolRound = 0;
+      while (pool.length < maxMatches) {
+        const anchor = poolRound % numTeams;
+        const others = Array.from({ length: numTeams }, (_, i) => (anchor + 2 + i) % numTeams)
+          .filter(t => t !== anchor);
+
+        for (let j = 0; j < others.length && pool.length < maxMatches; j++) {
+          const opp = others[j];
+          const pair = others.filter((_, k) => k !== j);
+
+          pool.push([anchor, opp]);
+          if (pool.length < maxMatches) {
+            pool.push([pair[0], pair[1]]);
+          }
+        }
+        poolRound++;
+      }
+      matchups = pool;
+    }
   }
 
   // Post-process matchups to ensure consecutive playing teams remain on the same side (Left or Right)
