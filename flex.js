@@ -2334,18 +2334,18 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   let bodyContents = [];
 
   if (action === 'list') {
-    badgeText = '👤 สมาชิกลงชื่ออัตโนมัติ';
+    badgeText = '👤 สมาชิกลงทะเบียนอัตโนมัติ';
     badgeBg = isWhite ? '#e0f2fe' : '#0c4a6e';
     badgeTextColor = isWhite ? '#0369a1' : '#38bdf8';
-    title = 'สมาชิกลงชื่ออัตโนมัติ';
+    title = 'สมาชิกลงทะเบียนอัตโนมัติ';
   } else if (action === 'add') {
-    badgeText = '✅ สมัครลงชื่ออัตโนมัติสำเร็จ';
+    badgeText = '✅ สมัครลงทะเบียนอัตโนมัติสำเร็จ';
     badgeBg = isWhite ? '#dcfce7' : '#064e3b';
     badgeTextColor = isWhite ? '#15803d' : '#4ade80';
-    title = 'สมัครลงชื่ออัตโนมัติสำเร็จ';
+    title = 'สมัครลงทะเบียนอัตโนมัติสำเร็จ';
 
     const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
-    description = `เพิ่มคุณ ${displayMember.name} ในรายชื่อลงชื่ออัตโนมัติสำเร็จแล้ว\n\nระบบจะลงชื่อเข้าเล่นให้คุณโดยอัตโนมัติ เมื่อมีการเปิดรอบสัปดาห์ใหม่ ⚽`;
+    description = `เพิ่มคุณ ${displayMember.name} ในรายชื่อลงทะเบียนอัตโนมัติสำเร็จแล้ว\n\nระบบจะลงชื่อเข้าเล่นให้คุณโดยอัตโนมัติ เมื่อมีการเปิดรอบสัปดาห์ใหม่ ⚽`;
 
     bodyContents.push({
       type: 'text',
@@ -2356,13 +2356,13 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       margin: 'md'
     });
   } else if (action === 'remove') {
-    badgeText = '❌ ยกเลิกลงชื่ออัตโนมัติ';
+    badgeText = '❌ ยกเลิกลงทะเบียนอัตโนมัติ';
     badgeBg = isWhite ? '#fee2e2' : '#7f1d1d';
     badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
-    title = 'ยกเลิกลงชื่ออัตโนมัติ';
+    title = 'ยกเลิกลงทะเบียนอัตโนมัติ';
 
     const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
-    description = `นำคุณ ${displayMember.name} ออกจากรายชื่อลงชื่ออัตโนมัติเรียบร้อยแล้ว`;
+    description = `นำคุณ ${displayMember.name} ออกจากรายชื่อลงทะเบียนอัตโนมัติเรียบร้อยแล้ว`;
 
     bodyContents.push({
       type: 'text',
@@ -2373,13 +2373,13 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       margin: 'md'
     });
   } else if (action === 'already') {
-    badgeText = 'ℹ️ ลงชื่ออัตโนมัติอยู่แล้ว';
+    badgeText = 'ℹ️ สมัครลงทะเบียนอัตโนมัติไว้อยู่แล้ว';
     badgeBg = isWhite ? '#fef3c7' : '#78350f';
     badgeTextColor = isWhite ? '#b45309' : '#f59e0b';
-    title = 'ลงชื่ออัตโนมัติอยู่แล้ว';
+    title = 'สมัครลงทะเบียนอัตโนมัติไว้อยู่แล้ว';
 
     const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
-    description = `คุณ ${displayMember.name} มีรายชื่ออยู่ในระบบลงชื่ออัตโนมัติอยู่แล้วครับ ⚽`;
+    description = `คุณ ${displayMember.name} สมัครลงทะเบียนอัตโนมัติไว้อยู่แล้วครับ`;
 
     bodyContents.push({
       type: 'text',
@@ -2390,12 +2390,12 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       margin: 'md'
     });
   } else if (action === 'full') {
-    badgeText = '🚫 ลงชื่ออัตโนมัติเต็มแล้ว';
+    badgeText = '🚫 ไม่สามารถลงทะเบียนอัตโนมัติได้';
     badgeBg = isWhite ? '#fee2e2' : '#7f1d1d';
     badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
-    title = 'ลงชื่ออัตโนมัติเต็มแล้ว';
+    title = 'ไม่สามารถลงทะเบียนอัตโนมัติได้';
 
-    description = 'ไม่สามารถสมัครลงชื่ออัตโนมัติได้ เนื่องจากโควตาเต็มแล้ว (สูงสุด 24 คน) ⚽';
+    description = 'ไม่สามารถลงทะเบียนอัตโนมัติได้ เนื่องจากโควตาเต็มแล้ว (สูงสุด 24 คน) ⚽';
 
     bodyContents.push({
       type: 'text',
@@ -2411,7 +2411,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   if (!list || list.length === 0) {
     bodyContents.push({
       type: 'text',
-      text: 'ไม่มีสมาชิกในระบบลงชื่ออัตโนมัติ',
+      text: 'ไม่มีสมาชิกในระบบลงทะเบียนอัตโนมัติ',
       color: textMuted,
       size: 'sm',
       style: 'italic',
