@@ -2386,15 +2386,37 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       margin: 'md'
     });
   } else {
-    // List each member with badge and color
-    const listContents = list.map((m, idx) => {
-      const isCurrent = displayMember && m.id === displayMember.id;
-      const col = makeMemberColumn(m, idx + 1, colors, isCurrent);
-      if (idx > 0) {
-        col.margin = 'sm';
+    // List each member with badge and color in 2 columns
+    const rows = [];
+    for (let i = 0; i < list.length; i += 2) {
+      const m1 = list[i];
+      const m2 = list[i + 1];
+
+      const isCurrent1 = displayMember && m1.id === displayMember.id;
+      const col1 = makeMemberColumn(m1, i + 1, colors, isCurrent1);
+
+      const cols = [col1];
+
+      if (m2) {
+        const isCurrent2 = displayMember && m2.id === displayMember.id;
+        const col2 = makeMemberColumn(m2, i + 2, colors, isCurrent2);
+        cols.push(col2);
+      } else {
+        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
       }
-      return col;
-    });
+
+      const rowObj = {
+        type: 'box',
+        layout: 'horizontal',
+        contents: cols
+      };
+
+      if (i > 0) {
+        rowObj.margin = 'sm';
+      }
+
+      rows.push(rowObj);
+    }
 
     bodyContents.push({
       type: 'box',
@@ -2405,7 +2427,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       cornerRadius: 'md',
       paddingAll: 'md',
       margin: 'md',
-      contents: listContents
+      contents: rows
     });
   }
 
