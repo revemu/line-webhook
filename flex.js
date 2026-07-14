@@ -2372,6 +2372,39 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       color: textMuted,
       margin: 'md'
     });
+  } else if (action === 'already') {
+    badgeText = 'ℹ️ ลงชื่ออัตโนมัติอยู่แล้ว';
+    badgeBg = isWhite ? '#fef3c7' : '#78350f';
+    badgeTextColor = isWhite ? '#b45309' : '#f59e0b';
+    title = 'ลงชื่ออัตโนมัติอยู่แล้ว';
+
+    const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
+    description = `คุณ ${displayMember.name} มีรายชื่ออยู่ในระบบลงชื่ออัตโนมัติอยู่แล้วครับ ⚽`;
+
+    bodyContents.push({
+      type: 'text',
+      text: description,
+      wrap: true,
+      size: 'sm',
+      color: textMuted,
+      margin: 'md'
+    });
+  } else if (action === 'full') {
+    badgeText = '🚫 ลงชื่ออัตโนมัติเต็มแล้ว';
+    badgeBg = isWhite ? '#fee2e2' : '#7f1d1d';
+    badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
+    title = 'ลงชื่ออัตโนมัติเต็มแล้ว';
+
+    description = 'ไม่สามารถสมัครลงชื่ออัตโนมัติได้ เนื่องจากโควตาเต็มแล้ว (สูงสุด 24 คน) ⚽';
+
+    bodyContents.push({
+      type: 'text',
+      text: description,
+      wrap: true,
+      size: 'sm',
+      color: textMuted,
+      margin: 'md'
+    });
   }
 
   const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
@@ -2444,7 +2477,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
         makeBoxButton('➖ ยกเลิก', '-autoreg', isWhite ? '#ef4444' : '#b91c1c')
       ]
     });
-  } else if (action === 'add') {
+  } else if (action === 'add' || action === 'already' || action === 'full') {
     footerButtons.push({
       type: 'box',
       layout: 'horizontal',

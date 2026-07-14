@@ -330,15 +330,22 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             }
             const list = await db.getAutoRegList(groupId);
             const isAlreadyRegistered = list.some(m => m.id === member_id);
-            if (!isAlreadyRegistered && list.length >= 24) {
-                msg = flex.buildAutoRegFullFlex(theme, autoregImageUrl);
+            if (isAlreadyRegistered) {
+                const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
+                msg = flex.buildAutoRegFlex('already', memberInfo, list, theme, autoregImageUrl);
+                altText = `ลงชื่ออัตโนมัติอยู่แล้ว: ${member_name}`;
+                msg_type = 1;
+                break;
+            }
+            if (list.length >= 24) {
+                msg = flex.buildAutoRegFlex('full', null, list, theme, autoregImageUrl);
                 altText = "รายชื่อลงชื่อออโต้เต็มแล้ว";
                 msg_type = 1;
                 break;
             }
             await db.updateMemberAutoReg(member_id, 1);
             const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
-            const updatedList = isAlreadyRegistered ? list : await db.getAutoRegList(groupId);
+            const updatedList = await db.getAutoRegList(groupId);
             msg = flex.buildAutoRegFlex('add', memberInfo, updatedList, theme, autoregImageUrl);
             altText = `สมัครลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
             msg_type = 1;
