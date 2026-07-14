@@ -1818,8 +1818,26 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     });
 
     const reserveRows = [];
-    for (let i = 0; i < reserves.length; i++) {
-      reserveRows.push(makeMemberColumn(reserves[i], i + 1, colors));
+    for (let i = 0; i < reserves.length; i += 2) {
+      const r1 = reserves[i];
+      const r2 = reserves[i + 1];
+
+      const cols = [
+        makeMemberColumn(r1, i + 1, colors)
+      ];
+
+      if (r2) {
+        cols.push(makeMemberColumn(r2, i + 2, colors));
+      } else {
+        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
+      }
+
+      reserveRows.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        contents: cols
+      });
     }
     bodyContents.push({
       type: 'box',
@@ -1841,8 +1859,26 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     });
 
     const goalieRows = [];
-    for (let i = 0; i < goalies.length; i++) {
-      goalieRows.push(makeMemberColumn(goalies[i], i + 1, colors));
+    for (let i = 0; i < goalies.length; i += 2) {
+      const g1 = goalies[i];
+      const g2 = goalies[i + 1];
+
+      const cols = [
+        makeMemberColumn(g1, i + 1, colors)
+      ];
+
+      if (g2) {
+        cols.push(makeMemberColumn(g2, i + 2, colors));
+      } else {
+        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
+      }
+
+      goalieRows.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'xs',
+        contents: cols
+      });
     }
     bodyContents.push({
       type: 'box',
