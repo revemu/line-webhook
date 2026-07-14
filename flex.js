@@ -2448,7 +2448,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
 
   const bubble = {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     body: {
       type: 'box',
       layout: 'vertical',
