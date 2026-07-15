@@ -310,6 +310,44 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             }
             msg_type = 0;
             break;
+        case 'setcost': {
+            if (param === "") {
+                msg = "กรุณาระบุค่าสนามทั้งหมด เช่น /setcost 3300";
+                msg_type = 0;
+                break;
+            }
+            const totalCost = parseInt(param, 10);
+            if (isNaN(totalCost) || totalCost <= 0) {
+                msg = "กรุณาระบุค่าสนามเป็นตัวเลขที่มากกว่า 0";
+                msg_type = 0;
+                break;
+            }
+
+            const result = await db.setWeekCost(totalCost);
+            if (result.success) {
+                msg = `ตั้งค่าค่าสนามสำเร็จ!\n` +
+                      `ยอดรวม: ${totalCost} บาท\n` +
+                      `สมาชิกลงชื่อ: ${result.count} คน\n` +
+                      `เฉลี่ยคนละ: ${result.sharedFee} บาท\n` +
+                      `บันทึกยอดค้างชำระเรียบร้อยแล้ว`;
+            } else {
+                msg = `เกิดข้อผิดพลาด: ${result.message}`;
+            }
+            msg_type = 0;
+            break;
+        }
+        case 'resetdebt':
+        case 'resetcost': {
+            const result = await db.resetWeekDebt();
+            if (result.success) {
+                msg = `รีเซ็ตยอดค้างชำระของสมาชิกทุกคนในสัปดาห์นี้เรียบร้อยครับ\n` +
+                      `สมาชิกลงชื่อที่ถูกรีเซ็ต: ${result.count} คน`;
+            } else {
+                msg = `เกิดข้อผิดพลาด: ${result.message}`;
+            }
+            msg_type = 0;
+            break;
+        }
         case 'showautoreg':
         case 'whoautoreg':
         case 'autoregshow':

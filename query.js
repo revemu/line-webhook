@@ -159,19 +159,17 @@ async function testConnection() {
       `);
       console.log('✅ admin_cmd_tbl verified/created successfully');
 
-      // Pre-populate default admin commands if empty
-      const [existingCmds] = await connection.query("SELECT 1 FROM admin_cmd_tbl LIMIT 1");
-      if (existingCmds.length === 0) {
-        console.log('Pre-populating admin_cmd_tbl with default admin commands...');
-        const defaultCmds = [
-          'setmaxweek', 'resetteam', 'randomteam', 'setrank', 'theme', 'newweek',
-          '+pay', '+pay2', '-pay', '+team1', '+team2', '+team3', '+team4', '-team'
-        ];
-        for (const cmdName of defaultCmds) {
-          await connection.query("INSERT IGNORE INTO admin_cmd_tbl (cmd) VALUES (?)", [cmdName]);
-        }
-        console.log('✅ Default admin commands populated successfully');
+      // Pre-populate default admin commands if empty or insert missing ones
+      console.log('Verifying/populating default admin commands...');
+      const defaultCmds = [
+        'setmaxweek', 'resetteam', 'randomteam', 'setrank', 'theme', 'newweek',
+        '+pay', '+pay2', '-pay', '+team1', '+team2', '+team3', '+team4', '-team',
+        'setcost', 'resetdebt'
+      ];
+      for (const cmdName of defaultCmds) {
+        await connection.query("INSERT IGNORE INTO admin_cmd_tbl (cmd) VALUES (?)", [cmdName]);
       }
+      console.log('✅ Default admin commands verified/populated successfully');
     } catch (migErr) {
       console.error('⚠️ Database migration failed for admin_cmd_tbl table:', migErr.message);
     }
@@ -706,8 +704,17 @@ async function updateMemberWeek(member_id, value, type = 0) {
   if (week.length > 0) {
     const week_id = week[0].id;
     let query;
-    let query1 = ""
+    let query1 = "";
+    let finalPayVal = value;
     if (type == 0) {
+      if (value === 1) {
+        // If marking as paid, retrieve their current debt to record as payment amount
+        const memberRes = await executeQuery("SELECT debt FROM member_tbl WHERE id = ?", [member_id]);
+        const currentDebt = memberRes.length > 0 ? memberRes[0].debt : 0;
+        if (currentDebt > 0) {
+          finalPayVal = currentDebt;
+        }
+      }
       query = "update member_team_week_tbl set pay=? where member_id=? and week_id=?";
       query1 = "update member_tbl set debt=? where id=?";
       const res1 = await executeQuery(query1, [0, member_id]);
@@ -715,10 +722,78 @@ async function updateMemberWeek(member_id, value, type = 0) {
       query = "update member_team_week_tbl set team_id=? where member_id=? and week_id=?";
     }
 
-    const res = await executeQuery(query, [value, member_id, week_id]);
+    const res = await executeQuery(query, [finalPayVal, member_id, week_id]);
     //console.log(res) ;
     return res;
   }
+}
+
+async function setWeekCost(totalCost) {
+  const week = await queryWeekID();
+  if (week.length === 0) {
+    return { success: false, message: 'ไม่พบข้อมูลสัปดาห์ปัจจุบัน' };
+  }
+  const week_id = week[0].id;
+
+  // Query all members registered for this week
+  const membersQuery = "SELECT member_id, pay FROM member_team_week_tbl WHERE week_id = ?";
+  const members = await executeQuery(membersQuery, [week_id]);
+  if (members.length === 0) {
+    return { success: false, message: 'ไม่มีสมาชิกที่ลงชื่อในสัปดาห์นี้' };
+  }
+
+  const count = members.length;
+  const sharedFee = Math.ceil((totalCost + 100) / count) + 30;
+
+  for (const m of members) {
+    if (m.pay > 0) {
+      // If already paid, update their payment amount in member_team_week_tbl to sharedFee
+      await executeQuery(
+        "UPDATE member_team_week_tbl SET pay = ? WHERE member_id = ? AND week_id = ?",
+        [sharedFee, m.member_id, week_id]
+      );
+    } else {
+      // If not paid, set their debt in member_tbl to sharedFee
+      await executeQuery(
+        "UPDATE member_tbl SET debt = ? WHERE id = ?",
+        [sharedFee, m.member_id]
+      );
+    }
+  }
+
+  return { success: true, count, sharedFee };
+}
+
+async function resetWeekDebt() {
+  const week = await queryWeekID();
+  if (week.length === 0) {
+    return { success: false, message: 'ไม่พบข้อมูลสัปดาห์ปัจจุบัน' };
+  }
+  const week_id = week[0].id;
+
+  // Query all members registered for this week
+  const membersQuery = "SELECT member_id FROM member_team_week_tbl WHERE week_id = ?";
+  const members = await executeQuery(membersQuery, [week_id]);
+  if (members.length === 0) {
+    return { success: false, message: 'ไม่มีสมาชิกที่ลงชื่อในสัปดาห์นี้' };
+  }
+
+  const memberIds = members.map(m => m.member_id);
+  const placeholders = memberIds.map(() => '?').join(',');
+
+  // Reset debt in member_tbl to 0 for these members
+  await executeQuery(
+    `UPDATE member_tbl SET debt = 0 WHERE id IN (${placeholders})`,
+    memberIds
+  );
+
+  // Reset pay to 0 in member_team_week_tbl for this week
+  await executeQuery(
+    "UPDATE member_team_week_tbl SET pay = 0 WHERE week_id = ?",
+    [week_id]
+  );
+
+  return { success: true, count: members.length };
 }
 
 async function queryWeekDate(week_id = 0) {
@@ -3316,6 +3391,8 @@ module.exports = {
   updateMemberRank,
   updateMemberDebt,
   updateMemberWeek,
+  setWeekCost,
+  resetWeekDebt,
   updateMaxNumberWeek,
   queryMemberbyLineID,
   queryMemberbyName,
