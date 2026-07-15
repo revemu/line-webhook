@@ -3338,7 +3338,7 @@ function buildQrFlex(amount, promptPayNumber, theme, qrUrl = null) {
                   weight: 'bold',
                   color: colors.textAccent,
                   flex: 7,
-                  align: 'right'
+                  align: 'end'
                 }
               ]
             },
@@ -3360,7 +3360,7 @@ function buildQrFlex(amount, promptPayNumber, theme, qrUrl = null) {
                   weight: 'bold',
                   color: colors.textPrimary,
                   flex: 7,
-                  align: 'right'
+                  align: 'end'
                 }
               ]
             }
