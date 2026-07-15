@@ -3285,9 +3285,9 @@ function buildMenuFlex(dateStr, theme, title = null) {
   return bubble;
 }
 
-function buildQrFlex(amount, promptPayNumber, theme) {
+function buildQrFlex(amount, promptPayNumber, theme, qrUrl = null) {
   const colors = getThemeColors(theme);
-  const qrUrl = `https://promptpay.io/${promptPayNumber}/${amount}.png`;
+  const finalQrUrl = qrUrl || `https://promptpay.io/${promptPayNumber}/${amount}.png`;
 
   return {
     type: 'bubble',
@@ -3310,7 +3310,7 @@ function buildQrFlex(amount, promptPayNumber, theme) {
         },
         {
           type: 'image',
-          url: qrUrl,
+          url: finalQrUrl,
           aspectMode: 'fit',
           size: '3xl',
           aspectRatio: '1:1',

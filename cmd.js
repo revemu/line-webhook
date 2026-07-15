@@ -1,5 +1,9 @@
 const db = require('./query');
 const flex = require('./flex');
+const generatePayload = require('promptpay-qr');
+const QRCode = require('qrcode');
+const fs = require('fs');
+const path = require('path');
 
 function getNextSaturday() {
     const date = new Date();
@@ -366,10 +370,56 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 amount = member.debt;
             }
 
-            const theme = await db.getTheme();
-            msg = flex.buildQrFlex(amount, '0850705894', theme);
-            altText = `สแกน QR ชำระเงิน ${amount} บาท`;
-            msg_type = 1;
+            try {
+                // Ensure the img directory exists
+                const imgDir = path.join(__dirname, 'img');
+                if (!fs.existsSync(imgDir)) {
+                    fs.mkdirSync(imgDir, { recursive: true });
+                }
+
+                // Cleanup old QR images (older than 1 hour)
+                try {
+                    const files = fs.readdirSync(imgDir);
+                    const now = Date.now();
+                    for (const file of files) {
+                        if (file.startsWith('qr_') && file.endsWith('.png')) {
+                            const filePath = path.join(imgDir, file);
+                            const stats = fs.statSync(filePath);
+                            if (now - stats.mtimeMs > 3600 * 1000) {
+                                fs.unlinkSync(filePath);
+                                console.log(`[QR-Cleanup] Deleted old QR image: ${file}`);
+                            }
+                        }
+                    }
+                } catch (cleanupErr) {
+                    console.error('[QR-Cleanup] Error cleaning up old QR images:', cleanupErr.message);
+                }
+
+                // Generate PromptPay QR payload and image file
+                const payload = generatePayload('0850705894', { amount });
+                const filename = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
+                const filePath = path.join(imgDir, filename);
+
+                await QRCode.toFile(filePath, payload, {
+                    color: {
+                        dark: '#000000',
+                        light: '#ffffff'
+                    },
+                    width: 400
+                });
+
+                const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+                const localQrUrl = `${baseUrl}/img/${filename}`;
+
+                const theme = await db.getTheme();
+                msg = flex.buildQrFlex(amount, '0850705894', theme, localQrUrl);
+                altText = `สแกน QR ชำระเงิน ${amount} บาท`;
+                msg_type = 1;
+            } catch (qrErr) {
+                console.error('Failed to generate local QR:', qrErr);
+                msg = `เกิดข้อผิดพลาดในการสร้าง QR Code: ${qrErr.message}`;
+                msg_type = 0;
+            }
             break;
         }
         case 'showautoreg':
