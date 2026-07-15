@@ -164,7 +164,7 @@ async function testConnection() {
       const defaultCmds = [
         'setmaxweek', 'resetteam', 'randomteam', 'setrank', 'theme', 'newweek',
         '+pay', '+pay2', '-pay', '+team1', '+team2', '+team3', '+team4', '-team',
-        'setcost', 'resetdebt'
+        'setcost', 'resetdebt', 'removereserve', 'delreserve'
       ];
       for (const cmdName of defaultCmds) {
         await connection.query("INSERT IGNORE INTO admin_cmd_tbl (cmd) VALUES (?)", [cmdName]);
@@ -687,6 +687,46 @@ async function updateMaxNumberWeek(max_number = 24) {
     const res = await executeQuery(query, [max_number, week_id]);
     return res;
   }
+}
+
+async function removeReserveMembers() {
+  const week = await queryWeekID();
+  if (week.length === 0) {
+    return { success: false, message: 'ไม่พบสัปดาห์ปัจจุบัน' };
+  }
+  const week_id = week[0].id;
+  const max_players = week[0].max;
+
+  // Fetch all registered members for the week in order of registration
+  const query = "SELECT id, member_id, team_id, member_name FROM member_team_week_tbl WHERE week_id = ? ORDER BY id ASC";
+  const registrations = await executeQuery(query, [week_id]);
+
+  let nonGoalieCount = 0;
+  const reservesToRemove = [];
+
+  for (const reg of registrations) {
+    if (reg.team_id !== 100) {
+      nonGoalieCount++;
+      if (nonGoalieCount > max_players) {
+        reservesToRemove.push(reg);
+      }
+    }
+  }
+
+  if (reservesToRemove.length === 0) {
+    return { success: true, count: 0, message: 'ไม่มีรายชื่อสำรองในสัปดาห์นี้' };
+  }
+
+  // Delete all reserve registrations
+  const idsToDelete = reservesToRemove.map(r => r.id);
+  const deleteQuery = `DELETE FROM member_team_week_tbl WHERE id IN (${idsToDelete.join(',')})`;
+  await executeQuery(deleteQuery);
+
+  return { 
+    success: true, 
+    count: reservesToRemove.length, 
+    names: reservesToRemove.map(r => r.member_name) 
+  };
 }
 
 async function updateMemberDebt(member_id) {
@@ -3407,6 +3447,7 @@ module.exports = {
   setWeekCost,
   resetWeekDebt,
   updateMaxNumberWeek,
+  removeReserveMembers,
   queryMemberbyLineID,
   queryMemberbyName,
   newMember,

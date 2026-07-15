@@ -119,6 +119,48 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 msg_type = 2;
             }
             break;
+        case 'removereserve':
+        case 'delreserve': {
+            const result = await db.removeReserveMembers();
+            if (result.success) {
+                const infoText = result.count > 0 
+                    ? `ลบรายชื่อสำรองสำเร็จ! (${result.count} คน: ${result.names.join(', ')})`
+                    : `ไม่มีรายชื่อสำรองในสัปดาห์นี้ครับ`;
+                
+                const [flexMsg, sub, altTextStr] = await db.getMemberWeek0(1, is_flex, groupId);
+                if (is_flex && typeof flexMsg === 'object') {
+                    return [
+                        {
+                            type: 'text',
+                            quoteToken: quoteToken,
+                            text: infoText
+                        },
+                        {
+                            type: 'flex',
+                            altText: altTextStr || "ลงชื่อเตะบอล",
+                            contents: flexMsg
+                        }
+                    ];
+                } else {
+                    return [
+                        {
+                            type: 'text',
+                            quoteToken: quoteToken,
+                            text: infoText
+                        },
+                        {
+                            type: 'text',
+                            quoteToken: quoteToken,
+                            text: flexMsg
+                        }
+                    ];
+                }
+            } else {
+                msg = `เกิดข้อผิดพลาด: ${result.message}`;
+                msg_type = 0;
+            }
+            break;
+        }
         case 'x1':
             await db.registerNY(member_id);
             msg = await db.getMemberNY();
