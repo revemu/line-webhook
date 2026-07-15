@@ -1,6 +1,6 @@
 const db = require('./query');
 const flex = require('./flex');
-const qrGen = require('./qr/qr_gen');
+const qrGen = require('./qr_gen');
 
 function getNextSaturday() {
     const date = new Date();

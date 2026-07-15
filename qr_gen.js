@@ -3,10 +3,10 @@ const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
-const qrDir = path.join(__dirname);
+const qrDir = path.join(__dirname, 'qr');
 
 /**
- * Generates a PromptPay QR code image and returns its filename.
+ * Generates a PromptPay QR code image inside the 'qr' directory and returns its filename.
  * Also cleans up any temporary QR code images older than 1 hour.
  * 
  * @param {number} amount - The transaction amount.
@@ -14,7 +14,7 @@ const qrDir = path.join(__dirname);
  * @returns {Promise<string>} The generated QR code filename.
  */
 async function generateQrCode(amount, promptPayNumber = '0850705894') {
-  // Ensure the directory exists
+  // Ensure the qr directory exists
   if (!fs.existsSync(qrDir)) {
     fs.mkdirSync(qrDir, { recursive: true });
   }
