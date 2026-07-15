@@ -5,8 +5,8 @@ if (!Array.prototype.toSorted) {
   };
 }
 
-const { ThaiQRPaymentBuilder } = require('thai-qr-payment');
-const QRCode = require('qrcode');
+const { renderThaiQRPayment } = require('thai-qr-payment');
+const svg2img = require('svg2img');
 const fs = require('fs');
 const path = require('path');
 
@@ -44,25 +44,29 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
     console.error('[QR-Cleanup] Error cleaning up old QR images:', cleanupErr.message);
   }
 
-  // Generate PromptPay payload using thai-qr-payment builder
-  const builder = new ThaiQRPaymentBuilder();
-  const payload = builder.promptpay(promptPayNumber)
-                         .amount(amount)
-                         .build();
+  // Generate PromptPay SVG using thai-qr-payment
+  const svgString = renderThaiQRPayment({
+    recipient: promptPayNumber,
+    amount: amount
+  });
 
   const filename = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
   const filePath = path.join(qrDir, filename);
 
-  // Convert the payload locally into a PNG image file
-  await QRCode.toFile(filePath, payload, {
-    color: {
-      dark: '#000000',
-      light: '#ffffff'
-    },
-    width: 400
+  // Convert the SVG to PNG locally using svg2img
+  return new Promise((resolve, reject) => {
+    svg2img(svgString, { format: 'png', width: 400, height: 400 }, function(error, buffer) {
+      if (error) {
+        return reject(error);
+      }
+      fs.writeFile(filePath, buffer, function(writeErr) {
+        if (writeErr) {
+          return reject(writeErr);
+        }
+        resolve(filename);
+      });
+    });
   });
-
-  return filename;
 }
 
 module.exports = {
