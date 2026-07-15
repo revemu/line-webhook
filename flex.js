@@ -3305,14 +3305,13 @@ function buildQrFlex(amount, promptPayNumber, theme, qrUrl = null) {
           weight: 'bold',
           size: 'md',
           color: colors.textPrimary,
-          align: 'center',
-          margin: 'none'
+          align: 'center'
         },
         {
           type: 'image',
           url: finalQrUrl,
           aspectMode: 'fit',
-          size: '3xl',
+          size: 'full',
           aspectRatio: '1:1',
           margin: 'md'
         },
@@ -3369,8 +3368,7 @@ function buildQrFlex(amount, promptPayNumber, theme, qrUrl = null) {
         },
         {
           type: 'separator',
-          color: colors.separator,
-          margin: 'md'
+          color: colors.separator
         },
         {
           type: 'text',
