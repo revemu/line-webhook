@@ -3341,28 +3341,6 @@ function buildQrFlex(amount, promptPayNumber, theme, qrUrl = null) {
                   align: 'end'
                 }
               ]
-            },
-            {
-              type: 'box',
-              layout: 'horizontal',
-              contents: [
-                {
-                  type: 'text',
-                  text: 'พร้อมเพย์',
-                  size: 'sm',
-                  color: colors.textMuted,
-                  flex: 3
-                },
-                {
-                  type: 'text',
-                  text: promptPayNumber,
-                  size: 'sm',
-                  weight: 'bold',
-                  color: colors.textPrimary,
-                  flex: 7,
-                  align: 'end'
-                }
-              ]
             }
           ]
         },
