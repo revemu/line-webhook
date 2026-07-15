@@ -408,7 +408,10 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                     width: 400
                 });
 
-                const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+                let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+                if (baseUrl.startsWith('http://')) {
+                    baseUrl = baseUrl.replace('http://', 'https://');
+                }
                 const localQrUrl = `${baseUrl}/img/${filename}`;
 
                 const theme = await db.getTheme();
