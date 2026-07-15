@@ -327,10 +327,10 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const result = await db.setWeekCost(totalCost);
             if (result.success) {
                 msg = `ตั้งค่าค่าสนามสำเร็จ!\n` +
-                      `ยอดรวม: ${totalCost} บาท\n` +
-                      `สมาชิกลงชื่อ: ${result.count} คน\n` +
-                      `เฉลี่ยคนละ: ${result.sharedFee} บาท\n` +
-                      `บันทึกยอดค้างชำระเรียบร้อยแล้ว`;
+                    `ยอดรวม: ${totalCost} บาท\n` +
+                    `สมาชิกลงชื่อ: ${result.count} คน\n` +
+                    `เฉลี่ยคนละ: ${result.sharedFee} บาท\n` +
+                    `บันทึกยอดค้างชำระเรียบร้อยแล้ว`;
             } else {
                 msg = `เกิดข้อผิดพลาด: ${result.message}`;
             }
@@ -342,7 +342,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const result = await db.resetWeekDebt();
             if (result.success) {
                 msg = `รีเซ็ตยอดค้างชำระของสมาชิกทุกคนในสัปดาห์นี้เรียบร้อยครับ\n` +
-                      `สมาชิกลงชื่อที่ถูกรีเซ็ต: ${result.count} คน`;
+                    `สมาชิกลงชื่อที่ถูกรีเซ็ต: ${result.count} คน`;
             } else {
                 msg = `เกิดข้อผิดพลาด: ${result.message}`;
             }
@@ -360,7 +360,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 }
             } else {
                 if (!member || member.debt <= 0) {
-                    msg = "คุณไม่มียอดค้างชำระในสัปดาห์นี้ครับ";
+                    msg = "ยังไม่ได้คำนวณค่าสนามในสัปดาห์นี้ครับ";
                     msg_type = 0;
                     break;
                 }
