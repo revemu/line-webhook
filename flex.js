@@ -3292,17 +3292,12 @@ function buildQrFlex(amount, promptPayNumber, theme) {
   return {
     type: 'bubble',
     size: 'mega',
-    styles: {
-      header: {
-        backgroundColor: colors.bgHeader
-      },
-      body: {
-        backgroundColor: colors.bgMain
-      }
-    },
-    header: {
+    body: {
       type: 'box',
       layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      spacing: 'md',
+      paddingAll: 'lg',
       contents: [
         {
           type: 'text',
@@ -3310,22 +3305,16 @@ function buildQrFlex(amount, promptPayNumber, theme) {
           weight: 'bold',
           size: 'md',
           color: colors.textPrimary,
-          align: 'center'
-        }
-      ]
-    },
-    body: {
-      type: 'box',
-      layout: 'vertical',
-      spacing: 'md',
-      contents: [
+          align: 'center',
+          margin: 'none'
+        },
         {
           type: 'image',
           url: qrUrl,
           aspectMode: 'fit',
           size: '3xl',
           aspectRatio: '1:1',
-          margin: 'none'
+          margin: 'md'
         },
         {
           type: 'box',
@@ -3380,7 +3369,8 @@ function buildQrFlex(amount, promptPayNumber, theme) {
         },
         {
           type: 'separator',
-          color: colors.separator
+          color: colors.separator,
+          margin: 'md'
         },
         {
           type: 'text',
@@ -3388,7 +3378,8 @@ function buildQrFlex(amount, promptPayNumber, theme) {
           size: 'xxs',
           color: colors.textMuted,
           wrap: true,
-          align: 'center'
+          align: 'center',
+          margin: 'md'
         }
       ]
     }
