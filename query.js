@@ -747,7 +747,7 @@ async function setWeekCost(totalCost) {
     return { success: false, message: 'ไม่มีสมาชิกที่ลงชื่อในสัปดาห์นี้' };
   }
 
-  const payingMembers = members.filter(m => m.team_id !== 101);
+  const payingMembers = members.filter(m => (m.team_id !== 101 && m.team_id !== 1));
   const count = payingMembers.length;
   if (count === 0) {
     return { success: false, message: 'ไม่มีสมาชิกที่ต้องชำระเงินในสัปดาห์นี้' };
