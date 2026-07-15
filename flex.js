@@ -3326,7 +3326,7 @@ function buildQrFlex(amount, promptPayNumber, theme, qrUrl) {
               contents: [
                 {
                   type: 'text',
-                  text: 'ยอดชำระ',
+                  text: 'ค่าสนาม',
                   size: 'sm',
                   color: colors.textMuted,
                   flex: 3
