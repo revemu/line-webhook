@@ -162,8 +162,18 @@ async function replyMessage(replyToken, messages) {
         await client.replyMessage(replyToken, messages);
     } catch (error) {
         console.error('Error replying message:', error);
-        if (error.originalError && error.originalError.response && error.originalError.response.data) {
-            console.error('LINE API Error Details:', JSON.stringify(error.originalError.response.data, null, 2));
+        let details = null;
+        if (error.response && error.response.data) {
+            details = error.response.data;
+        } else if (error.originalError && error.originalError.response && error.originalError.response.data) {
+            details = error.originalError.response.data;
+        } else if (error.data) {
+            details = error.data;
+        }
+        if (details) {
+            console.error('LINE API Error Details:', JSON.stringify(details, null, 2));
+        } else {
+            console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
         }
         throw error;
     }
