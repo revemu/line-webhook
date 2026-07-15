@@ -51,6 +51,7 @@ app.use('/webhook', middleware(config));
 
 // Serve static assets from project directory and 'pic' folder
 app.use('/img', express.static(path.join(__dirname, 'img')));
+app.use('/qr', express.static(path.join(__dirname, 'qr')));
 app.use(express.static(__dirname));
 
 // Serve green_dot.png static asset
