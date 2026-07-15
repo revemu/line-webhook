@@ -374,7 +374,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 if (baseUrl.startsWith('http://')) {
                     baseUrl = baseUrl.replace('http://', 'https://');
                 }
-                const localQrUrl = `${baseUrl}/qr/${filename}`;
+                const localQrUrl = `${baseUrl}/img/qr/${filename}`;
 
                 const theme = await db.getTheme();
                 msg = flex.buildQrFlex(amount, '0850705894', theme, localQrUrl);
