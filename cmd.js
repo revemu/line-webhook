@@ -12,7 +12,11 @@ function getNextSaturday() {
 }
 
 async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
-    if (member && member.debt > 0) {
+    const pos = cmd_str.indexOf(" ");
+    const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
+    let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
+
+    if (member && member.debt > 0 && cmd !== 'qr') {
         const displayName = (member.name || '').replace('@', '');
         return [{
             type: 'text',
@@ -20,10 +24,6 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             text: `ขออภัย ${displayName} ยังมียอดค้างชำระ ${member.debt} บาท ไม่สามารถใช้งานคำสั่งได้`
         }];
     }
-
-    const pos = cmd_str.indexOf(" ");
-    const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
-    let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
 
     try {
         const adminCmds = await db.getAdminCommands();
@@ -347,6 +347,31 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             }
             msg_type = 0;
             break;
+        }
+        case 'qr': {
+            let amount = 0;
+            if (param !== "") {
+                amount = parseInt(param, 10);
+                if (isNaN(amount) || amount <= 0) {
+                    msg = "กรุณาระบุจำนวนเงินเป็นตัวเลข เช่น /qr 150";
+                    msg_type = 0;
+                    break;
+                }
+            } else {
+                if (!member || member.debt <= 0) {
+                    msg = "คุณไม่มียอดค้างชำระในสัปดาห์นี้ครับ";
+                    msg_type = 0;
+                    break;
+                }
+                amount = member.debt;
+            }
+
+            const qrUrl = `https://promptpay.io/0850705894/${amount}.png`;
+            return [{
+                type: 'image',
+                originalContentUrl: qrUrl,
+                previewImageUrl: qrUrl
+            }];
         }
         case 'showautoreg':
         case 'whoautoreg':

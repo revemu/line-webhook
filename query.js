@@ -736,16 +736,29 @@ async function setWeekCost(totalCost) {
   const week_id = week[0].id;
 
   // Query all members registered for this week
-  const membersQuery = "SELECT member_id, pay FROM member_team_week_tbl WHERE week_id = ?";
+  const membersQuery = `
+    SELECT mtw.member_id, mtw.pay, m.team_id 
+    FROM member_team_week_tbl mtw
+    INNER JOIN member_tbl m ON mtw.member_id = m.id
+    WHERE mtw.week_id = ?
+  `;
   const members = await executeQuery(membersQuery, [week_id]);
   if (members.length === 0) {
     return { success: false, message: 'ไม่มีสมาชิกที่ลงชื่อในสัปดาห์นี้' };
   }
 
-  const count = members.length;
+  const payingMembers = members.filter(m => m.team_id !== 101);
+  const count = payingMembers.length;
+  if (count === 0) {
+    return { success: false, message: 'ไม่มีสมาชิกที่ต้องชำระเงินในสัปดาห์นี้' };
+  }
+
   const sharedFee = Math.ceil((totalCost + 100) / count) + 30;
 
   for (const m of members) {
+    if (m.team_id === 101) {
+      continue;
+    }
     if (m.pay > 0) {
       // If already paid, update their payment amount in member_team_week_tbl to sharedFee
       await executeQuery(
