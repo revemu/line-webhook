@@ -17,7 +17,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
     const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
     let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
 
-    if (member && member.debt > 0 && cmd !== 'qr') {
+    if (member && member.debt > 0 && member.admin !== 1 && cmd !== 'qr') {
         const displayName = (member.name || '').replace('@', '');
         return [{
             type: 'text',
