@@ -1,4 +1,11 @@
-const generatePayload = require('promptpay-qr');
+// Polyfill Array.prototype.toSorted for Node.js v18 compatibility
+if (!Array.prototype.toSorted) {
+  Array.prototype.toSorted = function(compareFn) {
+    return this.slice().sort(compareFn);
+  };
+}
+
+const { ThaiQRPaymentBuilder } = require('thai-qr-payment');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
@@ -37,11 +44,16 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
     console.error('[QR-Cleanup] Error cleaning up old QR images:', cleanupErr.message);
   }
 
-  // Generate PromptPay payload and QR code image
-  const payload = generatePayload(promptPayNumber, { amount });
+  // Generate PromptPay payload using thai-qr-payment builder
+  const builder = new ThaiQRPaymentBuilder();
+  const payload = builder.promptpay(promptPayNumber)
+                         .amount(amount)
+                         .build();
+
   const filename = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
   const filePath = path.join(qrDir, filename);
 
+  // Convert the payload locally into a PNG image file
   await QRCode.toFile(filePath, payload, {
     color: {
       dark: '#000000',
