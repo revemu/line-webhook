@@ -3285,6 +3285,116 @@ function buildMenuFlex(dateStr, theme, title = null) {
   return bubble;
 }
 
+function buildQrFlex(amount, promptPayNumber, theme) {
+  const colors = getThemeColors(theme);
+  const qrUrl = `https://promptpay.io/${promptPayNumber}/${amount}.png`;
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    styles: {
+      header: {
+        backgroundColor: colors.bgHeader
+      },
+      body: {
+        backgroundColor: colors.bgMain
+      }
+    },
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'text',
+          text: 'สแกน QR Code เพื่อชำระเงิน',
+          weight: 'bold',
+          size: 'md',
+          color: colors.textPrimary,
+          align: 'center'
+        }
+      ]
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'md',
+      contents: [
+        {
+          type: 'image',
+          url: qrUrl,
+          aspectMode: 'fit',
+          size: '3xl',
+          aspectRatio: '1:1',
+          margin: 'none'
+        },
+        {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                {
+                  type: 'text',
+                  text: 'ยอดชำระ',
+                  size: 'sm',
+                  color: colors.textMuted,
+                  flex: 3
+                },
+                {
+                  type: 'text',
+                  text: `${amount} บาท`,
+                  size: 'sm',
+                  weight: 'bold',
+                  color: colors.textAccent,
+                  flex: 7,
+                  align: 'right'
+                }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                {
+                  type: 'text',
+                  text: 'พร้อมเพย์',
+                  size: 'sm',
+                  color: colors.textMuted,
+                  flex: 3
+                },
+                {
+                  type: 'text',
+                  text: promptPayNumber,
+                  size: 'sm',
+                  weight: 'bold',
+                  color: colors.textPrimary,
+                  flex: 7,
+                  align: 'right'
+                }
+              ]
+            }
+          ]
+        },
+        {
+          type: 'separator',
+          color: colors.separator
+        },
+        {
+          type: 'text',
+          text: 'หลังจากสแกนชำระเงินเรียบร้อยแล้ว กรุณาส่งสลิปโอนเงินเข้ามาในห้องแชทเพื่อบันทึกยอดชำระอัตโนมัติ',
+          size: 'xxs',
+          color: colors.textMuted,
+          wrap: true,
+          align: 'center'
+        }
+      ]
+    }
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -3302,5 +3412,6 @@ module.exports = {
   buildAutoRegFullFlex,
   buildMemberStatsFlex,
   getThemeColors,
-  buildMenuFlex
+  buildMenuFlex,
+  buildQrFlex
 };

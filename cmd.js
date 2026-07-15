@@ -366,12 +366,11 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 amount = member.debt;
             }
 
-            const qrUrl = `https://promptpay.io/0850705894/${amount}.png`;
-            return [{
-                type: 'image',
-                originalContentUrl: qrUrl,
-                previewImageUrl: qrUrl
-            }];
+            const theme = await db.getTheme();
+            msg = flex.buildQrFlex(amount, '0850705894', theme);
+            altText = `สแกน QR ชำระเงิน ${amount} บาท`;
+            msg_type = 1;
+            break;
         }
         case 'showautoreg':
         case 'whoautoreg':
