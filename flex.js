@@ -1487,6 +1487,29 @@ function makeBoxButton(label, text, color, flexVal = 1, size = 'sm', wrap = fals
   };
 }
 
+function makeDisabledBoxButton(label, color = '#9ca3af', flexVal = 1, size = 'sm', wrap = false) {
+  return {
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: color,
+    cornerRadius: 'md',
+    paddingTop: 'sm',
+    paddingBottom: 'sm',
+    contents: [
+      {
+        type: 'text',
+        text: label,
+        color: '#ffffff',
+        align: 'center',
+        weight: 'bold',
+        size: size,
+        wrap: wrap
+      }
+    ],
+    flex: flexVal
+  };
+}
+
 function makeMemberColumn(p, index, colors, isCurrent = false) {
   const contents = [];
   if (index !== null && index !== undefined && index !== '') {
@@ -1945,6 +1968,12 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     color: colors.textAccent,
     margin: 'sm'
   });
+
+  const isFull = autoRegCount >= 24;
+  const registerButton = isFull 
+    ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
+    : makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor);
+
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
@@ -1952,7 +1981,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     margin: 'xs',
     contents: [
       makeBoxButton('📋 รายชื่อ', '/autoreglist', topStatsColor),
-      makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor),
+      registerButton,
       makeBoxButton('➖ ยกเลิก', '-autoreg', buttonCancelColor)
     ]
   });
@@ -2504,13 +2533,18 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   // Construct footer buttons
   const footerButtons = [];
   if (action === 'list') {
+    const isFull = list && list.length >= 24;
+    const registerButton = isFull
+      ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
+      : makeBoxButton('➕ สมัครลงชื่อ', '+autoreg', buttonColor);
+
     footerButtons.push({
       type: 'box',
       layout: 'horizontal',
       spacing: 'sm',
       margin: 'sm',
       contents: [
-        makeBoxButton('➕ สมัครลงชื่อ', '+autoreg', buttonColor),
+        registerButton,
         makeBoxButton('➖ ยกเลิก', '-autoreg', isWhite ? '#ef4444' : '#b91c1c')
       ]
     });
@@ -2526,6 +2560,11 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       ]
     });
   } else if (action === 'remove') {
+    const isFull = list && list.length >= 24;
+    const registerButton = isFull
+      ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
+      : makeBoxButton('➕ ลงทะเบียนอัตโนมัติ', '+autoreg', isWhite ? '#64748b' : '#334155');
+
     footerButtons.push({
       type: 'box',
       layout: 'horizontal',
@@ -2533,7 +2572,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       margin: 'sm',
       contents: [
         makeBoxButton('📋 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', buttonColor),
-        makeBoxButton('➕ ลงทะเบียนอัตโนมัติ', '+autoreg', isWhite ? '#64748b' : '#334155')
+        registerButton
       ]
     });
   }
@@ -3173,7 +3212,7 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
   return bubble;
 }
 
-function buildMenuFlex(dateStr, theme, title = null) {
+function buildMenuFlex(dateStr, theme, title = null, autoRegCount = 0) {
   const bodyContents = [];
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
@@ -3253,12 +3292,18 @@ function buildMenuFlex(dateStr, theme, title = null) {
   bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
   bodyContents.push({
     type: 'text',
-    text: '▶ ลงทะเบียนอัตโนมัติ',
+    text: `▶ ลงทะเบียนอัตโนมัติ (${autoRegCount}/24)`,
     size: 'sm',
     weight: 'bold',
     color: colors.textAccent,
     margin: 'sm'
   });
+
+  const isFull = autoRegCount >= 24;
+  const registerButton = isFull 
+    ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
+    : makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor);
+
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
@@ -3266,7 +3311,7 @@ function buildMenuFlex(dateStr, theme, title = null) {
     margin: 'xs',
     contents: [
       makeBoxButton('📋 รายชื่อ', '/autoreglist', topStatsColor),
-      makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor),
+      registerButton,
       makeBoxButton('➖ ยกเลิก', '-autoreg', buttonCancelColor)
     ]
   });

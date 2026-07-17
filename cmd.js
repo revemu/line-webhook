@@ -534,7 +534,16 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const theme = await db.getTheme();
             const week = await db.queryWeekID(0);
             const dateStr = week.length > 0 ? week[0].date : '';
-            msg = flex.buildMenuFlex(dateStr, theme);
+            let autoRegCount = 0;
+            try {
+                const autoRegRes = await db.executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
+                if (autoRegRes.length > 0) {
+                    autoRegCount = autoRegRes[0].count;
+                }
+            } catch (err) {
+                console.error("Error getting autoRegCount in menu:", err.message);
+            }
+            msg = flex.buildMenuFlex(dateStr, theme, null, autoRegCount);
             altText = "เมนูบริการของบอท";
             msg_type = 1;
             break;
@@ -678,7 +687,16 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 const theme = await db.getTheme();
                 const week = await db.queryWeekID(0);
                 const dateStr = week.length > 0 ? week[0].date : '';
-                msg = flex.buildMenuFlex(dateStr, theme, `ไม่รู้จักคำสั่ง: "${cmd}"`);
+                let autoRegCount = 0;
+                try {
+                    const autoRegRes = await db.executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
+                    if (autoRegRes.length > 0) {
+                        autoRegCount = autoRegRes[0].count;
+                    }
+                } catch (err) {
+                    console.error("Error getting autoRegCount in default menu:", err.message);
+                }
+                msg = flex.buildMenuFlex(dateStr, theme, `ไม่รู้จักคำสั่ง: "${cmd}"`, autoRegCount);
                 altText = `ไม่รู้จักคำสั่ง: "${cmd}"`;
                 msg_type = 1;
             }
