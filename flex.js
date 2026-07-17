@@ -1636,7 +1636,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
   return rowObj;
 }
 
-function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme) {
+function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme, autoRegCount = 0) {
   const bodyContents = [];
   let finalImageUrl = imageUrl;
   if (!finalImageUrl) {
@@ -1894,7 +1894,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
   bodyContents.push({
     type: 'text',
-    text: `▶ ลงชื่อสัปดาห์นี้ เสาร์ที่ ${dateStr}`,
+    text: `▶ ลงชื่อสัปดาห์นี้ เสาร์ที่ ${dateStr} (${players.length}/${maxPlayers})`,
     size: 'sm',
     weight: 'bold',
     color: colors.textAccent,
@@ -1939,7 +1939,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
   bodyContents.push({
     type: 'text',
-    text: '▶ ลงทะเบียนอัตโนมัติ',
+    text: `▶ ลงทะเบียนอัตโนมัติ (${autoRegCount}/24)`,
     size: 'sm',
     weight: 'bold',
     color: colors.textAccent,
@@ -2369,16 +2369,17 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   let description = '';
   let bodyContents = [];
 
+  const countStr = list ? ` (${list.length}/24)` : '';
   if (action === 'list') {
-    badgeText = '👤 สมาชิกลงทะเบียนอัตโนมัติ';
+    badgeText = `👤 สมาชิกลงทะเบียนอัตโนมัติ${countStr}`;
     badgeBg = isWhite ? '#e0f2fe' : '#0c4a6e';
     badgeTextColor = isWhite ? '#0369a1' : '#38bdf8';
-    title = 'สมาชิกลงทะเบียนอัตโนมัติ';
+    title = `สมาชิกลงทะเบียนอัตโนมัติ${countStr}`;
   } else if (action === 'add') {
-    badgeText = '✅ สมัครลงทะเบียนอัตโนมัติสำเร็จ';
+    badgeText = `✅ สมัครลงทะเบียนอัตโนมัติสำเร็จ${countStr}`;
     badgeBg = isWhite ? '#dcfce7' : '#064e3b';
     badgeTextColor = isWhite ? '#15803d' : '#4ade80';
-    title = 'สมัครลงทะเบียนอัตโนมัติสำเร็จ';
+    title = `สมัครลงทะเบียนอัตโนมัติสำเร็จ${countStr}`;
 
     const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
     description = `เพิ่มคุณ ${displayMember.name} ในรายชื่อลงทะเบียนอัตโนมัติสำเร็จแล้ว\n\nระบบจะลงชื่อเข้าเล่นให้คุณโดยอัตโนมัติ เมื่อมีการเปิดรอบสัปดาห์ใหม่ ⚽`;
@@ -2392,10 +2393,10 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       margin: 'md'
     });
   } else if (action === 'remove') {
-    badgeText = '❌ ยกเลิกลงทะเบียนอัตโนมัติ';
+    badgeText = `❌ ยกเลิกลงทะเบียนอัตโนมัติ${countStr}`;
     badgeBg = isWhite ? '#fee2e2' : '#7f1d1d';
     badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
-    title = 'ยกเลิกลงทะเบียนอัตโนมัติ';
+    title = `ยกเลิกลงทะเบียนอัตโนมัติ${countStr}`;
 
     const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
     description = `นำคุณ ${displayMember.name} ออกจากรายชื่อลงทะเบียนอัตโนมัติเรียบร้อยแล้ว`;
@@ -2409,10 +2410,10 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       margin: 'md'
     });
   } else if (action === 'already') {
-    badgeText = 'ℹ️ สมัครลงทะเบียนอัตโนมัติไว้อยู่แล้ว';
+    badgeText = `ℹ️ สมัครลงทะเบียนอัตโนมัติไว้อยู่แล้ว${countStr}`;
     badgeBg = isWhite ? '#fef3c7' : '#78350f';
     badgeTextColor = isWhite ? '#b45309' : '#f59e0b';
-    title = 'สมัครลงทะเบียนอัตโนมัติไว้อยู่แล้ว';
+    title = `สมัครลงทะเบียนอัตโนมัติไว้อยู่แล้ว${countStr}`;
 
     const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
     description = `คุณ ${displayMember.name} สมัครลงทะเบียนอัตโนมัติไว้อยู่แล้วครับ`;
@@ -2426,10 +2427,10 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       margin: 'md'
     });
   } else if (action === 'full') {
-    badgeText = '🚫 ไม่สามารถลงทะเบียนอัตโนมัติได้';
+    badgeText = `🚫 ไม่สามารถลงทะเบียนอัตโนมัติได้${countStr}`;
     badgeBg = isWhite ? '#fee2e2' : '#7f1d1d';
     badgeTextColor = isWhite ? '#b91c1c' : '#fca5a5';
-    title = 'ไม่สามารถลงทะเบียนอัตโนมัติได้';
+    title = `ไม่สามารถลงทะเบียนอัตโนมัติได้${countStr}`;
 
     description = 'ไม่สามารถลงทะเบียนอัตโนมัติได้ เนื่องจากโควตาเต็มแล้ว (สูงสุด 24 คน) ⚽';
 

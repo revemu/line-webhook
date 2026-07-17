@@ -209,9 +209,13 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             }
             break;
         }
-        case '-1':
-            if (await db.unregisterMember(member_id)) {
+        case '-1': {
+            const unregResult = await db.unregisterMember(member_id);
+            if (unregResult.success) {
                 console.log(`${chat_type} ${member_name} พบข้อมูลลงทะเบียน!`);
+                if (unregResult.team_id != 1) {
+                    await db.updateMemberAutoReg(member_id, 0);
+                }
             }
             [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
             if (is_flex && typeof msg === 'object') {
@@ -221,6 +225,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 msg_type = 2;
             }
             break;
+        }
         case '+pay2':
             //if (is_mention) {
             await db.updateMemberWeek(member_id, 1, 0);

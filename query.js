@@ -877,20 +877,16 @@ async function unregisterMember(member_id) {
     const week_id = week[0].id;
     const query = "SELECT * from member_team_week_tbl where week_id=? and member_id=?";
     const res = await executeQuery(query, [week_id, member_id]);
-    //console.log(`${res.length}`)
     if (res.length > 0) {
-      //console.log(`${week_id}`)
-      const query = "delete from member_team_week_tbl where member_id=? and week_id=?";
-      //console.log(query) ;
-      const reg_res = await executeQuery(query, [member_id, week_id]);
-      //console.log(reg_res) ;
-      return true;
+      const team_id = res[0].team_id;
+      const deleteQuery = "delete from member_team_week_tbl where member_id=? and week_id=?";
+      await executeQuery(deleteQuery, [member_id, week_id]);
+      return { success: true, team_id: team_id };
     } else {
-      return false;
+      return { success: false, team_id: null };
     }
   }
-  //console.log(res) ;
-  return false;
+  return { success: false, team_id: null };
 }
 
 async function IsMemberWeek(member_id) {
@@ -1946,7 +1942,17 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
         const imageUrl = imgTpl ? imgTpl.url : null;
 
         const theme = await getTheme();
-        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl, theme);
+        let autoRegCount = 0;
+        try {
+          const autoRegRes = await executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
+          if (autoRegRes.length > 0) {
+            autoRegCount = autoRegRes[0].count;
+          }
+        } catch (err) {
+          console.error("Error getting autoRegCount:", err.message);
+        }
+
+        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl, theme, autoRegCount);
         let altHeader = `+${players.length}`;
         if (reserves.length > 0) altHeader += `(${reserves.length})`;
         if (goalies.length > 0) altHeader += `(${goalies.length})`;
