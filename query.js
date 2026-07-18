@@ -722,10 +722,10 @@ async function removeReserveMembers() {
   const deleteQuery = `DELETE FROM member_team_week_tbl WHERE id IN (${idsToDelete.join(',')})`;
   await executeQuery(deleteQuery);
 
-  return { 
-    success: true, 
-    count: reservesToRemove.length, 
-    names: reservesToRemove.map(r => r.member_name) 
+  return {
+    success: true,
+    count: reservesToRemove.length,
+    names: reservesToRemove.map(r => r.member_name)
   };
 }
 
@@ -1641,7 +1641,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
         const teamHeaderColor = teamColor && teamColor.code ? teamColor.code : colors.bgHeader;
         carousel.contents.push({
           type: 'bubble',
-          size: 'micro',
+          size: 'kilo',
           header: {
             type: 'box',
             layout: 'vertical',
