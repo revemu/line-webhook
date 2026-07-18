@@ -1617,131 +1617,13 @@ async function getTeamWeek(week_id = 0, groupId = null) {
             const isFirst = idx === 0;
             const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
 
-            const rowContents = [
-              {
-                type: 'text',
-                text: `${idx + 1}.`,
-                size: 'xs',
-                color: colors.textMuted,
-                flex: 0,
-                margin: 'xs',
-                weight: 'bold'
-              }
-            ];
-
-            const avatarUrl = info.pictureUrl;
-            if (avatarUrl) {
-              rowContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: '24px',
-                height: '24px',
-                cornerRadius: '100px',
-                contents: [
-                  {
-                    type: 'image',
-                    url: avatarUrl,
-                    size: 'full',
-                    aspectMode: 'cover',
-                    aspectRatio: '1:1'
-                  }
-                ],
-                flex: 0,
-                margin: 'xs'
-              });
-            } else {
-              rowContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: '24px',
-                height: '24px',
-                cornerRadius: '100px',
-                contents: [
-                  {
-                    type: 'text',
-                    text: '⚽',
-                    size: '14px',
-                    align: 'center',
-                    gravity: 'center'
-                  }
-                ],
-                flex: 0,
-                margin: 'xs'
-              });
-            }
-
-            const nameBoxContents = [];
-            const badgeSize = info.badgeSize || '16px';
-            if (info.badgeUrl) {
-
-              nameBoxContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: badgeSize,
-                height: badgeSize,
-                flex: 0,
-                contents: [
-                  {
-                    type: 'image',
-                    url: info.badgeUrl,
-                    size: 'full',
-                    aspectRatio: '1:1',
-                    aspectMode: 'cover',
-                    animated: true
-                  }
-                ],
-                margin: 'sm'
-              });
-            }
-
-            if (info.hofBadges && info.hofBadges.length > 0) {
-              for (const hb of info.hofBadges) {
-                nameBoxContents.push({
-                  type: 'box',
-                  layout: 'vertical',
-                  width: hb.size || '16px',
-                  height: hb.size || '16px',
-                  flex: 0,
-                  contents: [
-                    {
-                      type: 'image',
-                      url: hb.url,
-                      size: 'full',
-                      aspectRatio: '1:1',
-                      aspectMode: 'cover',
-                      animated: true
-                    }
-                  ],
-                  margin: 'sm'
-                });
-              }
-            }
-
-            nameBoxContents.push({
-              type: 'text',
-              text: info.name,
-              size: 'sm',
-              color: info.nameColor || colors.textPrimary,
-              flex: 1,
-              margin: 'sm',
-              weight: 'bold'
-            });
-
-            rowContents.push({
-              type: 'box',
-              layout: 'horizontal',
-              flex: 1,
-              margin: 'sm',
-              alignItems: 'center',
-              contents: nameBoxContents
-            });
-
+            const col = flex.makeMemberColumn(info, idx + 1, colors, false);
             bodyContents.push({
               type: 'box',
               layout: 'horizontal',
               margin: 'xs',
               alignItems: 'center',
-              contents: rowContents
+              contents: [col]
             });
             idx++;
           }

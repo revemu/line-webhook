@@ -1542,6 +1542,25 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
       ],
       margin: 'xs'
     });
+  } else {
+    contents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: '24px',
+      height: '24px',
+      cornerRadius: '100px',
+      flex: 0,
+      contents: [
+        {
+          type: 'text',
+          text: '⚽',
+          size: '14px',
+          align: 'center',
+          gravity: 'center'
+        }
+      ],
+      margin: 'xs'
+    });
   }
 
   const badgeSize = p.badgeSize || '20px';
@@ -3426,5 +3445,6 @@ module.exports = {
   buildMemberStatsFlex,
   getThemeColors,
   buildMenuFlex,
-  buildQrFlex
+  buildQrFlex,
+  makeMemberColumn
 };
