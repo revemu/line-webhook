@@ -2145,7 +2145,7 @@ async function getTopStat(limit = 10, type = 0) {
     header = `ซึมเศร้าสะสม`;
     icon = "📉";
   } else if (type == 6) {
-    header = `ทีมสีนำโชค (Lucky Colors)`;
+    header = `Lucky Colors`;
     icon = "🎨";
   }
 
