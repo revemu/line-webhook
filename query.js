@@ -2144,6 +2144,9 @@ async function getTopStat(limit = 10, type = 0) {
   } else if (type == 5) {
     header = `ซึมเศร้าสะสม`;
     icon = "📉";
+  } else if (type == 6) {
+    header = `ทีมสีนำโชค (Lucky Colors)`;
+    icon = "🎨";
   }
 
   query = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl , week_tbl WHERE match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.team_id <> 101 group by member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate order by goal DESC limit ${limit}`;
@@ -2196,6 +2199,19 @@ ORDER BY pts DESC limit ${limit}`;
       ORDER BY goal DESC
       LIMIT ${limit}
     `;
+  } else if (type == 6) {
+    query = `
+      SELECT 
+        t_col.color,
+        SUM(tw.w) as wins,
+        SUM(tw.w + tw.d + tw.l) as matches
+      FROM table_week_tbl tw
+      JOIN team_color_week_tbl t_col ON tw.team_week_id = t_col.id
+      JOIN week_tbl w ON tw.week_id = w.id
+      WHERE w.year = YEAR(CURRENT_DATE())
+      GROUP BY t_col.color
+      ORDER BY (SUM(tw.w) / SUM(tw.w + tw.d + tw.l)) DESC, SUM(tw.w + tw.d + tw.l) DESC
+    `;
   }
 
   const result = await executeQuery(query);
@@ -2231,82 +2247,49 @@ ORDER BY pts DESC limit ${limit}`;
     // ── Rank rows ──
     const rankIcons = ['🥇', '🥈', '🥉'];
     result.forEach((member, i) => {
-      const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
-
+      let displayName = "";
+      let nameColor = colors.textMutedLight;
       let valText = "";
-      if (type == 4) {
-        valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
-      } else {
-        valText = `${member.goal}`;
-      }
-
       const rankLabel = rankIcons[i] || `${i + 1}.`;
       const isTop = i === 0;
-      let rowContents = [];
-      /*const rowContents = [
-        {
-          type: 'text',
-          text: rankLabel,
-          size: 'xs',
-          flex: 0,
-          color: colors.textMuted,
-          margin: 'none',
-          gravity: 'center'
-        }
-      ];*/
 
-      const nameBoxContents = [];
-      const badgeSize = info.badgeSize || '16px';
-      /*if (info.badgeUrl) {
-        nameBoxContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: badgeSize,
-          height: badgeSize,
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: info.badgeUrl,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              animated: true
-            }
-          ],
-          margin: 'xs'
-        });
+      if (type == 6) {
+        const wins = Number(member.wins || 0);
+        const matches = Number(member.matches || 0);
+        const winRate = matches > 0 ? ((wins / matches) * 100).toFixed(1) : '0.0';
+        valText = `${winRate}% (${wins}/${matches})`;
+
+        const translateColor = (col) => {
+          if (!col) return '';
+          const cl = col.toLowerCase();
+          if (cl === 'red') return 'สีแดง (Red)';
+          if (cl === 'green') return 'สีเขียว (Green)';
+          if (cl === 'black') return 'สีดำ (Black)';
+          if (cl === 'white') return 'สีขาว (White)';
+          return col;
+        };
+        displayName = `● ทีม${translateColor(member.color)}`;
+        nameColor = colors.tdc(member.color);
+      } else {
+        const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+        displayName = rankLabel + " " + info.name;
+        nameColor = colors.textMutedLight;
+
+        if (type == 4) {
+          valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
+        } else {
+          valText = `${member.goal}`;
+        }
       }
 
-      if (info.hofCount && info.hofCount > 0 && info.hofBadgeUrl) {
-        const hSize = info.hofBadgeSize || '16px';
-        nameBoxContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: hSize,
-          height: hSize,
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: info.hofBadgeUrl,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              animated: true
-            }
-          ],
-          margin: 'xs'
-        });
-      }*/
+      let rowContents = [];
+      const nameBoxContents = [];
 
       nameBoxContents.push({
         type: 'text',
-        text: rankLabel + " " + info.name,
+        text: displayName,
         size: 'xs',
-        //color: info.nameColor || (isTop ? colors.textPrimary : colors.textMutedLight),
-        color: colors.textMutedLight,
-        //weight: isTop ? 'bold' : 'regular',
+        color: nameColor,
         flex: 1,
         margin: 'sm'
       });
@@ -2325,7 +2308,6 @@ ORDER BY pts DESC limit ${limit}`;
         text: valText,
         size: 'xs',
         color: isTop ? colors.textAccent : colors.textMutedLight,
-        //weight: isTop ? 'bold' : 'regular',
         flex: 2,
         align: 'end'
       });

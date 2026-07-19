@@ -641,11 +641,11 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 db.getTopStat(limit, 0),
                 db.getTopStat(limit, 1),
                 db.getTopStat(limit, 4),
-                //db.getTopStat(limit, 2)
+                db.getTopStat(limit, 6)
             ]);
 
             const carousel = flex.tpl_carousel;
-            carousel.contents = stats;
+            carousel.contents = stats.filter(x => x !== null && x !== undefined);
             const date = new Date();
             altText = `Top ${limit} Stat (${date.getFullYear()})`;
             msg = carousel;
