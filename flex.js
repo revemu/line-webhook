@@ -2675,7 +2675,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
 }
 
 function buildMemberStatsFlex(data, theme, imageUrl) {
-  const { member, stats, firstMatchDate } = data;
+  const { member, stats, firstMatchDate, colorStats, luckyColor } = data;
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
@@ -2951,6 +2951,114 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   const bottomYearStr = `${stats.bottom.year} (${stats.bottom.yearPct}%)`;
   const bottomAlltimeStr = `${stats.bottom.alltime} (${stats.bottom.alltimePct}%)`;
   bodyContents.push(makeStatRow('📉', 'ซึมเศร้าประจำสัปดาห์', bottomYearStr, bottomAlltimeStr, false));
+
+  // ── Team Color Stats Section ──
+  if (colorStats && colorStats.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'md', color: separatorColor });
+    
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'md',
+      contents: [
+        {
+          type: 'text',
+          text: '🎨 อัตราชนะตามสีทีม (% Win by Color)',
+          size: 'xs',
+          color: colors.textMutedDark,
+          weight: 'bold',
+          flex: 1
+        }
+      ]
+    });
+
+    bodyContents.push({ type: 'separator', margin: 'xs', color: separatorColor });
+
+    const translateColor = (col) => {
+      if (!col) return 'ไม่มี (None)';
+      const cl = col.toLowerCase();
+      if (cl === 'red') return 'สีแดง (Red)';
+      if (cl === 'green') return 'สีเขียว (Green)';
+      if (cl === 'black') return 'สีดำ (Black)';
+      if (cl === 'white') return 'สีขาว (White)';
+      return col;
+    };
+
+    const luckyColorText = luckyColor ? translateColor(luckyColor) : 'ไม่มี (None)';
+    const luckyColorHex = luckyColor ? colors.tdc(luckyColor) : colors.textMuted;
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      paddingAll: 'sm',
+      alignItems: 'center',
+      contents: [
+        {
+          type: 'text',
+          text: '✨ สีนำโชค (Lucky Color)',
+          size: 'xs',
+          color: colors.textPrimary,
+          weight: 'bold',
+          flex: 4
+        },
+        {
+          type: 'text',
+          text: luckyColorText,
+          size: 'xs',
+          color: luckyColorHex,
+          weight: 'bold',
+          align: 'end',
+          flex: 4
+        }
+      ]
+    });
+
+    bodyContents.push({ type: 'separator', margin: 'xs', color: separatorColor });
+
+    colorStats.forEach((c, index) => {
+      const isEven = index % 2 === 1;
+      const rowBg = isEven ? (isWhite ? '#f8fafc' : '#12192c') : null;
+      
+      const rowObj = {
+        type: 'box',
+        layout: 'horizontal',
+        paddingAll: 'sm',
+        alignItems: 'center',
+        contents: [
+          {
+            type: 'text',
+            text: `● ทีม${translateColor(c.color)}`,
+            size: 'xs',
+            color: colors.tdc(c.color),
+            weight: 'bold',
+            flex: 4
+          },
+          {
+            type: 'text',
+            text: `${c.winRate}%`,
+            size: 'xs',
+            color: colors.textAccent,
+            weight: 'bold',
+            align: 'center',
+            flex: 2
+          },
+          {
+            type: 'text',
+            text: `${c.wins}/${c.matches} นัด`,
+            size: 'xs',
+            color: colors.textMutedLight,
+            weight: 'bold',
+            align: 'center',
+            flex: 2
+          }
+        ]
+      };
+      if (rowBg) {
+        rowObj.backgroundColor = rowBg;
+      }
+      bodyContents.push(rowObj);
+    });
+  }
 
   bodyContents.push({ type: 'separator', margin: 'md', color: separatorColor });
 

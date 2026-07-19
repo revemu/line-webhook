@@ -3241,12 +3241,25 @@ async function getMemberStats(memberId, groupId = null) {
     )
   `;
 
-  const [goalResult, ptResult, dateResult, bottomResult, champResult] = await Promise.all([
+  const colorQuery = `
+    SELECT 
+      t_col.color,
+      SUM(tw.w) as wins,
+      SUM(tw.w + tw.d + tw.l) as matches
+    FROM member_team_week_tbl mtw
+    JOIN table_week_tbl tw ON mtw.team_id = tw.team_week_id
+    JOIN team_color_week_tbl t_col ON tw.team_week_id = t_col.id
+    WHERE mtw.member_id = ?
+    GROUP BY t_col.color
+  `;
+
+  const [goalResult, ptResult, dateResult, bottomResult, champResult, colorResult] = await Promise.all([
     executeQuery(goalQuery, [memberId]),
     executeQuery(ptQuery, [memberId]),
     executeQuery(dateQuery, [memberId]),
     executeQuery(bottomQuery, [memberId]),
-    executeQuery(champQuery, [memberId])
+    executeQuery(champQuery, [memberId]),
+    executeQuery(colorQuery, [memberId])
   ]);
 
   const goals = goalResult[0] || {};
@@ -3266,6 +3279,28 @@ async function getMemberStats(memberId, groupId = null) {
   const winsAlltime = Number(pts.wins_alltime || 0);
   const matchesYear = Number(pts.matches_year || 0);
   const matchesAlltime = Number(pts.matches_alltime || 0);
+
+  const colorStats = (colorResult || []).map(row => {
+    const color = row.color;
+    const wins = Number(row.wins || 0);
+    const matches = Number(row.matches || 0);
+    const winRate = matches > 0 ? Number(((wins / matches) * 100).toFixed(1)) : 0;
+    return {
+      color,
+      wins,
+      matches,
+      winRate
+    };
+  });
+
+  colorStats.sort((a, b) => {
+    if (b.winRate !== a.winRate) {
+      return b.winRate - a.winRate;
+    }
+    return b.matches - a.matches;
+  });
+
+  const luckyColor = colorStats.length > 0 && colorStats[0].winRate > 0 ? colorStats[0].color : null;
 
   return {
     member: memberInfo,
@@ -3311,7 +3346,9 @@ async function getMemberStats(memberId, groupId = null) {
         yearPct: matchesYear > 0 ? Number((winsYear / matchesYear * 100).toFixed(1)) : 0,
         alltimePct: matchesAlltime > 0 ? Number((winsAlltime / matchesAlltime * 100).toFixed(1)) : 0
       }
-    }
+    },
+    colorStats,
+    luckyColor
   };
 }
 
