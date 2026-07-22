@@ -407,9 +407,9 @@ async function handleImageMessage(event, member) {
                         slipToMe = true;
                     }
                 }
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n    โอนจาก: ${senderName}\n    ให้กับ: ${recipientName}\n    ยอดเงิน: ${amountStr} บาท\n    วันที่: ${formatDate(recvDate)}\n\n`;
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n    👤 โอนจาก: **${senderName} - ${senderBank}**\n    👤 ให้กับ: **${recipientName}**\n    💰 ยอดเงิน: **${amountStr} บาท**\n    🕒 วันที่: **${formatDate(recvDate)}**\n\n`;
             } else {
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว แต่ไม่พบข้อมูลการโอน ให้รอตรวจสอบจากแอดมินอีกครั้ง หรือส่งเข้ามาใหม่หลังจากนี้ 5 นาที`;
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว แต่ไม่พบข้อมูลการโอน ให้รอตรวจสอบจากแอดมินอีกครั้ง หรือส่งสลิปเข้ามาใหม่หลังจากนี้ 5 นาที`;
             }
             const week = await db.queryWeekDate();
             let payweek = true;
