@@ -455,7 +455,7 @@ async function handleImageMessage(event, member) {
                 }
                 header += `\n\n💸 โอนจาก: **${senderName} - ${senderBank}**\n💵 ให้กับ: **${recipientName}**\n💰 ยอดเงิน: **${amountStr} บาท**\n📅 วันที่: **${formatDate(recvDate)}**\n`;
             } else {
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว แต่ไม่พบข้อมูลการโอน ให้รอตรวจสอบจากแอดมินอีกครั้ง หรือส่งสลิปเข้ามาใหม่หลังจากนี้ 5 นาที`;
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว แต่มีปัญหาในการตรวจสอบสลิป รอแอดมินตรวจสอบอีกครั้ง`;
             }
             const week = await db.queryWeekDate();
             let payweek = true;
