@@ -379,7 +379,7 @@ async function handleImageMessage(event, member) {
         const imgSlipDir = path.join(__dirname, 'img', 'slip');
         try {
             await fs.mkdir(imgSlipDir, { recursive: true });
-        } catch (e) {}
+        } catch (e) { }
         const slipFileName = `slip_${Date.now()}_${message.id}.jpg`;
         const slipFilePath = path.join(imgSlipDir, slipFileName);
         const relativeSlipPath = `/img/slip/${slipFileName}`;
@@ -461,6 +461,9 @@ async function handleImageMessage(event, member) {
                 }
                 if (slipToMe) {
                     header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว`;
+                    if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
+                        header += `\n⚠️ ยอดโอนมากกว่าค่าสนาม \nถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
+                    }
                     await db.logSlip(source.userId, member.name, relativeSlipPath, "success");
                 } else {
                     header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว แต่อาจจะไม่เกี่ยวกับค่าสนามบอล รอแอดมินตรวจสอบอีกครั้งนะครับ`;
