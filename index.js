@@ -115,6 +115,28 @@ async function verifyEasySlipByPayload(payload) {
         return null;
     }
 }
+
+async function verifyEasySlipByImage(imageBuffer) {
+    try {
+        const response = await axios.post('https://api.easyslip.com/v2/verify/bank', {
+            base64: imageBuffer.toString('base64')
+        }, {
+            headers: {
+                'Authorization': `Bearer ${EASYSLIP_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 20000
+        });
+        return response.data;
+    } catch (error) {
+        if (error.response && error.response.data) {
+            console.error('[EasySlip] Image verification response:', error.response.data);
+            return error.response.data;
+        }
+        console.error('[EasySlip] Image verification error:', error.message);
+        return null;
+    }
+}
 // Function to read QR code from image buffer using zbarimg CLI
 async function readQRCode(imageBuffer) {
     let tempFilePath = null;
@@ -374,13 +396,28 @@ async function handleImageMessage(event, member) {
             slipData = easySlipRes.data;
             isSlipValid = true;
         } else {
+            console.log('[EasySlip] Payload verification was not successful, trying to upload image instead...');
             if (easySlipRes && easySlipRes.error) {
                 console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
             }
-            // Fallback check for PromptPay QR payload format
-            if (qrCode.includes("60000010103")) {
-                console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
+
+            const easySlipImgRes = await verifyEasySlipByImage(imageBuffer);
+            if (easySlipImgRes && easySlipImgRes.success === true) {
+                console.log('[EasySlip] Slip verified successfully via image:', easySlipImgRes.data);
+                slipData = easySlipImgRes.data;
                 isSlipValid = true;
+            } else {
+                if (easySlipImgRes && easySlipImgRes.error) {
+                    console.warn(`[EasySlip] Image verification failed: ${easySlipImgRes.error.code} - ${easySlipImgRes.error.message}`);
+                }
+            }
+
+            if (!isSlipValid) {
+                // Fallback check for PromptPay QR payload format
+                if (qrCode.includes("60000010103")) {
+                    console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
+                    isSlipValid = true;
+                }
             }
         }
         let slipToMe = false;
