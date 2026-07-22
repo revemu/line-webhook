@@ -412,7 +412,7 @@ async function handleImageMessage(event, member) {
                 } else {
                     header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว แต่อาจจะไม่เกี่ยวกับค่าสนามบอล รอแอดมินตรวจสอบอีกครั้งนะครับ`;
                 }
-                header += `\n\n    👤 โอนจาก: **${senderName} - ${senderBank}**\n\n    👤 ให้กับ: **${recipientName}**\n\n    💰 ยอดเงิน: **${amountStr} บาท**\n\n    🕒 วันที่: **${formatDate(recvDate)}**\n\n`;
+                header += `\n\n    💸 โอนจาก: **${senderName} - ${senderBank}**\n    💵 ให้กับ: **${recipientName}**\n    💰 ยอดเงิน: **${amountStr} บาท**\n    🕒 วันที่: **${formatDate(recvDate)}**\n`;
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว แต่ไม่พบข้อมูลการโอน ให้รอตรวจสอบจากแอดมินอีกครั้ง หรือส่งสลิปเข้ามาใหม่หลังจากนี้ 5 นาที`;
             }
