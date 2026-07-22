@@ -390,8 +390,8 @@ async function handleImageMessage(event, member) {
                 console.log('[EasySlip] Slip data:', slipData.rawSlip?.receiver);
                 const recvDate = slipData.rawSlip?.transDate || slipData.rawSlip?.date;
 
-                const senderName = slipData.rawSlip?.sender?.account?.name?.th ||
-                    slipData.rawSlip?.sender?.account?.name?.en ||
+                const senderName = slipData.rawSlip?.sender?.account?.name?.en ||
+                    slipData.rawSlip?.sender?.account?.name?.th ||
                     slipData.rawSlip?.sender?.name ||
                     member.name;
                 const senderBank = slipData.rawSlip?.sender?.bank?.short;
