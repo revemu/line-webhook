@@ -460,14 +460,14 @@ async function handleImageMessage(event, member) {
                     slipToMe = true;
                     recipientName = "Kyne";
                 }
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **${amountStr} บาท**`;
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${amountStr} บาท**`;
                 if (slipToMe) {
                     if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
-                        header += `\n⚠️ ยอดโอนมากกว่าค่าสนาม \nถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
+                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \nถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
                     }
                     logStatus = "success";
                 } else {
-                    header += `\nแต่อาจจะไม่เกี่ยวกับค่าสนามบอล`;
+                    header += `\n\n**📝 อาจจะไม่เกี่ยวกับค่าสนามบอล **`;
                     logStatus = "not_me";
                 }
                 header += `\n\n💰 ยอดเงิน: **${amountStr} บาท**\n💸 โอนจาก: **${senderName} - ${senderBank}**\n💵 ให้กับ: **${recipientName}**\n 📅 วันที่: **${formatDate(recvDate)}**\n`;
