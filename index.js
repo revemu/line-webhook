@@ -432,6 +432,7 @@ async function handleImageMessage(event, member) {
             }
         }
         let slipToMe = false;
+        let logStatus = "success";
         if (isSlipValid) {
             let header;
             if (slipData) {
@@ -461,22 +462,22 @@ async function handleImageMessage(event, member) {
                 }
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **${amountStr} บาท**`;
                 if (slipToMe) {
-
                     if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
                         header += `\n⚠️ ยอดโอนมากกว่าค่าสนาม \nถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
                     }
-                    await db.logSlip(source.userId, member.name, relativeSlipPath, "success");
+                    logStatus = "success";
                 } else {
                     header += `\nแต่อาจจะไม่เกี่ยวกับค่าสนามบอล`;
-                    await db.logSlip(source.userId, member.name, relativeSlipPath, "not_me");
+                    logStatus = "not_me";
                 }
                 header += `\n\n💰 ยอดเงิน: **${amountStr} บาท**\n💸 โอนจาก: **${senderName} - ${senderBank}**\n💵 ให้กับ: **${recipientName}**\n 📅 วันที่: **${formatDate(recvDate)}**\n`;
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\n`;
                 slipToMe = true;
-                //log to slip paid log to noticed
-                await db.logSlip(source.userId, member.name, relativeSlipPath, "noticed");
+                logStatus = "noticed";
             }
+            await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus);
+
             const week = await db.queryWeekDate();
             let payweek = true;
             if (week.length > 0) {
