@@ -382,13 +382,17 @@ async function handleImageMessage(event, member) {
         if (isSlipValid) {
             let header;
             if (slipData) {
+                console.log('[EasySlip] Slip data:', slipData);
                 const senderName = slipData.rawSlip?.sender?.account?.name?.th ||
-                                   slipData.rawSlip?.sender?.account?.name?.en ||
-                                   slipData.rawSlip?.sender?.name ||
-                                   member.name;
+                    slipData.rawSlip?.sender?.account?.name?.en ||
+                    slipData.rawSlip?.sender?.name ||
+                    member.name;
                 const amount = slipData.amountInSlip ?? (slipData.rawSlip?.amount?.amount);
                 const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\nfrom: ${senderName}\nto: kyne\namount: ${amountStr} บาท\n\n`;
+                const recipient = slipData.rawSlip?.recipient?.account?.name?.th ||
+                    slipData.rawSlip?.recipient?.account?.name?.en ||
+                    slipData.rawSlip?.recipient?.name;
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\โอนจาก: ${senderName}\nให้กับ: ${recipient}\ยอดเงิน: ${amountStr} บาท\n\n`;
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n`;
             }
