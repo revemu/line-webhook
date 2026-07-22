@@ -396,12 +396,12 @@ async function handleImageMessage(event, member) {
             slipData = easySlipRes.data;
             isSlipValid = true;
         } else {
-            console.log('[EasySlip] Payload verification was not successful, trying to upload image instead...');
+            //console.log('[EasySlip] Payload verification was not successful, trying to upload image instead...');
             if (easySlipRes && easySlipRes.error) {
                 console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
             }
 
-            const easySlipImgRes = await verifyEasySlipByImage(imageBuffer);
+            /*const easySlipImgRes = await verifyEasySlipByImage(imageBuffer);
             if (easySlipImgRes && easySlipImgRes.success === true) {
                 console.log('[EasySlip] Slip verified successfully via image:', easySlipImgRes.data);
                 slipData = easySlipImgRes.data;
@@ -410,7 +410,7 @@ async function handleImageMessage(event, member) {
                 if (easySlipImgRes && easySlipImgRes.error) {
                     console.warn(`[EasySlip] Image verification failed: ${easySlipImgRes.error.code} - ${easySlipImgRes.error.message}`);
                 }
-            }
+            }*/
 
             if (!isSlipValid) {
                 // Fallback check for PromptPay QR payload format
