@@ -470,7 +470,7 @@ async function handleImageMessage(event, member) {
                     header += `\nแต่อาจจะไม่เกี่ยวกับค่าสนามบอล`;
                     await db.logSlip(source.userId, member.name, relativeSlipPath, "not_me");
                 }
-                header += `\n\n💰 ยอดเงิน: **${amountStr} บาท**\n💸 โอนจาก: **${senderName} - ${senderBank}**\n💵 ให้กับ: **${recipientName}**\n วันที่: **${formatDate(recvDate)}**\n`;
+                header += `\n\n💰 ยอดเงิน: **${amountStr} บาท**\n💸 โอนจาก: **${senderName} - ${senderBank}**\n💵 ให้กับ: **${recipientName}**\n 📅 วันที่: **${formatDate(recvDate)}**\n`;
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\n`;
                 slipToMe = true;
