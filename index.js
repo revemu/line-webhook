@@ -382,7 +382,7 @@ async function handleImageMessage(event, member) {
         if (isSlipValid) {
             let header;
             if (slipData) {
-                console.log('[EasySlip] Slip data:', slipData);
+                console.log('[EasySlip] Slip data:', slipData.rawSlip?.recipient);
                 const senderName = slipData.rawSlip?.sender?.account?.name?.th ||
                     slipData.rawSlip?.sender?.account?.name?.en ||
                     slipData.rawSlip?.sender?.name ||
