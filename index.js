@@ -383,15 +383,25 @@ async function handleImageMessage(event, member) {
             let header;
             if (slipData) {
                 console.log('[EasySlip] Slip data:', slipData.rawSlip?.receiver);
+                const recvDate = slipData.rawSlip?.transDate || slipData.rawSlip?.date;
+
                 const senderName = slipData.rawSlip?.sender?.account?.name?.th ||
                     slipData.rawSlip?.sender?.account?.name?.en ||
                     slipData.rawSlip?.sender?.name ||
                     member.name;
+                const senderBank = slipData.rawSlip?.sender?.bank?.short;
                 const amount = slipData.amountInSlip ?? (slipData.rawSlip?.amount?.amount);
                 const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
-                const recipient = slipData.rawSlip?.receiver?.account?.name?.th ||
-                    slipData.rawSlip?.receiver?.account?.name?.en;
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n    โอนจาก: ${senderName}\n    ให้กับ: ${recipient}\n    ยอดเงิน: ${amountStr} บาท\n\n`;
+                const recipient = slipData.rawSlip?.receiver?.account?.name?.en ||
+                    slipData.rawSlip?.receiver?.account?.name?.th;
+                const account = slipData.rawSlip?.receiver?.proxy?.account;
+                let recipientName = recipient;
+                if (account) {
+                    if (account.endsWith("5894")) {
+                        recipientName = "Kyne";
+                    }
+                }
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n    โอนจาก: ${senderName}\n    ให้กับ: ${recipientName}\n    ยอดเงิน: ${amountStr} บาท\n    วันที่: ${formatDate(recvDate)}\n\n`;
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n`;
             }
