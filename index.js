@@ -407,6 +407,10 @@ async function handleImageMessage(event, member) {
                         slipToMe = true;
                     }
                 }
+                if (recipientName.includes("เศรษฐ") || recipientName.includes("SAGE")) {
+                    slipToMe = true;
+                    recipientName = "Kyne";
+                }
                 if (slipToMe) {
                     header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว`;
                 } else {
