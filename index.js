@@ -391,7 +391,7 @@ async function handleImageMessage(event, member) {
                 const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
                 const recipient = slipData.rawSlip?.receiver?.account?.name?.th ||
                     slipData.rawSlip?.receiver?.account?.name?.en;
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\โอนจาก: ${senderName}\nให้กับ: ${recipient}\ยอดเงิน: ${amountStr} บาท\n\n`;
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n    โอนจาก: ${senderName}\nให้กับ: ${recipient}\n    ยอดเงิน: ${amountStr} บาท\n\n`;
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n`;
             }
