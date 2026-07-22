@@ -25,13 +25,18 @@ const config = {
 
 
 function formatDate(curDate) {
-    const d = ('0' + curDate.getDate()).slice(-2);
-    const m = ('0' + (curDate.getMonth() + 1)).slice(-2);
-    const y = curDate.getFullYear();
-    const h = ('0' + curDate.getHours()).slice(-2);
-    const min = ('0' + curDate.getMinutes()).slice(-2);
-    const s = ('0' + curDate.getSeconds()).slice(-2);
-    return (`${y}-${m}-${d} ${h}:${min}:${s}`)
+    if (!curDate) return '';
+    const dObj = (curDate instanceof Date) ? curDate : new Date(curDate);
+    if (isNaN(dObj.getTime())) {
+        return typeof curDate === 'string' ? curDate : '';
+    }
+    const d = ('0' + dObj.getDate()).slice(-2);
+    const m = ('0' + (dObj.getMonth() + 1)).slice(-2);
+    const y = dObj.getFullYear();
+    const h = ('0' + dObj.getHours()).slice(-2);
+    const min = ('0' + dObj.getMinutes()).slice(-2);
+    const s = ('0' + dObj.getSeconds()).slice(-2);
+    return `${y}-${m}-${d} ${h}:${min}:${s}`;
 }
 
 
