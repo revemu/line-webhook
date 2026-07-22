@@ -383,7 +383,7 @@ async function handleImageMessage(event, member) {
                 isSlipValid = true;
             }
         }
-
+        let slipToMe = false;
         if (isSlipValid) {
             let header;
             if (slipData) {
@@ -399,16 +399,17 @@ async function handleImageMessage(event, member) {
                 const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
                 const recipient = slipData.rawSlip?.receiver?.account?.name?.en ||
                     slipData.rawSlip?.receiver?.account?.name?.th;
-                const account = slipData.rawSlip?.receiver?.proxy?.account;
+                const account = slipData.rawSlip?.receiver?.account?.proxy?.account;
                 let recipientName = recipient;
                 if (account) {
                     if (account.endsWith("5894")) {
                         recipientName = "Kyne";
+                        slipToMe = true;
                     }
                 }
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n    โอนจาก: ${senderName}\n    ให้กับ: ${recipientName}\n    ยอดเงิน: ${amountStr} บาท\n    วันที่: ${formatDate(recvDate)}\n\n`;
             } else {
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n`;
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว แต่ไม่พบข้อมูลการโอน ให้รอตรวจสอบจากแอดมินอีกครั้ง หรือส่งเข้ามาใหม่หลังจากนี้ 5 นาที`;
             }
             const week = await db.queryWeekDate();
             let payweek = true;
@@ -422,14 +423,14 @@ async function handleImageMessage(event, member) {
 
             let replyMessages;
             if (!payweek) {
-                await db.updateMemberDebt(member.id);
+                if (slipToMe) await db.updateMemberDebt(member.id);
                 replyMessages = [{
                     type: 'text',
                     quoteToken: message.quoteToken,
                     text: header
                 }];
             } else {
-                await db.updateMemberWeek(member.id, 1, 0);
+                if (slipToMe) await db.updateMemberWeek(member.id, 1, 0);
                 const [msg, sub, count] = await db.getMemberWeek2(0);
                 console.log(`user count: ${count}`);
                 if (count === 0 || count > 20) {
