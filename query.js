@@ -794,24 +794,19 @@ async function setWeekCost(totalCost) {
   }
 
   const sharedFee = Math.ceil((totalCost + 100) / count) + 30;
-
+  let costfee = sharedFee;
   for (const m of members) {
-    if (m.team_id === 101) {
+    if (m.team_id === 101 || m.team_id === 1) {
       continue;
-    }
-    if (m.pay > 0) {
-      // If already paid, update their payment amount in member_team_week_tbl to sharedFee
-      await executeQuery(
-        "UPDATE member_team_week_tbl SET pay = ? WHERE member_id = ? AND week_id = ?",
-        [sharedFee, m.member_id, week_id]
-      );
+    } else if (m.team_id === 100) {
+      costfee = 40;
     } else {
-      // If not paid, set their debt in member_tbl to sharedFee
-      await executeQuery(
-        "UPDATE member_tbl SET debt = ? WHERE id = ?",
-        [sharedFee, m.member_id]
-      );
+      costfee = sharedFee;
     }
+    await executeQuery(
+      "UPDATE member_tbl SET debt = ? WHERE id = ?",
+      [costfee, m.member_id]
+    );
   }
 
   return { success: true, count, sharedFee };

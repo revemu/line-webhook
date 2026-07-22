@@ -86,6 +86,30 @@ async function getImageAxios(messageId) {
 
 
 
+// Function to verify bank slip via EasySlip API v2 using QR Code payload
+const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
+
+async function verifyEasySlipByPayload(payload) {
+    try {
+        const response = await axios.post('https://api.easyslip.com/v2/verify/bank', {
+            payload: payload
+        }, {
+            headers: {
+                'Authorization': `Bearer ${EASYSLIP_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 10000
+        });
+        return response.data;
+    } catch (error) {
+        if (error.response && error.response.data) {
+            console.error('[EasySlip] Payload verification response:', error.response.data);
+            return error.response.data;
+        }
+        console.error('[EasySlip] Payload verification error:', error.message);
+        return null;
+    }
+}
 // Function to read QR code from image buffer using zbarimg CLI
 async function readQRCode(imageBuffer) {
     let tempFilePath = null;
@@ -327,50 +351,85 @@ async function handleImageMessage(event, member) {
 
         console.log(`Time processed image elapsed: ${Date.now() - startTime} ms`);
 
-        if (codes) {
-            const qrCode = codes[0].data;
-            console.log('QR code detected:', qrCode);
-            if (qrCode.includes("60000010103")) {
-                const header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n`;
-                const week = await db.queryWeekDate();
-                let payweek = true;
-                if (week.length > 0) {
-                    const now = new Date();
-                    if (now.getTime() < week[0].date.getTime()) {
-                        payweek = false;
-                    }
-                    console.log(`week ${week[0].date} now ${now}`);
-                }
+        if (!codes || codes.length === 0) {
+            console.log('No QR code detected in image, skipping message.');
+            return;
+        }
 
-                let replyMessages;
-                if (!payweek) {
-                    await db.updateMemberDebt(member.id);
+        const qrCode = codes[0].data;
+        console.log('QR code detected:', qrCode);
+
+        let isSlipValid = false;
+        let slipData = null;
+
+        // Verify QR code with EasySlip API v2
+        const easySlipRes = await verifyEasySlipByPayload(qrCode);
+        if (easySlipRes && easySlipRes.success === true) {
+            console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
+            slipData = easySlipRes.data;
+            isSlipValid = true;
+        } else {
+            if (easySlipRes && easySlipRes.error) {
+                console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
+            }
+            // Fallback check for PromptPay QR payload format
+            if (qrCode.includes("60000010103")) {
+                console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
+                isSlipValid = true;
+            }
+        }
+
+        if (isSlipValid) {
+            let header;
+            if (slipData) {
+                const senderName = slipData.rawSlip?.sender?.account?.name?.th ||
+                                   slipData.rawSlip?.sender?.account?.name?.en ||
+                                   slipData.rawSlip?.sender?.name ||
+                                   member.name;
+                const amount = slipData.amountInSlip ?? (slipData.rawSlip?.amount?.amount);
+                const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\nfrom: ${senderName}\nto: kyne\namount: ${amountStr} บาท\n\n`;
+            } else {
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว\n\n`;
+            }
+            const week = await db.queryWeekDate();
+            let payweek = true;
+            if (week.length > 0) {
+                const now = new Date();
+                if (now.getTime() < week[0].date.getTime()) {
+                    payweek = false;
+                }
+                console.log(`week ${week[0].date} now ${now}`);
+            }
+
+            let replyMessages;
+            if (!payweek) {
+                await db.updateMemberDebt(member.id);
+                replyMessages = [{
+                    type: 'text',
+                    quoteToken: message.quoteToken,
+                    text: header
+                }];
+            } else {
+                await db.updateMemberWeek(member.id, 1, 0);
+                const [msg, sub, count] = await db.getMemberWeek2(0);
+                console.log(`user count: ${count}`);
+                if (count === 0 || count > 20) {
                     replyMessages = [{
                         type: 'text',
                         quoteToken: message.quoteToken,
-                        text: header
+                        text: header + msg
                     }];
                 } else {
-                    await db.updateMemberWeek(member.id, 1, 0);
-                    const [msg, sub, count] = await db.getMemberWeek2(0);
-                    console.log(`user count: ${count}`);
-                    if (count === 0 || count > 20) {
-                        replyMessages = [{
-                            type: 'text',
-                            quoteToken: message.quoteToken,
-                            text: header + msg
-                        }];
-                    } else {
-                        replyMessages = {
-                            type: 'textV2',
-                            quoteToken: message.quoteToken,
-                            text: header + msg,
-                            substitution: sub
-                        };
-                    }
+                    replyMessages = {
+                        type: 'textV2',
+                        quoteToken: message.quoteToken,
+                        text: header + msg,
+                        substitution: sub
+                    };
                 }
-                await replyMessage(replyToken, replyMessages);
             }
+            await replyMessage(replyToken, replyMessages);
         }
     } catch (error) {
         console.error('Error processing image!,', error);
