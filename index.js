@@ -369,11 +369,22 @@ async function handleMessage(event) {
 }
 
 async function handleImageMessage(event, member) {
-    const { replyToken, message } = event;
+    const { replyToken, message, source } = event;
     try {
         console.log(`${member.name}: sent image! need processing...`);
         const startTime = Date.now();
         const imageBuffer = await getImageAxios(message.id);
+
+        // Save image to img/slip/
+        const imgSlipDir = path.join(__dirname, 'img', 'slip');
+        try {
+            await fs.mkdir(imgSlipDir, { recursive: true });
+        } catch (e) {}
+        const slipFileName = `slip_${Date.now()}_${message.id}.jpg`;
+        const slipFilePath = path.join(imgSlipDir, slipFileName);
+        const relativeSlipPath = `/img/slip/${slipFileName}`;
+        await fs.writeFile(slipFilePath, imageBuffer);
+
         const codes = await readQRCode(imageBuffer);
 
         console.log(`Time processed image elapsed: ${Date.now() - startTime} ms`);
@@ -450,12 +461,17 @@ async function handleImageMessage(event, member) {
                 }
                 if (slipToMe) {
                     header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว`;
+                    await db.logSlip(source.userId, member.name, relativeSlipPath, "success");
                 } else {
                     header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว แต่อาจจะไม่เกี่ยวกับค่าสนามบอล รอแอดมินตรวจสอบอีกครั้งนะครับ`;
+                    await db.logSlip(source.userId, member.name, relativeSlipPath, "not_me");
                 }
                 header += `\n\n💸 โอนจาก: **${senderName} - ${senderBank}**\n💵 ให้กับ: **${recipientName}**\n💰 ยอดเงิน: **${amountStr} บาท**\n📅 วันที่: **${formatDate(recvDate)}**\n`;
             } else {
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\nมีปัญหาในการตรวจสอบสลิป รอแอดมินตรวจสอบอีกครั้ง`;
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\n`;
+                slipToMe = true;
+                //log to slip paid log to noticed
+                await db.logSlip(source.userId, member.name, relativeSlipPath, "noticed");
             }
             const week = await db.queryWeekDate();
             let payweek = true;

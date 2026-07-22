@@ -3329,6 +3329,25 @@ async function getMemberStats(memberId, groupId = null) {
   };
 }
 
+async function logSlip(senderId, senderName, imagePath, status) {
+  try {
+    const createSql = `CREATE TABLE IF NOT EXISTS slip_log (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      sender_id VARCHAR(255),
+      sender_name VARCHAR(255),
+      image_path VARCHAR(255),
+      status VARCHAR(50),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`;
+    await executeQuery(createSql, []);
+    
+    const sql = `INSERT INTO slip_log (sender_id, sender_name, image_path, status) VALUES (?, ?, ?, ?)`;
+    await executeQuery(sql, [senderId, senderName, imagePath, status]);
+  } catch (err) {
+    console.error("Error logging slip:", err);
+  }
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -3375,5 +3394,6 @@ module.exports = {
   getTemplate,
   getMemberDisplayInfo,
   getMemberStats,
-  getAdminCommands
+  getAdminCommands,
+  logSlip
 };
