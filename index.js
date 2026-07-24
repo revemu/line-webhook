@@ -529,7 +529,16 @@ async function handleImageMessage(event, member) {
                     logStatus = "noticed";
                 }
             }
-            if (!isDuplicate) await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, qrCode, slipData);
+            if (isDuplicate) {
+                try {
+                    await fs.unlink(slipFilePath);
+                    console.log(`Deleted duplicate slip image: ${slipFilePath}`);
+                } catch (e) {
+                    console.error('Error deleting duplicate slip image:', e);
+                }
+            } else {
+                await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, qrCode, slipData);
+            }
 
             const week = await db.queryWeekDate();
             let payweek = true;
