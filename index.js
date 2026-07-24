@@ -505,14 +505,14 @@ async function handleImageMessage(event, member) {
                 }
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${amountStr} บาท**`;
                 if (slipToMe) {
-                    if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
-                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n** ถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
-                    }
                     if (isDuplicate) {
-                        header = `\n\n**⚠️ สลิปนี้ถูกส่งมาแล้ว **` + header;
+                        header += `\n\n**⚠️ สลิปนี้ถูกส่งมาแล้ว **`;
                         logStatus = "duplicate";
                     } else {
                         logStatus = "success";
+                    }
+                    if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
+                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n** ถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
                     }
                 } else {
                     header += `\n\n**📝 อาจจะไม่เกี่ยวกับค่าสนามบอล **`;
