@@ -40,6 +40,10 @@ function formatDate(curDate) {
 }
 
 async function getFormatDate(date, format = 'short') {
+    if (!date) return '';
+    if (!(date instanceof Date)) {
+        date = new Date(date);
+    }
     const thaiMonths = [
         'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
         'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
