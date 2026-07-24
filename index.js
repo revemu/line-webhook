@@ -449,29 +449,29 @@ async function handleImageMessage(event, member) {
                 slipData = easySlipRes.data;
                 isSlipValid = true;
             } else {
-            //console.log('[EasySlip] Payload verification was not successful, trying to upload image instead...');
-            if (easySlipRes && easySlipRes.error) {
-                console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
-            }
-
-            /*const easySlipImgRes = await verifyEasySlipByImage(imageBuffer);
-            if (easySlipImgRes && easySlipImgRes.success === true) {
-                console.log('[EasySlip] Slip verified successfully via image:', easySlipImgRes.data);
-                slipData = easySlipImgRes.data;
-                isSlipValid = true;
-            } else {
-                if (easySlipImgRes && easySlipImgRes.error) {
-                    console.warn(`[EasySlip] Image verification failed: ${easySlipImgRes.error.code} - ${easySlipImgRes.error.message}`);
+                //console.log('[EasySlip] Payload verification was not successful, trying to upload image instead...');
+                if (easySlipRes && easySlipRes.error) {
+                    console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
                 }
-            }*/
 
-            if (!isSlipValid) {
-                // Fallback check for PromptPay QR payload format
-                if (qrCode.includes("60000010103")) {
-                    console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
+                /*const easySlipImgRes = await verifyEasySlipByImage(imageBuffer);
+                if (easySlipImgRes && easySlipImgRes.success === true) {
+                    console.log('[EasySlip] Slip verified successfully via image:', easySlipImgRes.data);
+                    slipData = easySlipImgRes.data;
                     isSlipValid = true;
+                } else {
+                    if (easySlipImgRes && easySlipImgRes.error) {
+                        console.warn(`[EasySlip] Image verification failed: ${easySlipImgRes.error.code} - ${easySlipImgRes.error.message}`);
+                    }
+                }*/
+
+                if (!isSlipValid) {
+                    // Fallback check for PromptPay QR payload format
+                    if (qrCode.includes("60000010103")) {
+                        console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
+                        isSlipValid = true;
+                    }
                 }
-            }
             }
         }
         let slipToMe = false;
@@ -482,8 +482,8 @@ async function handleImageMessage(event, member) {
                 console.log('[EasySlip] Slip data:', slipData.rawSlip?.receiver);
                 const recvDate = slipData.rawSlip?.transDate || slipData.rawSlip?.date;
 
-                const senderName = slipData.rawSlip?.sender?.account?.name?.en ||
-                    slipData.rawSlip?.sender?.account?.name?.th ||
+                const senderName = slipData.rawSlip?.sender?.account?.name?.th ||
+                    slipData.rawSlip?.sender?.account?.name?.en ||
                     slipData.rawSlip?.sender?.name ||
                     member.name;
                 const senderBank = slipData.rawSlip?.sender?.bank?.short;
@@ -505,20 +505,20 @@ async function handleImageMessage(event, member) {
                 }
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${amountStr} บาท**`;
                 if (slipToMe) {
+                    if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
+                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n** ถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
+                    }
                     if (isDuplicate) {
-                        header += `\n\n⚠️ สลิปนี้ถูกส่งมาแล้ว`;
+                        header = `\n\n**⚠️ สลิปนี้ถูกส่งมาแล้ว **` + header;
                         logStatus = "duplicate";
                     } else {
-                        if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
-                            header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n** ถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
-                        }
                         logStatus = "success";
                     }
                 } else {
                     header += `\n\n**📝 อาจจะไม่เกี่ยวกับค่าสนามบอล **`;
                     logStatus = "not_me";
                 }
-                header += `\n\n💰 ยอดเงิน: **${amountStr} บาท**\n💸 โอนจาก: **${senderName} - ${senderBank}**\n💵 ให้กับ: **${recipientName}**\n📅 วันที่: **${getFormatDate(recvDate)}**\n`;
+                header += `\n\n💰 ยอดเงิน: ** ${amountStr} บาท **\n💸 โอนจาก: ** ${senderName}. - ${senderBank} **\n💵 ให้กับ: ** ${recipientName} **\n📅 วันที่: ** ${getFormatDate(recvDate)} **\n`;
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\n`;
                 slipToMe = true;
