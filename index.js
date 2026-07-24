@@ -506,7 +506,7 @@ async function handleImageMessage(event, member) {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${amountStr} บาท**`;
                 if (slipToMe) {
                     if (isDuplicate) {
-                        header += `\n\n**⚠️ สลิปนี้ถูกส่งมาแล้ว **`;
+                        header += `\n\n** สลิปนี้เคยส่งเข้ามาแล้ว **`;
                         logStatus = "duplicate";
                     } else {
                         logStatus = "success";
@@ -529,7 +529,7 @@ async function handleImageMessage(event, member) {
                     logStatus = "noticed";
                 }
             }
-            await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, isDuplicate ? null : qrCode, isDuplicate ? null : slipData);
+            if (!isDuplicate) await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, qrCode, slipData);
 
             const week = await db.queryWeekDate();
             let payweek = true;
