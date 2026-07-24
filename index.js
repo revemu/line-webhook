@@ -428,14 +428,23 @@ async function handleImageMessage(event, member) {
 
         let isSlipValid = false;
         let slipData = null;
+        let isDuplicate = false;
 
-        // Verify QR code with EasySlip API v2
-        const easySlipRes = await verifyEasySlipByPayload(qrCode);
-        if (easySlipRes && easySlipRes.success === true) {
-            console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
-            slipData = easySlipRes.data;
+        // Check for duplicate in DB
+        const cachedSlip = await db.getSlipByQRCode(qrCode);
+        if (cachedSlip) {
+            console.log('[EasySlip] Slip verified from cache (duplicate)');
+            slipData = cachedSlip;
             isSlipValid = true;
+            isDuplicate = true;
         } else {
+            // Verify QR code with EasySlip API v2
+            const easySlipRes = await verifyEasySlipByPayload(qrCode);
+            if (easySlipRes && easySlipRes.success === true) {
+                console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
+                slipData = easySlipRes.data;
+                isSlipValid = true;
+            } else {
             //console.log('[EasySlip] Payload verification was not successful, trying to upload image instead...');
             if (easySlipRes && easySlipRes.error) {
                 console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
@@ -458,6 +467,7 @@ async function handleImageMessage(event, member) {
                     console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
                     isSlipValid = true;
                 }
+            }
             }
         }
         let slipToMe = false;
@@ -491,10 +501,15 @@ async function handleImageMessage(event, member) {
                 }
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${amountStr} บาท**`;
                 if (slipToMe) {
-                    if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
-                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n** ถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
+                    if (isDuplicate) {
+                        header += `\n\n⚠️ สลิปนี้ถูกส่งมาแล้ว`;
+                        logStatus = "duplicate";
+                    } else {
+                        if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
+                            header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n** ถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
+                        }
+                        logStatus = "success";
                     }
-                    logStatus = "success";
                 } else {
                     header += `\n\n**📝 อาจจะไม่เกี่ยวกับค่าสนามบอล **`;
                     logStatus = "not_me";
@@ -503,9 +518,14 @@ async function handleImageMessage(event, member) {
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\n`;
                 slipToMe = true;
-                logStatus = "noticed";
+                if (isDuplicate) {
+                    header += `⚠️ สลิปนี้ถูกส่งมาแล้ว \n\n`;
+                    logStatus = "duplicate";
+                } else {
+                    logStatus = "noticed";
+                }
             }
-            await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus);
+            await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, isDuplicate ? null : qrCode, isDuplicate ? null : slipData);
 
             const week = await db.queryWeekDate();
             let payweek = true;
@@ -519,14 +539,14 @@ async function handleImageMessage(event, member) {
 
             let replyMessages;
             if (!payweek) {
-                if (slipToMe) await db.updateMemberDebt(member.id);
+                if (slipToMe && !isDuplicate) await db.updateMemberDebt(member.id);
                 replyMessages = [{
                     type: 'text',
                     quoteToken: message.quoteToken,
                     text: header
                 }];
             } else {
-                if (slipToMe) await db.updateMemberWeek(member.id, 1, 0);
+                if (slipToMe && !isDuplicate) await db.updateMemberWeek(member.id, 1, 0);
                 const [msg, sub, count] = await db.getMemberWeek2(0);
                 console.log(`user count: ${count}`);
                 if (count === 0 || count > 20) {

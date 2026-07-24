@@ -3329,7 +3329,7 @@ async function getMemberStats(memberId, groupId = null) {
   };
 }
 
-async function logSlip(senderId, senderName, imagePath, status) {
+async function logSlip(senderId, senderName, imagePath, status, qrcode = null, responseJson = null) {
   try {
     const createSql = `CREATE TABLE IF NOT EXISTS slip_log (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3337,15 +3337,36 @@ async function logSlip(senderId, senderName, imagePath, status) {
       sender_name VARCHAR(255),
       image_path VARCHAR(255),
       status VARCHAR(50),
+      qrcode TEXT,
+      response_json TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`;
     await executeQuery(createSql, []);
     
-    const sql = `INSERT INTO slip_log (sender_id, sender_name, image_path, status) VALUES (?, ?, ?, ?)`;
-    await executeQuery(sql, [senderId, senderName, imagePath, status]);
+    try { await executeQuery("ALTER TABLE slip_log ADD COLUMN qrcode TEXT", []); } catch (e) {}
+    try { await executeQuery("ALTER TABLE slip_log ADD COLUMN response_json TEXT", []); } catch (e) {}
+    
+    const sql = `INSERT INTO slip_log (sender_id, sender_name, image_path, status, qrcode, response_json) VALUES (?, ?, ?, ?, ?, ?)`;
+    const jsonStr = responseJson ? JSON.stringify(responseJson) : null;
+    await executeQuery(sql, [senderId, senderName, imagePath, status, qrcode, jsonStr]);
   } catch (err) {
     console.error("Error logging slip:", err);
   }
+}
+
+async function getSlipByQRCode(qrcode) {
+  try {
+    const sql = `SELECT response_json FROM slip_log WHERE qrcode = ? LIMIT 1`;
+    const rows = await executeQuery(sql, [qrcode]);
+    if (rows && rows.length > 0 && rows[0].response_json) {
+      return JSON.parse(rows[0].response_json);
+    }
+  } catch (err) {
+    if (err.code !== 'ER_BAD_FIELD_ERROR') {
+      console.error("Error getting slip by qrcode:", err);
+    }
+  }
+  return null;
 }
 
 module.exports = {
@@ -3395,5 +3416,6 @@ module.exports = {
   getMemberDisplayInfo,
   getMemberStats,
   getAdminCommands,
-  logSlip
+  logSlip,
+  getSlipByQRCode
 };
