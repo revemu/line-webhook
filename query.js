@@ -3343,8 +3343,12 @@ async function logSlip(senderId, senderName, imagePath, status, qrcode = null, r
     )`;
     await executeQuery(createSql, []);
     
-    try { await executeQuery("ALTER TABLE slip_log ADD COLUMN qrcode TEXT", []); } catch (e) {}
-    try { await executeQuery("ALTER TABLE slip_log ADD COLUMN response_json TEXT", []); } catch (e) {}
+    const checkColSql = `SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'slip_log' AND column_name = 'qrcode'`;
+    const colExists = await executeQuery(checkColSql, []);
+    if (colExists && colExists.length > 0 && colExists[0].count === 0) {
+      await executeQuery("ALTER TABLE slip_log ADD COLUMN qrcode TEXT", []);
+      await executeQuery("ALTER TABLE slip_log ADD COLUMN response_json TEXT", []);
+    }
     
     const sql = `INSERT INTO slip_log (sender_id, sender_name, image_path, status, qrcode, response_json) VALUES (?, ?, ?, ?, ?, ?)`;
     const jsonStr = responseJson ? JSON.stringify(responseJson) : null;

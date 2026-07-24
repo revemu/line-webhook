@@ -39,7 +39,7 @@ function formatDate(curDate) {
     return `${y}-${m}-${d} ${h}:${min}:${s}`;
 }
 
-async function getFormatDate(date, format = 'short') {
+function getFormatDate(date, format = 'short') {
     if (!date) return '';
     if (!(date instanceof Date)) {
         date = new Date(date);
