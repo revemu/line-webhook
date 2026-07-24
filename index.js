@@ -39,6 +39,35 @@ function formatDate(curDate) {
     return `${y}-${m}-${d} ${h}:${min}:${s}`;
 }
 
+async function getFormatDate(date, format = 'short') {
+    const thaiMonths = [
+        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+    ];
+    const thaiMonthsShort = [
+        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+    ];
+    const d = ('0' + date.getDate()).slice(-2);
+    let y = (date.getFullYear() + 543).toString();
+    let month;
+    switch (format) {
+        case 'full':
+            month = thaiMonths[date.getMonth()];
+            break;
+        case 'short':
+            month = thaiMonthsShort[date.getMonth()];
+            y = `${y.slice(-2)}`;
+            break;
+    }
+
+    const h = ('0' + date.getHours()).slice(-2);
+    const min = ('0' + date.getMinutes()).slice(-2);
+    const s = ('0' + date.getSeconds()).slice(-2);
+
+    return `${d} ${month} ${y} ${h}:${min}:${s}`;
+}
+
 
 // Create LINE SDK client
 const client = new Client(config);
@@ -463,14 +492,14 @@ async function handleImageMessage(event, member) {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${amountStr} บาท**`;
                 if (slipToMe) {
                     if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
-                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \nถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
+                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n** ถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
                     }
                     logStatus = "success";
                 } else {
                     header += `\n\n**📝 อาจจะไม่เกี่ยวกับค่าสนามบอล **`;
                     logStatus = "not_me";
                 }
-                header += `\n\n💰 ยอดเงิน: **${amountStr} บาท**\n💸 โอนจาก: **${senderName} - ${senderBank}**\n💵 ให้กับ: **${recipientName}**\n 📅 วันที่: **${formatDate(recvDate)}**\n`;
+                header += `\n\n💰 ยอดเงิน: **${amountStr} บาท**\n💸 โอนจาก: **${senderName} - ${senderBank}**\n💵 ให้กับ: **${recipientName}**\n📅 วันที่: **${getFormatDate(recvDate)}**\n`;
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\n`;
                 slipToMe = true;
