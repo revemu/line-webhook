@@ -499,7 +499,7 @@ async function handleImageMessage(event, member) {
                         slipToMe = true;
                     }
                 }
-                if (recipientName.includes("เศรษฐ ") || recipientName.toUpperCase().includes("SAGE ") || recipientName.toUpperCase().includes("SETH ")) {
+                if (recipientName.includes("เศรษฐ") || recipientName.toUpperCase().includes("SAGE") || recipientName.toUpperCase().includes("SETH")) {
                     slipToMe = true;
                     recipientName = "Kyne";
                 }
