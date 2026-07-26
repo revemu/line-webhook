@@ -2014,7 +2014,7 @@ async function getMemberWeek2(type = 0) {
     if (result.length > 0) {
 
 
-      header = `${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
+      header = `\n${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
       let i = 0;
       let player = 0;
       let reserve = 0;
