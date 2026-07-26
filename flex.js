@@ -1989,7 +1989,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   });
 
   const isFull = autoRegCount >= 24;
-  const registerButton = isFull 
+  const registerButton = isFull
     ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
     : makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor);
 
@@ -2955,7 +2955,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   // ── Team Color Stats Section ──
   if (colorStats && colorStats.length > 0) {
     bodyContents.push({ type: 'separator', margin: 'md', color: separatorColor });
-    
+
     bodyContents.push({
       type: 'box',
       layout: 'horizontal',
@@ -3018,7 +3018,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     colorStats.forEach((c, index) => {
       const isEven = index % 2 === 1;
       const rowBg = isEven ? (isWhite ? '#f8fafc' : '#12192c') : null;
-      
+
       const rowObj = {
         type: 'box',
         layout: 'horizontal',
@@ -3427,7 +3427,7 @@ function buildMenuFlex(dateStr, theme, title = null, autoRegCount = 0) {
   });
 
   const isFull = autoRegCount >= 24;
-  const registerButton = isFull 
+  const registerButton = isFull
     ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
     : makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor);
 
@@ -3523,7 +3523,7 @@ function buildQrFlex(amount, promptPayNumber, theme, qrUrl) {
         },
         {
           type: 'text',
-          text: 'หลังจากสแกนชำระเงินเรียบร้อยแล้ว กรุณาส่งสลิปโอนเงินเข้ามาในห้องแชทเพื่อบันทึกยอดชำระอัตโนมัติ',
+          text: 'หลังจากสแกนชำระเงินเรียบร้อยแล้ว \nรอซัก 2-3 นาที แล้วค่อยกดส่งเพื่อการครวจสอบการชำระอัตโนมัตินะครับ\nบางธนาคารอาจจะยังไม่อัพเดทสลิปให้ระบบภายนอกตรวจสอบครับ',
           size: 'xxs',
           color: colors.textMuted,
           wrap: true,
