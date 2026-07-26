@@ -642,7 +642,7 @@ async function newWeek(week_date) {
   console.log(last_week + " === " + date_str);
   if (last_week != date_str) {
     new_week_num = week[0].number + 1;
-    query = `insert into week_tbl values(null, '${new_week_num}', '${date_str}', 2, '${y}', 24)`;
+    query = `insert into week_tbl values(null, '${new_week_num}', '${date_str}', 2, '${y}', 24, 0)`;
     //console.log(query) ;
 
 
