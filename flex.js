@@ -3524,7 +3524,7 @@ function buildQrFlex(amount, promptPayNumber, theme, qrUrl) {
         {
           type: 'text',
           text: 'หลังจากสแกนชำระเงินเรียบร้อยแล้ว\n\nรอซัก 2-3 นาที แล้วค่อยกดส่งเพื่อการครวจสอบการชำระอัตโนมัตินะครับ\n\nบางธนาคารอาจจะยังไม่อัพเดทสลิปให้ระบบภายนอกตรวจสอบครับ',
-          size: 'xxs',
+          size: 'xs',
           color: colors.textMuted,
           wrap: true,
           align: 'center',
