@@ -401,7 +401,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             let amount = 0;
             if (param !== "") {
                 amount = parseInt(param, 10);
-                if (isNaN(amount) || amount <= 0) {
+                if (isNaN(amount) || amount < 0) {
                     msg = "กรุณาระบุจำนวนเงินเป็นตัวเลข เช่น /qr 150";
                     msg_type = 0;
                     break;

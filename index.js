@@ -494,7 +494,7 @@ async function handleImageMessage(event, member) {
                 const account = slipData.rawSlip?.receiver?.account?.proxy?.account;
                 let recipientName = recipient;
                 if (account) {
-                    if (account.endsWith("5894")) {
+                    if (account.endsWith("5894") || ((account.startsWith("006") && account.endsWith("3367")))) {
                         recipientName = "Kyne";
                         slipToMe = true;
                     }
