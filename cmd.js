@@ -416,7 +416,9 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             }
 
             try {
-                const filename = await qrGen.generateQrCode(amount, '0850705894');
+                //006990146713367
+                //0850705894
+                const filename = await qrGen.generateQrCode(amount, '006990146713367');
 
                 let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
                 if (baseUrl.startsWith('http://')) {
