@@ -3123,7 +3123,7 @@ function buildRegisterClosedFlex(theme, imageUrl = null) {
 
   const bubble = {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     body: {
       type: 'box',
       layout: 'vertical',
@@ -3204,7 +3204,7 @@ function buildRegisterClosedFlex(theme, imageUrl = null) {
           layout: 'horizontal',
           spacing: 'sm',
           contents: [
-            makeBoxButton('📋 ดูรายชื่อเตะ', '/register', buttonColor, 1, 'xs', true),
+            makeBoxButton('📋 ดูสมาชิกที่ลงชื่อ', '/register', buttonColor, 1, 'xs', true),
             makeBoxButton('👤 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', isWhite ? '#64748b' : '#334155', 1, 'xs', true)
           ]
         }
