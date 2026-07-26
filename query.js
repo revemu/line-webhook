@@ -2014,7 +2014,7 @@ async function getMemberWeek2(type = 0) {
     if (result.length > 0) {
 
 
-      header = `\n${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
+      header = `${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
       let i = 0;
       let player = 0;
       let reserve = 0;
@@ -2079,7 +2079,7 @@ async function getMemberWeek2(type = 0) {
       //sub = JSON.parse(user_json.replace(/\s/g, "")) 
       //console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
       let str = header + body;
-      header = `+${player}`;
+      header = `\n+${player}`;
       if (reserve > 0) str += reserve_str;
       if (goal > 0) str += goal_str;
       if (reserve > 0) header += `(${reserve})`;
