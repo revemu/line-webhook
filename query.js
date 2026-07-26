@@ -788,14 +788,19 @@ async function setWeekCost(totalCost) {
   }
 
   const payingMembers = members.filter(m => (m.team_id !== 101 && m.team_id !== 1));
-  const count = payingMembers.length;
+  //const count = members.length;
+  const count = (members.length > week[0].max) ? week[0].max : members.length;
   if (count === 0) {
     return { success: false, message: 'ไม่มีสมาชิกที่ต้องชำระเงินในสัปดาห์นี้' };
   }
 
   const sharedFee = Math.ceil((totalCost + 100) / count) + 30;
   let costfee = sharedFee;
-  for (const m of members) {
+  await executeQuery(
+    "UPDATE week_tbl SET cost = ? WHERE id = ?",
+    [costfee, week_id]
+  );
+  for (const m of payingMembers) {
     if (m.team_id === 101 || m.team_id === 1) {
       continue;
     } else if (m.team_id === 100) {
@@ -3342,14 +3347,14 @@ async function logSlip(senderId, senderName, imagePath, status, qrcode = null, r
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`;
     await executeQuery(createSql, []);
-    
+
     const checkColSql = `SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'slip_log' AND column_name = 'qrcode'`;
     const colExists = await executeQuery(checkColSql, []);
     if (colExists && colExists.length > 0 && colExists[0].count === 0) {
       await executeQuery("ALTER TABLE slip_log ADD COLUMN qrcode TEXT", []);
       await executeQuery("ALTER TABLE slip_log ADD COLUMN response_json TEXT", []);
     }
-    
+
     const sql = `INSERT INTO slip_log (sender_id, sender_name, image_path, status, qrcode, response_json) VALUES (?, ?, ?, ?, ?, ?)`;
     const jsonStr = responseJson ? JSON.stringify(responseJson) : null;
     await executeQuery(sql, [senderId, senderName, imagePath, status, qrcode, jsonStr]);

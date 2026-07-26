@@ -123,10 +123,10 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         case 'delreserve': {
             const result = await db.removeReserveMembers();
             if (result.success) {
-                const infoText = result.count > 0 
+                const infoText = result.count > 0
                     ? `ลบรายชื่อสำรองสำเร็จ! (${result.count} คน: ${result.names.join(', ')})`
                     : `ไม่มีรายชื่อสำรองในสัปดาห์นี้ครับ`;
-                
+
                 const [flexMsg, sub, altTextStr] = await db.getMemberWeek0(1, is_flex, groupId);
                 if (is_flex && typeof flexMsg === 'object') {
                     return [
@@ -397,6 +397,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             break;
         }
         case 'qr': {
+            week = await db.queryWeekID(0);
             let amount = 0;
             if (param !== "") {
                 amount = parseInt(param, 10);
@@ -406,12 +407,12 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                     break;
                 }
             } else {
-                if (!member || member.debt <= 0) {
+                if (!week || week[0].cost <= 0) {
                     msg = "ยังไม่ได้คำนวณค่าสนามในสัปดาห์นี้ครับ";
                     msg_type = 0;
                     break;
                 }
-                amount = member.debt;
+                amount = week[0].cost;
             }
 
             try {
