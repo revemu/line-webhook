@@ -608,7 +608,8 @@ async function getFormatDate(date, format = 'short') {
     'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
     'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
   ];
-  const d = ('0' + date.getDate()).slice(-2);
+  //const d = ('0' + date.getDate()).slice(-2);
+  const d = date.getDate();
   let y = date.getFullYear().toString();
   let month;
   switch (format) {
