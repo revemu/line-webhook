@@ -61,10 +61,23 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         }
     }
 
+    let debt_val = 0;
+    if (cmd === 'setdebt') {
+        const parts = param.split(/\s+/).filter(Boolean);
+        if (parts.length > 1) {
+            const possibleVal = parts.pop();
+            const parsed = parseInt(possibleVal, 10);
+            if (!isNaN(parsed)) {
+                debt_val = parsed;
+                param = parts.join(' ').trim();
+            }
+        }
+    }
+
     let member_id = member.id;
     let member_name = member.name;
     let target_line_user_id = member.line_user_id;
-    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my'].includes(cmd);
+    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my'].includes(cmd);
     let is_mention = false;
 
     if (is_mention_cmd && param.startsWith('@')) {
@@ -75,7 +88,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             member_id = mention[0].id;
             member_name = param;
             target_line_user_id = mention[0].line_user_id;
-            if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg' && cmd != 'stat' && cmd != 'mystat' && cmd != 'me' && cmd != 'my') {
+            if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg' && cmd != 'stat' && cmd != 'mystat' && cmd != 'me' && cmd != 'my' && cmd != 'setrank' && cmd != 'setdebt') {
                 if (!await db.IsMemberWeek(member_id)) {
                     return [{
                         type: 'text',
@@ -346,6 +359,15 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 msg = `ปรับระดับ (rank) ของ ${member_name} เป็น ${rank_val} เรียบร้อยครับ`;
             } else {
                 msg = `กรุณาระบุชื่อสมาชิก: /setrank @ชื่อสมาชิก ระดับ`;
+            }
+            msg_type = 0;
+            break;
+        case 'setdebt':
+            if (is_mention) {
+                await db.setMemberDebt(member_id, debt_val);
+                msg = `ตั้งยอดค้างของ ${member_name} เป็น ${debt_val} บาท เรียบร้อยครับ`;
+            } else {
+                msg = `กรุณาระบุชื่อสมาชิก: /setdebt @ชื่อสมาชิก จำนวนเงิน`;
             }
             msg_type = 0;
             break;

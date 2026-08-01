@@ -164,7 +164,7 @@ async function testConnection() {
       const defaultCmds = [
         'setmaxweek', 'resetteam', 'randomteam', 'setrank', 'theme', 'newweek',
         '+pay', '+pay2', '-pay', '+team1', '+team2', '+team3', '+team4', '-team',
-        'setcost', 'resetdebt', 'removereserve', 'delreserve'
+        'setcost', 'resetdebt', 'removereserve', 'delreserve', 'setdebt'
       ];
       for (const cmdName of defaultCmds) {
         await connection.query("INSERT IGNORE INTO admin_cmd_tbl (cmd) VALUES (?)", [cmdName]);
@@ -848,6 +848,12 @@ async function resetWeekDebt() {
   );
 
   return { success: true, count: members.length };
+}
+
+async function setMemberDebt(member_id, amount) {
+  const query = "UPDATE member_tbl SET debt = ? WHERE id = ?";
+  const res = await executeQuery(query, [amount, member_id]);
+  return res;
 }
 
 async function queryWeekDate(week_id = 0) {
@@ -3427,5 +3433,6 @@ module.exports = {
   getMemberStats,
   getAdminCommands,
   logSlip,
-  getSlipByQRCode
+  getSlipByQRCode,
+  setMemberDebt
 };
