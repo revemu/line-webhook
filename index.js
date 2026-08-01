@@ -513,10 +513,10 @@ async function handleImageMessage(event, member) {
                         logStatus = "success";
                     }
                     if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
-                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n** ถ้าจ่ายแทนเพื่อน รบกวนแจ้งด้วยนะครับว่าจ่ายให้ใคร`;
+                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n`;
                     }
                 } else {
-                    header += `\n\n**📝 อาจจะไม่เกี่ยวกับค่าสนามบอล **`;
+                    header += `\n\n**📝 ไม่เกี่ยวกับค่าสนามบอล **`;
                     logStatus = "not_me";
                 }
                 header += `\n\n💰 ยอดเงิน: ** ${amountStr} บาท **\n💸 โอนจาก: ** ${senderName}. - ${senderBank} **\n💵 ให้กับ: ** ${recipientName} **\n📅 วันที่: ** ${getFormatDate(recvDate)} **\n`;

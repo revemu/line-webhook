@@ -795,7 +795,7 @@ async function setWeekCost(totalCost) {
     return { success: false, message: 'ไม่มีสมาชิกที่ต้องชำระเงินในสัปดาห์นี้' };
   }
 
-  const sharedFee = Math.ceil((totalCost + 100) / count) + 30;
+  const sharedFee = Math.ceil((totalCost + 100) / count) + 35;
   let costfee = sharedFee;
   await executeQuery(
     "UPDATE week_tbl SET cost = ? WHERE id = ?",
