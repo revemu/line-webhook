@@ -502,7 +502,7 @@ async function handleImageMessage(event, member) {
                     if (account.endsWith("5894") || ((account.startsWith("006") && account.endsWith("3367")))) {
                         recipientName = "Kyne";
                         slipToMe = true;
-                    } else if (recipient_th.includes("เศรษฐ") && account.endsWith("3367")) {
+                    } else if ((recipient_th.includes("เศรษฐ") || recipientName.toUpperCase().includes("KTB G")) && account.endsWith("3367")) {
                         recipientName = "Kyne";
                         slipToMe = true;
                     }
