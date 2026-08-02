@@ -348,13 +348,15 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
   const hofBadges = [];
 
   if (memberAwards.length > 0) {
+    const badgesWithId = [];
     for (const awardType of memberAwards) {
       let badge = hofBadge[awardType];
       if (!badge) {
-        badge = hofBadge['default'] || Object.values(hofBadge)[0] || { url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
+        badge = hofBadge['default'] || Object.values(hofBadge)[0] || { id: 0, url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
       }
       let bUrl = badge.url ? badge.url.trim() : null;
       let bSize = badge.size || '20px';
+      let bId = badge.id || 0;
       if (bUrl && bUrl.toLowerCase() !== 'none' && bUrl !== '') {
         if (!bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
           const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
@@ -363,9 +365,11 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
         if (bUrl.startsWith('http://')) {
           bUrl = bUrl.replace('http://', 'https://');
         }
-        hofBadges.push({ url: bUrl, size: bSize });
+        badgesWithId.push({ id: bId, url: bUrl, size: bSize });
       }
     }
+    badgesWithId.sort((a, b) => a.id - b.id);
+    badgesWithId.forEach(b => hofBadges.push({ url: b.url, size: b.size }));
   } else if (hofCount > 0) {
     let badge = hofBadge['default'] || Object.values(hofBadge)[0] || { url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
     let bUrl = badge.url ? badge.url.trim() : null;
@@ -467,9 +471,9 @@ async function fetchDisplayAssets() {
 
   const hofBadge = {};
   try {
-    const hofBadgeTpls = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'hof_badge'");
+    const hofBadgeTpls = await executeQuery("SELECT id, value, url, size FROM template_tpl WHERE name = 'hof_badge' ORDER BY id ASC");
     hofBadgeTpls.forEach(r => {
-      hofBadge[r.value] = { url: r.url, size: r.size || '20px' };
+      hofBadge[r.value] = { id: r.id, url: r.url, size: r.size || '20px' };
     });
   } catch (hofBadgeErr) {
     console.error('Error querying HOF badge template:', hofBadgeErr.message);
