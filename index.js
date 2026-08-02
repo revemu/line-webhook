@@ -492,10 +492,14 @@ async function handleImageMessage(event, member) {
                 const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
                 const recipient = slipData.rawSlip?.receiver?.account?.name?.en ||
                     slipData.rawSlip?.receiver?.account?.name?.th;
+                const recipient_th = slipData.rawSlip?.receiver?.account?.name?.th || '';
                 const account = slipData.rawSlip?.receiver?.account?.proxy?.account;
                 let recipientName = recipient;
                 if (account) {
                     if (account.endsWith("5894") || ((account.startsWith("006") && account.endsWith("3367")))) {
+                        recipientName = "Kyne";
+                        slipToMe = true;
+                    } else if (recipient_th.includes("เศรษฐ") && account.endsWith("3367")) {
                         recipientName = "Kyne";
                         slipToMe = true;
                     }

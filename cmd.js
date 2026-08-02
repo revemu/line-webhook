@@ -550,11 +550,6 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             msg_type = 1;
             break;
         }
-        case 'newweek': {
-            const next_sat = getNextSaturday();
-            await db.newWeek(next_sat);
-            // falls through
-        }
         case 'menu': {
             const theme = await db.getTheme();
             const week = await db.queryWeekID(0);
@@ -572,6 +567,11 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             altText = "เมนูบริการของบอท";
             msg_type = 1;
             break;
+        }
+        case 'newweek': {
+            const next_sat = getNextSaturday();
+            await db.newWeek(next_sat);
+            // falls through
         }
         case 'register':
         case 'join':
