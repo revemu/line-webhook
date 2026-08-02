@@ -434,14 +434,36 @@ async function handleImageMessage(event, member) {
         let isSlipValid = false;
         let slipData = null;
         let isDuplicate = false;
+        let cachedSlipId = null;
 
         // Check for duplicate in DB
         const cachedSlip = await db.getSlipByQRCode(qrCode);
         if (cachedSlip) {
-            console.log('[EasySlip] Slip verified from cache (duplicate)');
-            slipData = cachedSlip;
-            isSlipValid = true;
-            isDuplicate = true;
+            if (cachedSlip.data) {
+                // Cached with full JSON data - treat as duplicate
+                console.log('[EasySlip] Slip verified from cache (duplicate)');
+                slipData = cachedSlip.data;
+                isSlipValid = true;
+                isDuplicate = true;
+            } else {
+                // Cached but no JSON (previous API call failed) - re-verify via API
+                console.log('[EasySlip] Slip found in cache but no JSON data, re-verifying via API...');
+                cachedSlipId = cachedSlip.id;
+                const easySlipRes = await verifyEasySlipByPayload(qrCode);
+                if (easySlipRes && easySlipRes.success === true) {
+                    console.log('[EasySlip] Re-verification successful, updating existing record');
+                    slipData = easySlipRes.data;
+                    isSlipValid = true;
+                    isDuplicate = true;
+                } else {
+                    if (easySlipRes && easySlipRes.error) {
+                        console.warn(`[EasySlip] Re-verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
+                    }
+                    // Still treat as duplicate (slip exists in DB)
+                    isSlipValid = true;
+                    isDuplicate = true;
+                }
+            }
         } else {
             // Verify QR code with EasySlip API v2
             const easySlipRes = await verifyEasySlipByPayload(qrCode);
@@ -538,6 +560,11 @@ async function handleImageMessage(event, member) {
                 }
             }
             if (isDuplicate) {
+                // Update existing record if we got new API data
+                if (cachedSlipId && slipData) {
+                    await db.updateSlipLog(cachedSlipId, logStatus, slipData);
+                    console.log(`[EasySlip] Updated existing slip log (id: ${cachedSlipId}) with new API data`);
+                }
                 try {
                     await fs.unlink(slipFilePath);
                     console.log(`Deleted duplicate slip image: ${slipFilePath}`);

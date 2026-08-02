@@ -3372,10 +3372,13 @@ async function logSlip(senderId, senderName, imagePath, status, qrcode = null, r
 
 async function getSlipByQRCode(qrcode) {
   try {
-    const sql = `SELECT response_json FROM slip_log WHERE qrcode = ? LIMIT 1`;
+    const sql = `SELECT id, response_json FROM slip_log WHERE qrcode = ? LIMIT 1`;
     const rows = await executeQuery(sql, [qrcode]);
-    if (rows && rows.length > 0 && rows[0].response_json) {
-      return JSON.parse(rows[0].response_json);
+    if (rows && rows.length > 0) {
+      return {
+        id: rows[0].id,
+        data: rows[0].response_json ? JSON.parse(rows[0].response_json) : null
+      };
     }
   } catch (err) {
     if (err.code !== 'ER_BAD_FIELD_ERROR') {
@@ -3383,6 +3386,16 @@ async function getSlipByQRCode(qrcode) {
     }
   }
   return null;
+}
+
+async function updateSlipLog(id, status, responseJson = null) {
+  try {
+    const jsonStr = responseJson ? JSON.stringify(responseJson) : null;
+    const sql = `UPDATE slip_log SET status = ?, response_json = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    await executeQuery(sql, [status, jsonStr, id]);
+  } catch (err) {
+    console.error("Error updating slip log:", err);
+  }
 }
 
 module.exports = {
@@ -3434,5 +3447,6 @@ module.exports = {
   getAdminCommands,
   logSlip,
   getSlipByQRCode,
+  updateSlipLog,
   setMemberDebt
 };
