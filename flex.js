@@ -1540,7 +1540,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
           aspectMode: 'cover'
         }
       ],
-      margin: 'xs'
+      margin: 'md'
     });
   } else {
     contents.push({
@@ -3702,4 +3702,4 @@ module.exports = {
   buildQrFlex,
   makeMemberColumn,
   buildSlipListFlex
-};
+};
