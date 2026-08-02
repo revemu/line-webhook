@@ -2109,6 +2109,97 @@ async function getMemberWeek2(type = 0) {
 
 }
 
+// ── Shared query builders (used by both getTopStat and updateHof) ──
+
+function buildGoalQuery(statusCondition, year, limit = null) {
+  let sql = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate,
+    goal_status_tbl.status, match_goal_tbl.status as statusid, COUNT(*) as goal
+    FROM match_goal_tbl
+    JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
+    JOIN goal_status_tbl ON match_goal_tbl.status = goal_status_tbl.id
+    JOIN match_stat_tbl ON match_goal_tbl.match_id = match_stat_tbl.id
+    JOIN week_tbl ON match_stat_tbl.week_id = week_tbl.id
+    WHERE match_goal_tbl.status ${statusCondition}
+      AND YEAR(week_tbl.date) = ${year}
+      AND member_tbl.id <> 121 AND member_tbl.id <> 169
+      AND member_tbl.team_id <> 101
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
+    ORDER BY goal DESC`;
+  if (limit) sql += ` LIMIT ${limit}`;
+  return sql;
+}
+
+function buildAvgPtsQuery(year, limit = null) {
+  let sql = `SELECT 
+    member_tbl.id,
+    member_tbl.name, 
+    member_tbl.alias, 
+    member_tbl.rank,
+    member_tbl.donate,
+    SUM(table_week_tbl.pts) 
+        / SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS pts,
+    SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS m
+    FROM member_team_week_tbl
+    JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
+    JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
+    JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
+    WHERE week_tbl.year = ${year}
+      AND member_tbl.id <> 121 AND member_tbl.id <> 169
+      AND member_tbl.team_id <> 101
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
+    HAVING COUNT(table_week_tbl.id) > (
+        SELECT COUNT(*) * 0.6
+        FROM week_tbl
+        WHERE week_tbl.year = ${year}
+    )
+    ORDER BY pts DESC`;
+  if (limit) sql += ` LIMIT ${limit}`;
+  return sql;
+}
+
+function buildBottomQuery(year, limit = null) {
+  let sql = `
+    SELECT 
+      member_tbl.id,
+      member_tbl.name, 
+      member_tbl.alias, 
+      member_tbl.rank,
+      member_tbl.donate,
+      COUNT(*) as goal
+    FROM member_team_week_tbl mtw
+    JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
+    JOIN member_tbl ON mtw.member_id = member_tbl.id
+    JOIN week_tbl w ON mtw.week_id = w.id
+    WHERE w.year = ${year}
+      AND member_tbl.id <> 121 AND member_tbl.id <> 169 AND member_tbl.team_id <> 101
+      AND tw.team_week_id = (
+        SELECT t2.team_week_id
+        FROM table_week_tbl t2
+        WHERE t2.week_id = tw.week_id
+        ORDER BY t2.pts ASC, (t2.g - t2.a) ASC
+        LIMIT 1
+      )
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
+    ORDER BY goal DESC`;
+  if (limit) sql += ` LIMIT ${limit}`;
+  return sql;
+}
+
+function buildLuckyColorQuery(year) {
+  return `
+    SELECT 
+      t_col.color,
+      SUM(tw.w) as wins,
+      SUM(tw.w + tw.d + tw.l) as matches
+    FROM table_week_tbl tw
+    JOIN team_color_week_tbl t_col ON tw.team_week_id = t_col.id
+    JOIN week_tbl w ON tw.week_id = w.id
+    WHERE w.year = ${year}
+    GROUP BY t_col.color
+    ORDER BY (SUM(tw.w) / SUM(tw.w + tw.d + tw.l)) DESC, SUM(tw.w + tw.d + tw.l) DESC
+  `;
+}
+
 async function getTopStat(limit = 10, type = 0) {
   let header = "";
   let icon = "";
@@ -2133,92 +2224,35 @@ async function getTopStat(limit = 10, type = 0) {
     }
   }
 
+  const currentYear = new Date().getFullYear();
+
   if (type == 0) {
     status = "< 2";
     header = `Top ${limit} Scorer`;
     icon = "⚽";
+    query = buildGoalQuery(status, currentYear, limit);
   } else if (type == 1) {
     status = "= 3";
     header = `Top ${limit} Assist`;
     icon = "👟";
+    query = buildGoalQuery(status, currentYear, limit);
   } else if (type == 2) {
     status = "= 2";
     header = `สปายฝั่งตรงข้าม`;
     icon = "🥅";
+    query = buildGoalQuery(status, currentYear, limit);
   } else if (type == 4) {
     header = `Top ${limit} Avg Pts`;
     icon = "📊";
+    query = buildAvgPtsQuery(currentYear, limit);
   } else if (type == 5) {
     header = `ซึมเศร้าสะสม`;
     icon = "📉";
+    query = buildBottomQuery(currentYear, limit);
   } else if (type == 6) {
     header = `Lucky Colors`;
     icon = "🎨";
-  }
-
-  query = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal FROM match_goal_tbl, member_tbl, goal_status_tbl , match_stat_tbl , week_tbl WHERE match_goal_tbl.member_id = member_tbl.id and match_goal_tbl.status ${status} and match_goal_tbl.status=goal_status_tbl.id AND match_goal_tbl.match_id = match_stat_tbl.id AND match_stat_tbl.week_id = week_tbl.id And YEAR(week_tbl.date) = YEAR(CURRENT_DATE()) and member_tbl.id <> 121 and member_tbl.id <> 169 and member_tbl.team_id <> 101 group by member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate order by goal DESC limit ${limit}`;
-
-  if (type == 4) {
-    query = `SELECT 
-    member_tbl.id,
-    member_tbl.name, 
-    member_tbl.alias, 
-    member_tbl.rank,
-    member_tbl.donate,
-    SUM(table_week_tbl.pts) 
-        / sum(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS pts,
-        sum(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS m
-FROM member_team_week_tbl
-JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
-JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
-JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
-WHERE week_tbl.year = YEAR(CURRENT_DATE())
-GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
-HAVING COUNT(table_week_tbl.id) > (
-    SELECT COUNT(*) * 0.6
-    FROM week_tbl
-    WHERE week_tbl.year = YEAR(CURRENT_DATE())
-)
-ORDER BY pts DESC limit ${limit}`;
-  } else if (type == 5) {
-    query = `
-      SELECT 
-        member_tbl.id,
-        member_tbl.name, 
-        member_tbl.alias, 
-        member_tbl.rank,
-        member_tbl.donate,
-        COUNT(*) as goal
-      FROM member_team_week_tbl mtw
-      JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
-      JOIN member_tbl ON mtw.member_id = member_tbl.id
-      JOIN week_tbl w ON mtw.week_id = w.id
-      WHERE w.year = YEAR(CURRENT_DATE()) 
-        AND member_tbl.id <> 121 AND member_tbl.id <> 169 AND member_tbl.team_id <> 101
-        AND tw.team_week_id = (
-          SELECT t2.team_week_id
-          FROM table_week_tbl t2
-          WHERE t2.week_id = tw.week_id
-          ORDER BY t2.pts ASC, (t2.g - t2.a) ASC
-          LIMIT 1
-        )
-      GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
-      ORDER BY goal DESC
-      LIMIT ${limit}
-    `;
-  } else if (type == 6) {
-    query = `
-      SELECT 
-        t_col.color,
-        SUM(tw.w) as wins,
-        SUM(tw.w + tw.d + tw.l) as matches
-      FROM table_week_tbl tw
-      JOIN team_color_week_tbl t_col ON tw.team_week_id = t_col.id
-      JOIN week_tbl w ON tw.week_id = w.id
-      WHERE w.year = YEAR(CURRENT_DATE())
-      GROUP BY t_col.color
-      ORDER BY (SUM(tw.w) / SUM(tw.w + tw.d + tw.l)) DESC, SUM(tw.w + tw.d + tw.l) DESC
-    `;
+    query = buildLuckyColorQuery(currentYear);
   }
 
   const result = await executeQuery(query);
@@ -3021,83 +3055,34 @@ async function updateHof() {
   try {
     const currentYear = new Date().getFullYear();
 
-    // 1. Get current year top scorer(s)
-    const scorers = await executeQuery(`
-      SELECT member_id, COUNT(*) as count 
-      FROM match_goal_tbl
-      JOIN match_stat_tbl ON match_goal_tbl.match_id = match_stat_tbl.id
-      JOIN week_tbl ON match_stat_tbl.week_id = week_tbl.id
-      WHERE match_goal_tbl.status < 2 
-        AND YEAR(week_tbl.date) = ${currentYear}
-        AND member_id <> 121 AND member_id <> 169
-      GROUP BY member_id
-    `);
+    // Reuse the same shared query builders as getTopStat (no LIMIT to get all)
+    const scorers = await executeQuery(buildGoalQuery('< 2', currentYear));
+    const assists = await executeQuery(buildGoalQuery('= 3', currentYear));
+    const ownGoals = await executeQuery(buildGoalQuery('= 2', currentYear));
+    const players = await executeQuery(buildAvgPtsQuery(currentYear));
 
-    // 2. Get current year top assist(s)
-    const assists = await executeQuery(`
-      SELECT member_id, COUNT(*) as count 
-      FROM match_goal_tbl
-      JOIN match_stat_tbl ON match_goal_tbl.match_id = match_stat_tbl.id
-      JOIN week_tbl ON match_stat_tbl.week_id = week_tbl.id
-      WHERE match_goal_tbl.status = 3 
-        AND YEAR(week_tbl.date) = ${currentYear}
-        AND member_id <> 121 AND member_id <> 169
-      GROUP BY member_id
-    `);
-
-    // 3. Get current year top own goal(s)
-    const ownGoals = await executeQuery(`
-      SELECT member_id, COUNT(*) as count 
-      FROM match_goal_tbl
-      JOIN match_stat_tbl ON match_goal_tbl.match_id = match_stat_tbl.id
-      JOIN week_tbl ON match_stat_tbl.week_id = week_tbl.id
-      WHERE match_goal_tbl.status = 2 
-        AND YEAR(week_tbl.date) = ${currentYear}
-        AND member_id <> 121 AND member_id <> 169
-      GROUP BY member_id
-    `);
-
-    // 4. Get current year top player(s) (Avg Pts)
-    const players = await executeQuery(`
-      SELECT 
-        member_tbl.id,
-        SUM(table_week_tbl.pts) 
-          / sum(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS pts
-      FROM member_team_week_tbl
-      JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
-      JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
-      JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
-      WHERE week_tbl.year = ${currentYear}
-      GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
-      HAVING COUNT(table_week_tbl.id) > (
-          SELECT COUNT(*) * 0.5
-          FROM week_tbl
-          WHERE week_tbl.year = ${currentYear}
-      )
-    `);
-
-    // Find max counts and filter
+    // Find max counts and filter — shared queries return 'goal' column for counts, 'id' for member
     let topScorers = [];
     if (scorers && scorers.length > 0) {
-      const maxGoals = Math.max(...scorers.map(s => s.count));
+      const maxGoals = Math.max(...scorers.map(s => s.goal));
       if (maxGoals > 0) {
-        topScorers = scorers.filter(s => s.count === maxGoals).map(s => s.member_id);
+        topScorers = scorers.filter(s => s.goal === maxGoals).map(s => s.id);
       }
     }
 
     let topAssists = [];
     if (assists && assists.length > 0) {
-      const maxAssists = Math.max(...assists.map(a => a.count));
+      const maxAssists = Math.max(...assists.map(a => a.goal));
       if (maxAssists > 0) {
-        topAssists = assists.filter(a => a.count === maxAssists).map(a => a.member_id);
+        topAssists = assists.filter(a => a.goal === maxAssists).map(a => a.id);
       }
     }
 
     let topOwnGoals = [];
     if (ownGoals && ownGoals.length > 0) {
-      const maxOwnGoals = Math.max(...ownGoals.map(o => o.count));
+      const maxOwnGoals = Math.max(...ownGoals.map(o => o.goal));
       if (maxOwnGoals > 0) {
-        topOwnGoals = ownGoals.filter(o => o.count === maxOwnGoals).map(o => o.member_id);
+        topOwnGoals = ownGoals.filter(o => o.goal === maxOwnGoals).map(o => o.id);
       }
     }
 
