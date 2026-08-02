@@ -3535,6 +3535,152 @@ function buildQrFlex(amount, promptPayNumber, theme, qrUrl) {
   };
 }
 
+function buildSlipListFlex(slips, theme) {
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+  const baseUrl = getBaseUrl();
+
+  if (!slips || slips.length === 0) {
+    return {
+      type: 'bubble',
+      size: 'mega',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: colors.bgMain,
+        paddingAll: 'lg',
+        contents: [
+          {
+            type: 'text',
+            text: '📋 สลิปรอตรวจสอบ',
+            weight: 'bold',
+            size: 'lg',
+            color: colors.textPrimary
+          },
+          {
+            type: 'text',
+            text: 'ไม่มีสลิปที่รอตรวจสอบในขณะนี้',
+            size: 'sm',
+            color: colors.textMuted,
+            margin: 'md',
+            wrap: true
+          }
+        ]
+      }
+    };
+  }
+
+  const bubbles = [];
+  for (const slip of slips) {
+    const senderName = (slip.sender_name || 'ไม่ทราบ').replace('@', '');
+    const dateStr = slip.created_at ? new Date(slip.created_at).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }) : '-';
+    const slipImgUrl = slip.image_path ? `${baseUrl}${slip.image_path}` : null;
+
+    const bodyContents = [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        contents: [
+          {
+            type: 'text',
+            text: '📋 สลิปรอตรวจสอบ',
+            weight: 'bold',
+            size: 'md',
+            color: colors.textPrimary,
+            flex: 3
+          },
+          {
+            type: 'text',
+            text: `#${slip.id}`,
+            size: 'sm',
+            color: colors.textMuted,
+            align: 'end',
+            flex: 1
+          }
+        ]
+      },
+      { type: 'separator', margin: 'md', color: colors.separator },
+      {
+        type: 'box',
+        layout: 'vertical',
+        margin: 'md',
+        spacing: 'sm',
+        contents: [
+          {
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              { type: 'text', text: '👤 ผู้ส่ง:', size: 'xs', color: colors.textMuted, flex: 2 },
+              { type: 'text', text: senderName, size: 'xs', color: colors.textPrimary, weight: 'bold', flex: 4 }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              { type: 'text', text: '📅 วันที่:', size: 'xs', color: colors.textMuted, flex: 2 },
+              { type: 'text', text: dateStr, size: 'xs', color: colors.textPrimary, flex: 4 }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              { type: 'text', text: '📌 สถานะ:', size: 'xs', color: colors.textMuted, flex: 2 },
+              { type: 'text', text: 'รอตรวจสอบ', size: 'xs', color: isWhite ? '#d97706' : '#fbbf24', weight: 'bold', flex: 4 }
+            ]
+          }
+        ]
+      }
+    ];
+
+    // Add slip image preview if available
+    if (slipImgUrl) {
+      bodyContents.push({
+        type: 'image',
+        url: slipImgUrl,
+        size: 'full',
+        aspectRatio: '4:3',
+        aspectMode: 'cover',
+        margin: 'md'
+      });
+    }
+
+    // Verify button
+    bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      margin: 'md',
+      contents: [
+        makeBoxButton('✅ ตรวจสอบสลิป', `/verify ${slip.id}`, isWhite ? '#16a34a' : '#22c55e')
+      ]
+    });
+
+    bubbles.push({
+      type: 'bubble',
+      size: 'mega',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: colors.bgMain,
+        paddingAll: 'lg',
+        contents: bodyContents
+      }
+    });
+  }
+
+  if (bubbles.length === 1) {
+    return bubbles[0];
+  }
+
+  return {
+    type: 'carousel',
+    contents: bubbles
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -3554,5 +3700,6 @@ module.exports = {
   getThemeColors,
   buildMenuFlex,
   buildQrFlex,
-  makeMemberColumn
-};
+  makeMemberColumn,
+  buildSlipListFlex
+};

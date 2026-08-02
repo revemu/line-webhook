@@ -3398,6 +3398,29 @@ async function updateSlipLog(id, status, responseJson = null) {
   }
 }
 
+async function getNoticedSlips() {
+  try {
+    const sql = `SELECT id, sender_name, image_path, status, qrcode, created_at FROM slip_log WHERE status = 'noticed' ORDER BY created_at DESC LIMIT 10`;
+    return await executeQuery(sql, []);
+  } catch (err) {
+    console.error("Error getting noticed slips:", err);
+    return [];
+  }
+}
+
+async function getSlipById(id) {
+  try {
+    const sql = `SELECT id, sender_id, sender_name, image_path, status, qrcode, response_json, created_at FROM slip_log WHERE id = ?`;
+    const rows = await executeQuery(sql, [id]);
+    if (rows && rows.length > 0) {
+      return rows[0];
+    }
+  } catch (err) {
+    console.error("Error getting slip by id:", err);
+  }
+  return null;
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -3448,5 +3471,7 @@ module.exports = {
   logSlip,
   getSlipByQRCode,
   updateSlipLog,
+  getNoticedSlips,
+  getSlipById,
   setMemberDebt
 };

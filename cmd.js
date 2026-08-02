@@ -1,6 +1,9 @@
 const db = require('./query');
 const flex = require('./flex');
 const qrGen = require('./qr_gen');
+const axios = require('axios');
+
+const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
 
 function getNextSaturday() {
     const date = new Date();
@@ -707,6 +710,100 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             altText = "Test Carousel";
             msg_type = 1;
             break;
+        case 'slip':
+        case 'sliplist': {
+            const theme = await db.getTheme();
+            const noticedSlips = await db.getNoticedSlips();
+            msg = flex.buildSlipListFlex(noticedSlips, theme);
+            altText = `สลิปรอตรวจสอบ (${noticedSlips.length} รายการ)`;
+            msg_type = 1;
+            break;
+        }
+        case 'verify': {
+            if (!param || isNaN(Number(param))) {
+                msg = '⚠️ กรุณาระบุหมายเลขสลิป เช่น /verify 123';
+                msg_type = 0;
+                break;
+            }
+            const slipId = Number(param);
+            const slip = await db.getSlipById(slipId);
+            if (!slip) {
+                msg = `⚠️ ไม่พบสลิป #${slipId}`;
+                msg_type = 0;
+                break;
+            }
+            if (!slip.qrcode) {
+                msg = `⚠️ สลิป #${slipId} ไม่มี QR Code ไม่สามารถตรวจสอบได้`;
+                msg_type = 0;
+                break;
+            }
+            console.log(`[verify] Verifying slip #${slipId} via EasySlip API...`);
+            let verifyResult = null;
+            try {
+                const response = await axios.post('https://api.easyslip.com/v2/verify/bank', {
+                    payload: slip.qrcode
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${EASYSLIP_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+                verifyResult = response.data;
+            } catch (apiErr) {
+                if (apiErr.response && apiErr.response.data) {
+                    verifyResult = apiErr.response.data;
+                }
+            }
+            if (verifyResult && verifyResult.success === true) {
+                const vData = verifyResult.data;
+                const senderName = vData.rawSlip?.sender?.account?.name?.th ||
+                    vData.rawSlip?.sender?.account?.name?.en ||
+                    vData.rawSlip?.sender?.name || slip.sender_name;
+                const senderBank = vData.rawSlip?.sender?.bank?.short || '';
+                const amount = vData.amountInSlip ?? (vData.rawSlip?.amount?.amount);
+                const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
+                const recipient = vData.rawSlip?.receiver?.account?.name?.en ||
+                    vData.rawSlip?.receiver?.account?.name?.th || '';
+                const account = vData.rawSlip?.receiver?.account?.proxy?.account || '';
+                let recipientName = recipient;
+                const recipient_th = vData.rawSlip?.receiver?.account?.name?.th || '';
+                let slipToMe = false;
+                if (account) {
+                    if (account.endsWith('5894') || (account.startsWith('006') && account.endsWith('3367'))) {
+                        recipientName = 'Kyne';
+                        slipToMe = true;
+                    } else if ((recipient_th.includes('เศรษฐ') || recipientName.toUpperCase().includes('KTB G')) && account.endsWith('3367')) {
+                        recipientName = 'Kyne';
+                        slipToMe = true;
+                    }
+                }
+                if (recipientName.includes('เศรษฐ') || recipientName.toUpperCase().includes('SAGE') || recipientName.toUpperCase().includes('SETH')) {
+                    slipToMe = true;
+                    recipientName = 'Kyne';
+                }
+                const newStatus = slipToMe ? 'success' : 'not_me';
+                await db.updateSlipLog(slipId, newStatus, vData);
+                msg = `✅ ตรวจสอบสลิป #${slipId} สำเร็จ!\n\n`;
+                msg += `💰 ยอดเงิน: ${amountStr} บาท\n`;
+                msg += `💸 โอนจาก: ${senderName} - ${senderBank}\n`;
+                msg += `💵 ให้กับ: ${recipientName}\n`;
+                msg += `📌 สถานะ: ${slipToMe ? 'โอนให้เรา ✅' : 'ไม่เกี่ยวกับค่าสนาม 📝'}`;
+                if (slipToMe) {
+                    // Find the member who sent this slip and update their payment
+                    const slipMember = await db.queryMemberbyLineID(slip.sender_id);
+                    if (slipMember && slipMember.length > 0) {
+                        await db.updateMemberWeek(slipMember[0].id, 1, 0);
+                        msg += `\n\n💳 อัพเดทการชำระเงินให้ ${slip.sender_name} แล้ว`;
+                    }
+                }
+            } else {
+                const errMsg = verifyResult?.error ? `${verifyResult.error.code} - ${verifyResult.error.message}` : 'ไม่ทราบสาเหตุ';
+                msg = `❌ ตรวจสอบสลิป #${slipId} ไม่สำเร็จ\n\nสาเหตุ: ${errMsg}`;
+            }
+            msg_type = 0;
+            break;
+        }
         default:
             if (msg == "") {
                 const theme = await db.getTheme();
