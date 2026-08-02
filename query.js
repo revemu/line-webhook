@@ -2175,7 +2175,7 @@ JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
 WHERE week_tbl.year = YEAR(CURRENT_DATE())
 GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
 HAVING COUNT(table_week_tbl.id) > (
-    SELECT COUNT(*) * 0.7
+    SELECT COUNT(*) * 0.6
     FROM week_tbl
     WHERE week_tbl.year = YEAR(CURRENT_DATE())
 )
