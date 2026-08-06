@@ -3576,6 +3576,28 @@ function buildSlipListFlex(slips, theme) {
     const dateStr = slip.created_at ? new Date(slip.created_at).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }) : '-';
     const slipImgUrl = slip.image_path ? `${baseUrl}${slip.image_path}` : null;
 
+    let headerTitle = '📋 สลิปรอตรวจสอบ';
+    let statusText = 'รอตรวจสอบ';
+    let statusColor = isWhite ? '#d97706' : '#fbbf24';
+    let showVerifyButton = true;
+
+    if (slip.status === 'success') {
+      headerTitle = '✅ สลิปตรวจสอบแล้ว';
+      statusText = 'ตรวจสอบแล้ว ✅';
+      statusColor = isWhite ? '#16a34a' : '#22c55e';
+      showVerifyButton = false;
+    } else if (slip.status === 'duplicate') {
+      headerTitle = '⚠️ สลิปซ้ำ';
+      statusText = 'สลิปซ้ำ ⚠️';
+      statusColor = isWhite ? '#dc2626' : '#ef4444';
+      showVerifyButton = false;
+    } else if (slip.status === 'not_me') {
+      headerTitle = '📝 สลิปโอนบัญชีอื่น';
+      statusText = 'ไม่เกี่ยวกับค่าสนาม 📝';
+      statusColor = colors.textMuted;
+      showVerifyButton = false;
+    }
+
     const bodyContents = [
       {
         type: 'box',
@@ -3583,7 +3605,7 @@ function buildSlipListFlex(slips, theme) {
         contents: [
           {
             type: 'text',
-            text: '📋 สลิปรอตรวจสอบ',
+            text: headerTitle,
             weight: 'bold',
             size: 'md',
             color: colors.textPrimary,
@@ -3627,7 +3649,7 @@ function buildSlipListFlex(slips, theme) {
             layout: 'horizontal',
             contents: [
               { type: 'text', text: '📌 สถานะ:', size: 'xs', color: colors.textMuted, flex: 2 },
-              { type: 'text', text: 'รอตรวจสอบ', size: 'xs', color: isWhite ? '#d97706' : '#fbbf24', weight: 'bold', flex: 4 }
+              { type: 'text', text: statusText, size: 'xs', color: statusColor, weight: 'bold', flex: 4 }
             ]
           }
         ]
@@ -3646,17 +3668,19 @@ function buildSlipListFlex(slips, theme) {
       });
     }
 
-    // Verify button
-    bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
-    bodyContents.push({
-      type: 'box',
-      layout: 'horizontal',
-      spacing: 'sm',
-      margin: 'md',
-      contents: [
-        makeBoxButton('✅ ตรวจสอบสลิป', `/verify ${slip.id}`, isWhite ? '#16a34a' : '#22c55e')
-      ]
-    });
+    // Verify button if unverified/noticed
+    if (showVerifyButton) {
+      bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        margin: 'md',
+        contents: [
+          makeBoxButton('✅ ตรวจสอบสลิป', `/verify ${slip.id}`, isWhite ? '#16a34a' : '#22c55e')
+        ]
+      });
+    }
 
     bubbles.push({
       type: 'bubble',

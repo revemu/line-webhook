@@ -715,9 +715,17 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const theme = await db.getTheme();
             const isAdmin = member && member.admin === 1;
             const senderId = isAdmin ? null : (member ? member.line_user_id : null);
-            const noticedSlips = await db.getNoticedSlips(senderId);
+            let noticedSlips = await db.getNoticedSlips(senderId);
+
+            if (!isAdmin && noticedSlips.length === 0 && senderId) {
+                const latestSlip = await db.getLatestSlipBySender(senderId);
+                if (latestSlip) {
+                    noticedSlips = [latestSlip];
+                }
+            }
+
             msg = flex.buildSlipListFlex(noticedSlips, theme);
-            altText = `สลิปรอตรวจสอบ (${noticedSlips.length} รายการ)`;
+            altText = `สลิปการโอนเงิน (${noticedSlips.length} รายการ)`;
             msg_type = 1;
             break;
         }
