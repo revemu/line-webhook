@@ -3387,10 +3387,16 @@ async function updateSlipLog(id, status, responseJson = null) {
   }
 }
 
-async function getNoticedSlips() {
+async function getNoticedSlips(senderId = null) {
   try {
-    const sql = `SELECT id, sender_name, image_path, status, qrcode, created_at FROM slip_log WHERE status = 'noticed' ORDER BY created_at DESC LIMIT 10`;
-    return await executeQuery(sql, []);
+    let sql = `SELECT id, sender_name, image_path, status, qrcode, created_at FROM slip_log WHERE status = 'noticed'`;
+    const params = [];
+    if (senderId) {
+      sql += ` AND sender_id = ?`;
+      params.push(senderId);
+    }
+    sql += ` ORDER BY created_at DESC LIMIT 10`;
+    return await executeQuery(sql, params);
   } catch (err) {
     console.error("Error getting noticed slips:", err);
     return [];

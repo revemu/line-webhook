@@ -20,7 +20,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
     const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
     let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
 
-    if (member && member.debt > 0 && member.admin !== 1 && cmd !== 'qr') {
+    if (member && member.debt > 0 && member.admin !== 1 && !['qr', 'slip', 'sliplist', 'verify'].includes(cmd)) {
         const displayName = (member.name || '').replace('@', '');
         return [{
             type: 'text',
@@ -713,7 +713,9 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         case 'slip':
         case 'sliplist': {
             const theme = await db.getTheme();
-            const noticedSlips = await db.getNoticedSlips();
+            const isAdmin = member && member.admin === 1;
+            const senderId = isAdmin ? null : (member ? member.line_user_id : null);
+            const noticedSlips = await db.getNoticedSlips(senderId);
             msg = flex.buildSlipListFlex(noticedSlips, theme);
             altText = `สลิปรอตรวจสอบ (${noticedSlips.length} รายการ)`;
             msg_type = 1;
@@ -729,6 +731,12 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const slip = await db.getSlipById(slipId);
             if (!slip) {
                 msg = `⚠️ ไม่พบสลิป #${slipId}`;
+                msg_type = 0;
+                break;
+            }
+            const isAdmin = member && member.admin === 1;
+            if (!isAdmin && member && String(slip.sender_id) !== String(member.line_user_id)) {
+                msg = `⚠️ คุณสามารถตรวจสอบได้เฉพาะสลิปของตัวเองเท่านั้น`;
                 msg_type = 0;
                 break;
             }
