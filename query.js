@@ -1004,9 +1004,21 @@ async function queryMemberbyLineID(lineId) {
 }
 
 async function queryMemberbyName(name) {
-  const query = "SELECT * FROM member_tbl where name=?";
-  const res = await executeQuery(query, [name]);
-  return res;
+  if (!name) return [];
+  const rawName = name.trim();
+  const cleanName = rawName.replace(/^@/, '').trim();
+  const withAt = `@${cleanName}`;
+
+  const query = "SELECT * FROM member_tbl WHERE LOWER(name) = LOWER(?) OR LOWER(name) = LOWER(?) OR LOWER(name) = LOWER(?) OR LOWER(alias) = LOWER(?) OR LOWER(alias) = LOWER(?) OR LOWER(alias) = LOWER(?)";
+  const res = await executeQuery(query, [rawName, cleanName, withAt, rawName, cleanName, withAt]);
+  if (res && res.length > 0) {
+    return res;
+  }
+
+  // Fallback to LIKE matching if exact match fails
+  const likeQuery = "SELECT * FROM member_tbl WHERE LOWER(name) LIKE LOWER(?) OR LOWER(alias) LIKE LOWER(?)";
+  const likeRes = await executeQuery(likeQuery, [`%${cleanName}%`, `%${cleanName}%`]);
+  return likeRes || [];
 }
 
 async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
