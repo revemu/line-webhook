@@ -91,17 +91,45 @@ function replaceFlex(template, data) {
 }
 
 // Team name → readable color on dark background
-const tdc = (name) => {
-  const n = (name || '').toLowerCase();
+const tdc = (name, teamColorMap = null) => {
+  if (!name) return '#ffffff';
+  const n = name.toLowerCase();
+  if (teamColorMap && teamColorMap[n]) return teamColorMap[n];
   if (n === 'black') return '#999999';
   if (n === 'white') return '#ffffff';
   if (n === 'red') return '#ff5566';
   if (n === 'green') return '#44cc66';
+  if (n === 'yellow') return '#facc15';
+  if (n === 'blue') return '#3b82f6';
+  if (n === 'orange') return '#f97316';
+  if (n === 'pink') return '#ec4899';
+  if (n === 'purple') return '#a855f7';
   return '#ffffff';
 };
 
-const getThemeColors = (themeName) => {
+const getThemeColors = (themeName, teamColorMap = {}) => {
   const isWhite = (themeName || '').toLowerCase() === 'white';
+
+  const getDynamicColor = (name) => {
+    if (!name) return isWhite ? '#0f172a' : '#ffffff';
+    const n = name.toLowerCase();
+    // 1. Check dynamic DB template color map first
+    if (teamColorMap && teamColorMap[n]) {
+      return teamColorMap[n];
+    }
+    // 2. Fallbacks for well-known color names
+    if (n === 'black') return isWhite ? '#0f172a' : '#999999';
+    if (n === 'white') return isWhite ? '#64748b' : '#ffffff';
+    if (n === 'red') return isWhite ? '#dc2626' : '#ff5566';
+    if (n === 'green') return isWhite ? '#15803d' : '#44cc66';
+    if (n === 'yellow') return isWhite ? '#ca8a04' : '#facc15';
+    if (n === 'blue') return isWhite ? '#1d4ed8' : '#3b82f6';
+    if (n === 'orange') return isWhite ? '#c2410c' : '#f97316';
+    if (n === 'pink') return isWhite ? '#db2777' : '#ec4899';
+    if (n === 'purple') return isWhite ? '#7e22ce' : '#a855f7';
+    return isWhite ? '#0f172a' : '#ffffff';
+  };
+
   if (isWhite) {
     return {
       name: 'white',
@@ -120,14 +148,7 @@ const getThemeColors = (themeName) => {
       textMutedLight: '#334155',
       textAccent: '#dc2626',
       memberNameSpecial: '#0284c7',
-      tdc: (name) => {
-        const n = (name || '').toLowerCase();
-        if (n === 'black') return '#0f172a';
-        if (n === 'white') return '#64748b';
-        if (n === 'red') return '#dc2626';
-        if (n === 'green') return '#15803d';
-        return '#0f172a';
-      }
+      tdc: (name) => getDynamicColor(name)
     };
   } else {
     // Default 'black' (dark) theme colors
@@ -148,14 +169,7 @@ const getThemeColors = (themeName) => {
       textMutedLight: '#aaaacc',
       textAccent: '#e94560',
       memberNameSpecial: '#ffffff',
-      tdc: (name) => {
-        const n = (name || '').toLowerCase();
-        if (n === 'black') return '#999999';
-        if (n === 'white') return '#ffffff';
-        if (n === 'red') return '#ff5566';
-        if (n === 'green') return '#44cc66';
-        return '#ffffff';
-      }
+      tdc: (name) => getDynamicColor(name)
     };
   }
 };
@@ -352,7 +366,7 @@ function buildScheduleFlex(sched, theme) {
  */
 function buildNowFlex(matchInfo, theme) {
   const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table } = matchInfo;
-  const colors = getThemeColors(theme);
+  const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
 
   const makeHeaderContents = (iconType, iconText, titleText, matchNo, startTime, useLightColor) => {
     const textColor = useLightColor ? colors.textMuted : colors.textMutedDark;
@@ -900,7 +914,7 @@ function buildNowFlex(matchInfo, theme) {
 function buildLiveFlex(matchInfo, theme) {
   const { sched, currentMatch, scorers, assists, table, dbMatches, imageUrl } = matchInfo;
   const { date, startTime, matchMinutes, totalHours, teams, totalMatches, totalRounds, endTime, matches } = sched;
-  const colors = getThemeColors(theme);
+  const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
 
   // Group matches by round
   const rounds = {};

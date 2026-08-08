@@ -275,16 +275,29 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for template_tpl.welcome:', migErr.message);
     }
 
-    // Auto-migration to insert default autoreg image in template_tpl if not exists
+    // Auto-migration to insert default team_color rows in template_tpl if not exists
     try {
-      const [autoregDefault] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'autoreg' AND value = 'header'");
-      if (autoregDefault.length === 0) {
-        console.log('Inserting default autoreg header in template_tpl...');
-        await connection.query("INSERT INTO template_tpl (name, value, url) VALUES ('autoreg', 'header', 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg')");
-        console.log('✅ Default autoreg header inserted successfully');
+      const defaultTeamColors = [
+        { value: 'Red', code: '#ff5566', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
+        { value: 'White', code: '#ffffff', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
+        { value: 'Black', code: '#999999', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
+        { value: 'Green', code: '#44cc66', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
+        { value: 'Yellow', code: '#facc15', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
+        { value: 'Blue', code: '#3b82f6', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
+        { value: 'Orange', code: '#f97316', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
+        { value: 'Pink', code: '#ec4899', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
+        { value: 'Purple', code: '#a855f7', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' }
+      ];
+
+      for (const tc of defaultTeamColors) {
+        const [existing] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'team_color' AND LOWER(value) = LOWER(?)", [tc.value]);
+        if (existing.length === 0) {
+          console.log(`Inserting default team color '${tc.value}' in template_tpl...`);
+          await connection.query("INSERT INTO template_tpl (name, value, code, url) VALUES ('team_color', ?, ?, ?)", [tc.value, tc.code, tc.url]);
+        }
       }
     } catch (migErr) {
-      console.error('⚠️ Database migration failed for template_tpl.autoreg:', migErr.message);
+      console.error('⚠️ Database migration failed for template_tpl.team_color:', migErr.message);
     }
 
     connection.release();
@@ -479,7 +492,19 @@ async function fetchDisplayAssets() {
     console.error('Error querying HOF badge template:', hofBadgeErr.message);
   }
 
-  return { badges, donateColors, hofCounts, hofBadge, hofAwards };
+  const teamColors = {};
+  try {
+    const colorResults = await executeQuery("SELECT value, code FROM template_tpl WHERE name = 'team_color'");
+    colorResults.forEach(r => {
+      if (r.value && r.code) {
+        teamColors[r.value.toLowerCase()] = r.code;
+      }
+    });
+  } catch (colorErr) {
+    console.error('Error querying team color templates:', colorErr.message);
+  }
+
+  return { badges, donateColors, hofCounts, hofBadge, hofAwards, teamColors };
 }
 
 async function updateAlertCall(value = 1) {
@@ -1108,14 +1133,13 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
 }
 
 async function getTeamColorWeek(week_id) {
-
-  query = `select team_color_week_tbl.id, team_color_week_tbl.color,  template_tpl.url, template_tpl.code from team_color_week_tbl, template_tpl where week_id=${week_id} and team_color_week_tbl.color = template_tpl.value`;
+  query = `SELECT team_color_week_tbl.id, team_color_week_tbl.color, template_tpl.url, template_tpl.code FROM team_color_week_tbl LEFT JOIN template_tpl ON LOWER(team_color_week_tbl.color) = LOWER(template_tpl.value) AND template_tpl.name = 'team_color' WHERE team_color_week_tbl.week_id = ${week_id}`;
 
   const result = await executeQuery(query);
-  if (result.length > 0) {
+  if (result && result.length > 0) {
     return result;
   }
-
+  return [];
 }
 
 async function getTemplate(name, value) {
@@ -1128,10 +1152,10 @@ async function getTemplate(name, value) {
 }
 
 async function getTeamColor(color) {
-  query = `select * from template_tpl where name='team_color' and value='${color}'`;
+  query = `SELECT * FROM template_tpl WHERE name = 'team_color' AND LOWER(value) = LOWER('${color}')`;
 
   const result = await executeQuery(query);
-  if (result.length > 0) {
+  if (result && result.length > 0) {
     return result[0];
   }
 }
@@ -1371,8 +1395,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     const matches = await queryMatchWeek(week_id);
     console.log(matches);
     if (matches.length > 0) {
+      const assets = await fetchDisplayAssets();
       const theme = await getTheme();
-      const colors = flex.getThemeColors(theme);
+      const colors = flex.getThemeColors(theme, assets.teamColors);
       const imgTpl = await getTemplate('matchweek', 'header');
       let headerUrl = imgTpl && imgTpl.url ? imgTpl.url.trim() : null;
       if (headerUrl && headerUrl.toLowerCase() !== 'none') {
@@ -2983,10 +3008,11 @@ async function getCurrentMatch(groupId = null) {
     }
   }
 
+  const assets = await fetchDisplayAssets();
   const imgTpl = await getTemplate('live', 'header');
   const imageUrl = imgTpl ? imgTpl.url : null;
 
-  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, weekId: sched.weekId, date: sched.date, imageUrl };
+  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, weekId: sched.weekId, date: sched.date, imageUrl, teamColors: assets.teamColors };
 }
 
 async function getTheme() {
