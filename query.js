@@ -275,36 +275,6 @@ async function testConnection() {
       console.error('⚠️ Database migration failed for template_tpl.welcome:', migErr.message);
     }
 
-    // Auto-migration to insert default team_color rows in template_tpl if not exists
-    try {
-      const defaultTeamColors = [
-        { value: 'Red', code: '#ff5566', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'White', code: '#ffffff', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Black', code: '#999999', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Green', code: '#44cc66', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Yellow', code: '#facc15', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Blue', code: '#3b82f6', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Orange', code: '#f97316', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Pink', code: '#ec4899', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Purple', code: '#a855f7', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' }
-      ];
-
-      for (const tc of defaultTeamColors) {
-        const [existing] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'team_color' AND LOWER(value) = LOWER(?)", [tc.value]);
-        if (existing.length === 0) {
-          console.log(`Inserting default team color '${tc.value}' in template_tpl...`);
-          await connection.query("INSERT INTO template_tpl (name, value, code, url) VALUES ('team_color', ?, ?, ?)", [tc.value, tc.code, tc.url]);
-        }
-        const [existingPool] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'team_color_pools' AND LOWER(value) = LOWER(?)", [tc.value]);
-        if (existingPool.length === 0) {
-          console.log(`Inserting team color pool '${tc.value}' in template_tpl...`);
-          await connection.query("INSERT INTO template_tpl (name, value, code, url) VALUES ('team_color_pools', ?, ?, ?)", [tc.value, tc.code, tc.url]);
-        }
-      }
-    } catch (migErr) {
-      console.error('⚠️ Database migration failed for template_tpl.team_color:', migErr.message);
-    }
-
     connection.release();
   } catch (error) {
     console.error('❌ Error connecting to MySQL database:', error.message);
