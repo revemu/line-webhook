@@ -83,13 +83,13 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
     const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my'].includes(cmd);
     let is_mention = false;
 
-    if (is_mention_cmd && param.trim().length > 0) {
+    if (is_mention_cmd && param.startsWith('@')) {
         const mention = await db.queryMemberbyName(param);
-        if (mention && mention.length > 0) {
+        if (mention.length > 0) {
             is_mention = true;
             console.log(`mentioned member - ${param}, id: ${mention[0].id}`);
             member_id = mention[0].id;
-            member_name = mention[0].name || param;
+            member_name = param;
             target_line_user_id = mention[0].line_user_id;
             if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg' && cmd != 'stat' && cmd != 'mystat' && cmd != 'me' && cmd != 'my' && cmd != 'setrank' && cmd != 'setdebt') {
                 if (!await db.IsMemberWeek(member_id)) {
