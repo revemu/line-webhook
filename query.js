@@ -1677,7 +1677,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
         const teamHeaderColor = teamColor && teamColor.code ? teamColor.code : colors.bgHeader;
         carousel.contents.push({
           type: 'bubble',
-          size: 'deca',
+          size: 'giga',
           header: {
             type: 'box',
             layout: 'vertical',
@@ -2393,7 +2393,7 @@ async function getTopStat(limit = 10, type = 0) {
 
     return {
       type: 'bubble',
-      size: 'hecto',
+      size: 'giga',
       header: {
         type: 'box',
         layout: 'vertical',

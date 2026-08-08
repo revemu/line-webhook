@@ -1575,7 +1575,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
         {
           type: 'text',
           text: '⚽',
-          size: '14px',
+          size: 'xs',
           align: 'center',
           gravity: 'center'
         }

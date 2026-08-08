@@ -332,21 +332,36 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
 
             break;
         case 'teamweek':
-            week = await db.queryWeekID(0)
-            //console.log(week) ;
-            msg = await db.getTeamWeek(week[0].id, groupId);
-            //console.log(msg) ;
-            altText = `Team Week - ${week[0].date}`;
-            msg_type = 1;
-            //msg = "teamweek" ;
+            week = await db.queryWeekID(0);
+            if (week && week.length > 0) {
+                msg = await db.getTeamWeek(week[0].id, groupId);
+                if (msg) {
+                    altText = `Team Week - ${week[0].date}`;
+                    msg_type = 1;
+                } else {
+                    msg = "ยังไม่มีข้อมูลทีมในสัปดาห์นี้";
+                    msg_type = 0;
+                }
+            } else {
+                msg = "ยังไม่มีข้อมูลสัปดาห์นี้";
+                msg_type = 0;
+            }
             break;
         case 'matchweek':
-            week = await db.queryWeekID(0)
-            msg = await db.getMatchWeek(week[0].id, groupId);
-            //msg = await db.getMatchWeek(272) ;
-            altText = `Match Week - ${week[0].date}`;
-            msg_type = 1;
-            //msg = "teamweek" ;
+            week = await db.queryWeekID(0);
+            if (week && week.length > 0) {
+                msg = await db.getMatchWeek(week[0].id, groupId);
+                if (msg) {
+                    altText = `Match Week - ${week[0].date}`;
+                    msg_type = 1;
+                } else {
+                    msg = "ยังไม่มีข้อมูลแมตช์ในสัปดาห์นี้";
+                    msg_type = 0;
+                }
+            } else {
+                msg = "ยังไม่มีข้อมูลสัปดาห์นี้";
+                msg_type = 0;
+            }
             break;
         case 'tableweek':
             msg = "แสดงตารางใน /matchweek แทนแล้ว";
