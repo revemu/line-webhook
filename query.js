@@ -295,30 +295,14 @@ async function testConnection() {
           console.log(`Inserting default team color '${tc.value}' in template_tpl...`);
           await connection.query("INSERT INTO template_tpl (name, value, code, url) VALUES ('team_color', ?, ?, ?)", [tc.value, tc.code, tc.url]);
         }
-      }
-    } catch (migErr) {
-      console.error('⚠️ Database migration failed for template_tpl.team_color:', migErr.message);
-    }
-
-    // Auto-migration to insert default 4th team color pool in template_tpl if not exists
-    try {
-      const defaultTeam4Colors = [
-        { value: 'Yellow', code: '#facc15', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Blue', code: '#3b82f6', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Orange', code: '#f97316', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Pink', code: '#ec4899', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' },
-        { value: 'Purple', code: '#a855f7', url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg' }
-      ];
-
-      for (const tc of defaultTeam4Colors) {
-        const [existing] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'team_color_4' AND LOWER(value) = LOWER(?)", [tc.value]);
-        if (existing.length === 0) {
-          console.log(`Inserting 4th team color '${tc.value}' in template_tpl...`);
-          await connection.query("INSERT INTO template_tpl (name, value, code, url) VALUES ('team_color_4', ?, ?, ?)", [tc.value, tc.code, tc.url]);
+        const [existingPool] = await connection.query("SELECT 1 FROM template_tpl WHERE name = 'team_color_pools' AND LOWER(value) = LOWER(?)", [tc.value]);
+        if (existingPool.length === 0) {
+          console.log(`Inserting team color pool '${tc.value}' in template_tpl...`);
+          await connection.query("INSERT INTO template_tpl (name, value, code, url) VALUES ('team_color_pools', ?, ?, ?)", [tc.value, tc.code, tc.url]);
         }
       }
     } catch (migErr) {
-      console.error('⚠️ Database migration failed for template_tpl.team_color_4:', migErr.message);
+      console.error('⚠️ Database migration failed for template_tpl.team_color:', migErr.message);
     }
 
     connection.release();
@@ -515,7 +499,7 @@ async function fetchDisplayAssets() {
 
   const teamColors = {};
   try {
-    const colorResults = await executeQuery("SELECT value, code FROM template_tpl WHERE name IN ('team_color', 'team_color_4')");
+    const colorResults = await executeQuery("SELECT value, code FROM template_tpl WHERE name IN ('team_color', 'team_color_pools', 'team_color_4')");
     colorResults.forEach(r => {
       if (r.value && r.code) {
         teamColors[r.value.toLowerCase()] = r.code;
@@ -598,25 +582,23 @@ async function ensureFourthTeam(week_id) {
   if (existingTeams && existingTeams.length < 4) {
     const usedColors = existingTeams.map(t => (t.color || '').toLowerCase());
     
-    // 1. Query dedicated 4th team color pool (name = 'team_color_4')
-    let colorTpls = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color_4'");
-    let unusedPool = colorTpls.map(r => r.value).filter(c => !usedColors.includes(c.toLowerCase()));
-    
-    // 2. Fallback to standard 'team_color' pool if 'team_color_4' is empty or used up
-    if (unusedPool.length === 0) {
+    // Fetch full pool from template_tpl (name = 'team_color_pools' or 'team_color')
+    let colorTpls = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color_pools'");
+    if (!colorTpls || colorTpls.length === 0) {
       colorTpls = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color'");
-      unusedPool = colorTpls.map(r => r.value).filter(c => !usedColors.includes(c.toLowerCase()));
     }
 
+    let unusedPool = colorTpls.map(r => r.value).filter(c => !usedColors.includes(c.toLowerCase()));
+    
     if (unusedPool.length === 0) {
-      const defaultPool = ['Yellow', 'Blue', 'Orange', 'Pink', 'Purple', 'Red', 'White', 'Black', 'Green'];
+      const defaultPool = ['Red', 'White', 'Black', 'Green', 'Yellow', 'Blue', 'Orange', 'Pink', 'Purple'];
       unusedPool = defaultPool.filter(c => !usedColors.includes(c.toLowerCase()));
     }
     
     const newColor = unusedPool.length > 0 ? shuffleArray([...unusedPool])[0] : 'Yellow';
     const nextIndex = existingTeams.length + 1;
     await newTeamColorWeek(newColor, nextIndex, week_id);
-    console.log(`[Team] Added 4th team '${newColor}' for week_id ${week_id} from 4-team color pool`);
+    console.log(`[Team] Added 4th team '${newColor}' for week_id ${week_id} from team_color_pools remaining colors:`, unusedPool);
     return newColor;
   }
   return null;
@@ -634,8 +616,12 @@ async function addTeamColorWeek(count = 3) {
   if (res.length == 0) {
     const targetCount = max_players > 24 ? Math.max(count, 4) : count;
 
-    // Fetch team colors pool from template_tpl
-    const colorTpls = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color'");
+    // Fetch team colors pool from template_tpl (team_color_pools)
+    let colorTpls = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color_pools'");
+    if (!colorTpls || colorTpls.length === 0) {
+      colorTpls = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color'");
+    }
+
     let colorsPool = colorTpls.map(r => r.value);
     
     if (colorsPool.length === 0) {
@@ -648,9 +634,7 @@ async function addTeamColorWeek(count = 3) {
     for (let i = 0; i < selectedColors.length; i++) {
       await newTeamColorWeek(selectedColors[i], i + 1, week_id);
     }
-    console.log(`[Team] Initialized ${selectedColors.length} team colors from template pool for week_id ${week_id}:`, selectedColors);
-  } else if (max_players > 24 && res.length < 4) {
-    await ensureFourthTeam(week_id);
+    console.log(`[Team] Initialized ${selectedColors.length} team colors from team_color_pools for week_id ${week_id}:`, selectedColors);
   }
 }
 
@@ -1036,17 +1020,6 @@ async function registerMember(member_id, member_name) {
       return 1;
     } else {
       const reg_res = await executeQuery(query, [member_id, member_name, week_id]);
-
-      // If registered member count exceeds 24, ensure 4th team is created
-      try {
-        const totalCountRes = await executeQuery("SELECT count(*) as total FROM member_team_week_tbl WHERE week_id = ?", [week_id]);
-        if (totalCountRes && totalCountRes.length > 0 && totalCountRes[0].total > 24) {
-          await ensureFourthTeam(week_id);
-        }
-      } catch (cntErr) {
-        console.error('Error checking member count for 4th team:', cntErr.message);
-      }
-
       return 0;
     }
   }
@@ -1207,7 +1180,7 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
 }
 
 async function getTeamColorWeek(week_id) {
-  query = `SELECT team_color_week_tbl.id, team_color_week_tbl.color, template_tpl.url, template_tpl.code FROM team_color_week_tbl LEFT JOIN template_tpl ON LOWER(team_color_week_tbl.color) = LOWER(template_tpl.value) AND template_tpl.name IN ('team_color', 'team_color_4') WHERE team_color_week_tbl.week_id = ${week_id}`;
+  query = `SELECT team_color_week_tbl.id, team_color_week_tbl.color, template_tpl.url, template_tpl.code FROM team_color_week_tbl LEFT JOIN template_tpl ON LOWER(team_color_week_tbl.color) = LOWER(template_tpl.value) AND template_tpl.name IN ('team_color', 'team_color_pools') WHERE team_color_week_tbl.week_id = ${week_id}`;
 
   const result = await executeQuery(query);
   if (result && result.length > 0) {
@@ -1226,7 +1199,7 @@ async function getTemplate(name, value) {
 }
 
 async function getTeamColor(color) {
-  query = `SELECT * FROM template_tpl WHERE name IN ('team_color', 'team_color_4') AND LOWER(value) = LOWER('${color}')`;
+  query = `SELECT * FROM template_tpl WHERE name IN ('team_color', 'team_color_pools') AND LOWER(value) = LOWER('${color}')`;
 
   const result = await executeQuery(query);
   if (result && result.length > 0) {
