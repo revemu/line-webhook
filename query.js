@@ -2887,6 +2887,65 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   return [lines.join('\n'), scheduleJson];
 }
 
+async function getMatchScorersAndAssists(matchId, assets, groupId) {
+  const scorerQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, match_goal_tbl.status as statusid, count(*) as goal
+    FROM match_goal_tbl
+    JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
+    WHERE match_goal_tbl.match_id = ${matchId} AND match_goal_tbl.status <= 2
+    GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
+
+  const assistQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, count(*) as assist
+    FROM match_goal_tbl
+    JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
+    WHERE match_goal_tbl.match_id = ${matchId} AND match_goal_tbl.status = 3
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
+
+  const [scorerRows, assistRows] = await Promise.all([
+    executeQuery(scorerQ),
+    executeQuery(assistQ)
+  ]);
+
+  await Promise.all([
+    ...scorerRows.map(r => ensureMemberPicture(r, groupId)),
+    ...assistRows.map(r => ensureMemberPicture(r, groupId))
+  ]);
+
+  const scorers = scorerRows.map(r => {
+    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+    return {
+      name: info.name,
+      goal: r.goal,
+      ownGoal: r.statusid === 2,
+      badgeUrl: info.badgeUrl,
+      badgeSize: info.badgeSize,
+      nameColor: info.nameColor,
+      hofCount: info.hofCount,
+      hofBadgeUrl: info.hofBadgeUrl,
+      hofBadgeSize: info.hofBadgeSize,
+      hofBadges: info.hofBadges,
+      pictureUrl: info.pictureUrl
+    };
+  });
+
+  const assists = assistRows.map(r => {
+    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+    return {
+      name: info.name,
+      assist: r.assist,
+      badgeUrl: info.badgeUrl,
+      badgeSize: info.badgeSize,
+      nameColor: info.nameColor,
+      hofCount: info.hofCount,
+      hofBadgeUrl: info.hofBadgeUrl,
+      hofBadgeSize: info.hofBadgeSize,
+      hofBadges: info.hofBadges,
+      pictureUrl: info.pictureUrl
+    };
+  });
+
+  return { scorers, assists };
+}
+
 // ── Live current/next match lookup ──
 // Reads the schedule list from schedule.json but re-queries match_stat_tbl
 // for the latest match_num so it is always up to date.
@@ -2921,75 +2980,34 @@ async function getCurrentMatch(groupId = null) {
     ? (schedMatches.find(m => m.matchNo === nextMatch2No) || null)
     : null;
 
-  // ── Live score from match_stat_tbl ──
+  // ── Live score & recent match details (last 3 played matches) ──
   let score = null;
   let scorers = [];
   let assists = [];
+  const recentMatchDetails = {};
+
+  const assets = await fetchDisplayAssets();
 
   if (currentDbRow) {
     score = {
       teamA: currentDbRow.team_a_goal ?? 0,
       teamB: currentDbRow.team_b_goal ?? 0
     };
+  }
 
-    const assets = await fetchDisplayAssets();
+  if (dbMatches && dbMatches.length > 0) {
+    // Sort descending by match_num to pick the latest 3 played matches
+    const sortedDbMatches = [...dbMatches].sort((a, b) => b.match_num - a.match_num);
+    const recentDbMatches = sortedDbMatches.slice(0, 3);
 
-    // Scorers: goal_status <= 2
-    const scorerQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, match_goal_tbl.status as statusid, count(*) as goal
-      FROM match_goal_tbl
-      JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
-      WHERE match_goal_tbl.match_id = ${currentDbRow.id} AND match_goal_tbl.status <= 2
-      GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
-
-    // Assists: goal_status = 3
-    const assistQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, count(*) as assist
-      FROM match_goal_tbl
-      JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
-      WHERE match_goal_tbl.match_id = ${currentDbRow.id} AND match_goal_tbl.status = 3
-      GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
-
-    const [scorerRows, assistRows] = await Promise.all([
-      executeQuery(scorerQ),
-      executeQuery(assistQ)
-    ]);
-
-    await Promise.all([
-      ...scorerRows.map(r => ensureMemberPicture(r, groupId)),
-      ...assistRows.map(r => ensureMemberPicture(r, groupId))
-    ]);
-
-    scorers = scorerRows.map(r => {
-      const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
-      return {
-        name: info.name,
-        goal: r.goal,
-        ownGoal: r.statusid === 2,
-        badgeUrl: info.badgeUrl,
-        badgeSize: info.badgeSize,
-        nameColor: info.nameColor,
-        hofCount: info.hofCount,
-        hofBadgeUrl: info.hofBadgeUrl,
-        hofBadgeSize: info.hofBadgeSize,
-        hofBadges: info.hofBadges,
-        pictureUrl: info.pictureUrl
-      };
-    });
-
-    assists = assistRows.map(r => {
-      const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
-      return {
-        name: info.name,
-        assist: r.assist,
-        badgeUrl: info.badgeUrl,
-        badgeSize: info.badgeSize,
-        nameColor: info.nameColor,
-        hofCount: info.hofCount,
-        hofBadgeUrl: info.hofBadgeUrl,
-        hofBadgeSize: info.hofBadgeSize,
-        hofBadges: info.hofBadges,
-        pictureUrl: info.pictureUrl
-      };
-    });
+    for (const matchRow of recentDbMatches) {
+      const details = await getMatchScorersAndAssists(matchRow.id, assets, groupId);
+      recentMatchDetails[matchRow.match_num] = details;
+      if (currentDbRow && matchRow.id === currentDbRow.id) {
+        scorers = details.scorers;
+        assists = details.assists;
+      }
+    }
   }
 
   // ── Week table (team, GD, pts) ──
@@ -3008,11 +3026,10 @@ async function getCurrentMatch(groupId = null) {
     }
   }
 
-  const assets = await fetchDisplayAssets();
   const imgTpl = await getTemplate('live', 'header');
   const imageUrl = imgTpl ? imgTpl.url : null;
 
-  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, weekId: sched.weekId, date: sched.date, imageUrl, teamColors: assets.teamColors };
+  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, recentMatchDetails, weekId: sched.weekId, date: sched.date, imageUrl, teamColors: assets.teamColors };
 }
 
 async function getTheme() {

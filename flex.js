@@ -912,7 +912,7 @@ function buildNowFlex(matchInfo, theme) {
  * @param {object} matchInfo - result from getCurrentMatch() containing sched, dbMatches, currentMatch, scorers, assists, table
  */
 function buildLiveFlex(matchInfo, theme) {
-  const { sched, currentMatch, scorers, assists, table, dbMatches, imageUrl } = matchInfo;
+  const { sched, currentMatch, scorers, assists, table, dbMatches, recentMatchDetails, imageUrl } = matchInfo;
   const { date, startTime, matchMinutes, totalHours, teams, totalMatches, totalRounds, endTime, matches } = sched;
   const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
 
@@ -1103,15 +1103,22 @@ function buildLiveFlex(matchInfo, theme) {
 
       bodyContents.push(matchContainer);
 
-      // If it is the current match and there are scorers/assists, display them underneath!
-      if (isCurrent) {
+      // If match details exist (last 3 matches including current one), display scorers & assists!
+      const mDetails = (recentMatchDetails && recentMatchDetails[m.matchNo])
+        ? recentMatchDetails[m.matchNo]
+        : (isCurrent ? { scorers, assists } : null);
+
+      const mScorers = mDetails ? mDetails.scorers : null;
+      const mAssists = mDetails ? mDetails.assists : null;
+
+      if ((mScorers && mScorers.length > 0) || (mAssists && mAssists.length > 0)) {
         const detailRows = [];
-        if (scorers && scorers.length > 0) {
+        if (mScorers && mScorers.length > 0) {
           const itemContents = [
             { type: 'text', text: '⚽', size: 'sm', flex: 0, color: colors.textMuted, gravity: 'center' }
           ];
           let isFirst = true;
-          for (const s of scorers) {
+          for (const s of mScorers) {
             if (!isFirst) {
               itemContents.push({
                 type: 'text',
@@ -1241,12 +1248,12 @@ function buildLiveFlex(matchInfo, theme) {
             contents: itemContents
           });
         }
-        if (assists && assists.length > 0) {
+        if (mAssists && mAssists.length > 0) {
           const itemContents = [
             { type: 'text', text: '👟', size: 'sm', flex: 0, color: colors.textMuted, gravity: 'center' }
           ];
           let isFirst = true;
-          for (const a of assists) {
+          for (const a of mAssists) {
             if (!isFirst) {
               itemContents.push({
                 type: 'text',
@@ -1380,7 +1387,7 @@ function buildLiveFlex(matchInfo, theme) {
           bodyContents.push({
             type: 'box',
             layout: 'vertical',
-            backgroundColor: colors.bgDetail,
+            backgroundColor: isCurrent ? colors.bgDetail : colors.bgRound,
             cornerRadius: 'sm',
             paddingAll: 'sm',
             margin: 'xs',
