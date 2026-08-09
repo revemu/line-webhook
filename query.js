@@ -2125,6 +2125,7 @@ async function getTopStat(limit = 10, type = 0) {
           if (cl === 'green') return 'สีเขียว (Green)';
           if (cl === 'black') return 'สีดำ (Black)';
           if (cl === 'white') return 'สีขาว (White)';
+          if (cl === 'yellow') return 'สีเหลือง (Yellow)';
           return col;
         };
         displayName = `● ทีม${translateColor(member.color)}`;
