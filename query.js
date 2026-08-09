@@ -2121,11 +2121,11 @@ async function getTopStat(limit = 10, type = 0) {
         const translateColor = (col) => {
           if (!col) return '';
           const cl = col.toLowerCase();
-          if (cl === 'red') return 'สีแดง (Red)';
-          if (cl === 'green') return 'สีเขียว (Green)';
-          if (cl === 'black') return 'สีดำ (Black)';
-          if (cl === 'white') return 'สีขาว (White)';
-          if (cl === 'yellow') return 'สีเหลือง (Yellow)';
+          if (cl === 'red') return 'แดง (Red)';
+          if (cl === 'green') return 'เขียว (Green)';
+          if (cl === 'black') return 'ดำ (Black)';
+          if (cl === 'white') return 'ขาว (White)';
+          if (cl === 'yellow') return 'เหลือง (Yellow)';
           return col;
         };
         displayName = `● ทีม${translateColor(member.color)}`;
