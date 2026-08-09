@@ -2393,7 +2393,7 @@ async function getTopStat(limit = 10, type = 0) {
 
     return {
       type: 'bubble',
-      size: 'giga',
+      size: 'mega',
       header: {
         type: 'box',
         layout: 'vertical',
