@@ -541,7 +541,7 @@ async function handleImageMessage(event, member) {
                     } else {
                         logStatus = "success";
                     }
-                    if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
+                    if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt) && Number(member.debt) > 0) {
                         header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n`;
                     }
                 } else {
