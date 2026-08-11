@@ -2183,7 +2183,7 @@ async function getTopStat(limit = 10, type = 0) {
 
     return {
       type: 'bubble',
-      size: 'mega',
+      size: 'hecto',
       header: {
         type: 'box',
         layout: 'vertical',
