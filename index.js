@@ -9,6 +9,7 @@ const axios = require('axios');
 const db = require('./query');
 const flex = require('./flex');
 const cmd = require('./cmd');
+const slipService = require('./slip');
 
 const execPromise = util.promisify(exec);
 
@@ -126,51 +127,8 @@ async function getImageAxios(messageId) {
 
 
 // Function to verify bank slip via EasySlip API v2 using QR Code payload
-const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
-
-async function verifyEasySlipByPayload(payload) {
-    try {
-        const response = await axios.post('https://api.easyslip.com/v2/verify/bank', {
-            payload: payload
-        }, {
-            headers: {
-                'Authorization': `Bearer ${EASYSLIP_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 10000
-        });
-        return response.data;
-    } catch (error) {
-        if (error.response && error.response.data) {
-            console.error('[EasySlip] Payload verification response:', error.response.data);
-            return error.response.data;
-        }
-        console.error('[EasySlip] Payload verification error:', error.message);
-        return null;
-    }
-}
-
-async function verifyEasySlipByImage(imageBuffer) {
-    try {
-        const response = await axios.post('https://api.easyslip.com/v2/verify/bank', {
-            base64: imageBuffer.toString('base64')
-        }, {
-            headers: {
-                'Authorization': `Bearer ${EASYSLIP_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 20000
-        });
-        return response.data;
-    } catch (error) {
-        if (error.response && error.response.data) {
-            console.error('[EasySlip] Image verification response:', error.response.data);
-            return error.response.data;
-        }
-        console.error('[EasySlip] Image verification error:', error.message);
-        return null;
-    }
-}
+const verifyEasySlipByPayload = slipService.verifyEasySlipByPayload;
+const verifyEasySlipByImage = slipService.verifyEasySlipByImage;
 // Function to read QR code from image buffer using zbarimg CLI
 async function readQRCode(imageBuffer) {
     let tempFilePath = null;
@@ -502,38 +460,14 @@ async function handleImageMessage(event, member) {
         if (isSlipValid) {
             let header;
             if (slipData) {
+                const details = slipService.parseSlipDetails(slipData, member.name);
+                slipToMe = details.slipToMe;
                 console.log('[EasySlip] Slip data:', slipData.rawSlip?.receiver);
-                const recvDate = slipData.rawSlip?.transDate || slipData.rawSlip?.date;
+                console.log('[EasySlip] Recipient:', details.recipient);
+                console.log('[EasySlip] Recipient TH:', details.recipient_th);
+                console.log('[EasySlip] Account:', details.account);
 
-                const senderName = slipData.rawSlip?.sender?.account?.name?.th ||
-                    slipData.rawSlip?.sender?.account?.name?.en ||
-                    slipData.rawSlip?.sender?.name ||
-                    member.name;
-                const senderBank = slipData.rawSlip?.sender?.bank?.short;
-                const amount = slipData.amountInSlip ?? (slipData.rawSlip?.amount?.amount);
-                const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
-                const recipient = slipData.rawSlip?.receiver?.account?.name?.en ||
-                    slipData.rawSlip?.receiver?.account?.name?.th;
-                const recipient_th = slipData.rawSlip?.receiver?.account?.name?.th || '';
-                const account = slipData.rawSlip?.receiver?.account?.proxy?.account;
-                let recipientName = recipient;
-                console.log('[EasySlip] Recipient:', recipient);
-                console.log('[EasySlip] Recipient TH:', recipient_th);
-                console.log('[EasySlip] Account:', account);
-                if (account) {
-                    if (account.endsWith("5894") || ((account.startsWith("006") && account.endsWith("3367")))) {
-                        recipientName = "Kyne";
-                        slipToMe = true;
-                    } else if ((recipient_th.includes("เศรษฐ") || recipientName.toUpperCase().includes("KTB G")) && account.endsWith("3367")) {
-                        recipientName = "Kyne";
-                        slipToMe = true;
-                    }
-                }
-                if (recipientName.includes("เศรษฐ") || recipientName.toUpperCase().includes("SAGE") || recipientName.toUpperCase().includes("SETH")) {
-                    slipToMe = true;
-                    recipientName = "Kyne";
-                }
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${amountStr} บาท**`;
+                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${details.amountStr} บาท**`;
                 if (slipToMe) {
                     if (isDuplicate) {
                         header += `\n\n** สลิปนี้เคยส่งเข้ามาแล้ว **`;
@@ -541,14 +475,14 @@ async function handleImageMessage(event, member) {
                     } else {
                         logStatus = "success";
                     }
-                    if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt) && Number(member.debt) > 0) {
+                    if (details.amount !== undefined && member.debt !== undefined && Number(details.amount) > Number(member.debt) && Number(member.debt) > 0) {
                         header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n`;
                     }
                 } else {
                     header += `\n\n**📝 ไม่เกี่ยวกับค่าสนามบอล **`;
                     logStatus = "not_me";
                 }
-                header += `\n\n💰 ยอดเงิน: ** ${amountStr} บาท **\n💸 โอนจาก: ** ${senderName}. - ${senderBank} **\n💵 ให้กับ: ** ${recipientName} **\n📅 วันที่: ** ${getFormatDate(recvDate)} **\n`;
+                header += `\n\n💰 ยอดเงิน: ** ${details.amountStr} บาท **\n💸 โอนจาก: ** ${details.senderName}. - ${details.senderBank} **\n💵 ให้กับ: ** ${details.recipientName} **\n📅 วันที่: ** ${getFormatDate(details.recvDate)} **\n`;
             } else {
                 header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\n`;
                 header += `\n\n** 📝 ยังไม่พบข้อมูลการโอนในระบบที่เชื่อมกับธนาคาร \nระบบจะบันทึกสลิปนี้ไว้เพื่อตรวจสอบอีกครั้งครับ บางครั้งข้อมูลจะล่าช้าประมาณ 2-3 นาทีหลังโอน ทำให้ระบบอาจจะยังตรวจสอบไม่พบ \n\nสามารถตรวจสอบสถานะได้ด้วยตัวเองอีกครั้ง ด้วยคำสั่ง /slip **`;

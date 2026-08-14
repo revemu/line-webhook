@@ -2,8 +2,7 @@ const db = require('./query');
 const flex = require('./flex');
 const qrGen = require('./qr_gen');
 const axios = require('axios');
-
-const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
+const slipService = require('./slip');
 
 function getNextSaturday() {
     const date = new Date();
@@ -515,38 +514,19 @@ const COMMAND_REGISTRY = {
         const isAdmin = member && member.admin === 1;
         if (!isAdmin && member && String(slip.sender_id) !== String(member.line_user_id)) return [{ type: 'text', quoteToken, text: '⚠️ คุณสามารถตรวจสอบได้เฉพาะสลิปของตัวเองเท่านั้น' }];
         if (!slip.qrcode) return [{ type: 'text', quoteToken, text: `⚠️ สลิป #${slipId} ไม่มี QR Code ไม่สามารถตรวจสอบได้` }];
-        let verifyResult = null;
-        try {
-            const response = await axios.post('https://api.easyslip.com/v2/verify/bank', { payload: slip.qrcode }, { headers: { 'Authorization': `Bearer ${EASYSLIP_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 10000 });
-            verifyResult = response.data;
-        } catch (apiErr) {
-            if (apiErr.response && apiErr.response.data) verifyResult = apiErr.response.data;
-        }
+
+        const verifyResult = await slipService.verifySlipPayload(slip.qrcode, slip.sender_name);
         let msg = '';
-        if (verifyResult && verifyResult.success === true) {
-            const vData = verifyResult.data;
-            const senderName = vData.rawSlip?.sender?.account?.name?.th || vData.rawSlip?.sender?.account?.name?.en || vData.rawSlip?.sender?.name || slip.sender_name;
-            const senderBank = vData.rawSlip?.sender?.bank?.short || '';
-            const amount = vData.amountInSlip ?? (vData.rawSlip?.amount?.amount);
-            const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
-            const recipient = vData.rawSlip?.receiver?.account?.name?.en || vData.rawSlip?.receiver?.account?.name?.th || '';
-            const account = vData.rawSlip?.receiver?.account?.proxy?.account || '';
-            let recipientName = recipient;
-            const recipient_th = vData.rawSlip?.receiver?.account?.name?.th || '';
-            let slipToMe = false;
-            if (account) {
-                if (account.endsWith('5894') || (account.startsWith('006') && account.endsWith('3367'))) { recipientName = 'Kyne'; slipToMe = true; }
-                else if ((recipient_th.includes('เศรษฐ') || recipientName.toUpperCase().includes('KTB G')) && account.endsWith('3367')) { recipientName = 'Kyne'; slipToMe = true; }
-            }
-            if (recipientName.includes('เศรษฐ') || recipientName.toUpperCase().includes('SAGE') || recipientName.toUpperCase().includes('SETH')) { slipToMe = true; recipientName = 'Kyne'; }
-            const newStatus = slipToMe ? 'success' : 'not_me';
-            await db.updateSlipLog(slipId, newStatus, vData);
+        if (verifyResult.success && verifyResult.details) {
+            const details = verifyResult.details;
+            const newStatus = details.slipToMe ? 'success' : 'not_me';
+            await db.updateSlipLog(slipId, newStatus, verifyResult.slipData);
             msg = `✅ ตรวจสอบสลิป #${slipId} สำเร็จ!\n\n`;
-            msg += `💰 ยอดเงิน: ${amountStr} บาท\n`;
-            msg += `💸 โอนจาก: ${senderName} - ${senderBank}\n`;
-            msg += `💵 ให้กับ: ${recipientName}\n`;
-            msg += `📌 สถานะ: ${slipToMe ? 'โอนให้เรา ✅' : 'ไม่เกี่ยวกับค่าสนาม 📝'}`;
-            if (slipToMe) {
+            msg += `💰 ยอดเงิน: ${details.amountStr} บาท\n`;
+            msg += `💸 โอนจาก: ${details.senderName} - ${details.senderBank}\n`;
+            msg += `💵 ให้กับ: ${details.recipientName}\n`;
+            msg += `📌 สถานะ: ${details.slipToMe ? 'โอนให้เรา ✅' : 'ไม่เกี่ยวกับค่าสนาม 📝'}`;
+            if (details.slipToMe) {
                 const slipMember = await db.queryMemberbyLineID(slip.sender_id);
                 if (slipMember && slipMember.length > 0) {
                     await db.updateMemberWeek(slipMember[0].id, 1, 0);
@@ -555,7 +535,7 @@ const COMMAND_REGISTRY = {
             }
             return [{ type: 'text', text: msg }];
         } else {
-            const errMsg = verifyResult?.error ? `${verifyResult.error.code} - ${verifyResult.error.message}` : 'ไม่ทราบสาเหตุ';
+            const errMsg = verifyResult.error ? `${verifyResult.error.code} - ${verifyResult.error.message}` : 'ไม่ทราบสาเหตุ';
             return [{ type: 'text', text: `❌ ตรวจสอบสลิป #${slipId} ไม่สำเร็จ\n\nสาเหตุ: ${errMsg}` }];
         }
     },
