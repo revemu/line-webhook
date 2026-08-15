@@ -198,26 +198,27 @@ async function manageMember(source, member, line_name, pictureUrl) {
 
 }
 
-// Handle incoming messages
 async function handleMessage(event) {
     const { source, message } = event;
     const { userId, groupId } = source;
 
-    // Parallel fetch member and group profile if applicable
-    const [member, groupProfile] = await Promise.all([
+    // Parallel fetch member and group/user profile
+    let [member, profile] = await Promise.all([
         db.queryMemberbyLineID(userId),
-        groupId ? lineClient.fetchUserProfile(userId, groupId) : null
+        lineClient.fetchUserProfile(userId, groupId)
     ]);
 
-    if (groupProfile) {
-        //console.log(`[handleMessage] Successfully fetched profile from LINE: displayName=${groupProfile.displayName}, pictureUrl=${groupProfile.pictureUrl}`);
+    if (profile && profile.displayName) {
+        await manageMember(source, member, profile.displayName, profile.pictureUrl);
+        if (member.length === 0) {
+            member = await db.queryMemberbyLineID(userId);
+        }
     }
 
-    if (groupId && groupProfile && groupProfile.displayName) {
-        await manageMember(source, member, groupProfile.displayName, groupProfile.pictureUrl);
+    if (member.length === 0) {
+        console.warn(`[handleMessage] Skipping message: Unable to register member for userId: ${userId}`);
+        return;
     }
-
-    if (member.length === 0) return;
 
     switch (message.type) {
         case 'image':
@@ -279,12 +280,13 @@ async function handleTextMessage(event, member) {
     console.log(`${member.name}: ${message.text}`);
     const text = message.text.trim();
     const op = text.substring(0, 1);
-    const index = (op === "/") ? 1 : 0;
 
-    if (['/', 'x', '+', '-'].includes(op)) {
-        const cmd_str = text.substring(index);
+    if (['/', 'x', '+', '-'].includes(op) || !source.groupId) {
+        const cmd_str = op === '/' ? text.substring(1) : text;
         const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
-        await replyMessage(replyToken, replyMessages);
+        if (replyMessages) {
+            await replyMessage(replyToken, replyMessages);
+        }
     } else {
         const h = new Date().getHours();
         const dow = new Date().getDay();
