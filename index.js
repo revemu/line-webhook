@@ -269,9 +269,12 @@ async function handleImageMessage(event, member) {
         console.log(`${member.name}: sent image! need processing...`);
         const startTime = Date.now();
         const imageBuffer = await getImageAxios(message.id);
+        const tDownload = Date.now() - startTime;
 
+        const tQrStart = Date.now();
         const codes = await readQRCode(imageBuffer);
-        console.log(`Time processed image elapsed: ${Date.now() - startTime} ms`);
+        const tQr = Date.now() - tQrStart;
+        console.log(`Time processed image download + QR scan: ${Date.now() - startTime} ms`);
 
         if (codes && codes.length > 0) {
             const qrCode = codes[0].data;
@@ -284,7 +287,8 @@ async function handleImageMessage(event, member) {
                 qrCode,
                 db,
                 replyMessage,
-                getFormatDate
+                getFormatDate,
+                timing: { tDownload, tQr }
             });
 
             if (handledAsSlip) {

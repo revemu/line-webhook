@@ -214,7 +214,7 @@ function processSlipData(slipData, memberName, options = {}) {
  * @param {Function} params.getFormatDate - Date format helper
  * @returns {Promise<boolean>} Returns true if processed as payment slip, false if not a payment slip.
  */
-async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, replyMessage, getFormatDate }) {
+async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, replyMessage, getFormatDate, timing = {} }) {
     const { replyToken, message, source } = event;
 
     let isSlipValid = false;
@@ -222,8 +222,14 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     let isDuplicate = false;
     let cachedSlipId = null;
 
-    // Check for duplicate in DB
+    // 1. DB Cache Check Timer
+    const tDbCacheStart = Date.now();
     const cachedSlip = await db.getSlipByQRCode(qrCode);
+    const tDbCache = Date.now() - tDbCacheStart;
+
+    // 2. EasySlip API Verification Timer
+    let tEasySlip = 0;
+    const tEasySlipStart = Date.now();
     if (cachedSlip) {
         if (cachedSlip.data) {
             console.log('[EasySlip] Slip verified from cache (duplicate)');
@@ -247,9 +253,10 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
                 isDuplicate = true;
             }
         }
+        tEasySlip = Date.now() - tEasySlipStart;
     } else {
-        // Verify QR code with EasySlip API v2
         const easySlipRes = await verifyEasySlipByPayload(qrCode);
+        tEasySlip = Date.now() - tEasySlipStart;
         if (easySlipRes && easySlipRes.success === true) {
             console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
             slipData = easySlipRes.data;
@@ -271,7 +278,8 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         return false;
     }
 
-    // Save image to img/slip/ only if valid slip
+    // 3. Disk File Saving & DB Log Timer
+    const tSaveStart = Date.now();
     const imgSlipDir = path.join(__dirname, 'img', 'slip');
     try {
         await fs.mkdir(imgSlipDir, { recursive: true });
@@ -308,7 +316,10 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     } else {
         await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, qrCode, slipData);
     }
+    const tSave = Date.now() - tSaveStart;
 
+    // 4. DB Payment Week Query Timer
+    const tDbWeekStart = Date.now();
     const week = await db.queryWeekDate();
     let payweek = true;
     if (week.length > 0) {
@@ -346,7 +357,32 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
             };
         }
     }
+    const tDbWeek = Date.now() - tDbWeekStart;
+
+    // 5. LINE Reply Message Timer
+    const tReplyStart = Date.now();
     await replyMessage(replyToken, replyMessages);
+    const tReply = Date.now() - tReplyStart;
+
+    // Overall Total Breakdown Output
+    const tDownload = timing.tDownload || 0;
+    const tQr = timing.tQr || 0;
+    const tTotal = tDownload + tQr + tDbCache + tEasySlip + tSave + tDbWeek + tReply;
+
+    const pct = (ms) => tTotal > 0 ? ((ms / tTotal) * 100).toFixed(1).padStart(5, ' ') : '  0.0';
+
+    console.log(`\n==================== ⏱️ IMAGE PROCESSING BREAKDOWN ====================`);
+    console.log(`📥 1. Download Image (LINE Server API) : ${String(tDownload).padStart(4, ' ')} ms (${pct(tDownload)}%)`);
+    console.log(`🔍 2. QR Code Scanner (readQRCode)     : ${String(tQr).padStart(4, ' ')} ms (${pct(tQr)}%)`);
+    console.log(`🗄️ 3. DB Cache Check                   : ${String(tDbCache).padStart(4, ' ')} ms (${pct(tDbCache)}%)`);
+    console.log(`🌐 4. EasySlip Bank API Check          : ${String(tEasySlip).padStart(4, ' ')} ms (${pct(tEasySlip)}%)`);
+    console.log(`💾 5. Save Slip File & DB Log          : ${String(tSave).padStart(4, ' ')} ms (${pct(tSave)}%)`);
+    console.log(`📊 6. DB Payment Week Query            : ${String(tDbWeek).padStart(4, ' ')} ms (${pct(tDbWeek)}%)`);
+    console.log(`💬 7. LINE Reply Message API           : ${String(tReply).padStart(4, ' ')} ms (${pct(tReply)}%)`);
+    console.log(`----------------------------------------------------------------------`);
+    console.log(`🏁 TOTAL PIPELINE TIME                 : ${String(tTotal).padStart(4, ' ')} ms (100.0%)`);
+    console.log(`======================================================================\n`);
+
     return true;
 }
 
