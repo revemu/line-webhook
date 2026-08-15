@@ -79,18 +79,21 @@ const tdc = (name, teamColorMap = null) => {
   if (!name) return '#ffffff';
   const n = name.toLowerCase();
   if (teamColorMap && teamColorMap[n]) return teamColorMap[n];
-  const colorMap = {
-    black: '#999999',
-    white: '#ffffff',
-    red: '#ff5566',
-    green: '#44cc66',
-    yellow: '#facc15',
-    blue: '#3b82f6',
-    orange: '#f97316',
-    pink: '#ec4899',
-    purple: '#a855f7'
-  };
-  return colorMap[n] || '#ffffff';
+  if (teamColorMap) {
+    for (const [key, val] of Object.entries(teamColorMap)) {
+      if (n.includes(key.toLowerCase())) return val;
+    }
+  }
+  if (n.includes('yellow') || n.includes('เหลือง')) return '#facc15';
+  if (n.includes('green') || n.includes('เขียว')) return '#44cc66';
+  if (n.includes('red') || n.includes('แดง')) return '#ff5566';
+  if (n.includes('blue') || n.includes('น้ำเงิน') || n.includes('ฟ้า')) return '#3b82f6';
+  if (n.includes('orange') || n.includes('ส้ม')) return '#f97316';
+  if (n.includes('pink') || n.includes('ชมพู')) return '#ec4899';
+  if (n.includes('purple') || n.includes('ม่วง')) return '#a855f7';
+  if (n.includes('black') || n.includes('ดำ')) return '#999999';
+  if (n.includes('white') || n.includes('ขาว')) return '#ffffff';
+  return '#ffffff';
 };
 
 const getThemeColors = (themeName, teamColorMap = {}) => {
@@ -103,16 +106,21 @@ const getThemeColors = (themeName, teamColorMap = {}) => {
     if (teamColorMap && teamColorMap[n]) {
       return teamColorMap[n];
     }
-    // 2. Fallbacks for well-known color names
-    if (n === 'black') return isWhite ? '#0f172a' : '#999999';
-    if (n === 'white') return isWhite ? '#64748b' : '#ffffff';
-    if (n === 'red') return isWhite ? '#dc2626' : '#ff5566';
-    if (n === 'green') return isWhite ? '#15803d' : '#44cc66';
-    if (n === 'yellow') return isWhite ? '#ca8a04' : '#facc15';
-    if (n === 'blue') return isWhite ? '#1d4ed8' : '#3b82f6';
-    if (n === 'orange') return isWhite ? '#c2410c' : '#f97316';
-    if (n === 'pink') return isWhite ? '#db2777' : '#ec4899';
-    if (n === 'purple') return isWhite ? '#7e22ce' : '#a855f7';
+    if (teamColorMap) {
+      for (const [key, val] of Object.entries(teamColorMap)) {
+        if (n.includes(key.toLowerCase())) return val;
+      }
+    }
+    // 2. Fallbacks for well-known color names (English & Thai)
+    if (n.includes('yellow') || n.includes('เหลือง')) return isWhite ? '#ca8a04' : '#facc15';
+    if (n.includes('green') || n.includes('เขียว')) return isWhite ? '#15803d' : '#44cc66';
+    if (n.includes('red') || n.includes('แดง')) return isWhite ? '#dc2626' : '#ff5566';
+    if (n.includes('blue') || n.includes('น้ำเงิน') || n.includes('ฟ้า')) return isWhite ? '#1d4ed8' : '#3b82f6';
+    if (n.includes('orange') || n.includes('ส้ม')) return isWhite ? '#c2410c' : '#f97316';
+    if (n.includes('pink') || n.includes('ชมพู')) return isWhite ? '#db2777' : '#ec4899';
+    if (n.includes('purple') || n.includes('ม่วง')) return isWhite ? '#7e22ce' : '#a855f7';
+    if (n.includes('black') || n.includes('ดำ')) return isWhite ? '#0f172a' : '#999999';
+    if (n.includes('white') || n.includes('ขาว')) return isWhite ? '#64748b' : '#ffffff';
     return isWhite ? '#0f172a' : '#ffffff';
   };
 
