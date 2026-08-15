@@ -41,7 +41,7 @@ function getShortDate(date) {
   if (!date) return '';
   const dObj = (date instanceof Date) ? date : new Date(date);
   if (isNaN(dObj.getTime())) return '';
-  const y = dObj.getFullYear();
+  const y = dObj.getFullYear() + 543;
   const d = ('0' + dObj.getDate()).slice(-2);
   const m = ('0' + (dObj.getMonth() + 1)).slice(-2);
   return `${y}-${m}-${d}`;
