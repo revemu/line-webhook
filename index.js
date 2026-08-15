@@ -312,17 +312,19 @@ async function handleImageMessage(event, member) {
 
 async function handleTextMessage(event, member) {
     const { replyToken, message, source } = event;
-    console.log(`${member.name}: ${message.text}`);
     const text = message.text.trim();
     const op = text.substring(0, 1);
+    const isCmd = ['/', 'x', '+', '-'].includes(op) || !source.groupId;
 
-    if (['/', 'x', '+', '-'].includes(op) || !source.groupId) {
+    if (isCmd) {
+        console.log(`${member.name} [CMD]: ${message.text}`);
         const cmd_str = op === '/' ? text.substring(1) : text;
         const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
         if (replyMessages) {
             await replyMessage(replyToken, replyMessages);
         }
     } else {
+        console.log(`${member.name}: ${message.text}`);
         const h = new Date().getHours();
         const dow = new Date().getDay();
         if (dow > 0 && h > 10 && h < 22 && source.groupId) {
