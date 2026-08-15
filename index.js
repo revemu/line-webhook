@@ -112,32 +112,9 @@ async function getImageAxios(messageId) {
 // Function to verify bank slip via EasySlip API v2 using QR Code payload
 const verifyEasySlipByPayload = slipService.verifyEasySlipByPayload;
 const verifyEasySlipByImage = slipService.verifyEasySlipByImage;
-// Function to read QR code from image buffer with comparison test between jsQR+Jimp vs zbarimg CLI
+// Function to read QR code from image buffer (Primary: zbarimg CLI ~132ms, Fallback: jsQR+Jimp in-memory)
 async function readQRCode(imageBuffer) {
-    let jsqrResult = null;
-    let zbarResult = null;
-    let jsqrTime = 0;
-    let zbarTime = 0;
-
-    // 1. Measure jsQR (In-Memory + Jimp)
-    const jsqrStart = Date.now();
-    try {
-        const image = await Jimp.read(imageBuffer);
-        const qrCode = jsQR(
-            new Uint8ClampedArray(image.bitmap.data),
-            image.bitmap.width,
-            image.bitmap.height
-        );
-        if (qrCode && qrCode.data) {
-            jsqrResult = [{ type: 'QR-Code', data: qrCode.data }];
-        }
-    } catch (err) {
-        console.warn('[QR Test] jsQR in-memory scan error:', err.message);
-    }
-    jsqrTime = Date.now() - jsqrStart;
-
-    // 2. Measure zbarimg CLI (Legacy File-based)
-    const zbarStart = Date.now();
+    // 1. Primary Pass: zbarimg CLI (Native C fast scanner)
     let tempFilePath = null;
     try {
         const tempDir = "./temp/";
@@ -163,31 +140,34 @@ async function readQRCode(imageBuffer) {
                 return { type: 'UNKNOWN', data: line };
             }).filter(code => code.data);
 
-            zbarResult = codes.length > 0 ? codes : null;
+            if (codes.length > 0) {
+                return codes;
+            }
         }
     } catch (error) {
         if (tempFilePath) {
             try { await fs.unlink(tempFilePath); } catch (unlinkError) { }
         }
     }
-    zbarTime = Date.now() - zbarStart;
 
-    // 3. Compare & Log Results
-    const jsqrData = jsqrResult ? jsqrResult[0].data : null;
-    const zbarData = zbarResult ? zbarResult[0].data : null;
-    const speedup = jsqrTime > 0 ? (zbarTime / jsqrTime).toFixed(1) : 'N/A';
-    const matchStatus = (jsqrData === zbarData) ? '✅ PERFECT MATCH' : (jsqrData && zbarData ? '⚠️ MISMATCH' : '🟡 DIFFERENCE (ONE FAILED)');
+    // 2. Secondary Fallback Pass: jsQR + Jimp in-memory
+    try {
+        console.log('[readQRCode] Primary zbarimg found no QR code, running secondary jsQR fallback...');
+        const image = await Jimp.read(imageBuffer);
+        const qrCode = jsQR(
+            new Uint8ClampedArray(image.bitmap.data),
+            image.bitmap.width,
+            image.bitmap.height
+        );
+        if (qrCode && qrCode.data) {
+            console.log('[readQRCode] Decoded QR code via secondary jsQR fallback!');
+            return [{ type: 'QR-Code', data: qrCode.data }];
+        }
+    } catch (jsqrErr) {
+        console.warn('[readQRCode] Secondary jsQR fallback warning:', jsqrErr.message);
+    }
 
-    console.log(`\n================== 📊 QR SCANNER BENCHMARK COMPARISON ==================`);
-    console.log(`⚡ jsQR + Jimp (In-Memory) : ${jsqrTime} ms | Result: ${jsqrData ? 'SUCCESS' : 'NO QR FOUND'}`);
-    console.log(`🐢 zbarimg (Legacy CLI)   : ${zbarTime} ms | Result: ${zbarData ? 'SUCCESS' : 'NO QR FOUND'}`);
-    console.log(`📈 Speed Performance     : In-Memory is ${speedup}x faster`);
-    console.log(`🔍 Payload Verification  : ${matchStatus}`);
-    if (jsqrData) console.log(`   └─ jsQR Payload : ${jsqrData.substring(0, 45)}...`);
-    if (zbarData) console.log(`   └─ zbar Payload : ${zbarData.substring(0, 45)}...`);
-    console.log(`========================================================================\n`);
-
-    return jsqrResult || zbarResult;
+    return null;
 }
 
 // Function to check if zbarimg is installed
