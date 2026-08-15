@@ -63,31 +63,15 @@ const tpl_bubble =
 }
 
 function replacePlaceholders(template, data) {
-  let jsonString = JSON.stringify(template);
-
-  // Replace all placeholders with actual data
+  let jsonString = typeof template === 'string' ? template : JSON.stringify(template);
   Object.keys(data).forEach(key => {
-    const placeholder = `{{${key}}}`;
-    const regex = new RegExp(placeholder, 'g');
-    jsonString = jsonString.replace(regex, data[key]);
+    jsonString = jsonString.replace(new RegExp(`{{${key}}}`, 'g'), data[key]);
   });
-  console.log(jsonString);
   return JSON.parse(jsonString);
 }
 
 function replaceFlex(template, data) {
-  let jsonString = template;
-
-
-  // Replace all placeholders with actual data
-  Object.keys(data).forEach(key => {
-    const placeholder = `{{${key}}}`;
-    const regex = new RegExp(placeholder, 'g');
-    jsonString = jsonString.replace(regex, data[key]);
-  });
-  jsonString = jsonString.replaceAll("'", '"');
-  console.log(jsonString);
-  return JSON.parse(jsonString);
+  return replacePlaceholders(typeof template === 'string' ? template.replaceAll("'", '"') : template, data);
 }
 
 // Team name → readable color on dark background
@@ -95,16 +79,18 @@ const tdc = (name, teamColorMap = null) => {
   if (!name) return '#ffffff';
   const n = name.toLowerCase();
   if (teamColorMap && teamColorMap[n]) return teamColorMap[n];
-  if (n === 'black') return '#999999';
-  if (n === 'white') return '#ffffff';
-  if (n === 'red') return '#ff5566';
-  if (n === 'green') return '#44cc66';
-  if (n === 'yellow') return '#facc15';
-  if (n === 'blue') return '#3b82f6';
-  if (n === 'orange') return '#f97316';
-  if (n === 'pink') return '#ec4899';
-  if (n === 'purple') return '#a855f7';
-  return '#ffffff';
+  const colorMap = {
+    black: '#999999',
+    white: '#ffffff',
+    red: '#ff5566',
+    green: '#44cc66',
+    yellow: '#facc15',
+    blue: '#3b82f6',
+    orange: '#f97316',
+    pink: '#ec4899',
+    purple: '#a855f7'
+  };
+  return colorMap[n] || '#ffffff';
 };
 
 const getThemeColors = (themeName, teamColorMap = {}) => {

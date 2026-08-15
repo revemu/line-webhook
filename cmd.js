@@ -3,16 +3,7 @@ const flex = require('./flex');
 const qrGen = require('./qr_gen');
 const axios = require('axios');
 const slipService = require('./slip');
-
-function getNextSaturday() {
-    const date = new Date();
-    date.setDate(date.getDate() + (6 - date.getDay() + 7) % 7 || 7);
-    const d = ('0' + date.getDate()).slice(-2);
-    const m = ('0' + (date.getMonth() + 1)).slice(-2);
-    const y = date.getFullYear();
-
-    return date;
-}
+const { getNextSaturday } = require('./utils/date');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'slip', 'sliplist', 'verify']);
 const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my']);
@@ -421,11 +412,7 @@ const COMMAND_REGISTRY = {
         const theme = await db.getTheme();
         const week = await db.queryWeekID(0);
         const dateStr = week.length > 0 ? week[0].date : '';
-        let autoRegCount = 0;
-        try {
-            const autoRegRes = await db.executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
-            if (autoRegRes.length > 0) autoRegCount = autoRegRes[0].count;
-        } catch (err) { console.error("Error getting autoRegCount in menu:", err.message); }
+        const autoRegCount = await db.getAutoRegCount();
         const msg = flex.buildMenuFlex(dateStr, theme, null, autoRegCount);
         return { type: 'flex', altText: "เมนูบริการของบอท", contents: msg };
     },
@@ -688,15 +675,7 @@ async function unknownCommandResponse(context) {
     const theme = await db.getTheme();
     const week = await db.queryWeekID(0);
     const dateStr = week.length > 0 ? week[0].date : '';
-    let autoRegCount = 0;
-    try {
-        const autoRegRes = await db.executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
-        if (autoRegRes.length > 0) {
-            autoRegCount = autoRegRes[0].count;
-        }
-    } catch (err) {
-        console.error("Error getting autoRegCount in default menu:", err.message);
-    }
+    const autoRegCount = await db.getAutoRegCount();
     const msg = flex.buildMenuFlex(dateStr, theme, `ไม่รู้จักคำสั่ง: "${cmd}"`, autoRegCount);
     const altText = `ไม่รู้จักคำสั่ง: "${cmd}"`;
     return { type: 'flex', altText, contents: msg };

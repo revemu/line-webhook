@@ -2,14 +2,10 @@ const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-const { Client } = require('@line/bot-sdk');
 require('dotenv').config({ quiet: true });
 const flex = require('./flex');
-
-const client = new Client({
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
-  channelSecret: process.env.LINE_CHANNEL_SECRET || '',
-});
+const lineClient = require('./lineClient');
+const { getFormatDate, getShortDate, thaiMonthsShort } = require('./utils/date');
 
 let lastGroupId = null;
 
@@ -22,20 +18,7 @@ async function ensureMemberPicture(member, groupId = null) {
 
     try {
       console.log(`[ensureMemberPicture] picture_url is empty for member ${member.name} (${member.id}), fetching from LINE API...`);
-      let profile;
-      if (effectiveGroupId) {
-        console.log(`[ensureMemberPicture] Fetching profile via getGroupMemberProfile(groupId: ${effectiveGroupId}, userId: ${member.line_user_id})`);
-        try {
-          profile = await client.getGroupMemberProfile(effectiveGroupId, member.line_user_id);
-        } catch (groupErr) {
-          console.warn(`[ensureMemberPicture] getGroupMemberProfile failed: ${groupErr.message}. Trying direct profile...`);
-        }
-      }
-
-      if (!profile) {
-        console.log(`[ensureMemberPicture] Fetching profile via getProfile(userId: ${member.line_user_id})`);
-        profile = await client.getProfile(member.line_user_id);
-      }
+      const profile = await lineClient.fetchUserProfile(member.line_user_id, effectiveGroupId);
 
       if (profile && profile.pictureUrl) {
         console.log(`[ensureMemberPicture] Successfully fetched profile from LINE: pictureUrl=${profile.pictureUrl}`);
@@ -1547,36 +1530,18 @@ async function getMemberNY() {
 
 }
 
-let lineClientInstance = null;
-function getLineClient() {
-  if (!lineClientInstance) {
-    const entrypoint = require.main ? require.main.filename : '';
-    const useCur = entrypoint.includes('index4.js') || entrypoint.includes('index3.js') || entrypoint.includes('index2.js');
-    const token = useCur
-      ? (process.env.CUR_CHANNEL_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN)
-      : (process.env.LINE_CHANNEL_ACCESS_TOKEN || process.env.CUR_CHANNEL_ACCESS_TOKEN);
-    if (token) {
-      lineClientInstance = new Client({
-        channelAccessToken: token
-      });
-    }
+async function getAutoRegCount() {
+  try {
+    const autoRegRes = await executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
+    return autoRegRes.length > 0 ? autoRegRes[0].count : 0;
+  } catch (err) {
+    console.error("Error getting autoRegCount:", err.message);
+    return 0;
   }
-  return lineClientInstance;
 }
 
 async function fetchLineProfile(lineUserId, groupId = null) {
-  const client = getLineClient();
-  if (!client) {
-    console.warn("LINE Bot SDK Client is not configured.");
-    return null;
-  }
-  if (groupId) {
-    console.log(`[LINE-API] Fetching profile from LINE SDK: getGroupMemberProfile(groupId: ${groupId}, userId: ${lineUserId})`);
-    return await client.getGroupMemberProfile(groupId, lineUserId);
-  } else {
-    console.log(`[LINE-API] Fetching profile from LINE SDK: getProfile(userId: ${lineUserId})`);
-    return await client.getProfile(lineUserId);
-  }
+  return await lineClient.fetchUserProfile(lineUserId, groupId);
 }
 
 async function updateMemberPictureUrl(memberId, pictureUrl) {
@@ -3291,6 +3256,7 @@ module.exports = {
   getTheme,
   setTheme,
   updateMemberAutoReg,
+  getAutoRegCount,
   getAutoRegList,
   getTemplate,
   getMemberDisplayInfo,

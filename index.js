@@ -1,6 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
-const { Client, middleware } = require('@line/bot-sdk');
+const { middleware } = require('@line/bot-sdk');
 const fs = require('fs').promises;
 const path = require('path');
 const { exec } = require('child_process');
@@ -10,73 +10,22 @@ const db = require('./query');
 const flex = require('./flex');
 const cmd = require('./cmd');
 const slipService = require('./slip');
+const lineClient = require('./lineClient');
+const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
 
 const execPromise = util.promisify(exec);
 
 require('dotenv').config({ quiet: true });
 
 const app = express();
-
-// LINE Bot configuration
-const config = {
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-    channelSecret: process.env.LINE_CHANNEL_SECRET,
-};
-
-
-
-function formatDate(curDate) {
-    if (!curDate) return '';
-    const dObj = (curDate instanceof Date) ? curDate : new Date(curDate);
-    if (isNaN(dObj.getTime())) {
-        return typeof curDate === 'string' ? curDate : '';
-    }
-    const d = ('0' + dObj.getDate()).slice(-2);
-    const m = ('0' + (dObj.getMonth() + 1)).slice(-2);
-    const y = dObj.getFullYear();
-    const h = ('0' + dObj.getHours()).slice(-2);
-    const min = ('0' + dObj.getMinutes()).slice(-2);
-    const s = ('0' + dObj.getSeconds()).slice(-2);
-    return `${y}-${m}-${d} ${h}:${min}:${s}`;
-}
+const config = lineClient.config;
 
 function getFormatDate(date, format = 'short') {
-    if (!date) return '';
-    if (!(date instanceof Date)) {
-        date = new Date(date);
-    }
-    const thaiMonths = [
-        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-    ];
-    const thaiMonthsShort = [
-        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-    ];
-    //const d = ('0' + date.getDate()).slice(-2);
-    const d = date.getDate();
-    let y = (date.getFullYear() + 543).toString();
-    let month;
-    switch (format) {
-        case 'full':
-            month = thaiMonths[date.getMonth()];
-            break;
-        case 'short':
-            month = thaiMonthsShort[date.getMonth()];
-            y = `${y.slice(-2)}`;
-            break;
-    }
-
-    const h = ('0' + date.getHours()).slice(-2);
-    const min = ('0' + date.getMinutes()).slice(-2);
-    const s = ('0' + date.getSeconds()).slice(-2);
-
-    return `${d} ${month} ${y} ${h}:${min}:${s}`;
+    return getFormatDateUtil(date, format, { buddhistEra: true, includeTime: true });
 }
 
-
-// Create LINE SDK client
-const client = new Client(config);
+// Function to reply to LINE user using SDK
+const replyMessage = lineClient.replyMessage;
 
 // Middleware to dynamically capture base URL from request host (for Nginx proxy support)
 app.use((req, res, next) => {
@@ -200,74 +149,6 @@ async function checkZbarimgInstalled() {
     }
 }
 
-// Function to reply to LINE user using SDK
-async function replyMessage(replyToken, messages) {
-    try {
-        await client.replyMessage(replyToken, messages);
-    } catch (error) {
-        console.error('Error replying message:', error);
-        let details = null;
-        if (error.response && error.response.data) {
-            details = error.response.data;
-        } else if (error.originalError && error.originalError.response && error.originalError.response.data) {
-            details = error.originalError.response.data;
-        } else if (error.data) {
-            details = error.data;
-        }
-        if (details) {
-            console.error('LINE API Error Details:', JSON.stringify(details, null, 2));
-        } else {
-            console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-        }
-        throw error;
-    }
-}
-
-// Webhook endpoint - LINE SDK middleware handles signature validation
-/*app.post('/webhook', (req, res) => {
-    const events = req.body.events;
-
-    // Process each event
-    Promise.all(events.map(handleEvent))
-        .then(() => res.status(200).send('OK'))
-        .catch((error) => {
-            console.error('Error processing events:', error);
-            res.status(500).send('Internal Server Error');
-        });
-});*/
-
-app.post('/webhook', async (req, res) => {
-    try {
-        const events = req.body.events;
-        res.status(200).send('OK');
-        for (const event of events) {
-            handleEvent(event);
-        }
-    } catch (error) {
-        console.error('Error processing events:', error);
-        res.status(500).send('Internal Server Error');
-    }
-});
-
-// Handle incoming events
-async function handleEvent(event) {
-    //console.log('Received event:', event.type);
-    try {
-        if (event.type === 'message') {
-            await handleMessage(event);
-        } else if (event.type === 'memberJoined') {
-            await handleJoinedMember(event);
-        } else {
-            console.log('Received event:', event.type);
-            console.log(event);
-        }
-    } catch (error) {
-        console.error('Error processing events', error);
-        //console.log(event) ;
-    }
-
-}
-
 async function handleJoinedMember(event) {
     try {
         console.log(event);
@@ -275,8 +156,8 @@ async function handleJoinedMember(event) {
         for (let member of event.joined.members) {
             if (member.type === "user") {
                 console.log(`Member ${member.userId} joined group`);
-                const res = await client.getGroupMemberProfile(source.groupId, member.userId);
-                if (res.displayName != '') {
+                const res = await lineClient.fetchUserProfile(member.userId, source.groupId);
+                if (res && res.displayName) {
                     const line_name = `@${res.displayName}`;
                     console.log(`add new member ${member.userId}: ${line_name}`);
                     await db.newMember(member.userId, line_name);
@@ -322,20 +203,10 @@ async function handleMessage(event) {
     const { source, message } = event;
     const { userId, groupId } = source;
 
-    //console.log(`[handleMessage] Querying LINE profile for userId: ${userId}, groupId: ${groupId || 'none'}`);
     // Parallel fetch member and group profile if applicable
     const [member, groupProfile] = await Promise.all([
         db.queryMemberbyLineID(userId),
-        groupId ? client.getGroupMemberProfile(groupId, userId).catch((err) => {
-            console.error(`[handleMessage] getGroupMemberProfile failed:`, err.message);
-            if (err.statusCode) {
-                console.error(`[handleMessage] LINE API Status Code: ${err.statusCode}`);
-            }
-            if (err.originalError && err.originalError.response) {
-                console.error(`[handleMessage] LINE API Response Data:`, JSON.stringify(err.originalError.response.data));
-            }
-            return null;
-        }) : null
+        groupId ? lineClient.fetchUserProfile(userId, groupId) : null
     ]);
 
     if (groupProfile) {
