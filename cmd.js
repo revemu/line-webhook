@@ -403,7 +403,7 @@ const COMMAND_REGISTRY = {
     'bottom': async (context) => {
         const limit = context.param != '' ? Number(context.param) : 30;
         await db.updateHof();
-        const stats = await Promise.all([ db.getTopStat(limit, 5), db.getTopStat(limit, 2) ]);
+        const stats = await Promise.all([db.getTopStat(limit, 5), db.getTopStat(limit, 2)]);
         const carousel = flex.tpl_carousel; carousel.contents = stats.filter(x => x !== null && x !== undefined);
         return { type: 'flex', altText: `ทำเนียบซึมเศร้าประจำปี (${new Date().getFullYear()})`, contents: carousel };
     },
@@ -462,7 +462,7 @@ const COMMAND_REGISTRY = {
     'top': async (context) => {
         const limit = context.param != '' ? Number(context.param) : 30;
         await db.updateHof();
-        const stats = await Promise.all([ db.getTopStat(limit, 0), db.getTopStat(limit, 1), db.getTopStat(limit, 4), db.getTopStat(limit, 6) ]);
+        const stats = await Promise.all([db.getTopStat(limit, 0), db.getTopStat(limit, 1), db.getTopStat(limit, 4), db.getTopStat(limit, 6)]);
         const carousel = flex.tpl_carousel; carousel.contents = stats.filter(x => x !== null && x !== undefined);
         return { type: 'flex', altText: `Top ${limit} Stat (${new Date().getFullYear()})`, contents: carousel };
     },
@@ -642,7 +642,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
 async function handleCommandSwitch(context) {
     const { cmd, param, quoteToken, groupId, is_flex, rank_val, debt_val, member, member_id, member_name, target_line_user_id, is_mention } = context;
     let chat_type = "[cmd] -";
-    console.log(`${chat_type} command: ${cmd} - param: ${param}`);
+    //console.log(`${chat_type} command: ${cmd} - param: ${param}`);
 
     // If a registry handler exists for this command, call it first. Handler may
     // return a reply (array/object) to short-circuit; `undefined` continues to
