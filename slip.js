@@ -296,7 +296,7 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     });
     const { details, slipToMe, logStatus, header } = processed;
     if (details) {
-        console.log('[EasySlip] Slip data:', slipData?.rawSlip?.receiver);
+        //console.log('[EasySlip] Slip data:', slipData?.rawSlip?.receiver);
         console.log('[EasySlip] Recipient:', details.recipient);
         console.log('[EasySlip] Recipient TH:', details.recipient_th);
         console.log('[EasySlip] Account:', details.account);
