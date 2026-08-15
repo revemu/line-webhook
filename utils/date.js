@@ -61,7 +61,7 @@ function getFormatDate(date, format = 'short', options = {}) {
   const dObj = (date instanceof Date) ? date : new Date(date);
   if (isNaN(dObj.getTime())) return typeof date === 'string' ? date : '';
 
-  const { buddhistEra = false, includeTime = false } = options;
+  const { buddhistEra = true, includeTime = false } = options;
   const d = dObj.getDate();
   let yearNum = buddhistEra ? dObj.getFullYear() + 543 : dObj.getFullYear();
   let y = yearNum.toString();
