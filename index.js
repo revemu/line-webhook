@@ -274,11 +274,11 @@ async function handleImageMessage(event, member) {
         const tQrStart = Date.now();
         const codes = await readQRCode(imageBuffer);
         const tQr = Date.now() - tQrStart;
-        console.log(`Time processed image download + QR scan: ${Date.now() - startTime} ms`);
+        //console.log(`Time processed image download + QR scan: ${Date.now() - startTime} ms`);
 
         if (codes && codes.length > 0) {
             const qrCode = codes[0].data;
-            console.log('QR code detected:', qrCode);
+            //console.log('QR code detected:', qrCode);
 
             const handledAsSlip = await slipService.processPaymentSlip({
                 event,

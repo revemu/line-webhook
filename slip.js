@@ -258,7 +258,7 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         const easySlipRes = await verifyEasySlipByPayload(qrCode);
         tEasySlip = Date.now() - tEasySlipStart;
         if (easySlipRes && easySlipRes.success === true) {
-            console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
+            //console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
             slipData = easySlipRes.data;
             isSlipValid = true;
         } else {
@@ -327,7 +327,7 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         if (now.getTime() < week[0].date.getTime()) {
             payweek = false;
         }
-        console.log(`week ${week[0].date} now ${now}`);
+        //console.log(`week ${week[0].date} now ${now}`);
     }
 
     let replyMessages;
