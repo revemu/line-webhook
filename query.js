@@ -381,41 +381,7 @@ async function addTeamMemberWeek() {
   }
 }
 
-async function getFormatDate(date, format = 'short') {
-  const thaiMonths = [
-    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-  ];
-  const thaiMonthsShort = [
-    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-  ];
-  //const d = ('0' + date.getDate()).slice(-2);
-  const d = date.getDate();
-  let y = date.getFullYear().toString();
-  let month;
-  switch (format) {
-    case 'full':
-      month = thaiMonths[date.getMonth()];
-      break;
-    case 'short':
-      month = thaiMonthsShort[date.getMonth()];
-      y = `${y.slice(-2)}`;
-      break;
-  }
 
-
-
-  return `${d} ${month} ${y}`;
-}
-
-async function getShortDate(date) {
-  const y = date.getFullYear();
-  const d = ('0' + date.getDate()).slice(-2);
-  const m = ('0' + (date.getMonth() + 1)).slice(-2);
-  return `${y}-${m}-${d}`;
-
-}
 async function newWeek(week_date) {
   const week = await queryWeekID();
   const y = week_date.getFullYear();
