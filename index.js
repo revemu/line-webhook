@@ -38,6 +38,37 @@ app.use((req, res, next) => {
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
 
+// Webhook POST endpoint
+app.post('/webhook', async (req, res) => {
+    try {
+        const events = req.body.events;
+        res.status(200).send('OK');
+        if (Array.isArray(events)) {
+            for (const event of events) {
+                handleEvent(event);
+            }
+        }
+    } catch (error) {
+        console.error('Error processing webhook events:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+// Handle incoming webhook events
+async function handleEvent(event) {
+    try {
+        if (event.type === 'message') {
+            await handleMessage(event);
+        } else if (event.type === 'memberJoined') {
+            await handleJoinedMember(event);
+        } else {
+            console.log('Received unhandled event type:', event.type, event);
+        }
+    } catch (error) {
+        console.error('Error processing event:', error);
+    }
+}
+
 // Serve static assets from project directory and 'pic' folder
 app.use('/img/qr', express.static(path.join(__dirname, 'qr')));
 app.use('/img', express.static(path.join(__dirname, 'img')));
@@ -83,8 +114,8 @@ async function readQRCode(imageBuffer) {
     let tempFilePath = null;
     try {
         // Create temporary directory
-        const tempDir = "./temp/"
-        //await fs.mkdir(tempDir, { recursive: true });
+        const tempDir = "./temp/";
+        await fs.mkdir(tempDir, { recursive: true });
 
         // Create temporary file with unique name
         const timestamp = Date.now();
