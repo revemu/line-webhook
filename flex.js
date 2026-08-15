@@ -3712,6 +3712,183 @@ function buildSlipListFlex(slips, theme) {
   };
 }
 
+function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMemberDisplayInfo) {
+  const itemContents = [];
+
+  itemContents.push({
+    type: "text",
+    text: icon,
+    size: "xs",
+    flex: 0,
+    color: "#a0a8c0",
+    gravity: "center"
+  });
+
+  let isFirst = true;
+  for (const member of match_goals) {
+    if (!isFirst) {
+      itemContents.push({
+        type: "text",
+        text: "•",
+        size: "xs",
+        color: "#7878a8",
+        flex: 0,
+        margin: "md",
+        gravity: "center"
+      });
+    }
+    isFirst = false;
+
+    const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+
+    let nameText = info.name;
+    if (member.goal > 1) {
+      nameText = `+(${member.goal})${nameText}`;
+    }
+    if (member.statusid == 2) {
+      nameText += "🥅";
+    } else if (member.statusid == 1) {
+      nameText += "🔄";
+    }
+
+    const scorerContents = [];
+    const badgeSize = info.badgeSize || '16px';
+    if (info.badgeUrl) {
+      scorerContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: badgeSize,
+        height: badgeSize,
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: info.badgeUrl,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'fit',
+            animated: true
+          }
+        ],
+        margin: 'xs'
+      });
+    }
+
+    if (info.hofBadges && info.hofBadges.length > 0) {
+      for (const hb of info.hofBadges) {
+        scorerContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: hb.size || '16px',
+          height: hb.size || '16px',
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: hb.url,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'fit',
+              animated: true
+            }
+          ],
+          margin: 'xs'
+        });
+      }
+    }
+
+    scorerContents.push({
+      type: "text",
+      text: nameText,
+      size: "xs",
+      color: info.nameColor || (goal_status === 3 ? '#bbddff' : '#ddddff'),
+      flex: 0,
+      margin: "xs",
+      weight: 'bold'
+    });
+
+    itemContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      alignItems: 'center',
+      contents: scorerContents,
+      margin: 'md',
+      flex: 0
+    });
+  }
+
+  return {
+    type: "box",
+    layout: "horizontal",
+    alignItems: "center",
+    contents: itemContents
+  };
+}
+
+function buildTableWeekFlex(dateStr, weekTables, teamColors) {
+  const tables = [
+    {
+      type: "text",
+      text: `Table Week - ${dateStr}`,
+      weight: "bold",
+      size: "lg",
+      align: "center",
+    },
+    {
+      type: "separator",
+      margin: "none",
+      color: "#000000"
+    },
+    {
+      type: "separator",
+      color: "#FFFFFF",
+      margin: "md"
+    },
+    {
+      type: "box",
+      layout: "baseline",
+      margin: "xs",
+      contents: [
+        { type: "icon", size: "xs", url: "https://commons.wikimedia.org/wiki/File:BLANK_ICON.png" },
+        { type: "text", text: "Team", weight: "bold", size: "sm", flex: 1 },
+        { type: "text", text: "W", wrap: true, weight: "bold", size: "sm", align: "center", flex: 1 },
+        { type: "text", text: "D", weight: "bold", size: "sm", align: "center", flex: 1 },
+        { type: "text", text: "L", weight: "bold", size: "sm", align: "center", flex: 1 },
+        { type: "text", text: "G", weight: "bold", size: "sm", align: "center", flex: 1 },
+        { type: "text", text: "A", weight: "bold", size: "sm", align: "center", flex: 1 },
+        { type: "text", text: "PTS", weight: "bold", size: "sm", align: "center", flex: 1 }
+      ]
+    }
+  ];
+
+  let i = 0;
+  for (const table of weekTables) {
+    let top_url = "https://commons.wikimedia.org/wiki/File:BLANK_ICON.png";
+    if (i === 0) {
+      top_url = "https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png";
+    }
+    const team = teamColors.find(tc => tc.id === table.team_week_id) || {};
+    tables.push({
+      type: "box",
+      layout: "baseline",
+      margin: "xs",
+      flex: 1,
+      contents: [
+        { type: "icon", size: "xs", url: top_url },
+        { type: "text", text: `${table.color}`, color: `${team.code || '#ffffff'}`, size: "sm", weight: "bold", flex: 1 },
+        { type: "text", text: `${table.w}`, align: "center", size: "sm", flex: 1 },
+        { type: "text", text: `${table.d}`, size: "sm", align: "center", flex: 1 },
+        { type: "text", text: `${table.l}`, size: "sm", align: "center", flex: 1 },
+        { type: "text", text: `${table.G}`, size: "sm", align: "center", flex: 1 },
+        { type: "text", text: `${table.A}`, size: "sm", align: "center", flex: 1 },
+        { type: "text", text: `${table.pts}`, size: "sm", align: "center", flex: 1 }
+      ]
+    });
+    i++;
+  }
+  return tables;
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -3732,5 +3909,7 @@ module.exports = {
   buildMenuFlex,
   buildQrFlex,
   makeMemberColumn,
-  buildSlipListFlex
+  buildSlipListFlex,
+  buildScorerRowFlex,
+  buildTableWeekFlex
 };
