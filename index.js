@@ -238,171 +238,39 @@ async function handleImageMessage(event, member) {
         const startTime = Date.now();
         const imageBuffer = await getImageAxios(message.id);
 
-        // Save image to img/slip/
-        const imgSlipDir = path.join(__dirname, 'img', 'slip');
-        try {
-            await fs.mkdir(imgSlipDir, { recursive: true });
-        } catch (e) { }
-        const slipFileName = `slip_${Date.now()}_${message.id}.jpg`;
-        const slipFilePath = path.join(imgSlipDir, slipFileName);
-        const relativeSlipPath = `/img/slip/${slipFileName}`;
-        await fs.writeFile(slipFilePath, imageBuffer);
-
         const codes = await readQRCode(imageBuffer);
-
         console.log(`Time processed image elapsed: ${Date.now() - startTime} ms`);
 
-        if (!codes || codes.length === 0) {
-            console.log('No QR code detected in image, skipping message.');
-            return;
-        }
+        if (codes && codes.length > 0) {
+            const qrCode = codes[0].data;
+            console.log('QR code detected:', qrCode);
 
-        const qrCode = codes[0].data;
-        console.log('QR code detected:', qrCode);
-
-        let isSlipValid = false;
-        let slipData = null;
-        let isDuplicate = false;
-        let cachedSlipId = null;
-
-        // Check for duplicate in DB
-        const cachedSlip = await db.getSlipByQRCode(qrCode);
-        if (cachedSlip) {
-            if (cachedSlip.data) {
-                // Cached with full JSON data - treat as duplicate
-                console.log('[EasySlip] Slip verified from cache (duplicate)');
-                slipData = cachedSlip.data;
-                isSlipValid = true;
-                isDuplicate = true;
-            } else {
-                // Cached but no JSON (previous API call failed) - re-verify via API
-                console.log('[EasySlip] Slip found in cache but no JSON data, re-verifying via API...');
-                cachedSlipId = cachedSlip.id;
-                const easySlipRes = await verifyEasySlipByPayload(qrCode);
-                if (easySlipRes && easySlipRes.success === true) {
-                    console.log('[EasySlip] Re-verification successful, updating existing record');
-                    slipData = easySlipRes.data;
-                    isSlipValid = true;
-                    isDuplicate = true;
-                } else {
-                    if (easySlipRes && easySlipRes.error) {
-                        console.warn(`[EasySlip] Re-verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
-                    }
-                    // Still treat as duplicate (slip exists in DB)
-                    isSlipValid = true;
-                    isDuplicate = true;
-                }
-            }
-        } else {
-            // Verify QR code with EasySlip API v2
-            const easySlipRes = await verifyEasySlipByPayload(qrCode);
-            if (easySlipRes && easySlipRes.success === true) {
-                console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
-                slipData = easySlipRes.data;
-                isSlipValid = true;
-            } else {
-                //console.log('[EasySlip] Payload verification was not successful, trying to upload image instead...');
-                if (easySlipRes && easySlipRes.error) {
-                    console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
-                }
-
-                /*const easySlipImgRes = await verifyEasySlipByImage(imageBuffer);
-                if (easySlipImgRes && easySlipImgRes.success === true) {
-                    console.log('[EasySlip] Slip verified successfully via image:', easySlipImgRes.data);
-                    slipData = easySlipImgRes.data;
-                    isSlipValid = true;
-                } else {
-                    if (easySlipImgRes && easySlipImgRes.error) {
-                        console.warn(`[EasySlip] Image verification failed: ${easySlipImgRes.error.code} - ${easySlipImgRes.error.message}`);
-                    }
-                }*/
-
-                if (!isSlipValid) {
-                    // Fallback check for PromptPay QR payload format
-                    if (qrCode.includes("60000010103")) {
-                        console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
-                        isSlipValid = true;
-                    }
-                }
-            }
-        }
-        if (isSlipValid) {
-            const processed = slipService.processSlipData(slipData, member.name, {
-                isDuplicate,
-                memberDebt: member.debt,
-                formatDateFn: getFormatDate
+            const handledAsSlip = await slipService.processPaymentSlip({
+                event,
+                member,
+                imageBuffer,
+                qrCode,
+                db,
+                replyMessage,
+                getFormatDate
             });
-            const { details, slipToMe, logStatus, header } = processed;
-            if (details) {
-                console.log('[EasySlip] Slip data:', slipData?.rawSlip?.receiver);
-                console.log('[EasySlip] Recipient:', details.recipient);
-                console.log('[EasySlip] Recipient TH:', details.recipient_th);
-                console.log('[EasySlip] Account:', details.account);
-            }
-            if (isDuplicate) {
-                // Update existing record if we got new API data
-                if (cachedSlipId && slipData) {
-                    await db.updateSlipLog(cachedSlipId, logStatus, slipData);
-                    console.log(`[EasySlip] Updated existing slip log (id: ${cachedSlipId}) with new API data`);
-                }
-                try {
-                    await fs.unlink(slipFilePath);
-                    console.log(`Deleted duplicate slip image: ${slipFilePath}`);
-                } catch (e) {
-                    console.error('Error deleting duplicate slip image:', e);
-                }
-            } else {
-                await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, qrCode, slipData);
-            }
 
-            const week = await db.queryWeekDate();
-            let payweek = true;
-            if (week.length > 0) {
-                const now = new Date();
-                if (now.getTime() < week[0].date.getTime()) {
-                    payweek = false;
-                }
-                console.log(`week ${week[0].date} now ${now}`);
+            if (handledAsSlip) {
+                return; // Handled as payment slip
             }
-
-            let replyMessages;
-            if (!payweek) {
-                if (slipToMe && !isDuplicate) await db.updateMemberDebt(member.id);
-                replyMessages = [{
-                    type: 'text',
-                    quoteToken: message.quoteToken,
-                    text: header
-                }];
-            } else {
-                if (slipToMe && !isDuplicate) await db.updateMemberWeek(member.id, 1, 0);
-                const [msg, sub, count] = await db.getMemberWeek2(0);
-                console.log(`user count: ${count}`);
-                if (count === 0 || count > 20) {
-                    replyMessages = [{
-                        type: 'text',
-                        quoteToken: message.quoteToken,
-                        text: header + msg
-                    }];
-                } else {
-                    replyMessages = {
-                        type: 'textV2',
-                        quoteToken: message.quoteToken,
-                        text: header + msg,
-                        substitution: sub
-                    };
-                }
-            }
-            await replyMessage(replyToken, replyMessages);
         }
+
+        // --- Handle other non-payment image types here ---
+        console.log(`[handleImageMessage] Image is not a payment slip. Skipping or handling custom image logic...`);
     } catch (error) {
         console.error('Error processing image!,', error);
-        const date = new Date();
+        /*const date = new Date();
         if (date.getDay() === 6 && date.getHours() > 19) {
             await replyMessage(replyToken, [{
                 type: 'text',
                 text: 'ไม่สามารถโหลดรูปจาก Line ได้'
             }]);
-        }
+        }*/
     }
 }
 

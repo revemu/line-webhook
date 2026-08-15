@@ -1,4 +1,6 @@
 const axios = require('axios');
+const fs = require('fs').promises;
+const path = require('path');
 
 const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
 
@@ -200,11 +202,160 @@ function processSlipData(slipData, memberName, options = {}) {
     };
 }
 
+/**
+ * Processes payment slip verification & DB updates when an image contains a payment QR code.
+ * @param {Object} params
+ * @param {Object} params.event - LINE webhook message event
+ * @param {Object} params.member - Member record
+ * @param {Buffer} params.imageBuffer - Image buffer
+ * @param {string} params.qrCode - Detected QR code payload
+ * @param {Object} params.db - DB module reference
+ * @param {Function} params.replyMessage - Reply message helper
+ * @param {Function} params.getFormatDate - Date format helper
+ * @returns {Promise<boolean>} Returns true if processed as payment slip, false if not a payment slip.
+ */
+async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, replyMessage, getFormatDate }) {
+    const { replyToken, message, source } = event;
+
+    let isSlipValid = false;
+    let slipData = null;
+    let isDuplicate = false;
+    let cachedSlipId = null;
+
+    // Check for duplicate in DB
+    const cachedSlip = await db.getSlipByQRCode(qrCode);
+    if (cachedSlip) {
+        if (cachedSlip.data) {
+            console.log('[EasySlip] Slip verified from cache (duplicate)');
+            slipData = cachedSlip.data;
+            isSlipValid = true;
+            isDuplicate = true;
+        } else {
+            console.log('[EasySlip] Slip found in cache but no JSON data, re-verifying via API...');
+            cachedSlipId = cachedSlip.id;
+            const easySlipRes = await verifyEasySlipByPayload(qrCode);
+            if (easySlipRes && easySlipRes.success === true) {
+                console.log('[EasySlip] Re-verification successful, updating existing record');
+                slipData = easySlipRes.data;
+                isSlipValid = true;
+                isDuplicate = true;
+            } else {
+                if (easySlipRes && easySlipRes.error) {
+                    console.warn(`[EasySlip] Re-verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
+                }
+                isSlipValid = true;
+                isDuplicate = true;
+            }
+        }
+    } else {
+        // Verify QR code with EasySlip API v2
+        const easySlipRes = await verifyEasySlipByPayload(qrCode);
+        if (easySlipRes && easySlipRes.success === true) {
+            console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
+            slipData = easySlipRes.data;
+            isSlipValid = true;
+        } else {
+            if (easySlipRes && easySlipRes.error) {
+                console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
+            }
+            if (!isSlipValid) {
+                if (qrCode.includes("60000010103")) {
+                    console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
+                    isSlipValid = true;
+                }
+            }
+        }
+    }
+
+    if (!isSlipValid) {
+        return false;
+    }
+
+    // Save image to img/slip/ only if valid slip
+    const imgSlipDir = path.join(__dirname, 'img', 'slip');
+    try {
+        await fs.mkdir(imgSlipDir, { recursive: true });
+    } catch (e) { }
+    const slipFileName = `slip_${Date.now()}_${message.id}.jpg`;
+    const slipFilePath = path.join(imgSlipDir, slipFileName);
+    const relativeSlipPath = `/img/slip/${slipFileName}`;
+    await fs.writeFile(slipFilePath, imageBuffer);
+
+    const processed = processSlipData(slipData, member.name, {
+        isDuplicate,
+        memberDebt: member.debt,
+        formatDateFn: getFormatDate
+    });
+    const { details, slipToMe, logStatus, header } = processed;
+    if (details) {
+        console.log('[EasySlip] Slip data:', slipData?.rawSlip?.receiver);
+        console.log('[EasySlip] Recipient:', details.recipient);
+        console.log('[EasySlip] Recipient TH:', details.recipient_th);
+        console.log('[EasySlip] Account:', details.account);
+    }
+
+    if (isDuplicate) {
+        if (cachedSlipId && slipData) {
+            await db.updateSlipLog(cachedSlipId, logStatus, slipData);
+            console.log(`[EasySlip] Updated existing slip log (id: ${cachedSlipId}) with new API data`);
+        }
+        try {
+            await fs.unlink(slipFilePath);
+            console.log(`Deleted duplicate slip image: ${slipFilePath}`);
+        } catch (e) {
+            console.error('Error deleting duplicate slip image:', e);
+        }
+    } else {
+        await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, qrCode, slipData);
+    }
+
+    const week = await db.queryWeekDate();
+    let payweek = true;
+    if (week.length > 0) {
+        const now = new Date();
+        if (now.getTime() < week[0].date.getTime()) {
+            payweek = false;
+        }
+        console.log(`week ${week[0].date} now ${now}`);
+    }
+
+    let replyMessages;
+    if (!payweek) {
+        if (slipToMe && !isDuplicate) await db.updateMemberDebt(member.id);
+        replyMessages = [{
+            type: 'text',
+            quoteToken: message.quoteToken,
+            text: header
+        }];
+    } else {
+        if (slipToMe && !isDuplicate) await db.updateMemberWeek(member.id, 1, 0);
+        const [msg, sub, count] = await db.getMemberWeek2(0);
+        console.log(`user count: ${count}`);
+        if (count === 0 || count > 20) {
+            replyMessages = [{
+                type: 'text',
+                quoteToken: message.quoteToken,
+                text: header + msg
+            }];
+        } else {
+            replyMessages = {
+                type: 'textV2',
+                quoteToken: message.quoteToken,
+                text: header + msg,
+                substitution: sub
+            };
+        }
+    }
+    await replyMessage(replyToken, replyMessages);
+    return true;
+}
+
 module.exports = {
     EASYSLIP_API_KEY,
     verifyEasySlipByPayload,
     verifyEasySlipByImage,
     parseSlipDetails,
     verifySlipPayload,
-    processSlipData
+    processSlipData,
+    processPaymentSlip
 };
