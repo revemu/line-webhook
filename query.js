@@ -1064,7 +1064,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
       for (const team of team_colors) {
         team.teamColor = await getTeamColor(team.color);
         query = `select member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
-        console.log(query);
+        //console.log(query);
         const team_members = await executeQuery(query);
         if (team_members.length > 0) {
           await Promise.all(team_members.map(member => ensureMemberPicture(member, groupId)));
