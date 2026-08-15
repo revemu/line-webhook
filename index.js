@@ -15,7 +15,7 @@ const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date')
 
 const execPromise = util.promisify(exec);
 
-const Jimp = require('jimp');
+const { Jimp } = require('jimp');
 const jsQR = require('jsqr');
 
 require('dotenv').config({ quiet: true });
