@@ -3897,6 +3897,204 @@ function buildTableWeekFlex(dateStr, weekTables, teamColors) {
   return tables;
 }
 
+/**
+ * Build Flex bubble for /top (stat ranking tables for scorers, assists, avg pts, bottom, lucky colors).
+ */
+function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, resolveInfoFn) {
+  const colors = getThemeColors(theme);
+  const bodyContents = [];
+
+  // Stat header card
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: colors.bgHeader,
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    contents: [
+      {
+        type: 'text',
+        text: `${icon} ${header}`,
+        weight: 'bold',
+        size: 'md',
+        color: colors.textPrimary,
+        align: 'center'
+      }
+    ]
+  });
+
+  const rankIcons = ['🥇', '🥈', '🥉'];
+  result.forEach((member, i) => {
+    let displayName = "";
+    let nameColor = colors.textMutedLight;
+    let valText = "";
+    const rankLabel = rankIcons[i] || `${i + 1}.`;
+    const isTop = i === 0;
+
+    if (type == 6) {
+      const wins = Number(member.wins || 0);
+      const matches = Number(member.matches || 0);
+      const winRate = matches > 0 ? ((wins / matches) * 100).toFixed(1) : '0.0';
+      valText = `${winRate}% (${wins}/${matches})`;
+
+      const translateColor = (col) => {
+        if (!col) return '';
+        const cl = col.toLowerCase();
+        if (cl === 'red') return 'แดง (Red)';
+        if (cl === 'green') return 'เขียว (Green)';
+        if (cl === 'black') return 'ดำ (Black)';
+        if (cl === 'white') return 'ขาว (White)';
+        if (cl === 'yellow') return 'เหลือง (Yellow)';
+        return col;
+      };
+      displayName = `● ทีม${translateColor(member.color)}`;
+      nameColor = colors.tdc(member.color);
+    } else {
+      const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
+      displayName = rankLabel + " " + (info.name || info.alias || '');
+      nameColor = colors.textMutedLight;
+
+      if (type == 4) {
+        valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
+      } else {
+        valText = `${member.goal}`;
+      }
+    }
+
+    const nameBoxContents = [{
+      type: 'text',
+      text: displayName,
+      size: 'xs',
+      color: nameColor,
+      flex: 1,
+      margin: 'sm'
+    }];
+
+    const rowContents = [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        flex: 3,
+        margin: 'sm',
+        alignItems: 'center',
+        contents: nameBoxContents
+      },
+      {
+        type: 'text',
+        text: valText,
+        size: 'xs',
+        color: isTop ? colors.textAccent : colors.textMutedLight,
+        flex: 2,
+        align: 'end'
+      }
+    ];
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'xs',
+      alignItems: 'center',
+      contents: rowContents
+    });
+  });
+
+  return {
+    type: 'bubble',
+    size: 'hecto',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgHeader,
+      paddingAll: 'none',
+      contents: [
+        {
+          type: 'image',
+          url: url || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+          size: 'full',
+          aspectRatio: '6:3',
+          aspectMode: 'cover'
+        }
+      ]
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'sm',
+      contents: bodyContents
+    }
+  };
+}
+
+/**
+ * Build Flex carousel for /team (team roster flex cards).
+ */
+function buildTeamWeekFlex(teamColors, teamMembersMap, theme, assets = {}, resolveInfoFn) {
+  const colors = getThemeColors(theme);
+  const carousel = { type: 'carousel', contents: [] };
+
+  for (const team of teamColors) {
+    const teamColor = team.teamColor;
+    const bodyContents = [];
+
+    const team_members = teamMembersMap[team.id] || [];
+    if (team_members.length > 0) {
+      let idx = 0;
+      for (const member of team_members) {
+        const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
+        const col = makeMemberColumn(info, idx + 1, colors, false);
+        bodyContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'xs',
+          alignItems: 'center',
+          contents: [col]
+        });
+        idx++;
+      }
+    } else {
+      bodyContents.push({
+        type: 'text',
+        text: 'ยังไม่มีสมาชิกในทีมนี้',
+        size: 'xs',
+        color: colors.textMutedDark,
+        align: 'center',
+        margin: 'md'
+      });
+    }
+
+    const teamHeaderColor = teamColor && teamColor.code ? teamColor.code : colors.bgHeader;
+    carousel.contents.push({
+      type: 'bubble',
+      size: 'deca',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: teamHeaderColor,
+        paddingAll: 'none',
+        contents: [
+          {
+            type: 'image',
+            url: teamColor ? teamColor.url : 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
+            size: 'full',
+            aspectRatio: '6:2',
+            aspectMode: 'cover'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: colors.bgMain,
+        paddingAll: 'sm',
+        contents: bodyContents
+      }
+    });
+  }
+
+  return carousel;
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -3919,5 +4117,7 @@ module.exports = {
   makeMemberColumn,
   buildSlipListFlex,
   buildScorerRowFlex,
-  buildTableWeekFlex
+  buildTableWeekFlex,
+  buildTopStatFlex,
+  buildTeamWeekFlex
 };

@@ -1058,99 +1058,21 @@ async function getTeamWeek(week_id = 0, groupId = null) {
 
     if (team_colors.length > 0) {
       const theme = await getTheme();
-      const colors = flex.getThemeColors(theme);
-      const carousel = { type: 'carousel', contents: [] };
       const assets = await fetchDisplayAssets();
+      const teamMembersMap = {};
 
       for (const team of team_colors) {
-        const teamColor = await getTeamColor(team.color);
-        const displayColor = teamDisplayColor(team.color, teamColor ? teamColor.code : null);
-
-        const bodyContents = [];
-
-        // ── Team header card ──
-        /*bodyContents.push({
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: '#1a1a2e',
-          paddingAll: 'md',
-          cornerRadius: 'md',
-          contents: [
-            {
-              type: 'text',
-              text: team.color,
-              weight: 'bold',
-              size: 'lg',
-              color: displayColor,
-              align: 'center'
-            }
-          ]
-        });*/
-
-        //bodyContents.push({ type: 'separator', margin: 'sm', color: '#2a2a4a' });
-
-        // ── Member list ──
+        team.teamColor = await getTeamColor(team.color);
         query = `select member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
         console.log(query);
         const team_members = await executeQuery(query);
         if (team_members.length > 0) {
           await Promise.all(team_members.map(member => ensureMemberPicture(member, groupId)));
-          let idx = 0;
-          for (const member of team_members) {
-            const isFirst = idx === 0;
-            const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
-
-            const col = flex.makeMemberColumn(info, idx + 1, colors, false);
-            bodyContents.push({
-              type: 'box',
-              layout: 'horizontal',
-              margin: 'xs',
-              alignItems: 'center',
-              contents: [col]
-            });
-            idx++;
-          }
-        } else {
-          bodyContents.push({
-            type: 'text',
-            text: 'ยังไม่มีสมาชิกในทีมนี้',
-            size: 'xs',
-            color: colors.textMutedDark,
-            align: 'center',
-            margin: 'md'
-          });
         }
-
-        const teamHeaderColor = teamColor && teamColor.code ? teamColor.code : colors.bgHeader;
-        carousel.contents.push({
-          type: 'bubble',
-          size: 'deca',
-          header: {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: teamHeaderColor,
-            paddingAll: 'none',
-            contents: [
-              {
-                type: 'image',
-                url: teamColor ? teamColor.url : 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-                size: 'full',
-                aspectRatio: '6:2',
-                aspectMode: 'cover'
-              }
-            ]
-          },
-          body: {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: colors.bgMain,
-            paddingAll: 'sm',
-            contents: bodyContents
-          }
-        });
+        teamMembersMap[team.id] = team_members;
       }
 
-      return carousel;
+      return flex.buildTeamWeekFlex(team_colors, teamMembersMap, theme, assets, resolveMemberDisplayInfo);
     }
 
   }
@@ -1716,137 +1638,8 @@ async function getTopStat(limit = 10, type = 0) {
   const result = await executeQuery(query);
   if (result.length > 0) {
     const assets = await fetchDisplayAssets();
-    const currentYear = new Date().getFullYear();
     const theme = await getTheme();
-    const colors = flex.getThemeColors(theme);
-
-    const bodyContents = [];
-
-    // ── Stat header card ──
-    bodyContents.push({
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: colors.bgHeader,
-      paddingAll: 'md',
-      cornerRadius: 'md',
-      contents: [
-        {
-          type: 'text',
-          text: `${icon} ${header}`,
-          weight: 'bold',
-          size: 'md',
-          color: colors.textPrimary,
-          align: 'center'
-        }
-      ]
-    });
-
-    //bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
-
-    // ── Rank rows ──
-    const rankIcons = ['🥇', '🥈', '🥉'];
-    result.forEach((member, i) => {
-      let displayName = "";
-      let nameColor = colors.textMutedLight;
-      let valText = "";
-      const rankLabel = rankIcons[i] || `${i + 1}.`;
-      const isTop = i === 0;
-
-      if (type == 6) {
-        const wins = Number(member.wins || 0);
-        const matches = Number(member.matches || 0);
-        const winRate = matches > 0 ? ((wins / matches) * 100).toFixed(1) : '0.0';
-        valText = `${winRate}% (${wins}/${matches})`;
-
-        const translateColor = (col) => {
-          if (!col) return '';
-          const cl = col.toLowerCase();
-          if (cl === 'red') return 'แดง (Red)';
-          if (cl === 'green') return 'เขียว (Green)';
-          if (cl === 'black') return 'ดำ (Black)';
-          if (cl === 'white') return 'ขาว (White)';
-          if (cl === 'yellow') return 'เหลือง (Yellow)';
-          return col;
-        };
-        displayName = `● ทีม${translateColor(member.color)}`;
-        nameColor = colors.tdc(member.color);
-      } else {
-        const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
-        displayName = rankLabel + " " + info.name;
-        nameColor = colors.textMutedLight;
-
-        if (type == 4) {
-          valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
-        } else {
-          valText = `${member.goal}`;
-        }
-      }
-
-      let rowContents = [];
-      const nameBoxContents = [];
-
-      nameBoxContents.push({
-        type: 'text',
-        text: displayName,
-        size: 'xs',
-        color: nameColor,
-        flex: 1,
-        margin: 'sm'
-      });
-
-      rowContents.push({
-        type: 'box',
-        layout: 'horizontal',
-        flex: 3,
-        margin: 'sm',
-        alignItems: 'center',
-        contents: nameBoxContents
-      });
-
-      rowContents.push({
-        type: 'text',
-        text: valText,
-        size: 'xs',
-        color: isTop ? colors.textAccent : colors.textMutedLight,
-        flex: 2,
-        align: 'end'
-      });
-
-      bodyContents.push({
-        type: 'box',
-        layout: 'horizontal',
-        margin: 'xs',
-        alignItems: 'center',
-        contents: rowContents
-      });
-    });
-
-    return {
-      type: 'bubble',
-      size: 'hecto',
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: colors.bgHeader,
-        paddingAll: 'none',
-        contents: [
-          {
-            type: 'image',
-            url: url || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-            size: 'full',
-            aspectRatio: '6:3',
-            aspectMode: 'cover'
-          }
-        ]
-      },
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: colors.bgMain,
-        paddingAll: 'sm',
-        contents: bodyContents
-      }
-    };
+    return flex.buildTopStatFlex(result, type, header, icon, url, theme, assets, resolveMemberDisplayInfo);
   }
 
 
