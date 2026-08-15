@@ -15,6 +15,9 @@ const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date')
 
 const execPromise = util.promisify(exec);
 
+const Jimp = require('jimp');
+const jsQR = require('jsqr');
+
 require('dotenv').config({ quiet: true });
 
 const app = express();
@@ -109,33 +112,41 @@ async function getImageAxios(messageId) {
 // Function to verify bank slip via EasySlip API v2 using QR Code payload
 const verifyEasySlipByPayload = slipService.verifyEasySlipByPayload;
 const verifyEasySlipByImage = slipService.verifyEasySlipByImage;
-// Function to read QR code from image buffer using zbarimg CLI
+// Function to read QR code from image buffer (in-memory jsQR first, zbarimg fallback)
 async function readQRCode(imageBuffer) {
+    // 1. Try fast in-memory scan with jsQR + Jimp (~10-20ms, 0 disk I/O)
+    try {
+        const image = await Jimp.read(imageBuffer);
+        const qrCode = jsQR(
+            new Uint8ClampedArray(image.bitmap.data),
+            image.bitmap.width,
+            image.bitmap.height
+        );
+        if (qrCode && qrCode.data) {
+            console.log('[readQRCode] Decoded QR code fast in memory via jsQR');
+            return [{ type: 'QR-Code', data: qrCode.data }];
+        }
+    } catch (inMemoryErr) {
+        console.warn('[readQRCode] In-memory scan warning:', inMemoryErr.message);
+    }
+
+    // 2. Fallback to zbarimg CLI if in-memory scan missed
     let tempFilePath = null;
     try {
-        // Create temporary directory
         const tempDir = "./temp/";
         await fs.mkdir(tempDir, { recursive: true });
 
-        // Create temporary file with unique name
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substr(2, 9);
         tempFilePath = path.join(tempDir, `qr_${timestamp}_${randomStr}.jpg`);
-
-        // Write buffer to temporary file
         await fs.writeFile(tempFilePath, imageBuffer);
 
-        // Execute zbarimg command
-        const { stdout, stderr } = await execPromise(`zbarimg "${tempFilePath}"`);
-
-        // Clean up temporary file
+        const { stdout } = await execPromise(`zbarimg "${tempFilePath}"`);
         await fs.unlink(tempFilePath);
 
         if (stdout && stdout.trim()) {
-            // Parse zbarimg output
             const lines = stdout.trim().split('\n');
             const codes = lines.map(line => {
-                // zbarimg output format: "CODE-TYPE:data"
                 const colonIndex = line.indexOf(':');
                 if (colonIndex > 0) {
                     const type = line.substring(0, colonIndex);
@@ -143,28 +154,21 @@ async function readQRCode(imageBuffer) {
                     return { type, data };
                 }
                 return { type: 'UNKNOWN', data: line };
-            }).filter(code => code.data); // Filter out empty results
+            }).filter(code => code.data);
 
             return codes.length > 0 ? codes : null;
         }
 
         return null;
     } catch (error) {
-        // Clean up temporary file in case of error
         if (tempFilePath) {
             try {
                 await fs.unlink(tempFilePath);
-            } catch (unlinkError) {
-                console.error('Error cleaning up temp file:', unlinkError);
-            }
+            } catch (unlinkError) { }
         }
-
-        // Check if error is due to no codes found (zbarimg exits with code 4)
         if (error.code === 4) {
-            //console.log('No barcodes/QR codes found in image');
             return null;
         }
-
         console.error('Error reading QR/barcode with zbarimg:', error.message);
         return null;
     }
