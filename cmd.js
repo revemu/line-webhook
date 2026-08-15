@@ -503,17 +503,15 @@ const COMMAND_REGISTRY = {
         if (!slip.qrcode) return [{ type: 'text', quoteToken, text: `⚠️ สลิป #${slipId} ไม่มี QR Code ไม่สามารถตรวจสอบได้` }];
 
         const verifyResult = await slipService.verifySlipPayload(slip.qrcode, slip.sender_name);
-        let msg = '';
-        if (verifyResult.success && verifyResult.details) {
-            const details = verifyResult.details;
-            const newStatus = details.slipToMe ? 'success' : 'not_me';
-            await db.updateSlipLog(slipId, newStatus, verifyResult.slipData);
-            msg = `✅ ตรวจสอบสลิป #${slipId} สำเร็จ!\n\n`;
+        if (verifyResult.success && verifyResult.slipData) {
+            const { details, slipToMe, logStatus } = slipService.processSlipData(verifyResult.slipData, slip.sender_name);
+            await db.updateSlipLog(slipId, logStatus, verifyResult.slipData);
+            let msg = `✅ ตรวจสอบสลิป #${slipId} สำเร็จ!\n\n`;
             msg += `💰 ยอดเงิน: ${details.amountStr} บาท\n`;
             msg += `💸 โอนจาก: ${details.senderName} - ${details.senderBank}\n`;
             msg += `💵 ให้กับ: ${details.recipientName}\n`;
-            msg += `📌 สถานะ: ${details.slipToMe ? 'โอนให้เรา ✅' : 'ไม่เกี่ยวกับค่าสนาม 📝'}`;
-            if (details.slipToMe) {
+            msg += `📌 สถานะ: ${slipToMe ? 'โอนให้เรา ✅' : 'ไม่เกี่ยวกับค่าสนาม 📝'}`;
+            if (slipToMe) {
                 const slipMember = await db.queryMemberbyLineID(slip.sender_id);
                 if (slipMember && slipMember.length > 0) {
                     await db.updateMemberWeek(slipMember[0].id, 1, 0);

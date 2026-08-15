@@ -140,10 +140,71 @@ async function verifySlipPayload(payload, defaultSenderName = '') {
     };
 }
 
+/**
+ * Processes extracted slip data, determines log status & ownership, and formats summary header text.
+ * @param {Object|null} slipData - EasySlip data payload.
+ * @param {string} memberName - Name of the member who uploaded/sent the slip.
+ * @param {Object} [options={}]
+ * @param {boolean} [options.isDuplicate=false] - True if slip was already found in cache/DB.
+ * @param {number} [options.memberDebt=0] - Current member debt amount.
+ * @param {Function} [options.formatDateFn] - Function to format date string.
+ * @returns {Object} { details, slipToMe, logStatus, header }
+ */
+function processSlipData(slipData, memberName, options = {}) {
+    const { isDuplicate = false, memberDebt = 0, formatDateFn } = options;
+
+    if (!slipData) {
+        let header = `🙏 ${memberName} ได้รับสลิปโอนแล้ว \n\n`;
+        header += `** 📝 ยังไม่พบข้อมูลการโอนในระบบที่เชื่อมกับธนาคาร ระบบจะบันทึกสลิปนี้ไว้เพื่อตรวจสอบอีกครั้งครับ บางครั้งข้อมูลจะล่าช้าประมาณ 2-3 นาทีหลังโอน ทำให้ระบบอาจจะยังตรวจสอบไม่พบ \n\nสามารถตรวจสอบสถานะได้ด้วยตัวเองอีกครั้ง ด้วยคำสั่ง /slip **`;
+        let logStatus = 'noticed';
+        if (isDuplicate) {
+            header += `⚠️ สลิปนี้ถูกส่งมาแล้ว \n\n`;
+            logStatus = 'duplicate';
+        }
+        return {
+            details: null,
+            slipToMe: true,
+            logStatus,
+            header
+        };
+    }
+
+    const details = parseSlipDetails(slipData, memberName);
+    const slipToMe = details.slipToMe;
+    let logStatus = 'success';
+    let header = `🙏 ${memberName} ได้รับสลิปโอนแล้ว **💰 ${details.amountStr} บาท**`;
+
+    if (slipToMe) {
+        if (isDuplicate) {
+            header += `\n\n** สลิปนี้เคยส่งเข้ามาแล้ว **`;
+            logStatus = 'duplicate';
+        } else {
+            logStatus = 'success';
+        }
+        if (details.amount !== undefined && memberDebt > 0 && Number(details.amount) > Number(memberDebt)) {
+            header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n`;
+        }
+    } else {
+        header += `\n\n**📝 ไม่เกี่ยวกับค่าสนามบอล **`;
+        logStatus = 'not_me';
+    }
+
+    const formattedDate = formatDateFn ? formatDateFn(details.recvDate) : (details.recvDate || '-');
+    header += `\n\n💰 ยอดเงิน: ** ${details.amountStr} บาท **\n💸 โอนจาก: ** ${details.senderName}. - ${details.senderBank} **\n💵 ให้กับ: ** ${details.recipientName} **\n📅 วันที่: ** ${formattedDate} **\n`;
+
+    return {
+        details,
+        slipToMe,
+        logStatus,
+        header
+    };
+}
+
 module.exports = {
     EASYSLIP_API_KEY,
     verifyEasySlipByPayload,
     verifyEasySlipByImage,
     parseSlipDetails,
-    verifySlipPayload
+    verifySlipPayload,
+    processSlipData
 };

@@ -326,44 +326,18 @@ async function handleImageMessage(event, member) {
                 }
             }
         }
-        let slipToMe = false;
-        let logStatus = "success";
         if (isSlipValid) {
-            let header;
-            if (slipData) {
-                const details = slipService.parseSlipDetails(slipData, member.name);
-                slipToMe = details.slipToMe;
-                console.log('[EasySlip] Slip data:', slipData.rawSlip?.receiver);
+            const processed = slipService.processSlipData(slipData, member.name, {
+                isDuplicate,
+                memberDebt: member.debt,
+                formatDateFn: getFormatDate
+            });
+            const { details, slipToMe, logStatus, header } = processed;
+            if (details) {
+                console.log('[EasySlip] Slip data:', slipData?.rawSlip?.receiver);
                 console.log('[EasySlip] Recipient:', details.recipient);
                 console.log('[EasySlip] Recipient TH:', details.recipient_th);
                 console.log('[EasySlip] Account:', details.account);
-
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${details.amountStr} บาท**`;
-                if (slipToMe) {
-                    if (isDuplicate) {
-                        header += `\n\n** สลิปนี้เคยส่งเข้ามาแล้ว **`;
-                        logStatus = "duplicate";
-                    } else {
-                        logStatus = "success";
-                    }
-                    if (details.amount !== undefined && member.debt !== undefined && Number(details.amount) > Number(member.debt) && Number(member.debt) > 0) {
-                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n`;
-                    }
-                } else {
-                    header += `\n\n**📝 ไม่เกี่ยวกับค่าสนามบอล **`;
-                    logStatus = "not_me";
-                }
-                header += `\n\n💰 ยอดเงิน: ** ${details.amountStr} บาท **\n💸 โอนจาก: ** ${details.senderName}. - ${details.senderBank} **\n💵 ให้กับ: ** ${details.recipientName} **\n📅 วันที่: ** ${getFormatDate(details.recvDate)} **\n`;
-            } else {
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\n`;
-                header += `\n\n** 📝 ยังไม่พบข้อมูลการโอนในระบบที่เชื่อมกับธนาคาร \nระบบจะบันทึกสลิปนี้ไว้เพื่อตรวจสอบอีกครั้งครับ บางครั้งข้อมูลจะล่าช้าประมาณ 2-3 นาทีหลังโอน ทำให้ระบบอาจจะยังตรวจสอบไม่พบ \n\nสามารถตรวจสอบสถานะได้ด้วยตัวเองอีกครั้ง ด้วยคำสั่ง /slip **`;
-                slipToMe = true;
-                if (isDuplicate) {
-                    header += `⚠️ สลิปนี้ถูกส่งมาแล้ว \n\n`;
-                    logStatus = "duplicate";
-                } else {
-                    logStatus = "noticed";
-                }
             }
             if (isDuplicate) {
                 // Update existing record if we got new API data
