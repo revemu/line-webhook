@@ -346,9 +346,6 @@ const COMMAND_REGISTRY = {
             return [{ type: 'text', text: `เกิดข้อผิดพลาดในการสร้าง QR Code: ${qrErr.message}` }];
         }
     },
-    'showautoreg': async (context) => { context.param = 'list'; return COMMAND_REGISTRY['autoreg'](context); },
-    'whoautoreg': async (context) => { context.param = 'list'; return COMMAND_REGISTRY['autoreg'](context); },
-    'autoregshow': async (context) => { context.param = 'list'; return COMMAND_REGISTRY['autoreg'](context); },
     'autoreglist': async (context) => { context.param = 'list'; return COMMAND_REGISTRY['autoreg'](context); },
     '+autoreg': async (context) => COMMAND_REGISTRY['autoreg'](context),
     'autoreg': async (context) => {
@@ -398,9 +395,6 @@ const COMMAND_REGISTRY = {
         if (statsData) return { type: 'flex', altText: `สถิติส่วนตัวของ ${statsData.member.name}`, contents: flex.buildMemberStatsFlex(statsData, theme, statsImageUrl) };
         return [{ type: 'text', text: "ไม่พบข้อมูลสถิติของสมาชิกท่านนี้" }];
     },
-    'mystat': async (context) => COMMAND_REGISTRY['stat'](context),
-    'me': async (context) => COMMAND_REGISTRY['stat'](context),
-    'my': async (context) => COMMAND_REGISTRY['stat'](context),
     'bottom': async (context) => {
         const limit = context.param != '' ? Number(context.param) : 30;
         await db.updateHof();
@@ -408,7 +402,6 @@ const COMMAND_REGISTRY = {
         const carousel = flex.tpl_carousel; carousel.contents = stats.filter(x => x !== null && x !== undefined);
         return { type: 'flex', altText: `ทำเนียบซึมเศร้าประจำปี (${new Date().getFullYear()})`, contents: carousel };
     },
-    'testbottom': async (context) => COMMAND_REGISTRY['bottom'](context),
     'menu': async (context) => {
         const theme = await db.getTheme();
         const week = await db.queryWeekID(0);
@@ -419,10 +412,6 @@ const COMMAND_REGISTRY = {
     },
     'newweek': async (context) => { const next_sat = getNextSaturday(); await db.newWeek(next_sat); return COMMAND_REGISTRY['register'](context); },
     'register': async (context) => { const { is_flex, groupId } = context; const [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId); if (is_flex && typeof msg === 'object') return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg }; return { type: 'textV2', text: msg, substitution: sub }; },
-    'join': async (context) => COMMAND_REGISTRY['register'](context),
-    'play': async (context) => COMMAND_REGISTRY['register'](context),
-    'ลงชื่อ': async (context) => COMMAND_REGISTRY['register'](context),
-    'reg': async (context) => COMMAND_REGISTRY['register'](context),
     'schedule': async (context) => {
         const { param, groupId } = context;
         const theme = await db.getTheme();
@@ -466,18 +455,6 @@ const COMMAND_REGISTRY = {
         const stats = await Promise.all([db.getTopStat(limit, 0), db.getTopStat(limit, 1), db.getTopStat(limit, 4), db.getTopStat(limit, 6)]);
         const carousel = flex.tpl_carousel; carousel.contents = stats.filter(x => x !== null && x !== undefined);
         return { type: 'flex', altText: `Top ${limit} Stat (${new Date().getFullYear()})`, contents: carousel };
-    },
-    'testcarousel': async (context) => {
-        const msg = await db.getTopStat(10, 0);
-        try {
-            const obj = JSON.parse(msg);
-            const tpl = flex.tpl_bubble;
-            tpl.body.contents = obj;
-            const carousel = flex.tpl_carousel; carousel.contents = [tpl, tpl];
-            return { type: 'flex', altText: 'Test Carousel', contents: carousel };
-        } catch (e) {
-            return [{ type: 'text', text: msg }];
-        }
     },
     'slip': async (context) => {
         const { member, groupId } = context;
