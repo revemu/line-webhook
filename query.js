@@ -700,7 +700,7 @@ async function registerMember(member_id, member_name) {
     const check_res = await executeQuery(check, [member_id]);
     if (check_res.length > 0) {
       const debt = check_res[0].debt;
-      console.log(`ยอดค้าง ${debt}`);
+      //console.log(`ยอดค้าง ${debt}`);
       if (debt > 0) return debt;
     }
     //console.log(`${res.length}`)
