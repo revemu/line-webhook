@@ -350,6 +350,7 @@ const COMMAND_REGISTRY = {
     'whoautoreg': async (context) => { context.param = 'list'; return COMMAND_REGISTRY['autoreg'](context); },
     'autoregshow': async (context) => { context.param = 'list'; return COMMAND_REGISTRY['autoreg'](context); },
     'autoreglist': async (context) => { context.param = 'list'; return COMMAND_REGISTRY['autoreg'](context); },
+    '+autoreg': async (context) => COMMAND_REGISTRY['autoreg'](context),
     'autoreg': async (context) => {
         const { param, groupId, member_id, member_name } = context;
         const theme = await db.getTheme();
