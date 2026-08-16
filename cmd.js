@@ -184,12 +184,28 @@ const COMMAND_REGISTRY = {
         }
 
         const reg_res2 = await db.registerMember(member_id, member_name);
+        let noticeText = null;
         if (reg_res2 == 1) {
-            // already registered
+            noticeText = `${member_name} มีลงชื่อไว้อยู่แล้ว`;
         } else if (reg_res2 > 1) {
             return [{ type: 'text', quoteToken: quoteToken, text: `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res2}บาท!` }];
         }
-        [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
+        [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId, member_id);
+
+        if (noticeText) {
+            if (is_flex && typeof msg === 'object') {
+                return [
+                    { type: 'text', quoteToken: quoteToken, text: noticeText },
+                    { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg }
+                ];
+            } else {
+                return [
+                    { type: 'text', quoteToken: quoteToken, text: noticeText },
+                    { type: 'textV2', quoteToken: quoteToken, text: msg, substitution: sub }
+                ];
+            }
+        }
+
         if (is_flex && typeof msg === 'object') {
             return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg };
         } else {
@@ -411,7 +427,7 @@ const COMMAND_REGISTRY = {
         return { type: 'flex', altText: "เมนูบริการของบอท", contents: msg };
     },
     'newweek': async (context) => { const next_sat = getNextSaturday(); await db.newWeek(next_sat); return COMMAND_REGISTRY['register'](context); },
-    'register': async (context) => { const { is_flex, groupId } = context; const [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId); if (is_flex && typeof msg === 'object') return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg }; return { type: 'textV2', text: msg, substitution: sub }; },
+    'register': async (context) => { const { is_flex, groupId, member_id } = context; const [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId, member_id); if (is_flex && typeof msg === 'object') return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg }; return { type: 'textV2', text: msg, substitution: sub }; },
     'schedule': async (context) => {
         const { param, groupId } = context;
         const theme = await db.getTheme();

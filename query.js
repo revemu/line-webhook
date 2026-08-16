@@ -1146,7 +1146,7 @@ async function updateMemberPictureUrl(memberId, pictureUrl) {
   return await executeQuery(query, [pictureUrl, memberId]);
 }
 
-async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
+async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlightMemberId = null) {
   let header = "";
   let body = "";
   let sub = {};
@@ -1191,19 +1191,24 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null) {
           const hofBadgeUrl = info.hofBadgeUrl;
           const hofBadgeSize = info.hofBadgeSize;
           const donate = '';
+          const isCurrent = highlightMemberId ? (
+            String(member.id) === String(highlightMemberId) ||
+            String(member.member_id) === String(highlightMemberId) ||
+            String(member.line_user_id) === String(highlightMemberId)
+          ) : false;
 
           if (type == 1) {
             if (member.team_id == 100) {
-              goalies.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl });
+              goalies.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
             } else {
               if (players.length < max_players) {
-                players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl });
+                players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
               } else {
-                reserves.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl });
+                reserves.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
               }
             }
           } else {
-            players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl });
+            players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
           }
         }
 

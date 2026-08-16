@@ -1838,11 +1838,11 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       const p2 = players[i + 1];
 
       const cols = [
-        makeMemberColumn(p1, i + 1, colors)
+        makeMemberColumn(p1, i + 1, colors, p1.isCurrent)
       ];
 
       if (p2) {
-        cols.push(makeMemberColumn(p2, i + 2, colors));
+        cols.push(makeMemberColumn(p2, i + 2, colors, p2.isCurrent));
       } else {
         cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
       }
@@ -1880,11 +1880,11 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       const r2 = reserves[i + 1];
 
       const cols = [
-        makeMemberColumn(r1, i + 1, colors)
+        makeMemberColumn(r1, i + 1, colors, r1.isCurrent)
       ];
 
       if (r2) {
-        cols.push(makeMemberColumn(r2, i + 2, colors));
+        cols.push(makeMemberColumn(r2, i + 2, colors, r2.isCurrent));
       } else {
         cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
       }
@@ -1921,11 +1921,11 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       const g2 = goalies[i + 1];
 
       const cols = [
-        makeMemberColumn(g1, i + 1, colors)
+        makeMemberColumn(g1, i + 1, colors, g1.isCurrent)
       ];
 
       if (g2) {
-        cols.push(makeMemberColumn(g2, i + 2, colors));
+        cols.push(makeMemberColumn(g2, i + 2, colors, g2.isCurrent));
       } else {
         cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
       }
