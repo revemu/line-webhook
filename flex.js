@@ -962,9 +962,9 @@ function buildLiveFlex(matchInfo, theme) {
     paddingStart: 'xs',
     paddingEnd: 'xs',
     contents: [
-      { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-      { type: 'text', text: 'เวลา', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
-      { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 6, align: 'center' }
+      { type: 'text', text: '#', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+      { type: 'text', text: 'เวลา', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
+      { type: 'text', text: 'ทีม', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 6, align: 'center' }
     ]
   });
 
@@ -998,7 +998,7 @@ function buildLiveFlex(matchInfo, theme) {
     matchNumContents.push({
       type: 'text',
       text: `${m.matchNo}`,
-      size: 'xs',
+      size: 'sm',
       color: isCurrent ? colors.textAccent : colors.textMuted,
       weight: isCurrent ? 'bold' : 'regular',
       align: 'center'
@@ -1013,16 +1013,16 @@ function buildLiveFlex(matchInfo, theme) {
         alignItems: 'center',
         contents: matchNumContents
       },
-      { type: 'text', text: `${m.startTime}`, size: 'xs', color: isCurrent ? colors.textPrimary : colors.textMutedLight, flex: 2, align: 'center', weight: isCurrent ? 'bold' : 'regular' },
+      { type: 'text', text: `${m.startTime}`, size: 'sm', color: isCurrent ? colors.textPrimary : colors.textMutedLight, flex: 2, align: 'center', weight: isCurrent ? 'bold' : 'regular' },
       {
         type: 'box',
         layout: 'horizontal',
         flex: 6,
         alignItems: 'center',
         contents: [
-          { type: 'text', text: m.teamA || '?', size: 'xs', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
-          { type: 'text', text: vsText, size: 'xs', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'center', flex: 1, weight: dbMatch || isCurrent ? 'bold' : 'regular' },
-          { type: 'text', text: m.teamB || '?', size: 'xs', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
+          { type: 'text', text: m.teamA || '?', size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
+          { type: 'text', text: vsText, size: 'sm', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'center', flex: 1, weight: dbMatch || isCurrent ? 'bold' : 'regular' },
+          { type: 'text', text: m.teamB || '?', size: 'sm', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
         ]
       }
     ];
@@ -1086,7 +1086,7 @@ function buildLiveFlex(matchInfo, theme) {
           itemContents.push({
             type: 'text',
             text: nameText,
-            size: 'xs',
+            size: 'sm',
             color: s.nameColor || colors.textMutedLight,
             flex: 0,
             weight: 'bold'
@@ -1128,7 +1128,7 @@ function buildLiveFlex(matchInfo, theme) {
           itemContents.push({
             type: 'text',
             text: nameText,
-            size: 'xs',
+            size: 'sm',
             color: a.nameColor || colors.textMutedLight,
             flex: 0,
             weight: 'bold'
@@ -1172,7 +1172,7 @@ function buildLiveFlex(matchInfo, theme) {
       paddingBottom: 'xs',
       cornerRadius: 'sm',
       contents: [
-        { type: 'text', text: `▶ รอบที่ ${roundNum}`, size: 'xxs', weight: 'bold', color: colors.textAccent }
+        { type: 'text', text: `▶ รอบที่ ${roundNum}`, size: 'xs', weight: 'bold', color: colors.textAccent }
       ]
     });
 
@@ -1191,7 +1191,7 @@ function buildLiveFlex(matchInfo, theme) {
       justifyContent: 'center',
       alignItems: 'center',
       contents: [
-        { type: 'text', text: '• • •', size: 'xs', color: colors.textMutedDark, align: 'center' }
+        { type: 'text', text: '• • •', size: 'sm', color: colors.textMutedDark, align: 'center' }
       ]
     });
 
@@ -1209,7 +1209,7 @@ function buildLiveFlex(matchInfo, theme) {
         paddingBottom: 'xs',
         cornerRadius: 'sm',
         contents: [
-          { type: 'text', text: `▶ รอบที่ ${lastRound} (แมตช์สุดท้าย)`, size: 'xxs', weight: 'bold', color: colors.textAccent }
+          { type: 'text', text: `▶ รอบที่ ${lastRound} (แมตช์สุดท้าย)`, size: 'xs', weight: 'bold', color: colors.textAccent }
         ]
       });
     }
@@ -1220,19 +1220,19 @@ function buildLiveFlex(matchInfo, theme) {
   // ── Standings table at the bottom ──
   if (table && table.length > 0) {
     bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
-    bodyContents.push({ type: 'text', text: '📊 ตารางคะแนน', size: 'xs', weight: 'bold', color: colors.textPrimary, margin: 'xs' });
+    bodyContents.push({ type: 'text', text: '📊 ตารางคะแนน', size: 'sm', weight: 'bold', color: colors.textPrimary, margin: 'xs' });
 
     bodyContents.push({
       type: 'box',
       layout: 'horizontal',
       margin: 'xs',
       contents: [
-        { type: 'text', text: 'ทีม', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 4 },
-        { type: 'text', text: 'W', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'D', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'L', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'GD', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'PTS', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' }
+        { type: 'text', text: 'ทีม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 4 },
+        { type: 'text', text: 'W', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'D', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'L', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'GD', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'PTS', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' }
       ]
     });
 
@@ -1244,12 +1244,12 @@ function buildLiveFlex(matchInfo, theme) {
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'xs', color: colors.tdc(row.team), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
-          { type: 'text', text: `${row.w}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
-          { type: 'text', text: `${row.d}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
-          { type: 'text', text: `${row.l}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
-          { type: 'text', text: gdStr, size: 'xs', color: row.gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
-          { type: 'text', text: `${row.pts}`, size: 'xs', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
+          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'sm', color: colors.tdc(row.team), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: `${row.w}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: `${row.d}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: `${row.l}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: gdStr, size: 'sm', color: row.gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
+          { type: 'text', text: `${row.pts}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
         ]
       });
     });
@@ -1259,7 +1259,7 @@ function buildLiveFlex(matchInfo, theme) {
   bodyContents.push({
     type: 'text',
     text: `สิ้นสุด ${endTime} น.  |  ${totalRounds} รอบ  |  ${totalHours} ชม.`,
-    size: 'xs',
+    size: 'sm',
     color: colors.textMuted,
     align: 'center',
     margin: 'xs'
