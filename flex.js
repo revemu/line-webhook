@@ -968,6 +968,196 @@ function buildLiveFlex(matchInfo, theme) {
     ]
   });
 
+  function renderMatchRow(m) {
+    const isCurrent = currentMatch && m.matchNo === currentMatch.matchNo;
+
+    // Check if match was played
+    const dbMatch = dbMatches && dbMatches.find(dm => dm.match_num === m.matchNo);
+    let vsText = 'vs';
+    if (dbMatch) {
+      let scoreA = dbMatch.team_a_goal;
+      let scoreB = dbMatch.team_b_goal;
+      if (dbMatch.team_a_id === m.teamBId) {
+        scoreA = dbMatch.team_b_goal;
+        scoreB = dbMatch.team_a_goal;
+      }
+      vsText = `${scoreA} - ${scoreB}`;
+    }
+
+    const matchNumContents = [];
+    if (isCurrent) {
+      matchNumContents.push({
+        type: 'image',
+        url: `${getBaseUrl()}/green_pulse_true.png`,
+        size: 'xxs',
+        aspectRatio: '1:1',
+        aspectMode: 'cover',
+        animated: true
+      });
+    }
+    matchNumContents.push({
+      type: 'text',
+      text: `${m.matchNo}`,
+      size: 'xs',
+      color: isCurrent ? colors.textAccent : colors.textMuted,
+      weight: isCurrent ? 'bold' : 'regular',
+      align: 'center'
+    });
+
+    const matchBoxContents = [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        contents: matchNumContents
+      },
+      { type: 'text', text: `${m.startTime}`, size: 'xs', color: isCurrent ? colors.textPrimary : colors.textMutedLight, flex: 2, align: 'center', weight: isCurrent ? 'bold' : 'regular' },
+      {
+        type: 'box',
+        layout: 'horizontal',
+        flex: 6,
+        alignItems: 'center',
+        contents: [
+          { type: 'text', text: m.teamA || '?', size: 'xs', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
+          { type: 'text', text: vsText, size: 'xs', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'center', flex: 1, weight: dbMatch || isCurrent ? 'bold' : 'regular' },
+          { type: 'text', text: m.teamB || '?', size: 'xs', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
+        ]
+      }
+    ];
+
+    const matchContainer = {
+      type: 'box',
+      layout: 'horizontal',
+      paddingStart: 'xs',
+      paddingEnd: 'xs',
+      paddingTop: 'xs',
+      paddingBottom: 'xs',
+      margin: 'xs',
+      alignItems: 'center',
+      contents: matchBoxContents
+    };
+
+    if (isCurrent) {
+      matchContainer.backgroundColor = colors.bgCurrent;
+      matchContainer.borderWidth = 'normal';
+      matchContainer.borderColor = colors.borderCurrent;
+      matchContainer.cornerRadius = 'sm';
+    }
+
+    bodyContents.push(matchContainer);
+
+    // Display scorers & assists for played matches
+    const mDetails = (recentMatchDetails && recentMatchDetails[m.matchNo])
+      ? recentMatchDetails[m.matchNo]
+      : (isCurrent ? { scorers, assists } : null);
+
+    const mScorers = mDetails ? mDetails.scorers : null;
+    const mAssists = mDetails ? mDetails.assists : null;
+
+    if ((mScorers && mScorers.length > 0) || (mAssists && mAssists.length > 0)) {
+      const detailRows = [];
+      if (mScorers && mScorers.length > 0) {
+        const itemContents = [
+          { type: 'text', text: '⚽', size: 'xs', flex: 0, color: colors.textMuted }
+        ];
+        let isFirst = true;
+        for (const s of mScorers) {
+          if (!isFirst) {
+            itemContents.push({ type: 'text', text: '•', size: 'xs', color: colors.textMutedDark, flex: 0, margin: 'xs' });
+          }
+          isFirst = false;
+          const og = s.ownGoal ? '🥅' : '';
+          const nameText = s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
+
+          const picUrl = s.pictureUrl || s.badgeUrl;
+          if (picUrl) {
+            itemContents.push({
+              type: 'image',
+              url: picUrl,
+              size: 'xxs',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              flex: 0
+            });
+          }
+
+          itemContents.push({
+            type: 'text',
+            text: nameText,
+            size: 'xs',
+            color: s.nameColor || colors.textMutedLight,
+            flex: 0,
+            weight: 'bold'
+          });
+        }
+
+        detailRows.push({
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'xs',
+          alignItems: 'center',
+          contents: itemContents
+        });
+      }
+      if (mAssists && mAssists.length > 0) {
+        const itemContents = [
+          { type: 'text', text: '👟', size: 'xs', flex: 0, color: colors.textMuted }
+        ];
+        let isFirst = true;
+        for (const a of mAssists) {
+          if (!isFirst) {
+            itemContents.push({ type: 'text', text: '•', size: 'xs', color: colors.textMutedDark, flex: 0, margin: 'xs' });
+          }
+          isFirst = false;
+          const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
+
+          const picUrl = a.pictureUrl || a.badgeUrl;
+          if (picUrl) {
+            itemContents.push({
+              type: 'image',
+              url: picUrl,
+              size: 'xxs',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              flex: 0
+            });
+          }
+
+          itemContents.push({
+            type: 'text',
+            text: nameText,
+            size: 'xs',
+            color: a.nameColor || colors.textMutedLight,
+            flex: 0,
+            weight: 'bold'
+          });
+        }
+
+        detailRows.push({
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'xs',
+          alignItems: 'center',
+          contents: itemContents
+        });
+      }
+
+      if (detailRows.length > 0) {
+        bodyContents.push({
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: isCurrent ? colors.bgDetail : colors.bgRound,
+          cornerRadius: 'sm',
+          paddingAll: 'xs',
+          margin: 'xs',
+          contents: detailRows
+        });
+      }
+    }
+  }
+
   // ── Rounds ──
   for (const [roundNum, roundMatches] of Object.entries(rounds)) {
     // Round label
@@ -987,194 +1177,44 @@ function buildLiveFlex(matchInfo, theme) {
     });
 
     for (const m of roundMatches) {
-      const isCurrent = currentMatch && m.matchNo === currentMatch.matchNo;
+      renderMatchRow(m);
+    }
+  }
 
-      // Check if match was played
-      const dbMatch = dbMatches && dbMatches.find(dm => dm.match_num === m.matchNo);
-      let vsText = 'vs';
-      if (dbMatch) {
-        let scoreA = dbMatch.team_a_goal;
-        let scoreB = dbMatch.team_b_goal;
-        if (dbMatch.team_a_id === m.teamBId) {
-          scoreA = dbMatch.team_b_goal;
-          scoreB = dbMatch.team_a_goal;
-        }
-        vsText = `${scoreA} - ${scoreB}`;
-      }
+  // ── Ellipsis & Last Match ──
+  const lastMatch = matches.length > 0 ? matches[matches.length - 1] : null;
+  if (lastMatch && lastMatch.matchNo > maxMatchNo) {
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'xs',
+      justifyContent: 'center',
+      alignItems: 'center',
+      contents: [
+        { type: 'text', text: '• • •', size: 'xs', color: colors.textMutedDark, align: 'center' }
+      ]
+    });
 
-      const matchNumContents = [];
-      if (isCurrent) {
-        matchNumContents.push({
-          type: 'image',
-          url: `${getBaseUrl()}/green_pulse_true.png`,
-          size: 'xxs',
-          aspectRatio: '1:1',
-          aspectMode: 'cover',
-          animated: true
-        });
-      }
-      matchNumContents.push({
-        type: 'text',
-        text: `${m.matchNo}`,
-        size: 'xs',
-        color: isCurrent ? colors.textAccent : colors.textMuted,
-        weight: isCurrent ? 'bold' : 'regular',
-        align: 'center'
-      });
-
-      const matchBoxContents = [
-        {
-          type: 'box',
-          layout: 'horizontal',
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          contents: matchNumContents
-        },
-        { type: 'text', text: `${m.startTime}`, size: 'xs', color: isCurrent ? colors.textPrimary : colors.textMutedLight, flex: 2, align: 'center', weight: isCurrent ? 'bold' : 'regular' },
-        {
-          type: 'box',
-          layout: 'horizontal',
-          flex: 6,
-          alignItems: 'center',
-          contents: [
-            { type: 'text', text: m.teamA || '?', size: 'xs', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
-            { type: 'text', text: vsText, size: 'xs', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'center', flex: 1, weight: dbMatch || isCurrent ? 'bold' : 'regular' },
-            { type: 'text', text: m.teamB || '?', size: 'xs', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
-          ]
-        }
-      ];
-
-      const matchContainer = {
+    const lastRound = lastMatch.round;
+    const maxRenderedRound = displayMatches.length > 0 ? Math.max(...displayMatches.map(m => m.round)) : 0;
+    if (lastRound > maxRenderedRound) {
+      bodyContents.push({
         type: 'box',
-        layout: 'horizontal',
+        layout: 'vertical',
+        margin: 'xs',
+        backgroundColor: colors.bgRound,
         paddingStart: 'xs',
         paddingEnd: 'xs',
         paddingTop: 'xs',
         paddingBottom: 'xs',
-        margin: 'xs',
-        alignItems: 'center',
-        contents: matchBoxContents
-      };
-
-      if (isCurrent) {
-        matchContainer.backgroundColor = colors.bgCurrent;
-        matchContainer.borderWidth = 'normal';
-        matchContainer.borderColor = colors.borderCurrent;
-        matchContainer.cornerRadius = 'sm';
-      }
-
-      bodyContents.push(matchContainer);
-
-      // Display scorers & assists for played matches in the 5-match window
-      const mDetails = (recentMatchDetails && recentMatchDetails[m.matchNo])
-        ? recentMatchDetails[m.matchNo]
-        : (isCurrent ? { scorers, assists } : null);
-
-      const mScorers = mDetails ? mDetails.scorers : null;
-      const mAssists = mDetails ? mDetails.assists : null;
-
-      if ((mScorers && mScorers.length > 0) || (mAssists && mAssists.length > 0)) {
-        const detailRows = [];
-        if (mScorers && mScorers.length > 0) {
-          const itemContents = [
-            { type: 'text', text: '⚽', size: 'xs', flex: 0, color: colors.textMuted }
-          ];
-          let isFirst = true;
-          for (const s of mScorers) {
-            if (!isFirst) {
-              itemContents.push({ type: 'text', text: '•', size: 'xs', color: colors.textMutedDark, flex: 0, margin: 'xs' });
-            }
-            isFirst = false;
-            const og = s.ownGoal ? '🥅' : '';
-            const nameText = s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
-
-            const picUrl = s.pictureUrl || s.badgeUrl;
-            if (picUrl) {
-              itemContents.push({
-                type: 'image',
-                url: picUrl,
-                size: 'xxs',
-                aspectRatio: '1:1',
-                aspectMode: 'cover',
-                flex: 0
-              });
-            }
-
-            itemContents.push({
-              type: 'text',
-              text: nameText,
-              size: 'xs',
-              color: s.nameColor || colors.textMutedLight,
-              flex: 0,
-              weight: 'bold'
-            });
-          }
-
-          detailRows.push({
-            type: 'box',
-            layout: 'horizontal',
-            margin: 'xs',
-            alignItems: 'center',
-            contents: itemContents
-          });
-        }
-        if (mAssists && mAssists.length > 0) {
-          const itemContents = [
-            { type: 'text', text: '👟', size: 'xs', flex: 0, color: colors.textMuted }
-          ];
-          let isFirst = true;
-          for (const a of mAssists) {
-            if (!isFirst) {
-              itemContents.push({ type: 'text', text: '•', size: 'xs', color: colors.textMutedDark, flex: 0, margin: 'xs' });
-            }
-            isFirst = false;
-            const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
-
-            const picUrl = a.pictureUrl || a.badgeUrl;
-            if (picUrl) {
-              itemContents.push({
-                type: 'image',
-                url: picUrl,
-                size: 'xxs',
-                aspectRatio: '1:1',
-                aspectMode: 'cover',
-                flex: 0
-              });
-            }
-
-            itemContents.push({
-              type: 'text',
-              text: nameText,
-              size: 'xs',
-              color: a.nameColor || colors.textMutedLight,
-              flex: 0,
-              weight: 'bold'
-            });
-          }
-
-          detailRows.push({
-            type: 'box',
-            layout: 'horizontal',
-            margin: 'xs',
-            alignItems: 'center',
-            contents: itemContents
-          });
-        }
-
-        if (detailRows.length > 0) {
-          bodyContents.push({
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: isCurrent ? colors.bgDetail : colors.bgRound,
-            cornerRadius: 'sm',
-            paddingAll: 'xs',
-            margin: 'xs',
-            contents: detailRows
-          });
-        }
-      }
+        cornerRadius: 'sm',
+        contents: [
+          { type: 'text', text: `▶ รอบที่ ${lastRound} (แมตช์สุดท้าย)`, size: 'xxs', weight: 'bold', color: colors.textAccent }
+        ]
+      });
     }
+
+    renderMatchRow(lastMatch);
   }
 
   // ── Standings table at the bottom ──
