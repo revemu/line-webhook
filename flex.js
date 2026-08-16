@@ -910,9 +910,15 @@ function buildLiveFlex(matchInfo, theme) {
   const { date, startTime, matchMinutes, totalHours, teams, totalMatches, totalRounds, endTime, matches } = sched;
   const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
 
-  // Group matches by round
+  // Filter to show 5 matches max: 2 previous matches, 1 current match, 2 next matches
+  const curMatchNo = currentMatch ? currentMatch.matchNo : 1;
+  const minMatchNo = Math.max(1, curMatchNo - 2);
+  const maxMatchNo = curMatchNo + 2;
+  const displayMatches = matches.filter(m => m.matchNo >= minMatchNo && m.matchNo <= maxMatchNo);
+
+  // Group display matches by round
   const rounds = {};
-  for (const m of matches) {
+  for (const m of displayMatches) {
     if (!rounds[m.round]) rounds[m.round] = [];
     rounds[m.round].push(m);
   }
@@ -924,21 +930,21 @@ function buildLiveFlex(matchInfo, theme) {
     type: 'box',
     layout: 'horizontal',
     backgroundColor: colors.bgHeader,
-    paddingAll: 'md',
+    paddingAll: 'sm',
     cornerRadius: 'md',
     contents: [
       {
         type: 'text',
         text: '⚽ Live! Match',
         weight: 'bold',
-        size: 'md',
+        size: 'sm',
         color: colors.textPrimary,
         align: 'start'
       },
       {
         type: 'text',
         text: `🕐 ${date} ${startTime}–${endTime}`,
-        size: 'sm',
+        size: 'xs',
         color: colors.textMuted,
         align: 'end',
         margin: 'xs'
@@ -946,39 +952,17 @@ function buildLiveFlex(matchInfo, theme) {
     ]
   });
 
-  bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+  bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
 
   // ── Column header ──
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
-    margin: 'sm',
-    paddingStart: 'sm',
-    paddingEnd: 'sm',
-    alignItems: 'center',
+    margin: 'xs',
+    paddingStart: 'xs',
+    paddingEnd: 'xs',
     contents: [
-      {
-        type: 'box',
-        layout: 'horizontal',
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            width: '12px',
-            height: '12px',
-            flex: 0,
-            contents: [
-              {
-                type: 'spacer'
-              }
-            ]
-          },
-          { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 0, margin: 'xs' }
-        ]
-      },
+      { type: 'text', text: '#', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
       { type: 'text', text: 'เวลา', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
       { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: colors.textMutedDark, flex: 6, align: 'center' }
     ]
@@ -990,15 +974,15 @@ function buildLiveFlex(matchInfo, theme) {
     bodyContents.push({
       type: 'box',
       layout: 'vertical',
-      margin: 'sm',
+      margin: 'xs',
       backgroundColor: colors.bgRound,
-      paddingStart: 'sm',
-      paddingEnd: 'sm',
+      paddingStart: 'xs',
+      paddingEnd: 'xs',
       paddingTop: 'xs',
       paddingBottom: 'xs',
       cornerRadius: 'sm',
       contents: [
-        { type: 'text', text: `▶ รอบที่ ${roundNum}`, size: 'xs', weight: 'bold', color: colors.textAccent }
+        { type: 'text', text: `▶ รอบที่ ${roundNum}`, size: 'xxs', weight: 'bold', color: colors.textAccent }
       ]
     });
 
@@ -1018,34 +1002,25 @@ function buildLiveFlex(matchInfo, theme) {
         vsText = `${scoreA} - ${scoreB}`;
       }
 
-      const statusDot = isCurrent ? {
-        type: 'box',
-        layout: 'vertical',
-        width: '32px',
-        height: '32px',
-        flex: 0,
-        contents: [
-          {
-            type: 'image',
-            url: `${getBaseUrl()}/green_pulse_true.png`,
-            size: 'full',
-            aspectRatio: '1:1',
-            aspectMode: 'cover',
-            animated: true
-          }
-        ]
-      } : {
-        type: 'box',
-        layout: 'vertical',
-        width: '32px',
-        height: '32px',
-        flex: 0,
-        contents: [
-          {
-            type: 'spacer'
-          }
-        ]
-      };
+      const matchNumContents = [];
+      if (isCurrent) {
+        matchNumContents.push({
+          type: 'image',
+          url: `${getBaseUrl()}/green_pulse_true.png`,
+          size: 'xxs',
+          aspectRatio: '1:1',
+          aspectMode: 'cover',
+          animated: true
+        });
+      }
+      matchNumContents.push({
+        type: 'text',
+        text: `${m.matchNo}`,
+        size: 'xs',
+        color: isCurrent ? colors.textAccent : colors.textMuted,
+        weight: isCurrent ? 'bold' : 'regular',
+        align: 'center'
+      });
 
       const matchBoxContents = [
         {
@@ -1054,31 +1029,27 @@ function buildLiveFlex(matchInfo, theme) {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          contents: [
-            statusDot,
-            { type: 'text', text: `${m.matchNo}`, size: 'sm', color: isCurrent ? colors.textAccent : colors.textMuted, flex: 0, weight: isCurrent ? 'bold' : 'regular', margin: 'xs' }
-          ]
+          contents: matchNumContents
         },
-        { type: 'text', text: `${m.startTime}`, size: 'sm', color: isCurrent ? colors.textPrimary : colors.textMutedLight, flex: 2, align: 'center', weight: isCurrent ? 'bold' : 'regular' },
+        { type: 'text', text: `${m.startTime}`, size: 'xs', color: isCurrent ? colors.textPrimary : colors.textMutedLight, flex: 2, align: 'center', weight: isCurrent ? 'bold' : 'regular' },
         {
           type: 'box',
           layout: 'horizontal',
           flex: 6,
           alignItems: 'center',
           contents: [
-            { type: 'text', text: m.teamA || '?', size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
-            { type: 'text', text: vsText, size: 'sm', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'center', flex: 1, weight: dbMatch || isCurrent ? 'bold' : 'regular' },
-            { type: 'text', text: m.teamB || '?', size: 'sm', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
+            { type: 'text', text: m.teamA || '?', size: 'xs', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
+            { type: 'text', text: vsText, size: 'xs', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'center', flex: 1, weight: dbMatch || isCurrent ? 'bold' : 'regular' },
+            { type: 'text', text: m.teamB || '?', size: 'xs', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
           ]
         }
       ];
 
-      // Define match container styling
       const matchContainer = {
         type: 'box',
         layout: 'horizontal',
-        paddingStart: 'sm',
-        paddingEnd: 'sm',
+        paddingStart: 'xs',
+        paddingEnd: 'xs',
         paddingTop: 'xs',
         paddingBottom: 'xs',
         margin: 'xs',
@@ -1087,8 +1058,6 @@ function buildLiveFlex(matchInfo, theme) {
       };
 
       if (isCurrent) {
-        matchContainer.paddingTop = 'sm';
-        matchContainer.paddingBottom = 'sm';
         matchContainer.backgroundColor = colors.bgCurrent;
         matchContainer.borderWidth = 'normal';
         matchContainer.borderColor = colors.borderCurrent;
@@ -1097,7 +1066,7 @@ function buildLiveFlex(matchInfo, theme) {
 
       bodyContents.push(matchContainer);
 
-      // If match details exist (last 3 matches including current one), display scorers & assists!
+      // Display scorers & assists for played matches in the 5-match window
       const mDetails = (recentMatchDetails && recentMatchDetails[m.matchNo])
         ? recentMatchDetails[m.matchNo]
         : (isCurrent ? { scorers, assists } : null);
@@ -1109,128 +1078,36 @@ function buildLiveFlex(matchInfo, theme) {
         const detailRows = [];
         if (mScorers && mScorers.length > 0) {
           const itemContents = [
-            { type: 'text', text: '⚽', size: 'sm', flex: 0, color: colors.textMuted, gravity: 'center' }
+            { type: 'text', text: '⚽', size: 'xs', flex: 0, color: colors.textMuted }
           ];
           let isFirst = true;
           for (const s of mScorers) {
             if (!isFirst) {
-              itemContents.push({
-                type: 'text',
-                text: '•',
-                size: 'sm',
-                color: colors.textMutedDark,
-                flex: 0,
-                margin: 'md',
-                gravity: 'center'
-              });
+              itemContents.push({ type: 'text', text: '•', size: 'xs', color: colors.textMutedDark, flex: 0, margin: 'xs' });
             }
             isFirst = false;
             const og = s.ownGoal ? '🥅' : '';
             const nameText = s.goal > 1 ? `${s.name}(${s.goal})${og}` : `${s.name}${og}`;
 
-            const scorerContents = [];
-            if (s.pictureUrl) {
-              scorerContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: '20px',
-                height: '20px',
-                cornerRadius: '100px',
-                flex: 0,
-                contents: [
-                  {
-                    type: 'image',
-                    url: s.pictureUrl,
-                    size: 'full',
-                    aspectRatio: '1:1',
-                    aspectMode: 'cover'
-                  }
-                ]
+            const picUrl = s.pictureUrl || s.badgeUrl;
+            if (picUrl) {
+              itemContents.push({
+                type: 'image',
+                url: picUrl,
+                size: 'xxs',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                flex: 0
               });
             }
-
-            const badgeSize = s.badgeSize || '16px';
-            if (s.badgeUrl) {
-              scorerContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: badgeSize,
-                height: badgeSize,
-                flex: 0,
-                contents: [
-                  {
-                    type: 'image',
-                    url: s.badgeUrl,
-                    size: 'full',
-                    aspectRatio: '1:1',
-                    aspectMode: 'cover',
-                    animated: true
-                  }
-                ],
-                margin: 'xs'
-              });
-            }
-
-            if (s.hofBadges && s.hofBadges.length > 0) {
-              for (const hb of s.hofBadges) {
-                scorerContents.push({
-                  type: 'box',
-                  layout: 'vertical',
-                  width: hb.size || '16px',
-                  height: hb.size || '16px',
-                  flex: 0,
-                  contents: [
-                    {
-                      type: 'image',
-                      url: hb.url,
-                      size: 'full',
-                      aspectRatio: '1:1',
-                      aspectMode: 'cover',
-                      animated: true
-                    }
-                  ],
-                  margin: 'xs'
-                });
-              }
-            } else if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
-              const hSize = s.hofBadgeSize || '16px';
-              scorerContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: hSize,
-                height: hSize,
-                flex: 0,
-                contents: [
-                  {
-                    type: 'image',
-                    url: s.hofBadgeUrl,
-                    size: 'full',
-                    aspectRatio: '1:1',
-                    aspectMode: 'cover',
-                    animated: true
-                  }
-                ],
-                margin: 'xs'
-              });
-            }
-
-            scorerContents.push({
-              type: 'text',
-              text: nameText,
-              size: 'sm',
-              color: s.nameColor || colors.textMutedLight,
-              flex: 0,
-              margin: 'xs',
-              weight: 'bold'
-            });
 
             itemContents.push({
-              type: 'box',
-              layout: 'horizontal',
-              alignItems: 'center',
-              contents: scorerContents,
-              margin: 'md',
-              flex: 0
+              type: 'text',
+              text: nameText,
+              size: 'xs',
+              color: s.nameColor || colors.textMutedLight,
+              flex: 0,
+              weight: 'bold'
             });
           }
 
@@ -1244,127 +1121,35 @@ function buildLiveFlex(matchInfo, theme) {
         }
         if (mAssists && mAssists.length > 0) {
           const itemContents = [
-            { type: 'text', text: '👟', size: 'sm', flex: 0, color: colors.textMuted, gravity: 'center' }
+            { type: 'text', text: '👟', size: 'xs', flex: 0, color: colors.textMuted }
           ];
           let isFirst = true;
           for (const a of mAssists) {
             if (!isFirst) {
-              itemContents.push({
-                type: 'text',
-                text: '•',
-                size: 'sm',
-                color: colors.textMutedDark,
-                flex: 0,
-                margin: 'md',
-                gravity: 'center'
-              });
+              itemContents.push({ type: 'text', text: '•', size: 'xs', color: colors.textMutedDark, flex: 0, margin: 'xs' });
             }
             isFirst = false;
             const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
 
-            const assistContents = [];
-            if (a.pictureUrl) {
-              assistContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: '20px',
-                height: '20px',
-                cornerRadius: '100px',
-                flex: 0,
-                contents: [
-                  {
-                    type: 'image',
-                    url: a.pictureUrl,
-                    size: 'full',
-                    aspectRatio: '1:1',
-                    aspectMode: 'cover'
-                  }
-                ]
+            const picUrl = a.pictureUrl || a.badgeUrl;
+            if (picUrl) {
+              itemContents.push({
+                type: 'image',
+                url: picUrl,
+                size: 'xxs',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                flex: 0
               });
             }
-
-            const badgeSize = a.badgeSize || '16px';
-            if (a.badgeUrl) {
-              assistContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: badgeSize,
-                height: badgeSize,
-                flex: 0,
-                contents: [
-                  {
-                    type: 'image',
-                    url: a.badgeUrl,
-                    size: 'full',
-                    aspectRatio: '1:1',
-                    aspectMode: 'cover',
-                    animated: true
-                  }
-                ],
-                margin: 'xs'
-              });
-            }
-
-            if (a.hofBadges && a.hofBadges.length > 0) {
-              for (const hb of a.hofBadges) {
-                assistContents.push({
-                  type: 'box',
-                  layout: 'vertical',
-                  width: hb.size || '16px',
-                  height: hb.size || '16px',
-                  flex: 0,
-                  contents: [
-                    {
-                      type: 'image',
-                      url: hb.url,
-                      size: 'full',
-                      aspectRatio: '1:1',
-                      aspectMode: 'cover',
-                      animated: true
-                    }
-                  ],
-                  margin: 'xs'
-                });
-              }
-            } else if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
-              const hSize = a.hofBadgeSize || '16px';
-              assistContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: hSize,
-                height: hSize,
-                flex: 0,
-                contents: [
-                  {
-                    type: 'image',
-                    url: a.hofBadgeUrl,
-                    size: 'full',
-                    aspectRatio: '1:1',
-                    aspectMode: 'cover',
-                    animated: true
-                  }
-                ],
-                margin: 'xs'
-              });
-            }
-
-            assistContents.push({
-              type: 'text',
-              text: nameText,
-              size: 'sm',
-              color: a.nameColor || colors.textMutedLight,
-              flex: 0,
-              margin: 'xs',
-              weight: 'bold'
-            });
 
             itemContents.push({
-              type: 'box',
-              layout: 'horizontal',
-              alignItems: 'center',
-              contents: assistContents,
-              margin: 'md',
-              flex: 0
+              type: 'text',
+              text: nameText,
+              size: 'xs',
+              color: a.nameColor || colors.textMutedLight,
+              flex: 0,
+              weight: 'bold'
             });
           }
 
@@ -1383,7 +1168,7 @@ function buildLiveFlex(matchInfo, theme) {
             layout: 'vertical',
             backgroundColor: isCurrent ? colors.bgDetail : colors.bgRound,
             cornerRadius: 'sm',
-            paddingAll: 'sm',
+            paddingAll: 'xs',
             margin: 'xs',
             contents: detailRows
           });
@@ -1394,20 +1179,20 @@ function buildLiveFlex(matchInfo, theme) {
 
   // ── Standings table at the bottom ──
   if (table && table.length > 0) {
-    bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
-    bodyContents.push({ type: 'text', text: '📊 ตารางคะแนน', size: 'sm', weight: 'bold', color: colors.textPrimary, margin: 'md' });
+    bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
+    bodyContents.push({ type: 'text', text: '📊 ตารางคะแนน', size: 'xs', weight: 'bold', color: colors.textPrimary, margin: 'xs' });
 
     bodyContents.push({
       type: 'box',
       layout: 'horizontal',
       margin: 'xs',
       contents: [
-        { type: 'text', text: 'ทีม', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 4 },
-        { type: 'text', text: 'W', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center', margin: 'lg' },
-        { type: 'text', text: 'D', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'L', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'GD', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
-        { type: 'text', text: 'PTS', size: 'sm', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' }
+        { type: 'text', text: 'ทีม', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 4 },
+        { type: 'text', text: 'W', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'D', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'L', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'GD', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+        { type: 'text', text: 'PTS', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' }
       ]
     });
 
@@ -1419,25 +1204,25 @@ function buildLiveFlex(matchInfo, theme) {
         layout: 'horizontal',
         margin: 'xs',
         contents: [
-          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'sm', color: colors.tdc(row.team), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
-          { type: 'text', text: `${row.w}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center', margin: 'lg' },
-          { type: 'text', text: `${row.d}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
-          { type: 'text', text: `${row.l}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
-          { type: 'text', text: gdStr, size: 'sm', color: row.gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
-          { type: 'text', text: `${row.pts}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
+          { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.team}`, size: 'xs', color: colors.tdc(row.team), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
+          { type: 'text', text: `${row.w}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: `${row.d}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: `${row.l}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: gdStr, size: 'xs', color: row.gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
+          { type: 'text', text: `${row.pts}`, size: 'xs', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
         ]
       });
     });
   }
 
-  bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+  bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
   bodyContents.push({
     type: 'text',
     text: `สิ้นสุด ${endTime} น.  |  ${totalRounds} รอบ  |  ${totalHours} ชม.`,
-    size: 'sm',
+    size: 'xs',
     color: colors.textMuted,
     align: 'center',
-    margin: 'sm'
+    margin: 'xs'
   });
 
   const bubble = {
@@ -1447,7 +1232,7 @@ function buildLiveFlex(matchInfo, theme) {
       type: 'box',
       layout: 'vertical',
       backgroundColor: colors.bgMain,
-      paddingAll: 'md',
+      paddingAll: 'sm',
       contents: bodyContents
     }
   };
@@ -1464,7 +1249,7 @@ function buildLiveFlex(matchInfo, theme) {
           type: 'image',
           url: headerUrl,
           size: 'full',
-          aspectRatio: '10:3',
+          aspectRatio: '20:7',
           aspectMode: 'cover'
         }
       ]
