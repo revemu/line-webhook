@@ -320,42 +320,54 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
 
     // 4. DB Payment Week Query Timer
     const tDbWeekStart = Date.now();
-    const week = await db.queryWeekDate();
-    let payweek = true;
-    if (week.length > 0) {
-        const now = new Date();
-        if (now.getTime() < week[0].date.getTime()) {
-            payweek = false;
-        }
-        //console.log(`week ${week[0].date} now ${now}`);
-    }
-
     let replyMessages;
-    if (!payweek) {
-        if (slipToMe && !isDuplicate) await db.updateMemberDebt(member.id);
+    if (slipToMe) {
+        if (!isDuplicate) {
+            await db.updateMemberWeek(member.id, 1, 0);
+        }
+
+        // Check if current week's match has ended (Saturday 19:00 cutoff)
+        let isMatchEnded = true;
+        const week = await db.queryWeekDate();
+        if (week && week.length > 0) {
+            const rawDate = new Date(week[0].date);
+            const y = rawDate.getFullYear();
+            const m = ('0' + (rawDate.getMonth() + 1)).slice(-2);
+            const d = ('0' + rawDate.getDate()).slice(-2);
+            const matchEndTime = new Date(`${y}-${m}-${d}T19:00:00+07:00`);
+            isMatchEnded = new Date() >= matchEndTime;
+        }
+
+        if (isMatchEnded) {
+            const [msg, sub, count] = await db.getMemberWeek2(0);
+            console.log(`user count: ${count}`);
+            if (count === 0 || count > 20) {
+                replyMessages = [{
+                    type: 'text',
+                    quoteToken: message.quoteToken,
+                    text: header + msg
+                }];
+            } else {
+                replyMessages = {
+                    type: 'textV2',
+                    quoteToken: message.quoteToken,
+                    text: header + msg,
+                    substitution: sub
+                };
+            }
+        } else {
+            replyMessages = [{
+                type: 'text',
+                quoteToken: message.quoteToken,
+                text: header
+            }];
+        }
+    } else {
         replyMessages = [{
             type: 'text',
             quoteToken: message.quoteToken,
             text: header
         }];
-    } else {
-        if (slipToMe && !isDuplicate) await db.updateMemberWeek(member.id, 1, 0);
-        const [msg, sub, count] = await db.getMemberWeek2(0);
-        console.log(`user count: ${count}`);
-        if (count === 0 || count > 20) {
-            replyMessages = [{
-                type: 'text',
-                quoteToken: message.quoteToken,
-                text: header + msg
-            }];
-        } else {
-            replyMessages = {
-                type: 'textV2',
-                quoteToken: message.quoteToken,
-                text: header + msg,
-                substitution: sub
-            };
-        }
     }
     const tDbWeek = Date.now() - tDbWeekStart;
 
