@@ -73,7 +73,7 @@ function getShortDate(date) {
   const dObj = parseDateInput(date);
   if (!dObj) return '';
   const fullYear = dObj.getFullYear();
-  const y = fullYear < 2400 ? fullYear + 543 : fullYear;
+  const y = fullYear >= 2400 ? fullYear - 543 : fullYear;
   const d = ('0' + dObj.getDate()).slice(-2);
   const m = ('0' + (dObj.getMonth() + 1)).slice(-2);
   return `${y}-${m}-${d}`;

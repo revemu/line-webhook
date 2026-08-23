@@ -383,10 +383,16 @@ async function addTeamMemberWeek() {
 
 
 async function newWeek(week_date) {
+  // Self-healing cleanup for any previous corrupted B.E. dates in week_tbl
+  try {
+    await executeQuery("UPDATE week_tbl SET date = DATE_SUB(date, INTERVAL 543 YEAR) WHERE YEAR(date) > 2400");
+  } catch (e) { }
+
   const week = await queryWeekID();
-  const y = week_date.getFullYear();
-  const date_str = await getShortDate(week_date);
-  const last_week = await getShortDate(new Date(week[0].date));
+  let y = week_date.getFullYear();
+  if (y > 2400) y -= 543;
+  const date_str = getShortDate(week_date);
+  const last_week = getShortDate(new Date(week[0].date));
   let new_week_num = week[0].number;
   console.log(last_week + " === " + date_str);
   if (last_week != date_str) {

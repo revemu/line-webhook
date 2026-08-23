@@ -347,12 +347,19 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
             let dateVal = week[0].date;
             let dateStr = "";
             if (dateVal instanceof Date) {
-                const y = dateVal.getFullYear();
+                let y = dateVal.getFullYear();
+                if (y > 2400) y -= 543; // Convert Buddhist Era (e.g. 2569) to Gregorian (2026)
                 const m = ('0' + (dateVal.getMonth() + 1)).slice(-2);
                 const d = ('0' + dateVal.getDate()).slice(-2);
                 dateStr = `${y}-${m}-${d}`;
             } else if (typeof dateVal === 'string') {
                 dateStr = dateVal.substring(0, 10);
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    let y = parseInt(parts[0], 10);
+                    if (y > 2400) y -= 543;
+                    dateStr = `${y}-${parts[1]}-${parts[2]}`;
+                }
             }
 
             if (dateStr) {
