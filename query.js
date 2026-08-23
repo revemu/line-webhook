@@ -1391,7 +1391,7 @@ async function getMemberWeek(type = 0) {
 
 }
 
-async function getMemberWeek2(type = 0) {
+async function getMemberWeek2(type = 0, useMention = true) {
   let header = "";
   let body = "";
   let sub = {};
@@ -1447,7 +1447,7 @@ async function getMemberWeek2(type = 0) {
           }
         } else {
           //console.log(`user count: ${i+1}:${result.length}`)
-          if (result.length < 21) {
+          if (result.length < 21 && useMention) {
             let line_id = member.line_user_id;
             //line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc"
             let name = member_name;

@@ -370,9 +370,9 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         console.log(`[SLIP DEBUG] Date Check Result (now >= weekDate) -> showUnpaid: ${showUnpaid}`);
 
         if (showUnpaid) {
-            const [msg, sub, count] = await db.getMemberWeek2(0);
-            console.log(`[SLIP DEBUG] db.getMemberWeek2(0) -> count: ${count}, msg snippet: ${msg ? msg.substring(0, 50).replace(/\n/g, ' ') : 'NULL'}`);
-            if (count === 0 || count > 20) {
+            const [msg, sub, count] = await db.getMemberWeek2(0, false);
+            console.log(`[SLIP DEBUG] db.getMemberWeek2(0, false) -> count: ${count}, msg snippet: ${msg ? msg.substring(0, 50).replace(/\n/g, ' ') : 'NULL'}`);
+            if (count === 0 || count > 20 || !sub || Object.keys(sub).length === 0) {
                 replyMessages = [{
                     type: 'text',
                     quoteToken: message.quoteToken,
