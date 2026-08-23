@@ -177,6 +177,33 @@ const getBaseUrl = () => {
 };
 
 /**
+ * Universal helper to create a round profile avatar box in LINE Flex Message
+ * @param {string} pictureUrl - URL of member profile image
+ * @param {string} [size='20px'] - Box size (e.g. '20px', '24px', '32px')
+ * @returns {Object|null} LINE Flex box component with round corner radius
+ */
+function createMemberAvatarBox(pictureUrl, size = '20px') {
+  if (!pictureUrl) return null;
+  return {
+    type: 'box',
+    layout: 'vertical',
+    width: size,
+    height: size,
+    cornerRadius: '100px',
+    flex: 0,
+    contents: [
+      {
+        type: 'image',
+        url: pictureUrl,
+        size: 'full',
+        aspectRatio: '1:1',
+        aspectMode: 'cover'
+      }
+    ]
+  };
+}
+
+/**
  * Build a Flex bubble for /schedule
  * @param {object} sched - schedule object from getScheduleText (parsed JSON fields)
  * @param {Array}  matchups - array of {matchNo, round, startTime, endTime, teamA, teamB, resting[]}
@@ -512,23 +539,8 @@ function buildNowFlex(matchInfo, theme) {
 
       const scorerContents = [];
       if (s.pictureUrl) {
-        scorerContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: '20px',
-          height: '20px',
-          cornerRadius: '100px',
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: s.pictureUrl,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover'
-            }
-          ]
-        });
+        const avatarBox = createMemberAvatarBox(s.pictureUrl, '20px');
+        if (avatarBox) scorerContents.push(avatarBox);
       }
 
       const badgeSize = s.badgeSize || '16px';
@@ -649,23 +661,8 @@ function buildNowFlex(matchInfo, theme) {
 
       const assistContents = [];
       if (a.pictureUrl) {
-        assistContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: '20px',
-          height: '20px',
-          cornerRadius: '100px',
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: a.pictureUrl,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover'
-            }
-          ]
-        });
+        const avatarBox = createMemberAvatarBox(a.pictureUrl, '20px');
+        if (avatarBox) assistContents.push(avatarBox);
       }
 
       const badgeSize = a.badgeSize || '16px';
@@ -1073,14 +1070,8 @@ function buildLiveFlex(matchInfo, theme) {
 
           const picUrl = s.pictureUrl || s.badgeUrl;
           if (picUrl) {
-            itemContents.push({
-              type: 'image',
-              url: picUrl,
-              size: 'xxs',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              flex: 0
-            });
+            const avatarBox = createMemberAvatarBox(picUrl, '20px');
+            if (avatarBox) itemContents.push(avatarBox);
           }
 
           itemContents.push({
@@ -1115,14 +1106,8 @@ function buildLiveFlex(matchInfo, theme) {
 
           const picUrl = a.pictureUrl || a.badgeUrl;
           if (picUrl) {
-            itemContents.push({
-              type: 'image',
-              url: picUrl,
-              size: 'xxs',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              flex: 0
-            });
+            const avatarBox = createMemberAvatarBox(picUrl, '20px');
+            if (avatarBox) itemContents.push(avatarBox);
           }
 
           itemContents.push({
@@ -1350,6 +1335,26 @@ function makeDisabledBoxButton(label, color = '#9ca3af', flexVal = 1, size = 'sm
   };
 }
 
+function createMemberAvatarBox(url, size = '24px') {
+  return {
+    type: 'box',
+    layout: 'vertical',
+    width: size,
+    height: size,
+    cornerRadius: '100px',
+    flex: 0,
+    contents: [
+      {
+        type: 'image',
+        url: url,
+        size: 'full',
+        aspectRatio: '1:1',
+        aspectMode: 'cover'
+      }
+    ]
+  };
+}
+
 function makeMemberColumn(p, index, colors, isCurrent = false) {
   const contents = [];
   if (index !== null && index !== undefined && index !== '') {
@@ -1364,24 +1369,11 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
   }
 
   if (p.pictureUrl) {
-    contents.push({
-      type: 'box',
-      layout: 'vertical',
-      width: '24px',
-      height: '24px',
-      cornerRadius: '100px',
-      flex: 0,
-      contents: [
-        {
-          type: 'image',
-          url: p.pictureUrl,
-          size: 'full',
-          aspectRatio: '1:1',
-          aspectMode: 'cover'
-        }
-      ],
-      margin: 'md'
-    });
+    const avatarBox = createMemberAvatarBox(p.pictureUrl, '24px');
+    if (avatarBox) {
+      avatarBox.margin = 'md';
+      contents.push(avatarBox);
+    }
   } else {
     contents.push({
       type: 'box',
