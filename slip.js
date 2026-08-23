@@ -324,24 +324,16 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     // 4. DB Payment Week Query Timer
     const tDbWeekStart = Date.now();
     let replyMessages;
-    console.log(`\n==================== 🔍 SLIP DEBUG DIAGNOSTICS ====================`);
-    console.log(`[SLIP DEBUG] Member sending slip: ${member.name} (ID: ${member.id})`);
-    console.log(`[SLIP DEBUG] slipToMe: ${slipToMe}`);
-    console.log(`[SLIP DEBUG] isDuplicate: ${isDuplicate}`);
 
     if (slipToMe) {
         if (!isDuplicate) {
-            const updateRes = await db.updateMemberWeek(member.id, 1, 0);
-            console.log(`[SLIP DEBUG] db.updateMemberWeek executed. Result:`, updateRes);
-        } else {
-            console.log(`[SLIP DEBUG] Slip is duplicate. Skipping updateMemberWeek.`);
+            await db.updateMemberWeek(member.id, 1, 0);
         }
 
         // Show unpaid members list only if active week match date has arrived or passed (now >= weekDate)
         let showUnpaid = false;
         const week = await db.queryWeekDate();
-        let debugWeekDate = null;
-        const debugNow = new Date();
+        const now = new Date();
 
         if (week && week.length > 0) {
             let dateVal = week[0].date;
@@ -364,21 +356,14 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
 
             if (dateStr) {
                 const weekDate = new Date(`${dateStr}T00:00:00+07:00`);
-                debugWeekDate = weekDate;
-                if (debugNow >= weekDate) {
+                if (now >= weekDate) {
                     showUnpaid = true;
                 }
             }
         }
 
-        console.log(`[SLIP DEBUG] Active Week Date from DB: ${week && week.length > 0 ? week[0].date : 'NONE'}`);
-        console.log(`[SLIP DEBUG] Current Time (debugNow): ${debugNow.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}`);
-        console.log(`[SLIP DEBUG] Week Match Date (weekDate): ${debugWeekDate ? debugWeekDate.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }) : 'NULL'}`);
-        console.log(`[SLIP DEBUG] Date Check Result (now >= weekDate) -> showUnpaid: ${showUnpaid}`);
-
         if (showUnpaid) {
             const [msg, sub, count] = await db.getMemberWeek2(0, true);
-            console.log(`[SLIP DEBUG] db.getMemberWeek2(0, true) -> count: ${count}, msg snippet: ${msg ? msg.substring(0, 50).replace(/\n/g, ' ') : 'NULL'}`);
             if (count === 0 || count > 20 || !sub || Object.keys(sub).length === 0) {
                 replyMessages = [{
                     type: 'text',
@@ -394,7 +379,6 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
                 };
             }
         } else {
-            console.log(`[SLIP DEBUG] ⚠️ SKIPPING unpaid member list because showUnpaid is FALSE! (now < weekDate)`);
             replyMessages = [{
                 type: 'text',
                 quoteToken: message.quoteToken,
@@ -402,14 +386,12 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
             }];
         }
     } else {
-        console.log(`[SLIP DEBUG] ⚠️ SKIPPING updateMemberWeek & unpaid member list because slipToMe is FALSE! (Not recognized as Kyne recipient account)`);
         replyMessages = [{
             type: 'text',
             quoteToken: message.quoteToken,
             text: header
         }];
     }
-    console.log(`===================================================================\n`);
     const tDbWeek = Date.now() - tDbWeekStart;
 
     // 5. LINE Reply Message Timer
