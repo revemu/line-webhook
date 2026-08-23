@@ -330,7 +330,11 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         let showUnpaid = false;
         const week = await db.queryWeekDate();
         if (week && week.length > 0) {
-            const weekDate = new Date(week[0].date);
+            const rawDate = new Date(week[0].date);
+            const y = rawDate.getFullYear();
+            const m = ('0' + (rawDate.getMonth() + 1)).slice(-2);
+            const d = ('0' + rawDate.getDate()).slice(-2);
+            const weekDate = new Date(`${y}-${m}-${d}T00:00:00+07:00`);
             const now = new Date();
             if (now >= weekDate) {
                 showUnpaid = true;
