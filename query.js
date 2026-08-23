@@ -633,13 +633,8 @@ async function setMemberDebt(member_id, amount) {
 async function queryWeekDate(week_id = 0) {
   let query = "";
   if (week_id == 0) {
-    query = "SELECT id, number, date FROM week_tbl WHERE date >= CURDATE() - INTERVAL 1 DAY ORDER BY number ASC LIMIT 1";
-    let res = await executeQuery(query);
-    if (!res || res.length === 0) {
-      query = "SELECT id, number, date FROM week_tbl ORDER BY NUMBER DESC LIMIT 1";
-      res = await executeQuery(query);
-    }
-    return res;
+    query = "SELECT id, number, date FROM week_tbl ORDER BY number DESC LIMIT 1";
+    return await executeQuery(query);
   } else {
     query = "SELECT id, number, date FROM week_tbl where id=?";
     return await executeQuery(query, [week_id]);
@@ -649,13 +644,8 @@ async function queryWeekDate(week_id = 0) {
 async function queryWeekID(week_id = 0) {
   let query = "";
   if (week_id == 0) {
-    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost FROM week_tbl WHERE date >= CURDATE() - INTERVAL 1 DAY ORDER BY number ASC LIMIT 1";
-    let res = await executeQuery(query);
-    if (!res || res.length === 0) {
-      query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost FROM week_tbl ORDER BY NUMBER DESC LIMIT 1";
-      res = await executeQuery(query);
-    }
-    return res;
+    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost FROM week_tbl ORDER BY number DESC LIMIT 1";
+    return await executeQuery(query);
   } else {
     query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost FROM week_tbl where id=?";
     return await executeQuery(query, [week_id]);
