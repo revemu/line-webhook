@@ -426,7 +426,23 @@ const COMMAND_REGISTRY = {
         const msg = flex.buildMenuFlex(dateStr, theme, null, autoRegCount);
         return { type: 'flex', altText: "เมนูบริการของบอท", contents: msg };
     },
-    'newweek': async (context) => { const next_sat = getNextSaturday(); await db.newWeek(next_sat); return COMMAND_REGISTRY['register'](context); },
+    'newweek': async (context) => {
+        const { quoteToken } = context;
+        const [unpaidMsg, unpaidSub, unpaidCount] = await db.getMemberWeek2(0);
+        const count = unpaidCount || 0;
+
+        if (count > 2) {
+            return [{
+                type: 'text',
+                quoteToken,
+                text: `⚠️ ไม่สามารถเปิดสัปดาห์ใหม่ได้ เนื่องจากยังมีสมาชิกค้างชำระ ${count} คน (อนุญาตให้เปิดสัปดาห์ใหม่ได้เมื่อค้างชำระไม่เกิน 2 คน)`
+            }];
+        }
+
+        const next_sat = getNextSaturday();
+        await db.newWeek(next_sat);
+        return COMMAND_REGISTRY['register'](context);
+    },
     'register': async (context) => { const { is_flex, groupId, member_id } = context; const [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId, member_id); if (is_flex && typeof msg === 'object') return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg }; return { type: 'textV2', text: msg, substitution: sub }; },
     'schedule': async (context) => {
         const { param, groupId } = context;
