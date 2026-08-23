@@ -518,20 +518,12 @@ async function updateMemberWeek(member_id, value, type = 0) {
       // Fallback: If member is not registered in active week_id, check if they have an unpaid registration in another active week
       const checkReg = await executeQuery("SELECT week_id FROM member_team_week_tbl WHERE member_id = ? AND week_id = ?", [member_id, week_id]);
       if (checkReg.length === 0) {
-        const findUnpaid = await executeQuery("SELECT week_id FROM member_team_week_tbl WHERE member_id = ? AND pay = 0 ORDER BY week_id DESC LIMIT 1", [member_id, week_id]);
+        const findUnpaid = await executeQuery("SELECT week_id FROM member_team_week_tbl WHERE member_id = ? AND pay = 0 ORDER BY week_id DESC LIMIT 1", [member_id]);
         if (findUnpaid.length > 0) {
           week_id = findUnpaid[0].week_id;
         }
       }
 
-      if (value === 1) {
-        // If marking as paid, retrieve their current debt to record as payment amount
-        const memberRes = await executeQuery("SELECT debt FROM member_tbl WHERE id = ?", [member_id]);
-        const currentDebt = memberRes.length > 0 ? memberRes[0].debt : 0;
-        if (currentDebt > 0) {
-          finalPayVal = currentDebt;
-        }
-      }
       query = "update member_team_week_tbl set pay=? where member_id=? and week_id=?";
       query1 = "update member_tbl set debt=? where id=?";
       const res1 = await executeQuery(query1, [0, member_id]);

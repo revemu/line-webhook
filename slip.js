@@ -326,19 +326,18 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
             await db.updateMemberWeek(member.id, 1, 0);
         }
 
-        // Check if current week's match has ended (Saturday 19:00 cutoff)
-        let isMatchEnded = true;
+        // Show unpaid members list only if active week match date has arrived or passed (now >= weekDate)
+        let showUnpaid = false;
         const week = await db.queryWeekDate();
         if (week && week.length > 0) {
-            const rawDate = new Date(week[0].date);
-            const y = rawDate.getFullYear();
-            const m = ('0' + (rawDate.getMonth() + 1)).slice(-2);
-            const d = ('0' + rawDate.getDate()).slice(-2);
-            const matchEndTime = new Date(`${y}-${m}-${d}T19:00:00+07:00`);
-            isMatchEnded = new Date() >= matchEndTime;
+            const weekDate = new Date(week[0].date);
+            const now = new Date();
+            if (now >= weekDate) {
+                showUnpaid = true;
+            }
         }
 
-        if (isMatchEnded) {
+        if (showUnpaid) {
             const [msg, sub, count] = await db.getMemberWeek2(0);
             console.log(`user count: ${count}`);
             if (count === 0 || count > 20) {
