@@ -88,7 +88,7 @@ function parseSlipDetails(slipData, defaultSenderName = '') {
     let slipToMe = false;
 
     if (account) {
-        if (account.endsWith("5894") || (account.startsWith("006") && account.endsWith("3367"))) {
+        if (account.endsWith("5894") || account.endsWith("3367") || (account.startsWith("006") && account.endsWith("3367"))) {
             recipientName = "Kyne";
             slipToMe = true;
         } else if ((recipient_th.includes("เศรษฐ") || recipientName.toUpperCase().includes("KTB G")) && account.endsWith("3367")) {
@@ -96,9 +96,12 @@ function parseSlipDetails(slipData, defaultSenderName = '') {
             slipToMe = true;
         }
     }
-    if (recipientName.includes("เศรษฐ") || recipientName.toUpperCase().includes("SAGE") || recipientName.toUpperCase().includes("SETH")) {
-        slipToMe = true;
-        recipientName = "Kyne";
+    if (!slipToMe) {
+        const fullRecipientStr = (recipientName + " " + recipient_th + " " + account).toUpperCase();
+        if (fullRecipientStr.includes("เศรษฐ") || fullRecipientStr.includes("SAGE") || fullRecipientStr.includes("SETH") || fullRecipientStr.includes("KYNE") || fullRecipientStr.includes("5894") || fullRecipientStr.includes("3367")) {
+            slipToMe = true;
+            recipientName = "Kyne";
+        }
     }
 
     return {
@@ -338,16 +341,26 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         let showUnpaid = false;
         const week = await db.queryWeekDate();
         let debugWeekDate = null;
-        let debugNow = new Date();
+        const debugNow = new Date();
+
         if (week && week.length > 0) {
-            const rawDate = new Date(week[0].date);
-            const y = rawDate.getFullYear();
-            const m = ('0' + (rawDate.getMonth() + 1)).slice(-2);
-            const d = ('0' + rawDate.getDate()).slice(-2);
-            const weekDate = new Date(`${y}-${m}-${d}T00:00:00+07:00`);
-            debugWeekDate = weekDate;
-            if (debugNow >= weekDate) {
-                showUnpaid = true;
+            let dateVal = week[0].date;
+            let dateStr = "";
+            if (dateVal instanceof Date) {
+                const y = dateVal.getFullYear();
+                const m = ('0' + (dateVal.getMonth() + 1)).slice(-2);
+                const d = ('0' + dateVal.getDate()).slice(-2);
+                dateStr = `${y}-${m}-${d}`;
+            } else if (typeof dateVal === 'string') {
+                dateStr = dateVal.substring(0, 10);
+            }
+
+            if (dateStr) {
+                const weekDate = new Date(`${dateStr}T00:00:00+07:00`);
+                debugWeekDate = weekDate;
+                if (debugNow >= weekDate) {
+                    showUnpaid = true;
+                }
             }
         }
 
