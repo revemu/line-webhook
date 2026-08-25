@@ -314,20 +314,30 @@ function shuffleArray(array) {
 }
 
 async function newTeamColorWeek(color, index, week_id) {
-  query = `insert team_color_week_tbl values(null, ${index}, ${week_id}, '${color}')`;
+  const query = `insert into team_color_week_tbl values(null, ${index}, ${week_id}, '${color}')`;
   console.log(query);
 
-
   const res = await executeQuery(query);
-  //console.log(res) ;
   return res;
 }
 
-async function addTeamColorWeek(count = 3) {
-  const week = await queryWeekID();
-  if (!week || week.length === 0) return;
-  const week_id = week[0].id;
-  const max_players = week[0].max || 24;
+async function addTeamColorWeek(count = 3, targetWeekId = null) {
+  let week_id;
+  let max_players = 24;
+
+  if (targetWeekId) {
+    week_id = targetWeekId;
+    const weekRes = await queryWeekID(targetWeekId);
+    if (weekRes && weekRes.length > 0) {
+      max_players = weekRes[0].max || 24;
+    }
+  } else {
+    const week = await queryWeekID();
+    if (!week || week.length === 0) return;
+    week_id = week[0].id;
+    max_players = week[0].max || 24;
+  }
+
   const targetCount = max_players > 24 ? 4 : count;
 
   let query = `select * from team_color_week_tbl where week_id=${week_id}`;
@@ -394,6 +404,7 @@ async function newWeek(week_date) {
   const date_str = getShortDate(week_date);
   const last_week = getShortDate(new Date(week[0].date));
   let new_week_num = week[0].number;
+  let target_week_id = null;
   console.log(last_week + " === " + date_str);
   if (last_week != date_str) {
     new_week_num = week[0].number + 1;
@@ -405,6 +416,7 @@ async function newWeek(week_date) {
     //console.log(res) ;
     //return res ;
     const new_week_id = res.insertId;
+    target_week_id = new_week_id;
 
     // Auto-register members with auto_reg = 1, excluding those with outstanding debt
     try {
@@ -430,8 +442,11 @@ async function newWeek(week_date) {
     }
   } else {
     console.log(date_str + " already exist!");
+    if (week && week.length > 0) {
+      target_week_id = week[0].id;
+    }
   }
-  await addTeamColorWeek();
+  await addTeamColorWeek(3, target_week_id);
 }
 
 async function updateMaxNumberWeek(max_number = 24) {
@@ -633,7 +648,7 @@ async function setMemberDebt(member_id, amount) {
 async function queryWeekDate(week_id = 0) {
   let query = "";
   if (week_id == 0) {
-    query = "SELECT id, number, date FROM week_tbl ORDER BY number DESC LIMIT 1";
+    query = "SELECT id, number, date FROM week_tbl ORDER BY id DESC LIMIT 1";
     return await executeQuery(query);
   } else {
     query = "SELECT id, number, date FROM week_tbl where id=?";
@@ -644,7 +659,7 @@ async function queryWeekDate(week_id = 0) {
 async function queryWeekID(week_id = 0) {
   let query = "";
   if (week_id == 0) {
-    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost FROM week_tbl ORDER BY number DESC LIMIT 1";
+    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost FROM week_tbl ORDER BY id DESC LIMIT 1";
     return await executeQuery(query);
   } else {
     query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost FROM week_tbl where id=?";
@@ -767,9 +782,14 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
 }
 
 async function getTeamColorWeek(week_id) {
-  query = `SELECT team_color_week_tbl.id, team_color_week_tbl.color, template_tpl.url, template_tpl.code FROM team_color_week_tbl LEFT JOIN template_tpl ON LOWER(team_color_week_tbl.color) = LOWER(template_tpl.value) AND template_tpl.name = 'team_color_pools' WHERE team_color_week_tbl.week_id = ${week_id}`;
+  const query = `SELECT team_color_week_tbl.id, team_color_week_tbl.color, template_tpl.url, template_tpl.code FROM team_color_week_tbl LEFT JOIN template_tpl ON LOWER(team_color_week_tbl.color) = LOWER(template_tpl.value) AND template_tpl.name = 'team_color_pools' WHERE team_color_week_tbl.week_id = ${week_id}`;
 
-  const result = await executeQuery(query);
+  let result = await executeQuery(query);
+  if ((!result || result.length === 0) && week_id) {
+    console.log(`[Auto-Fix] Missing team_color_week for week_id=${week_id}. Generating team colors automatically...`);
+    await addTeamColorWeek(3, week_id);
+    result = await executeQuery(query);
+  }
   if (result && result.length > 0) {
     return result;
   }
