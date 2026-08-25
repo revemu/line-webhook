@@ -343,13 +343,19 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
   let query = `select * from team_color_week_tbl where week_id=${week_id}`;
   const res = await executeQuery(query);
 
-  if (res.length == 0) {
+  if (!res || res.length < targetCount) {
     const poolRes = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color_pools'");
     let colors = poolRes && poolRes.length > 0 ? poolRes.map(r => r.value) : [];
-    colors = shuffleArray([...colors]);
-    const numToInsert = Math.min(targetCount, colors.length);
-    for (let i = 0; i < numToInsert; i++) {
-      await newTeamColorWeek(colors[i], i + 1, week_id);
+    
+    const existingColors = res ? res.map(r => (r.color || '').toLowerCase()) : [];
+    const availableColors = colors.filter(c => !existingColors.includes((c || '').toLowerCase()));
+    
+    const shuffledAvailable = shuffleArray([...availableColors]);
+    const numToInsert = targetCount - (res ? res.length : 0);
+    const existingCount = res ? res.length : 0;
+
+    for (let i = 0; i < numToInsert && i < shuffledAvailable.length; i++) {
+      await newTeamColorWeek(shuffledAvailable[i], existingCount + i + 1, week_id);
     }
   } else {
     console.log("Team color week already exist!");
@@ -1183,6 +1189,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
 
   if (res.length > 0) {
     const week_id = res[0].id;
+    await addTeamColorWeek(3, week_id);
     const max_players = res[0].max;
     const date = new Date(res[0].date);
 
