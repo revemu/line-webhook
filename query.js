@@ -287,43 +287,46 @@ async function fetchDisplayAssets() {
     console.error('Error querying team color templates:', colorErr.message);
   }
 
+  const showFavLogo = await getFavLogoOption();
   const favTeamLogos = {};
-  const processLogoUrl = (raw) => {
-    if (!raw || typeof raw !== 'string') return null;
-    let url = raw.trim();
-    if (url.toLowerCase() === 'none' || url.toLowerCase() === 'null' || url === '') return null;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-      url = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
-    }
-    if (url.startsWith('http://')) {
-      url = url.replace('http://', 'https://');
-    }
-    if (url.startsWith('https://') && !/[^\x00-\x7F]/.test(url)) {
-      return url;
-    }
-    return null;
-  };
-
-  try {
-    const favResults = await executeQuery("SELECT id, url FROM fav_team_tbl");
-    favResults.forEach(r => {
-      const validUrl = processLogoUrl(r.url);
-      if (r.id && validUrl) {
-        favTeamLogos[r.id] = validUrl;
+  if (showFavLogo) {
+    const processLogoUrl = (raw) => {
+      if (!raw || typeof raw !== 'string') return null;
+      let url = raw.trim();
+      if (url.toLowerCase() === 'none' || url.toLowerCase() === 'null' || url === '') return null;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+        url = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
       }
-    });
-  } catch (favErr1) {
+      if (url.startsWith('http://')) {
+        url = url.replace('http://', 'https://');
+      }
+      if (url.startsWith('https://') && !/[^\x00-\x7F]/.test(url)) {
+        return url;
+      }
+      return null;
+    };
+
     try {
-      const favResults = await executeQuery("SELECT id, url FROM team_fav");
+      const favResults = await executeQuery("SELECT id, url FROM fav_team_tbl");
       favResults.forEach(r => {
-        const validUrl = processLogoUrl(r.url || r.emoticon);
+        const validUrl = processLogoUrl(r.url);
         if (r.id && validUrl) {
           favTeamLogos[r.id] = validUrl;
         }
       });
-    } catch (favErr2) {
-      console.error('Error querying fav_team_tbl / team_fav:', favErr2.message);
+    } catch (favErr1) {
+      try {
+        const favResults = await executeQuery("SELECT id, url FROM team_fav");
+        favResults.forEach(r => {
+          const validUrl = processLogoUrl(r.url || r.emoticon);
+          if (r.id && validUrl) {
+            favTeamLogos[r.id] = validUrl;
+          }
+        });
+      } catch (favErr2) {
+        console.error('Error querying fav_team_tbl / team_fav:', favErr2.message);
+      }
     }
   }
 
@@ -2412,6 +2415,33 @@ async function setTheme(themeName) {
   }
 }
 
+async function getFavLogoOption() {
+  try {
+    const query = "SELECT value FROM template_tpl WHERE name = 'show_fav_logo'";
+    const result = await executeQuery(query);
+    if (result && result.length > 0) {
+      const val = String(result[0].value).toLowerCase().trim();
+      return val === '1' || val === 'true' || val === 'on';
+    }
+  } catch (err) {
+    console.error('Failed to get show_fav_logo option, defaulting to false:', err.message);
+  }
+  return false; // Default: NO LOGO
+}
+
+async function setFavLogoOption(enabled) {
+  const value = (enabled === true || enabled === '1' || String(enabled).toLowerCase() === 'on' || String(enabled).toLowerCase() === 'true') ? '1' : '0';
+  const checkQuery = "SELECT id FROM template_tpl WHERE name = 'show_fav_logo'";
+  const rows = await executeQuery(checkQuery);
+  if (rows.length > 0) {
+    const updateQuery = "UPDATE template_tpl SET value = ? WHERE name = 'show_fav_logo'";
+    return await executeQuery(updateQuery, [value]);
+  } else {
+    const insertQuery = "INSERT INTO template_tpl (id, name, value) VALUES (null, 'show_fav_logo', ?)";
+    return await executeQuery(insertQuery, [value]);
+  }
+}
+
 async function syncHofRecords(type, year, newMemberIds) {
   // 1. Fetch existing records for this type and year
   const existing = await executeQuery(
@@ -2854,6 +2884,8 @@ module.exports = {
   getCurrentMatch,
   getTheme,
   setTheme,
+  getFavLogoOption,
+  setFavLogoOption,
   updateMemberAutoReg,
   getAutoRegCount,
   getAutoRegList,
