@@ -1488,6 +1488,31 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     margin: 'sm'
   });
 
+  if (p.favTeamLogoUrl) {
+    let logoUrl = p.favTeamLogoUrl.trim();
+    if (logoUrl.startsWith('http://')) {
+      logoUrl = logoUrl.replace('http://', 'https://');
+    }
+    contents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: '18px',
+      height: '18px',
+      flex: 0,
+      contents: [
+        {
+          type: 'image',
+          url: logoUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'fit',
+          animated: true
+        }
+      ],
+      margin: 'xs'
+    });
+  }
+
   const rowObj = {
     type: 'box',
     layout: 'horizontal',
@@ -2713,6 +2738,31 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     flex: 1
   });
 
+  if (member.favTeamLogoUrl) {
+    let logoUrl = member.favTeamLogoUrl.trim();
+    if (logoUrl.startsWith('http://')) {
+      logoUrl = logoUrl.replace('http://', 'https://');
+    }
+    infoContents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: '18px',
+      height: '18px',
+      flex: 0,
+      contents: [
+        {
+          type: 'image',
+          url: logoUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'fit',
+          animated: true
+        }
+      ],
+      margin: 'xs'
+    });
+  }
+
   playerProfileBlock.push({
     type: 'box',
     layout: 'horizontal',
@@ -3564,7 +3614,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
     }
     isFirst = false;
 
-    const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+    const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
 
     let nameText = info.name;
     if (member.goal > 1) {
@@ -3631,6 +3681,31 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
       margin: "xs",
       weight: 'bold'
     });
+
+    if (info.favTeamLogoUrl) {
+      let logoUrl = info.favTeamLogoUrl.trim();
+      if (logoUrl.startsWith('http://')) {
+        logoUrl = logoUrl.replace('http://', 'https://');
+      }
+      scorerContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: '16px',
+        height: '16px',
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: logoUrl,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'fit',
+            animated: true
+          }
+        ],
+        margin: 'xs'
+      });
+    }
 
     itemContents.push({
       type: 'box',
@@ -3767,7 +3842,7 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       displayName = `● ทีม${translateColor(member.color)}`;
       nameColor = colors.tdc(member.color);
     } else {
-      const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
+      const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos) : member;
       displayName = rankLabel + " " + (info.name || info.alias || '');
       nameColor = colors.textMutedLight;
 
@@ -3786,6 +3861,31 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       flex: 1,
       margin: 'sm'
     }];
+
+    if (info && info.favTeamLogoUrl) {
+      let logoUrl = info.favTeamLogoUrl.trim();
+      if (logoUrl.startsWith('http://')) {
+        logoUrl = logoUrl.replace('http://', 'https://');
+      }
+      nameBoxContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: '16px',
+        height: '16px',
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: logoUrl,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'fit',
+            animated: true
+          }
+        ],
+        margin: 'xs'
+      });
+    }
 
     const rowContents = [
       {
@@ -3858,7 +3958,7 @@ function buildTeamWeekFlex(teamColors, teamMembersMap, theme, assets = {}, resol
     if (team_members.length > 0) {
       let idx = 0;
       for (const member of team_members) {
-        const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
+        const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos) : member;
         const col = makeMemberColumn(info, idx + 1, colors, false);
         bodyContents.push({
           type: 'box',

@@ -74,7 +74,7 @@ async function getAdminCommands() {
   return results.map(r => r.cmd);
 }
 
-function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge, hofAwards = {}) {
+function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge, hofAwards = {}, favTeamLogos = {}) {
   let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
   name_display = (name_display || '').replace('@', '');
 
@@ -179,6 +179,32 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     }
   }
 
+  const favTeamId = (member.fav_team_id !== undefined && member.fav_team_id !== null) ? Number(member.fav_team_id) : (member.team_id !== undefined && member.team_id !== null ? Number(member.team_id) : 0);
+
+  let favTeamLogoUrl = null;
+  if (favTeamId !== 0) {
+    if (favTeamLogos && favTeamLogos[favTeamId]) {
+      favTeamLogoUrl = favTeamLogos[favTeamId];
+    } else if (member.fav_team_url || member.fav_team_logo || member.emoticon) {
+      favTeamLogoUrl = member.fav_team_url || member.fav_team_logo || member.emoticon;
+    }
+  }
+
+  if (favTeamLogoUrl) {
+    favTeamLogoUrl = String(favTeamLogoUrl).trim();
+    if (favTeamLogoUrl.toLowerCase() === 'none' || favTeamLogoUrl.toLowerCase() === 'null' || favTeamLogoUrl === '') {
+      favTeamLogoUrl = null;
+    } else {
+      if (!favTeamLogoUrl.startsWith('http://') && !favTeamLogoUrl.startsWith('https://')) {
+        const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+        favTeamLogoUrl = favTeamLogoUrl.startsWith('/') ? `${baseUrl}${favTeamLogoUrl}` : `${baseUrl}/${favTeamLogoUrl}`;
+      }
+      if (favTeamLogoUrl.startsWith('http://')) {
+        favTeamLogoUrl = favTeamLogoUrl.replace('http://', 'https://');
+      }
+    }
+  }
+
   return {
     id: member.id,
     name: name_display,
@@ -189,7 +215,9 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     hofBadgeUrl,
     hofBadgeSize,
     hofBadges,
-    pictureUrl
+    pictureUrl,
+    favTeamId,
+    favTeamLogoUrl
   };
 }
 
@@ -255,7 +283,29 @@ async function fetchDisplayAssets() {
     console.error('Error querying team color templates:', colorErr.message);
   }
 
-  return { badges, donateColors, hofCounts, hofBadge, hofAwards, teamColors };
+  const favTeamLogos = {};
+  try {
+    const favResults = await executeQuery("SELECT id, url FROM fav_team_tbl");
+    favResults.forEach(r => {
+      if (r.id && r.url) {
+        favTeamLogos[r.id] = r.url;
+      }
+    });
+  } catch (favErr1) {
+    try {
+      const favResults = await executeQuery("SELECT id, url FROM team_fav");
+      favResults.forEach(r => {
+        const logoUrl = r.url || r.emoticon;
+        if (r.id && logoUrl) {
+          favTeamLogos[r.id] = logoUrl;
+        }
+      });
+    } catch (favErr2) {
+      console.error('Error querying fav_team_tbl / team_fav:', favErr2.message);
+    }
+  }
+
+  return { badges, donateColors, hofCounts, hofBadge, hofAwards, teamColors, favTeamLogos };
 }
 
 async function updateAlertCall(value = 1) {
@@ -1193,7 +1243,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     const max_players = res[0].max;
     const date = new Date(res[0].date);
 
-    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.fav_team_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0";
@@ -1333,7 +1383,7 @@ async function getMemberWeek(type = 0) {
 
   if (res.length > 0) {
     const week_id = res[0].id;
-    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.fav_team_id, member_tbl.id, member_tbl.donate, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0";
@@ -1427,7 +1477,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
   if (res.length > 0) {
     const week_id = res[0].id;
     const date = new Date(res[0].date);
-    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.fav_team_id, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and member_tbl.team_id <> 1";
