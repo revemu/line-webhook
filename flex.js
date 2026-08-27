@@ -1475,7 +1475,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
   let textColor = p.nameColor || colors.memberNameSpecial;
   if (isCurrent) {
     //displayName += ' 👈';
-    textColor = colors.textAccent;
+    //textColor = colors.textAccent;
   }
 
   contents.push({
