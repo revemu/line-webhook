@@ -1473,10 +1473,10 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
 
   let displayName = `${p.donate || ''}${p.name}`;
   let textColor = p.nameColor || colors.memberNameSpecial;
-  if (isCurrent) {
+  /*if (isCurrent) {
     displayName += ' 👈';
     textColor = colors.textAccent;
-  }
+  }*/
 
   contents.push({
     type: 'text',
