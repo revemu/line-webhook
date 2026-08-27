@@ -1262,25 +1262,6 @@ function buildLiveFlex(matchInfo, theme) {
     }
   };
 
-  const headerUrl = imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
-  if (headerUrl && headerUrl.toLowerCase() !== 'none') {
-    bubble.header = {
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: colors.bgHeader,
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: headerUrl,
-          size: 'full',
-          aspectRatio: '20:7',
-          aspectMode: 'cover'
-        }
-      ]
-    };
-  }
-
   return bubble;
 }
 
@@ -1361,32 +1342,32 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      width: '22px',
+      width: '18px',
       contents: [
-        { type: 'text', text: `${index}.`, size: 'sm', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'end' }
+        { type: 'text', text: `${index}.`, size: 'xs', color: isCurrent ? colors.textAccent : colors.textMuted, align: 'end' }
       ]
     });
   }
 
   if (p.pictureUrl) {
-    const avatarBox = createMemberAvatarBox(p.pictureUrl, '24px');
+    const avatarBox = createMemberAvatarBox(p.pictureUrl, '20px');
     if (avatarBox) {
-      avatarBox.margin = 'md';
+      avatarBox.margin = 'xs';
       contents.push(avatarBox);
     }
   } else {
     contents.push({
       type: 'box',
       layout: 'vertical',
-      width: '24px',
-      height: '24px',
+      width: '20px',
+      height: '20px',
       cornerRadius: '100px',
       flex: 0,
       contents: [
         {
           type: 'text',
           text: '⚽',
-          size: 'xs',
+          size: 'xxs',
           align: 'center',
           gravity: 'center'
         }
@@ -1395,7 +1376,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     });
   }
 
-  const badgeSize = p.badgeSize || '20px';
+  const badgeSize = p.badgeSize || '16px';
   if (p.badgeUrl) {
     contents.push({
       type: 'box',
@@ -1409,11 +1390,10 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
           url: p.badgeUrl,
           size: 'full',
           aspectRatio: '1:1',
-          aspectMode: 'fit',
-          animated: true
+          aspectMode: 'fit'
         }
       ],
-      margin: 'sm'
+      margin: 'xs'
     });
   }
 
@@ -1422,8 +1402,8 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
       contents.push({
         type: 'box',
         layout: 'vertical',
-        width: hb.size || '20px',
-        height: hb.size || '20px',
+        width: hb.size || '16px',
+        height: hb.size || '16px',
         flex: 0,
         contents: [
           {
@@ -1431,15 +1411,14 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
             url: hb.url,
             size: 'full',
             aspectRatio: '1:1',
-            aspectMode: 'fit',
-            animated: true
+            aspectMode: 'fit'
           }
         ],
-        margin: 'sm'
+        margin: 'xs'
       });
     }
   } else if (p.hofCount && p.hofCount > 0 && p.hofBadgeUrl) {
-    const hSize = p.hofBadgeSize || '20px';
+    const hSize = p.hofBadgeSize || '16px';
     contents.push({
       type: 'box',
       layout: 'vertical',
@@ -1452,24 +1431,12 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
           url: p.hofBadgeUrl,
           size: 'full',
           aspectRatio: '1:1',
-          aspectMode: 'fit',
-          animated: true
+          aspectMode: 'fit'
         }
       ],
-      margin: 'sm'
-    });
-  }
-  /*else {
-    contents.push({
-      type: 'box',
-      layout: 'vertical',
-      width: badgeSize,
-      height: badgeSize,
-      flex: 0,
-      contents: [{ type: 'filler' }],
       margin: 'xs'
     });
-  }*/
+  }
 
   let displayName = `${p.donate || ''}${p.name}`;
   let textColor = p.nameColor || colors.memberNameSpecial;
@@ -1481,11 +1448,11 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
   contents.push({
     type: 'text',
     text: displayName,
-    size: 'sm',
+    size: 'xs',
     weight: 'bold',
     color: textColor,
     flex: 0,
-    margin: 'sm'
+    margin: 'xs'
   });
 
   if (p.favTeamLogoUrl && typeof p.favTeamLogoUrl === 'string') {
@@ -1497,8 +1464,8 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
       contents.push({
         type: 'box',
         layout: 'vertical',
-        width: '18px',
-        height: '18px',
+        width: '16px',
+        height: '16px',
         flex: 0,
         contents: [
           {
@@ -1527,50 +1494,23 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     rowObj.borderColor = colors.borderCurrent;
     rowObj.borderWidth = 'semi-bold';
     rowObj.cornerRadius = 'md';
-    rowObj.paddingStart = 'sm';
-    rowObj.paddingEnd = 'sm';
-    rowObj.paddingTop = 'xs';
-    rowObj.paddingBottom = 'xs';
+    rowObj.paddingStart = 'xs';
+    rowObj.paddingEnd = 'xs';
   }
 
   return rowObj;
 }
 
-function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme, autoRegCount = 0) {
+function createSingleBubbleForWeek(title, dateStr, maxPlayers, playerSubset, reservesSubset, goalieSubset, isFirst, isLast, totalPlayersCount, autoRegCount, colors) {
   const bodyContents = [];
-  let finalImageUrl = imageUrl;
-  if (!finalImageUrl) {
-    finalImageUrl = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuyGBcXBYCphjV9yKqgZyNEWCvdbbLtn6ILg&s';
-  }
-  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
 
-  // ── Premium Body Header ──
-  const headerSubContents = [];
-  headerSubContents.push({
-    type: 'text',
-    text: `วันเสาร์ที่ ${dateStr}`,
-    size: 'xs',
-    color: colors.textMuted
-  });
-
-  const extraCounts = [];
-  if (goalies.length > 0) extraCounts.push(`🧤 ${goalies.length}`);
-  if (reserves.length > 0) extraCounts.push(`⏳ ${reserves.length}`);
-  if (extraCounts.length > 0) {
-    headerSubContents.push({
-      type: 'text',
-      text: extraCounts.join('  '),
-      size: 'xs',
-      color: colors.textMuted,
-      margin: 'md'
-    });
-  }
-
+  // ── Header Card ──
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
     backgroundColor: colors.bgHeader,
-    paddingAll: 'md',
+    paddingAll: 'sm',
     cornerRadius: 'md',
     alignItems: 'center',
     contents: [
@@ -1583,109 +1523,52 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
             type: 'text',
             text: title === "ลงชื่อ" ? "⚽ ลงชื่อเตะบอล" : `📋 ${title}`,
             weight: 'bold',
-            size: 'lg',
+            size: 'md',
             color: colors.textPrimary
           },
           {
-            type: 'box',
-            layout: 'horizontal',
-            margin: 'xs',
-            contents: headerSubContents
+            type: 'text',
+            text: `วันเสาร์ที่ ${dateStr}`,
+            size: 'xs',
+            color: colors.textMuted,
+            margin: 'xs'
           }
         ]
       },
       {
-        type: 'box',
-        layout: 'vertical',
-        flex: 0,
-        alignItems: 'flex-end',
-        contents: [
-          {
-            type: 'text',
-            text: `${players.length}/${maxPlayers}`,
-            weight: 'bold',
-            size: 'lg',
-            color: colors.textAccent
-          }
-        ]
+        type: 'text',
+        text: `${totalPlayersCount}/${maxPlayers}`,
+        weight: 'bold',
+        size: 'md',
+        color: colors.textAccent,
+        flex: 0
       }
     ]
   });
 
-  // Progress Bar showing member signup progress
-  const progressContents = [];
-  const isWhite = colors.name === 'white';
-  const currentCount = players.length;
-  const totalSlots = Number(maxPlayers) || 20;
-
-  // Determine progress bar color based on percentage
-  let barColor;
-  const ratio = totalSlots > 0 ? (currentCount / totalSlots) : 0;
-  if (ratio >= 1.0) {
-    barColor = isWhite ? '#dc2626' : '#ef4444'; // Red
-  } else if (ratio > 0.8) {
-    barColor = isWhite ? '#ca8a04' : '#eab308'; // Yellow
-  } else {
-    barColor = isWhite ? '#16a34a' : '#22c55e'; // Green
-  }
-
-  if (currentCount > 0) {
-    progressContents.push({
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: barColor,
-      height: '8px',
-      cornerRadius: 'md',
-      flex: currentCount,
-      contents: [{ type: 'filler' }]
-    });
-  }
-
-  const remaining = totalSlots - currentCount;
-  if (remaining > 0) {
-    progressContents.push({
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: isWhite ? '#e2e8f0' : '#2a2a4a',
-      height: '8px',
-      cornerRadius: 'md',
-      flex: remaining,
-      contents: [{ type: 'filler' }]
-    });
-  }
-
-  bodyContents.push({
-    type: 'box',
-    layout: 'horizontal',
-    height: '8px',
-    margin: 'md',
-    contents: progressContents
-  });
-
-  //bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
-
   // Players section
-  if (players.length > 0) {
+  if (playerSubset && playerSubset.length > 0) {
+    const sectionTitle = isFirst ? '▶ รายชื่อ' : '▶ รายชื่อ (ต่อ)';
     bodyContents.push({
       type: 'text',
-      text: `▶ รายชื่อ`,
-      size: 'sm',
+      text: sectionTitle,
+      size: 'xs',
       weight: 'bold',
       color: colors.textAccent,
-      margin: 'sm'
+      margin: 'xs'
     });
 
     const rows = [];
-    for (let i = 0; i < players.length; i += 2) {
-      const p1 = players[i];
-      const p2 = players[i + 1];
+    for (let i = 0; i < playerSubset.length; i += 2) {
+      const p1 = playerSubset[i];
+      const p2 = playerSubset[i + 1];
 
       const cols = [
-        makeMemberColumn(p1, i + 1, colors, p1.isCurrent)
+        makeMemberColumn(p1, p1.originalIndex || (i + 1), colors, p1.isCurrent)
       ];
 
       if (p2) {
-        cols.push(makeMemberColumn(p2, i + 2, colors, p2.isCurrent));
+        cols.push(makeMemberColumn(p2, p2.originalIndex || (i + 2), colors, p2.isCurrent));
       } else {
         cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
       }
@@ -1706,28 +1589,28 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   }
 
   // Reserves section
-  if (reserves.length > 0) {
-    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+  if (reservesSubset && reservesSubset.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
     bodyContents.push({
       type: 'text',
-      text: '⏳ รายชื่อสำรอง',
-      size: 'sm',
+      text: `⏳ รายชื่อสำรอง (${reservesSubset.length})`,
+      size: 'xs',
       weight: 'bold',
-      color: colors.name === 'white' ? '#ea580c' : '#ffaa66',
-      margin: 'sm'
+      color: isWhite ? '#ea580c' : '#ffaa66',
+      margin: 'xs'
     });
 
     const reserveRows = [];
-    for (let i = 0; i < reserves.length; i += 2) {
-      const r1 = reserves[i];
-      const r2 = reserves[i + 1];
+    for (let i = 0; i < reservesSubset.length; i += 2) {
+      const r1 = reservesSubset[i];
+      const r2 = reservesSubset[i + 1];
 
       const cols = [
-        makeMemberColumn(r1, i + 1, colors, r1.isCurrent)
+        makeMemberColumn(r1, r1.originalIndex || (i + 1), colors, r1.isCurrent)
       ];
 
       if (r2) {
-        cols.push(makeMemberColumn(r2, i + 2, colors, r2.isCurrent));
+        cols.push(makeMemberColumn(r2, r2.originalIndex || (i + 2), colors, r2.isCurrent));
       } else {
         cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
       }
@@ -1739,6 +1622,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
         contents: cols
       });
     }
+
     bodyContents.push({
       type: 'box',
       layout: 'vertical',
@@ -1747,28 +1631,28 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   }
 
   // Goalies section
-  if (goalies.length > 0) {
-    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+  if (goalieSubset && goalieSubset.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
     bodyContents.push({
       type: 'text',
-      text: '🧤 รายชื่อโกล์',
-      size: 'sm',
+      text: `🧤 รายชื่อโกล์ (${goalieSubset.length})`,
+      size: 'xs',
       weight: 'bold',
-      color: colors.name === 'white' ? '#15803d' : '#44cc66',
-      margin: 'sm'
+      color: isWhite ? '#15803d' : '#44cc66',
+      margin: 'xs'
     });
 
     const goalieRows = [];
-    for (let i = 0; i < goalies.length; i += 2) {
-      const g1 = goalies[i];
-      const g2 = goalies[i + 1];
+    for (let i = 0; i < goalieSubset.length; i += 2) {
+      const g1 = goalieSubset[i];
+      const g2 = goalieSubset[i + 1];
 
       const cols = [
-        makeMemberColumn(g1, i + 1, colors, g1.isCurrent)
+        makeMemberColumn(g1, g1.originalIndex || (i + 1), colors, g1.isCurrent)
       ];
 
       if (g2) {
-        cols.push(makeMemberColumn(g2, i + 2, colors, g2.isCurrent));
+        cols.push(makeMemberColumn(g2, g2.originalIndex || (i + 2), colors, g2.isCurrent));
       } else {
         cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
       }
@@ -1780,6 +1664,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
         contents: cols
       });
     }
+
     bodyContents.push({
       type: 'box',
       layout: 'vertical',
@@ -1787,113 +1672,90 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     });
   }
 
-  // Quick Action Buttons
-  const buttonRegisterColor = isWhite ? '#16a34a' : '#22c55e'; // Green
-  const buttonCancelColor = isWhite ? '#dc2626' : '#ef4444'; // Red
+  // Action Buttons (Only on the last bubble)
+  if (isLast) {
+    const buttonRegisterColor = isWhite ? '#16a34a' : '#22c55e';
+    const buttonCancelColor = isWhite ? '#dc2626' : '#ef4444';
+    const topStatsColor = isWhite ? '#ca8a04' : '#eab308';
+    const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
+    const personalStatsColor = isWhite ? '#0284c7' : '#0ea5e9';
 
-  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
-  bodyContents.push({
-    type: 'text',
-    text: `▶ ลงชื่อสัปดาห์นี้ เสาร์ที่ ${dateStr} (${players.length}/${maxPlayers})`,
-    size: 'sm',
-    weight: 'bold',
-    color: colors.textAccent,
-    margin: 'sm'
-  });
-  bodyContents.push({
-    type: 'box',
-    layout: 'horizontal',
-    spacing: 'md',
-    margin: 'xs',
-    contents: [
-      makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
-      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor)
-    ]
-  });
+    bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'xs',
+      margin: 'xs',
+      contents: [
+        makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
+        makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor),
+        makeBoxButton('📊 สถิติ', '/stat', personalStatsColor)
+      ]
+    });
 
-  const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
-  const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
-  const personalStatsColor = isWhite ? '#0284c7' : '#0ea5e9';
+    const isFull = autoRegCount >= 24;
+    const registerButton = isFull
+      ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
+      : makeBoxButton(`➕ ออโต้ (${autoRegCount}/24)`, '+autoreg', buttonRegisterColor);
 
-  bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
-  bodyContents.push({
-    type: 'text',
-    text: '▶ ทำเนียบและสถิติ',
-    size: 'sm',
-    weight: 'bold',
-    color: colors.textAccent,
-    margin: 'sm'
-  });
-  bodyContents.push({
-    type: 'box',
-    layout: 'horizontal',
-    spacing: 'sm',
-    margin: 'xs',
-    contents: [
-      makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
-      makeBoxButton('📉 ทำเนียบซึมเศร้า', '/bottom', bottomStatsColor),
-      makeBoxButton('📊 สถิติส่วนตัว', '/stat', personalStatsColor)
-    ]
-  });
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'xs',
+      margin: 'xs',
+      contents: [
+        makeBoxButton('🏆 ผู้นำ', '/top', topStatsColor),
+        makeBoxButton('📉 ซึมเศร้า', '/bottom', bottomStatsColor),
+        registerButton
+      ]
+    });
+  }
 
-  bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
-  bodyContents.push({
-    type: 'text',
-    text: `▶ ลงทะเบียนอัตโนมัติ (${autoRegCount}/24)`,
-    size: 'sm',
-    weight: 'bold',
-    color: colors.textAccent,
-    margin: 'sm'
-  });
-
-  const isFull = autoRegCount >= 24;
-  const registerButton = isFull
-    ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
-    : makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor);
-
-  bodyContents.push({
-    type: 'box',
-    layout: 'horizontal',
-    spacing: 'sm',
-    margin: 'xs',
-    contents: [
-      makeBoxButton('📋 รายชื่อ', '/autoreglist', topStatsColor),
-      registerButton,
-      makeBoxButton('➖ ยกเลิก', '-autoreg', buttonCancelColor)
-    ]
-  });
-
-  const bubble = {
+  return {
     type: 'bubble',
-    size: 'giga',
+    size: 'mega',
     body: {
       type: 'box',
       layout: 'vertical',
       backgroundColor: colors.bgMain,
-      paddingAll: 'md',
+      paddingAll: 'sm',
       contents: bodyContents
     }
   };
+}
 
-  if (finalImageUrl && finalImageUrl.toLowerCase() !== 'none') {
-    bubble.header = {
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: colors.bgHeader,
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: finalImageUrl,
-          size: 'full',
-          aspectRatio: '20:5',
-          aspectMode: 'cover'
-        }
-      ]
-    };
+function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme, autoRegCount = 0) {
+  const colors = getThemeColors(theme);
+
+  const allItems = [];
+  players.forEach((p, idx) => allItems.push({ ...p, originalIndex: idx + 1, section: 'player' }));
+  reserves.forEach((r, idx) => allItems.push({ ...r, originalIndex: idx + 1, section: 'reserve' }));
+  goalies.forEach((g, idx) => allItems.push({ ...g, originalIndex: idx + 1, section: 'goalie' }));
+
+  if (allItems.length <= 6) {
+    return createSingleBubbleForWeek(title, dateStr, maxPlayers, players, reserves, goalies, true, true, players.length, autoRegCount, colors);
   }
 
-  return bubble;
+  const CHUNK_SIZE = 6;
+  const bubbles = [];
+  const totalChunks = Math.ceil(allItems.length / CHUNK_SIZE);
+
+  for (let c = 0; c < totalChunks; c++) {
+    const chunk = allItems.slice(c * CHUNK_SIZE, (c + 1) * CHUNK_SIZE);
+    const isFirst = c === 0;
+    const isLast = c === totalChunks - 1;
+
+    const pChunk = chunk.filter(x => x.section === 'player');
+    const rChunk = chunk.filter(x => x.section === 'reserve');
+    const gChunk = chunk.filter(x => x.section === 'goalie');
+
+    bubbles.push(createSingleBubbleForWeek(title, dateStr, maxPlayers, pChunk, rChunk, gChunk, isFirst, isLast, players.length, autoRegCount, colors));
+  }
+
+  return {
+    type: 'carousel',
+    contents: bubbles
+  };
 }
 
 function buildWelcomeFlex(displayName, theme, imageUrl, dateStr = '') {
