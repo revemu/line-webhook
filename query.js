@@ -295,7 +295,7 @@ async function resetMemberTeam() {
 }
 
 async function newMember(lineID, name, pictureUrl = null) {
-  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, week_id, picture_url) values(?, 0, 0, 0, ?, ?, 0, ?)";
+  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, fav_team_id, picture_url) values(?, 0, 0, 0, ?, ?, 0, ?)";
   const res = await executeQuery(query, [name, name.replace('@', ''), lineID, pictureUrl]);
   return res;
 }
@@ -709,7 +709,7 @@ async function IsMemberWeek(member_id) {
 
 async function registerNY(member_id) {
 
-  const query = `update member_tbl set week_id=1 where id=${member_id}`;
+  const query = `update member_tbl set fav_team_id=1 where id=${member_id}`;
 
   //console.log(query) ;
   const reg_res = await executeQuery(query);
@@ -1134,7 +1134,7 @@ async function getMemberNY() {
   let body = "";
   let query = "";
 
-  query = `SELECT * from member_tbl where week_id = 1`;
+  query = `SELECT * from member_tbl where fav_team_id = 1`;
   header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 20 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: มูนเทอร์เรซ ห้อง M5 นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานลงชื่อด้วยนะครับ\n\n";
 
 
