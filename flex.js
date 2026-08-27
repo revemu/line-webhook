@@ -1484,7 +1484,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     size: 'sm',
     weight: 'bold',
     color: textColor,
-    flex: 1,
+    flex: 0,
     margin: 'sm'
   });
 
@@ -2736,7 +2736,7 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     color: member.nameColor || colors.textPrimary,
     gravity: 'center',
     margin: 'sm',
-    flex: 1
+    flex: 0
   });
 
   if (member.favTeamLogoUrl && typeof member.favTeamLogoUrl === 'string') {
@@ -3861,7 +3861,7 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       text: displayName,
       size: 'xs',
       color: nameColor,
-      flex: 1,
+      flex: 0,
       margin: 'sm'
     }];
 
