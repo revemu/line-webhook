@@ -74,7 +74,7 @@ async function getAdminCommands() {
   return results.map(r => r.cmd);
 }
 
-function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge, hofAwards = {}, favTeamLogos = {}) {
+function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge, hofAwards = {}) {
   let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
   name_display = (name_display || '').replace('@', '');
 
@@ -179,36 +179,6 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     }
   }
 
-  const favTeamId = (member.fav_team_id !== undefined && member.fav_team_id !== null) ? Number(member.fav_team_id) : (member.team_id !== undefined && member.team_id !== null ? Number(member.team_id) : 0);
-
-  let favTeamLogoUrl = null;
-  if (favTeamId !== 0) {
-    if (favTeamLogos && favTeamLogos[favTeamId]) {
-      favTeamLogoUrl = favTeamLogos[favTeamId];
-    } else if (member.fav_team_url || member.fav_team_logo || member.url) {
-      favTeamLogoUrl = member.fav_team_url || member.fav_team_logo || member.url;
-    }
-  }
-
-  if (favTeamLogoUrl) {
-    favTeamLogoUrl = String(favTeamLogoUrl).trim();
-    if (favTeamLogoUrl.toLowerCase() === 'none' || favTeamLogoUrl.toLowerCase() === 'null' || favTeamLogoUrl === '') {
-      favTeamLogoUrl = null;
-    } else {
-      if (!favTeamLogoUrl.startsWith('http://') && !favTeamLogoUrl.startsWith('https://')) {
-        const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-        favTeamLogoUrl = favTeamLogoUrl.startsWith('/') ? `${baseUrl}${favTeamLogoUrl}` : `${baseUrl}/${favTeamLogoUrl}`;
-      }
-      if (favTeamLogoUrl.startsWith('http://')) {
-        favTeamLogoUrl = favTeamLogoUrl.replace('http://', 'https://');
-      }
-      // Must start with https:// and contain no non-ASCII / emoji / spaces
-      if (!favTeamLogoUrl.startsWith('https://') || /[^\x00-\x7F]/.test(favTeamLogoUrl)) {
-        favTeamLogoUrl = null;
-      }
-    }
-  }
-
   return {
     id: member.id,
     name: name_display,
@@ -219,9 +189,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     hofBadgeUrl,
     hofBadgeSize,
     hofBadges,
-    pictureUrl,
-    favTeamId,
-    favTeamLogoUrl
+    pictureUrl
   };
 }
 
@@ -287,50 +255,7 @@ async function fetchDisplayAssets() {
     console.error('Error querying team color templates:', colorErr.message);
   }
 
-  const showFavLogo = await getFavLogoOption();
-  const favTeamLogos = {};
-  if (showFavLogo) {
-    const processLogoUrl = (raw) => {
-      if (!raw || typeof raw !== 'string') return null;
-      let url = raw.trim();
-      if (url.toLowerCase() === 'none' || url.toLowerCase() === 'null' || url === '') return null;
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-        url = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
-      }
-      if (url.startsWith('http://')) {
-        url = url.replace('http://', 'https://');
-      }
-      if (url.startsWith('https://') && !/[^\x00-\x7F]/.test(url)) {
-        return url;
-      }
-      return null;
-    };
-
-    try {
-      const favResults = await executeQuery("SELECT id, url FROM fav_team_tbl");
-      favResults.forEach(r => {
-        const validUrl = processLogoUrl(r.url);
-        if (r.id && validUrl) {
-          favTeamLogos[r.id] = validUrl;
-        }
-      });
-    } catch (favErr1) {
-      try {
-        const favResults = await executeQuery("SELECT id, url FROM team_fav");
-        favResults.forEach(r => {
-          const validUrl = processLogoUrl(r.url || r.emoticon);
-          if (r.id && validUrl) {
-            favTeamLogos[r.id] = validUrl;
-          }
-        });
-      } catch (favErr2) {
-        console.error('Error querying fav_team_tbl / team_fav:', favErr2.message);
-      }
-    }
-  }
-
-  return { badges, donateColors, hofCounts, hofBadge, hofAwards, teamColors, favTeamLogos };
+  return { badges, donateColors, hofCounts, hofBadge, hofAwards, teamColors };
 }
 
 async function updateAlertCall(value = 1) {
@@ -1268,7 +1193,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     const max_players = res[0].max;
     const date = new Date(res[0].date);
 
-    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.fav_team_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0";
@@ -1291,7 +1216,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
         await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
 
         for (const member of result) {
-          const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
+          const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
           const name_display = info.name;
           const badgeUrl = info.badgeUrl;
           const badgeSize = info.badgeSize;
@@ -1306,34 +1231,18 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
             String(member.line_user_id) === String(highlightMemberId)
           ) : false;
 
-          const memberObj = {
-            name: name_display,
-            donate,
-            badgeUrl,
-            badgeSize,
-            nameColor,
-            hofCount,
-            hofBadgeUrl,
-            hofBadgeSize,
-            hofBadges: info.hofBadges,
-            pictureUrl: info.pictureUrl,
-            favTeamLogoUrl: info.favTeamLogoUrl,
-            favTeamId: info.favTeamId,
-            isCurrent
-          };
-
           if (type == 1) {
             if (member.team_id == 100) {
-              goalies.push(memberObj);
+              goalies.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
             } else {
               if (players.length < max_players) {
-                players.push(memberObj);
+                players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
               } else {
-                reserves.push(memberObj);
+                reserves.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
               }
             }
           } else {
-            players.push(memberObj);
+            players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
           }
         }
 
@@ -1424,7 +1333,7 @@ async function getMemberWeek(type = 0) {
 
   if (res.length > 0) {
     const week_id = res[0].id;
-    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.fav_team_id, member_tbl.id, member_tbl.donate, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.team_id, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0";
@@ -1518,7 +1427,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
   if (res.length > 0) {
     const week_id = res[0].id;
     const date = new Date(res[0].date);
-    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.fav_team_id, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.team_id, team_fav.emoticon FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN team_fav ON member_tbl.team_id=team_fav.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and member_tbl.team_id <> 1";
@@ -2264,7 +2173,7 @@ async function getMatchScorersAndAssists(matchId, assets, groupId) {
   ]);
 
   const scorers = scorerRows.map(r => {
-    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
+    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
     return {
       name: info.name,
       goal: r.goal,
@@ -2276,14 +2185,12 @@ async function getMatchScorersAndAssists(matchId, assets, groupId) {
       hofBadgeUrl: info.hofBadgeUrl,
       hofBadgeSize: info.hofBadgeSize,
       hofBadges: info.hofBadges,
-      pictureUrl: info.pictureUrl,
-      favTeamLogoUrl: info.favTeamLogoUrl,
-      favTeamId: info.favTeamId
+      pictureUrl: info.pictureUrl
     };
   });
 
   const assists = assistRows.map(r => {
-    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
+    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
     return {
       name: info.name,
       assist: r.assist,
@@ -2294,9 +2201,7 @@ async function getMatchScorersAndAssists(matchId, assets, groupId) {
       hofBadgeUrl: info.hofBadgeUrl,
       hofBadgeSize: info.hofBadgeSize,
       hofBadges: info.hofBadges,
-      pictureUrl: info.pictureUrl,
-      favTeamLogoUrl: info.favTeamLogoUrl,
-      favTeamId: info.favTeamId
+      pictureUrl: info.pictureUrl
     };
   });
 
@@ -2415,33 +2320,6 @@ async function setTheme(themeName) {
   }
 }
 
-async function getFavLogoOption() {
-  try {
-    const query = "SELECT value FROM template_tpl WHERE name = 'show_fav_logo'";
-    const result = await executeQuery(query);
-    if (result && result.length > 0) {
-      const val = String(result[0].value).toLowerCase().trim();
-      return val === '1' || val === 'true' || val === 'on';
-    }
-  } catch (err) {
-    console.error('Failed to get show_fav_logo option, defaulting to false:', err.message);
-  }
-  return false; // Default: NO LOGO
-}
-
-async function setFavLogoOption(enabled) {
-  const value = (enabled === true || enabled === '1' || String(enabled).toLowerCase() === 'on' || String(enabled).toLowerCase() === 'true') ? '1' : '0';
-  const checkQuery = "SELECT id FROM template_tpl WHERE name = 'show_fav_logo'";
-  const rows = await executeQuery(checkQuery);
-  if (rows.length > 0) {
-    const updateQuery = "UPDATE template_tpl SET value = ? WHERE name = 'show_fav_logo'";
-    return await executeQuery(updateQuery, [value]);
-  } else {
-    const insertQuery = "INSERT INTO template_tpl (id, name, value) VALUES (null, 'show_fav_logo', ?)";
-    return await executeQuery(insertQuery, [value]);
-  }
-}
-
 async function syncHofRecords(type, year, newMemberIds) {
   // 1. Fetch existing records for this type and year
   const existing = await executeQuery(
@@ -2554,7 +2432,7 @@ async function getAutoRegList(groupId = null) {
     await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
     const assets = await fetchDisplayAssets();
     return result.map(member => {
-      return resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
+      return resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
     });
   }
   return [];
@@ -2566,7 +2444,7 @@ async function getMemberDisplayInfo(memberId, groupId = null) {
   if (result.length > 0) {
     await ensureMemberPicture(result[0], groupId);
     const assets = await fetchDisplayAssets();
-    return resolveMemberDisplayInfo(result[0], assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
+    return resolveMemberDisplayInfo(result[0], assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
   }
   return null;
 }
@@ -2884,8 +2762,6 @@ module.exports = {
   getCurrentMatch,
   getTheme,
   setTheme,
-  getFavLogoOption,
-  setFavLogoOption,
   updateMemberAutoReg,
   getAutoRegCount,
   getAutoRegList,

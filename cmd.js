@@ -321,22 +321,6 @@ const COMMAND_REGISTRY = {
         if (param === 'black' || param === 'white') { await db.setTheme(param); return [{ type: 'text', text: `เปลี่ยนธีมเป็น ${param} เรียบร้อยครับ` }]; }
         return [{ type: 'text', text: `กรุณาระบุธีม: /theme black หรือ /theme white` }];
     },
-    'logo': async (context) => {
-        const { param } = context;
-        const p = (param || '').toLowerCase().trim();
-        if (p === '1' || p === 'on' || p === 'true' || p === 'show') {
-            await db.setFavLogoOption(true);
-            return [{ type: 'text', text: `เปิดการแสดงโลโก้ทีมโปรดเรียบร้อยครับ ⚽` }];
-        } else if (p === '0' || p === 'off' || p === 'false' || p === 'hide') {
-            await db.setFavLogoOption(false);
-            return [{ type: 'text', text: `ปิดการแสดงโลโก้ทีมโปรดเรียบร้อยครับ` }];
-        }
-        const currentOption = await db.getFavLogoOption();
-        return [{ type: 'text', text: `การแสดงโลโก้ทีมโปรดปัจจุบัน: ${currentOption ? 'เปิด (On)' : 'ปิด (Off - Default)'}\n\nคำสั่งเปิด/ปิด: /logo on หรือ /logo off` }];
-    },
-    'favlogo': async (context) => {
-        return commands['logo'](context);
-    },
     'setcost': async (context) => {
         const { param } = context;
         if (param === "") return [{ type: 'text', text: "กรุณาระบุค่าสนามทั้งหมด เช่น /setcost 3300" }];
