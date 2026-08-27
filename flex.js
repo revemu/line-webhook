@@ -1488,29 +1488,30 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     margin: 'sm'
   });
 
-  if (p.favTeamLogoUrl) {
+  if (p.favTeamLogoUrl && typeof p.favTeamLogoUrl === 'string') {
     let logoUrl = p.favTeamLogoUrl.trim();
     if (logoUrl.startsWith('http://')) {
       logoUrl = logoUrl.replace('http://', 'https://');
     }
-    contents.push({
-      type: 'box',
-      layout: 'vertical',
-      width: '18px',
-      height: '18px',
-      flex: 0,
-      contents: [
-        {
-          type: 'image',
-          url: logoUrl,
-          size: 'full',
-          aspectRatio: '1:1',
-          aspectMode: 'fit',
-          animated: true
-        }
-      ],
-      margin: 'xs'
-    });
+    if (logoUrl.startsWith('https://') && !/[^\x00-\x7F]/.test(logoUrl)) {
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: '18px',
+        height: '18px',
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: logoUrl,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'fit'
+          }
+        ],
+        margin: 'xs'
+      });
+    }
   }
 
   const rowObj = {
@@ -2738,29 +2739,30 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
     flex: 1
   });
 
-  if (member.favTeamLogoUrl) {
+  if (member.favTeamLogoUrl && typeof member.favTeamLogoUrl === 'string') {
     let logoUrl = member.favTeamLogoUrl.trim();
     if (logoUrl.startsWith('http://')) {
       logoUrl = logoUrl.replace('http://', 'https://');
     }
-    infoContents.push({
-      type: 'box',
-      layout: 'vertical',
-      width: '18px',
-      height: '18px',
-      flex: 0,
-      contents: [
-        {
-          type: 'image',
-          url: logoUrl,
-          size: 'full',
-          aspectRatio: '1:1',
-          aspectMode: 'fit',
-          animated: true
-        }
-      ],
-      margin: 'xs'
-    });
+    if (logoUrl.startsWith('https://') && !/[^\x00-\x7F]/.test(logoUrl)) {
+      infoContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: '18px',
+        height: '18px',
+        flex: 0,
+        contents: [
+          {
+            type: 'image',
+            url: logoUrl,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'fit'
+          }
+        ],
+        margin: 'xs'
+      });
+    }
   }
 
   playerProfileBlock.push({
@@ -3682,29 +3684,30 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
       weight: 'bold'
     });
 
-    if (info.favTeamLogoUrl) {
+    if (info.favTeamLogoUrl && typeof info.favTeamLogoUrl === 'string') {
       let logoUrl = info.favTeamLogoUrl.trim();
       if (logoUrl.startsWith('http://')) {
         logoUrl = logoUrl.replace('http://', 'https://');
       }
-      scorerContents.push({
-        type: 'box',
-        layout: 'vertical',
-        width: '16px',
-        height: '16px',
-        flex: 0,
-        contents: [
-          {
-            type: 'image',
-            url: logoUrl,
-            size: 'full',
-            aspectRatio: '1:1',
-            aspectMode: 'fit',
-            animated: true
-          }
-        ],
-        margin: 'xs'
-      });
+      if (logoUrl.startsWith('https://') && !/[^\x00-\x7F]/.test(logoUrl)) {
+        scorerContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: '16px',
+          height: '16px',
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: logoUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'fit'
+            }
+          ],
+          margin: 'xs'
+        });
+      }
     }
 
     itemContents.push({
@@ -3862,29 +3865,30 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       margin: 'sm'
     }];
 
-    if (info && info.favTeamLogoUrl) {
+    if (info && info.favTeamLogoUrl && typeof info.favTeamLogoUrl === 'string') {
       let logoUrl = info.favTeamLogoUrl.trim();
       if (logoUrl.startsWith('http://')) {
         logoUrl = logoUrl.replace('http://', 'https://');
       }
-      nameBoxContents.push({
-        type: 'box',
-        layout: 'vertical',
-        width: '16px',
-        height: '16px',
-        flex: 0,
-        contents: [
-          {
-            type: 'image',
-            url: logoUrl,
-            size: 'full',
-            aspectRatio: '1:1',
-            aspectMode: 'fit',
-            animated: true
-          }
-        ],
-        margin: 'xs'
-      });
+      if (logoUrl.startsWith('https://') && !/[^\x00-\x7F]/.test(logoUrl)) {
+        nameBoxContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: '16px',
+          height: '16px',
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: logoUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'fit'
+            }
+          ],
+          margin: 'xs'
+        });
+      }
     }
 
     const rowContents = [

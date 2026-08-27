@@ -185,8 +185,8 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
   if (favTeamId !== 0) {
     if (favTeamLogos && favTeamLogos[favTeamId]) {
       favTeamLogoUrl = favTeamLogos[favTeamId];
-    } else if (member.fav_team_url || member.fav_team_logo || member.emoticon) {
-      favTeamLogoUrl = member.fav_team_url || member.fav_team_logo || member.emoticon;
+    } else if (member.fav_team_url || member.fav_team_logo || member.url) {
+      favTeamLogoUrl = member.fav_team_url || member.fav_team_logo || member.url;
     }
   }
 
@@ -201,6 +201,10 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
       }
       if (favTeamLogoUrl.startsWith('http://')) {
         favTeamLogoUrl = favTeamLogoUrl.replace('http://', 'https://');
+      }
+      // Must start with https:// and contain no non-ASCII / emoji / spaces
+      if (!favTeamLogoUrl.startsWith('https://') || /[^\x00-\x7F]/.test(favTeamLogoUrl)) {
+        favTeamLogoUrl = null;
       }
     }
   }
@@ -284,20 +288,38 @@ async function fetchDisplayAssets() {
   }
 
   const favTeamLogos = {};
+  const processLogoUrl = (raw) => {
+    if (!raw || typeof raw !== 'string') return null;
+    let url = raw.trim();
+    if (url.toLowerCase() === 'none' || url.toLowerCase() === 'null' || url === '') return null;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+      url = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
+    }
+    if (url.startsWith('http://')) {
+      url = url.replace('http://', 'https://');
+    }
+    if (url.startsWith('https://') && !/[^\x00-\x7F]/.test(url)) {
+      return url;
+    }
+    return null;
+  };
+
   try {
     const favResults = await executeQuery("SELECT id, url FROM fav_team_tbl");
     favResults.forEach(r => {
-      if (r.id && r.url) {
-        favTeamLogos[r.id] = r.url;
+      const validUrl = processLogoUrl(r.url);
+      if (r.id && validUrl) {
+        favTeamLogos[r.id] = validUrl;
       }
     });
   } catch (favErr1) {
     try {
       const favResults = await executeQuery("SELECT id, url FROM team_fav");
       favResults.forEach(r => {
-        const logoUrl = r.url || r.emoticon;
-        if (r.id && logoUrl) {
-          favTeamLogos[r.id] = logoUrl;
+        const validUrl = processLogoUrl(r.url || r.emoticon);
+        if (r.id && validUrl) {
+          favTeamLogos[r.id] = validUrl;
         }
       });
     } catch (favErr2) {
