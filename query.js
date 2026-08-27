@@ -1266,7 +1266,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
         await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
 
         for (const member of result) {
-          const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+          const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
           const name_display = info.name;
           const badgeUrl = info.badgeUrl;
           const badgeSize = info.badgeSize;
@@ -1281,18 +1281,34 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
             String(member.line_user_id) === String(highlightMemberId)
           ) : false;
 
+          const memberObj = {
+            name: name_display,
+            donate,
+            badgeUrl,
+            badgeSize,
+            nameColor,
+            hofCount,
+            hofBadgeUrl,
+            hofBadgeSize,
+            hofBadges: info.hofBadges,
+            pictureUrl: info.pictureUrl,
+            favTeamLogoUrl: info.favTeamLogoUrl,
+            favTeamId: info.favTeamId,
+            isCurrent
+          };
+
           if (type == 1) {
             if (member.team_id == 100) {
-              goalies.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+              goalies.push(memberObj);
             } else {
               if (players.length < max_players) {
-                players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+                players.push(memberObj);
               } else {
-                reserves.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+                reserves.push(memberObj);
               }
             }
           } else {
-            players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+            players.push(memberObj);
           }
         }
 
@@ -2223,7 +2239,7 @@ async function getMatchScorersAndAssists(matchId, assets, groupId) {
   ]);
 
   const scorers = scorerRows.map(r => {
-    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
     return {
       name: info.name,
       goal: r.goal,
@@ -2235,12 +2251,14 @@ async function getMatchScorersAndAssists(matchId, assets, groupId) {
       hofBadgeUrl: info.hofBadgeUrl,
       hofBadgeSize: info.hofBadgeSize,
       hofBadges: info.hofBadges,
-      pictureUrl: info.pictureUrl
+      pictureUrl: info.pictureUrl,
+      favTeamLogoUrl: info.favTeamLogoUrl,
+      favTeamId: info.favTeamId
     };
   });
 
   const assists = assistRows.map(r => {
-    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+    const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
     return {
       name: info.name,
       assist: r.assist,
@@ -2251,7 +2269,9 @@ async function getMatchScorersAndAssists(matchId, assets, groupId) {
       hofBadgeUrl: info.hofBadgeUrl,
       hofBadgeSize: info.hofBadgeSize,
       hofBadges: info.hofBadges,
-      pictureUrl: info.pictureUrl
+      pictureUrl: info.pictureUrl,
+      favTeamLogoUrl: info.favTeamLogoUrl,
+      favTeamId: info.favTeamId
     };
   });
 
@@ -2482,7 +2502,7 @@ async function getAutoRegList(groupId = null) {
     await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
     const assets = await fetchDisplayAssets();
     return result.map(member => {
-      return resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+      return resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
     });
   }
   return [];
@@ -2494,7 +2514,7 @@ async function getMemberDisplayInfo(memberId, groupId = null) {
   if (result.length > 0) {
     await ensureMemberPicture(result[0], groupId);
     const assets = await fetchDisplayAssets();
-    return resolveMemberDisplayInfo(result[0], assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+    return resolveMemberDisplayInfo(result[0], assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards, assets.favTeamLogos);
   }
   return null;
 }
