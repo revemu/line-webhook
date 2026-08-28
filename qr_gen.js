@@ -58,6 +58,9 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   }
   let svgString = renderThaiQRPayment(qrOptions);
 
+  // Remove PromptPay logo element below header
+  svgString = svgString.replace(/<use[^>]*#tqp-promptpay[^>]*\/?>/g, '');
+
   // Set font family to Sarabun for Thai rendering support
   svgString = svgString.replace(
     'font-family="Inter, system-ui, sans-serif"',
