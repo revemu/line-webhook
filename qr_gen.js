@@ -1,6 +1,6 @@
 // Polyfill Array.prototype.toSorted for Node.js v18 compatibility
 if (!Array.prototype.toSorted) {
-  Array.prototype.toSorted = function(compareFn) {
+  Array.prototype.toSorted = function (compareFn) {
     return this.slice().sort(compareFn);
   };
 }
@@ -43,23 +43,34 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   } catch (cleanupErr) {
     console.error('[QR-Cleanup] Error cleaning up old QR images:', cleanupErr.message);
   }
+  if (amount > 0) {
+    const svgString = renderThaiQRPayment({
+      recipient: promptPayNumber,
+      amount: amount,
+      showCaption: true,
+      merchantName: 'ค่าสนามบอล',
+      amountLabel: `฿ ${amount} `
+    });
+  } else {
+    const svgString = renderThaiQRPayment({
+      recipient: promptPayNumber,
+      amount: amount,
+      showCaption: true,
+      merchantName: 'ค่าสนามบอล'
+    });
+  }
 
-  // Generate PromptPay SVG using thai-qr-payment
-  const svgString = renderThaiQRPayment({
-    recipient: promptPayNumber,
-    amount: amount
-  });
 
   const filename = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
   const filePath = path.join(qrDir, filename);
 
   // Convert the SVG to PNG locally using svg2img
   return new Promise((resolve, reject) => {
-    svg2img(svgString, { format: 'png', width: 400, height: 400 }, function(error, buffer) {
+    svg2img(svgString, { format: 'png', width: 400, height: 400 }, function (error, buffer) {
       if (error) {
         return reject(error);
       }
-      fs.writeFile(filePath, buffer, function(writeErr) {
+      fs.writeFile(filePath, buffer, function (writeErr) {
         if (writeErr) {
           return reject(writeErr);
         }

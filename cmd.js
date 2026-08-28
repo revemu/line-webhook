@@ -342,13 +342,34 @@ const COMMAND_REGISTRY = {
         const { param, groupId, quoteToken } = context;
         const week = await db.queryWeekID(0);
         let amount = 0;
+        let isFlex = false;
+        let amountSpecified = false;
+
         if (param !== "") {
-            amount = parseInt(param, 10);
-            if (isNaN(amount) || amount < 0) return [{ type: 'text', quoteToken, text: "กรุณาระบุจำนวนเงินเป็นตัวเลข เช่น /qr 150" }];
-        } else {
-            if (!week || week[0].cost <= 0) return [{ type: 'text', quoteToken, text: "ยังไม่ได้คำนวณค่าสนามในสัปดาห์นี้ครับ" }];
+            const tokens = param.trim().split(/\s+/);
+            for (const token of tokens) {
+                const lowerToken = token.toLowerCase();
+                if (lowerToken === 'flex' || lowerToken === '-flex' || lowerToken === 'f') {
+                    isFlex = true;
+                } else if (lowerToken === 'image' || lowerToken === 'img' || lowerToken === 'file' || lowerToken === '-image' || lowerToken === '-img' || lowerToken === '-file') {
+                    isFlex = false;
+                } else {
+                    const parsedAmount = parseInt(token, 10);
+                    if (!isNaN(parsedAmount) && parsedAmount >= 0) {
+                        amount = parsedAmount;
+                        amountSpecified = true;
+                    } else {
+                        return [{ type: 'text', quoteToken, text: "กรุณาระบุจำนวนเงินเป็นตัวเลข เช่น /qr 150 หรือ /qr flex 150" }];
+                    }
+                }
+            }
+        }
+
+        if (!amountSpecified) {
+            if (!week || week.length === 0 || week[0].cost <= 0) return [{ type: 'text', quoteToken, text: "ยังไม่ได้คำนวณค่าสนามในสัปดาห์นี้ครับ" }];
             amount = week[0].cost;
         }
+
         try {
             //paotang pay
             //006660080321320
@@ -358,10 +379,21 @@ const COMMAND_REGISTRY = {
             let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
             if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
             const localQrUrl = `${baseUrl}/img/qr/${filename}`;
-            const theme = await db.getTheme();
-            const msg = flex.buildQrFlex(amount, '0850705894', theme, localQrUrl);
-            const altText = `สแกน QR ชำระเงิน ${amount} บาท`;
-            return { type: 'flex', altText, contents: msg };
+
+            if (isFlex) {
+                const theme = await db.getTheme();
+                const msg = flex.buildQrFlex(amount, '0850705894', theme, localQrUrl);
+                const altText = `สแกน QR ชำระเงิน ${amount} บาท`;
+                return { type: 'flex', altText, contents: msg };
+            } else {
+                const imageMsg = {
+                    type: 'image',
+                    originalContentUrl: localQrUrl,
+                    previewImageUrl: localQrUrl
+                };
+                if (quoteToken) imageMsg.quoteToken = quoteToken;
+                return imageMsg;
+            }
         } catch (qrErr) {
             return [{ type: 'text', text: `เกิดข้อผิดพลาดในการสร้าง QR Code: ${qrErr.message}` }];
         }
