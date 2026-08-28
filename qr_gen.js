@@ -13,14 +13,6 @@ const path = require('path');
 const qrDir = path.join(__dirname, 'qr');
 
 const fontPath = path.join(__dirname, 'fonts', 'Sarabun-Regular.ttf');
-let thaiFontBase64 = '';
-try {
-  if (fs.existsSync(fontPath)) {
-    thaiFontBase64 = fs.readFileSync(fontPath).toString('base64');
-  }
-} catch (e) {
-  console.error('[QR-Gen] Failed to load local Thai font:', e.message);
-}
 
 /**
  * Generates a PromptPay QR code image inside the 'qr' directory and returns its filename.
@@ -65,27 +57,11 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   }
   let svgString = renderThaiQRPayment(qrOptions);
 
-  // Embed Thai font into SVG so Linux servers can render Thai characters without missing fonts
-  if (thaiFontBase64) {
-    const fontStyle = `<defs><style>
-      @font-face {
-        font-family: 'Sarabun';
-        src: url('data:font/ttf;charset=utf-8;base64,${thaiFontBase64}') format('truetype');
-        font-weight: normal;
-        font-style: normal;
-      }
-      text, tspan {
-        font-family: 'Sarabun', Tahoma, 'Segoe UI', sans-serif !important;
-      }
-    </style>`;
-    svgString = svgString.replace('<defs>', fontStyle);
-  } else {
-    // Replace default Inter font-family with Thai supported fonts
-    svgString = svgString.replace(
-      'font-family="Inter, system-ui, sans-serif"',
-      'font-family="Tahoma, Segoe UI, sans-serif"'
-    );
-  }
+  // Set font family to Sarabun for Thai rendering support
+  svgString = svgString.replace(
+    'font-family="Inter, system-ui, sans-serif"',
+    'font-family="Sarabun, Tahoma, Segoe UI, sans-serif"'
+  );
 
   // Increase text size to 32 and split amount string to red color
   svgString = svgString.replace(
@@ -105,9 +81,21 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   const filename = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
   const filePath = path.join(qrDir, filename);
 
+  const imgOptions = { format: 'png', width: 400, height: 400 };
+  if (fs.existsSync(fontPath)) {
+    imgOptions.resvg = {
+      font: {
+        fontFiles: [fontPath],
+        loadSystemFonts: true,
+        defaultFontFamily: 'Sarabun',
+        sansSerifFamily: 'Sarabun'
+      }
+    };
+  }
+
   // Convert the SVG to PNG locally using svg2img
   return new Promise((resolve, reject) => {
-    svg2img(svgString, { format: 'png', width: 400, height: 400 }, function (error, buffer) {
+    svg2img(svgString, imgOptions, function (error, buffer) {
       if (error) {
         return reject(error);
       }
