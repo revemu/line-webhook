@@ -83,11 +83,11 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   svgString = svgString.replace('height="800"', 'height="710"');
   svgString = svgString.replace('viewBox="0 0 600 800"', 'viewBox="0 0 600 710"');
 
-  // Replace center logo (#tqp-icon) with custom image if available
+  // Replace center logo (#tqp-icon) with custom image if available (reduced size 56x56 for clean margin)
   if (customLogoDataUri) {
     svgString = svgString.replace(
       /<use[^>]*#tqp-icon[^>]*\/?>/g,
-      `<image href="${customLogoDataUri}" xlink:href="${customLogoDataUri}" x="262.24" y="352.24" width="75.52" height="75.52" preserveAspectRatio="xMidYMid meet"/>`
+      `<image href="${customLogoDataUri}" xlink:href="${customLogoDataUri}" x="272" y="362" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>`
     );
   }
 
