@@ -151,7 +151,7 @@ async function readQRCode(imageBuffer) {
     }
 
     // 2. Secondary Fallback Pass: jsQR + Jimp in-memory
-    try {
+    /*try {
         console.log('[readQRCode] Primary zbarimg found no QR code, running secondary jsQR fallback...');
         const image = await Jimp.read(imageBuffer);
         const qrCode = jsQR(
@@ -165,7 +165,7 @@ async function readQRCode(imageBuffer) {
         }
     } catch (jsqrErr) {
         console.warn('[readQRCode] Secondary jsQR fallback warning:', jsqrErr.message);
-    }
+    }*/
 
     return null;
 }
