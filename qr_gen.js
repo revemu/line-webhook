@@ -49,7 +49,7 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
     showCaption: true
   };
   if (amount > 0) {
-    qrOptions.merchantName = `Soccer Payment: ฿ ${amount}`
+    qrOptions.merchantName = `Soccer Payment\n ฿ ${amount}`
   } else {
     qrOptions.merchantName = `Soccer Payment`
   }
