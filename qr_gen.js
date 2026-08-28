@@ -12,6 +12,16 @@ const path = require('path');
 
 const qrDir = path.join(__dirname, 'qr');
 
+const fontPath = path.join(__dirname, 'fonts', 'Sarabun-Regular.ttf');
+let thaiFontBase64 = '';
+try {
+  if (fs.existsSync(fontPath)) {
+    thaiFontBase64 = fs.readFileSync(fontPath).toString('base64');
+  }
+} catch (e) {
+  console.error('[QR-Gen] Failed to load local Thai font:', e.message);
+}
+
 /**
  * Generates a PromptPay QR code image inside the 'qr' directory and returns its filename.
  * Also cleans up any temporary QR code images older than 1 hour.
@@ -55,11 +65,27 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   }
   let svgString = renderThaiQRPayment(qrOptions);
 
-  // Replace default Inter font-family with Thai supported fonts (Tahoma/Segoe UI)
-  svgString = svgString.replace(
-    'font-family="Inter, system-ui, sans-serif"',
-    'font-family="Tahoma, Segoe UI, sans-serif"'
-  );
+  // Embed Thai font into SVG so Linux servers can render Thai characters without missing fonts
+  if (thaiFontBase64) {
+    const fontStyle = `<defs><style>
+      @font-face {
+        font-family: 'Sarabun';
+        src: url('data:font/ttf;charset=utf-8;base64,${thaiFontBase64}') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      text, tspan {
+        font-family: 'Sarabun', Tahoma, 'Segoe UI', sans-serif !important;
+      }
+    </style>`;
+    svgString = svgString.replace('<defs>', fontStyle);
+  } else {
+    // Replace default Inter font-family with Thai supported fonts
+    svgString = svgString.replace(
+      'font-family="Inter, system-ui, sans-serif"',
+      'font-family="Tahoma, Segoe UI, sans-serif"'
+    );
+  }
 
   // Increase text size to 32 and split amount string to red color
   svgString = svgString.replace(
