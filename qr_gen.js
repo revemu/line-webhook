@@ -14,6 +14,17 @@ const qrDir = path.join(__dirname, 'qr');
 //LKKaohom.ttf
 //Sarabun-Regular.ttf
 const fontPath = path.join(__dirname, 'fonts', 'LKKaohom.ttf');
+const logoPath = path.join(__dirname, 'assets', 'logo.jpg');
+
+let customLogoDataUri = '';
+try {
+  if (fs.existsSync(logoPath)) {
+    const logoBuf = fs.readFileSync(logoPath);
+    customLogoDataUri = `data:image/jpeg;base64,${logoBuf.toString('base64')}`;
+  }
+} catch (err) {
+  console.error('[QR-Gen] Failed to load custom center logo:', err.message);
+}
 
 /**
  * Generates a PromptPay QR code image inside the 'qr' directory and returns its filename.
@@ -61,6 +72,25 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   // Remove PromptPay logo element below header
   svgString = svgString.replace(/<use[^>]*#tqp-promptpay[^>]*\/?>/g, '');
 
+  // Shift content UP to fill the PromptPay logo position
+  svgString = svgString.replace('y="250"', 'y="140"');
+  svgString = svgString.replace('translate(64 264)', 'translate(64 154)');
+  svgString = svgString.replace('y="458.24"', 'y="348.24"');
+  svgString = svgString.replace('y="462.24"', 'y="352.24"');
+  svgString = svgString.replace('y="788"', 'y="670"');
+
+  // Compact canvas height
+  svgString = svgString.replace('height="800"', 'height="710"');
+  svgString = svgString.replace('viewBox="0 0 600 800"', 'viewBox="0 0 600 710"');
+
+  // Replace center logo (#tqp-icon) with custom image if available
+  if (customLogoDataUri) {
+    svgString = svgString.replace(
+      /<use[^>]*#tqp-icon[^>]*\/?>/g,
+      `<image href="${customLogoDataUri}" xlink:href="${customLogoDataUri}" x="262.24" y="352.24" width="75.52" height="75.52" preserveAspectRatio="xMidYMid meet"/>`
+    );
+  }
+
   // Set font family to Sarabun for Thai rendering support
   svgString = svgString.replace(
     'font-family="Inter, system-ui, sans-serif"',
@@ -86,7 +116,7 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   const filename = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
   const filePath = path.join(qrDir, filename);
 
-  const imgOptions = { format: 'png', width: 400, height: 400 };
+  const imgOptions = { format: 'png', width: 400, height: 473 };
   if (fs.existsSync(fontPath)) {
     imgOptions.resvg = {
       font: {
