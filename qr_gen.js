@@ -46,7 +46,7 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   const qrOptions = {
     recipient: promptPayNumber,
     showCaption: true,
-    merchantName: 'ค่าสนามบอล'
+    merchantName: `฿ ${amount}`
   };
   if (amount > 0) {
     qrOptions.amount = amount;
