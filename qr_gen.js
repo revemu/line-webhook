@@ -63,17 +63,18 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
     'font-family="Sarabun, Tahoma, Segoe UI, sans-serif"'
   );
 
-  // Increase text size to 32 and split amount string to red color
+  // Increase text size to 32, set font-weight to bold, and split amount string to red color
   svgString = svgString.replace(
     /<text ([^>]*)font-size="22"([^>]*)>(.*?)<\/text>/,
     (match, p1, p2, textContent) => {
+      let attrs = (p1 + p2).replace(/font-weight="[^"]*"/, 'font-weight="bold"');
       if (textContent.includes(': ')) {
         const parts = textContent.split(': ');
         const title = parts[0];
         const amt = parts.slice(1).join(': ');
-        return `<text ${p1}font-size="32"${p2} font-weight="bold"><tspan fill="#00427A">${title}: </tspan><tspan fill="#E63946">${amt}</tspan></text>`;
+        return `<text ${attrs} font-size="32"><tspan fill="#00427A" font-weight="bold">${title}: </tspan><tspan fill="#E63946" font-weight="bold">${amt}</tspan></text>`;
       }
-      return `<text ${p1}font-size="32"${p2}><tspan fill="#00427A">${textContent}</tspan></text>`;
+      return `<text ${attrs} font-size="32"><tspan fill="#00427A" font-weight="bold">${textContent}</tspan></text>`;
     }
   );
 
