@@ -48,7 +48,8 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
     amount: amount,
     showCaption: true,
     merchantName: `Soccer Cost`,
-    amountLabel: `฿ ${amount}`
+    amountLabel: `฿ ${amount}`,
+    errorCorrectionLevel: 'H'
   };
   const svgString = renderThaiQRPayment(qrOptions);
 
