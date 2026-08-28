@@ -350,7 +350,11 @@ const COMMAND_REGISTRY = {
             amount = week[0].cost;
         }
         try {
-            const filename = await qrGen.generateQrCode(amount, '006990146713367');
+            //paotang pay
+            //006660080321320
+            //g-wallet
+            //006990146713367
+            const filename = await qrGen.generateQrCode(amount, '006660080321320');
             let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
             if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
             const localQrUrl = `${baseUrl}/img/qr/${filename}`;
