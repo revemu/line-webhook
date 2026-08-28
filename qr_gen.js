@@ -51,9 +51,9 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
     showCaption: true
   };
   if (amount > 0) {
-    qrOptions.merchantName = `แสกนเพื่อชำระค่าสนาม: ${amount} บาท`;
+    qrOptions.merchantName = `แสกนจ่ายค่าสนาม: ${amount} บาท`;
   } else {
-    qrOptions.merchantName = `แสกนเพื่อชำระค่าสนาม`;
+    qrOptions.merchantName = `แสกนจ่ายค่าสนาม`;
   }
   let svgString = renderThaiQRPayment(qrOptions);
 
