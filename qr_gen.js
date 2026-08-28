@@ -11,8 +11,9 @@ const fs = require('fs');
 const path = require('path');
 
 const qrDir = path.join(__dirname, 'qr');
-
-const fontPath = path.join(__dirname, 'fonts', 'Sarabun-Regular.ttf');
+//LKKaohom.ttf
+//Sarabun-Regular.ttf
+const fontPath = path.join(__dirname, 'fonts', 'LKKaohom.ttf');
 
 /**
  * Generates a PromptPay QR code image inside the 'qr' directory and returns its filename.
