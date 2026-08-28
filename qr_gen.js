@@ -55,10 +55,10 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   }
   let svgString = renderThaiQRPayment(qrOptions);
 
-  // Replace default Inter font-family with Thai supported fonts
+  // Replace default Inter font-family with Thai supported fonts (Tahoma/Segoe UI)
   svgString = svgString.replace(
     'font-family="Inter, system-ui, sans-serif"',
-    'font-family="\'Leelawadee UI\', Tahoma, \'Segoe UI\', \'Noto Sans Thai\', sans-serif"'
+    'font-family="Tahoma, Segoe UI, sans-serif"'
   );
 
   // Increase text size to 32 and split amount string to red color
