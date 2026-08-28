@@ -43,22 +43,16 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   } catch (cleanupErr) {
     console.error('[QR-Cleanup] Error cleaning up old QR images:', cleanupErr.message);
   }
-  let svgString;
+  const qrOptions = {
+    recipient: promptPayNumber,
+    showCaption: true,
+    merchantName: 'ค่าสนามบอล'
+  };
   if (amount > 0) {
-    svgString = renderThaiQRPayment({
-      recipient: promptPayNumber,
-      amount: amount,
-      showCaption: true,
-      merchantName: 'ค่าสนามบอล',
-      amountLabel: `฿ ${amount}`
-    });
-  } else {
-    svgString = renderThaiQRPayment({
-      recipient: promptPayNumber,
-      showCaption: true,
-      merchantName: 'ค่าสนามบอล'
-    });
+    qrOptions.amount = amount;
+    qrOptions.amountLabel = `฿ ${amount}`;
   }
+  const svgString = renderThaiQRPayment(qrOptions);
 
 
   const filename = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;

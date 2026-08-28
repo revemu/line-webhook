@@ -386,13 +386,11 @@ const COMMAND_REGISTRY = {
                 const altText = `สแกน QR ชำระเงิน ${amount} บาท`;
                 return { type: 'flex', altText, contents: msg };
             } else {
-                const imageMsg = {
+                return {
                     type: 'image',
                     originalContentUrl: localQrUrl,
                     previewImageUrl: localQrUrl
                 };
-                if (quoteToken) imageMsg.quoteToken = quoteToken;
-                return imageMsg;
             }
         } catch (qrErr) {
             return [{ type: 'text', text: `เกิดข้อผิดพลาดในการสร้าง QR Code: ${qrErr.message}` }];
