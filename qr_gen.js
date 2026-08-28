@@ -49,11 +49,17 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
     showCaption: true
   };
   if (amount > 0) {
-    qrOptions.merchantName = `Soccer Payment: ฿ ${amount}`;
+    qrOptions.merchantName = `ค่าสนาม: ฿ ${amount}`;
   } else {
-    qrOptions.merchantName = `Soccer Payment`;
+    qrOptions.merchantName = `ค่าสนาม`;
   }
   let svgString = renderThaiQRPayment(qrOptions);
+
+  // Replace default Inter font-family with Thai supported fonts
+  svgString = svgString.replace(
+    'font-family="Inter, system-ui, sans-serif"',
+    'font-family="\'Leelawadee UI\', Tahoma, \'Segoe UI\', \'Noto Sans Thai\', sans-serif"'
+  );
 
   // Increase text size to 32 and split amount string to red color
   svgString = svgString.replace(
