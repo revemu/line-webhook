@@ -49,11 +49,25 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
     showCaption: true
   };
   if (amount > 0) {
-    qrOptions.merchantName = `Soccer Payment: ฿ ${amount}`
+    qrOptions.merchantName = `Soccer Payment: ฿ ${amount}`;
   } else {
-    qrOptions.merchantName = `Soccer Payment`
+    qrOptions.merchantName = `Soccer Payment`;
   }
-  const svgString = renderThaiQRPayment(qrOptions);
+  let svgString = renderThaiQRPayment(qrOptions);
+
+  // Increase text size to 32 and split amount string to red color
+  svgString = svgString.replace(
+    /<text ([^>]*)font-size="22"([^>]*)>(.*?)<\/text>/,
+    (match, p1, p2, textContent) => {
+      if (textContent.includes(': ')) {
+        const parts = textContent.split(': ');
+        const title = parts[0];
+        const amt = parts.slice(1).join(': ');
+        return `<text ${p1}font-size="32"${p2}><tspan fill="#00427A">${title}: </tspan><tspan fill="#E63946">${amt}</tspan></text>`;
+      }
+      return `<text ${p1}font-size="32"${p2}><tspan fill="#00427A">${textContent}</tspan></text>`;
+    }
+  );
 
 
   const filename = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
