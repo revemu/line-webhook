@@ -15,6 +15,8 @@ const qrDir = path.join(__dirname, 'qr');
 //Sarabun-Regular.ttf
 const fontPath = path.join(__dirname, 'fonts', 'LKKaohom.ttf');
 const logoPath = path.join(__dirname, 'assets', 'logo.jpg');
+const headerPathJpg = path.join(__dirname, 'assets', 'header.jpg');
+const headerPathPng = path.join(__dirname, 'assets', 'header.png');
 
 let customLogoDataUri = '';
 try {
@@ -24,6 +26,19 @@ try {
   }
 } catch (err) {
   console.error('[QR-Gen] Failed to load custom center logo:', err.message);
+}
+
+let customHeaderDataUri = '';
+try {
+  if (fs.existsSync(headerPathJpg)) {
+    const headerBuf = fs.readFileSync(headerPathJpg);
+    customHeaderDataUri = `data:image/jpeg;base64,${headerBuf.toString('base64')}`;
+  } else if (fs.existsSync(headerPathPng)) {
+    const headerBuf = fs.readFileSync(headerPathPng);
+    customHeaderDataUri = `data:image/png;base64,${headerBuf.toString('base64')}`;
+  }
+} catch (err) {
+  console.error('[QR-Gen] Failed to load custom header:', err.message);
 }
 
 /**
@@ -72,22 +87,46 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   // Remove PromptPay logo element below header
   svgString = svgString.replace(/<use[^>]*#tqp-promptpay[^>]*\/?>/g, '');
 
-  // Shift content UP to fill the PromptPay logo position
-  svgString = svgString.replace('y="250"', 'y="140"');
-  svgString = svgString.replace('translate(64 264)', 'translate(64 154)');
-  svgString = svgString.replace('y="458.24"', 'y="348.24"');
-  svgString = svgString.replace('y="462.24"', 'y="352.24"');
-  svgString = svgString.replace('y="788"', 'y="670"');
+  // Replace default header background path & logo with custom header image if available
+  if (customHeaderDataUri) {
+    // 600px width banner with 83px height matching exact 628:87 aspect ratio of custom header
+    svgString = svgString.replace(
+      /<path d="M0 110 V20 a20 20 0 0 1 20 -20 H580 a20 20 0 0 1 20 20 V110 Z"[^>]*\/>/g,
+      `<image href="${customHeaderDataUri}" xlink:href="${customHeaderDataUri}" x="0" y="0" width="600" height="83" preserveAspectRatio="none" clip-path="url(#tqp-custom-header-clip)"/>`
+    );
+    const headerClipPathDef = '<clipPath id="tqp-custom-header-clip"><path d="M0 83 V20 a20 20 0 0 1 20 -20 H580 a20 20 0 0 1 20 20 V83 Z"/></clipPath>';
+    svgString = svgString.replace('<defs>', '<defs>' + headerClipPathDef);
+    svgString = svgString.replace(/<use[^>]*#tqp-header[^>]*\/?>/g, '');
 
-  // Compact canvas height
-  svgString = svgString.replace('height="800"', 'height="710"');
-  svgString = svgString.replace('viewBox="0 0 600 800"', 'viewBox="0 0 600 710"');
+    // Shift content UP by 27px for reduced header height (110 -> 83)
+    svgString = svgString.replace('y="250"', 'y="113"');
+    svgString = svgString.replace('translate(64 264)', 'translate(64 127)');
+    svgString = svgString.replace('y="458.24"', 'y="321.24"');
+    svgString = svgString.replace('y="462.24"', 'y="325.24"');
+    svgString = svgString.replace('y="788"', 'y="643"');
 
-  // Replace center logo (#tqp-icon) with custom image if available (reduced size 56x56 for clean margin)
+    // Compact total canvas height (683)
+    svgString = svgString.replace('height="800"', 'height="683"');
+    svgString = svgString.replace('viewBox="0 0 600 800"', 'viewBox="0 0 600 683"');
+  } else {
+    // Shift content UP to fill the PromptPay logo position (standard 110px header)
+    svgString = svgString.replace('y="250"', 'y="140"');
+    svgString = svgString.replace('translate(64 264)', 'translate(64 154)');
+    svgString = svgString.replace('y="458.24"', 'y="348.24"');
+    svgString = svgString.replace('y="462.24"', 'y="352.24"');
+    svgString = svgString.replace('y="788"', 'y="670"');
+
+    // Compact canvas height
+    svgString = svgString.replace('height="800"', 'height="710"');
+    svgString = svgString.replace('viewBox="0 0 600 800"', 'viewBox="0 0 600 710"');
+  }
+
+  // Replace center logo (#tqp-icon) with custom image if available
   if (customLogoDataUri) {
+    const logoY = customHeaderDataUri ? 335 : 362;
     svgString = svgString.replace(
       /<use[^>]*#tqp-icon[^>]*\/?>/g,
-      `<image href="${customLogoDataUri}" xlink:href="${customLogoDataUri}" x="272" y="362" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>`
+      `<image href="${customLogoDataUri}" xlink:href="${customLogoDataUri}" x="272" y="${logoY}" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>`
     );
   }
 
@@ -116,7 +155,8 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   const filename = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
   const filePath = path.join(qrDir, filename);
 
-  const imgOptions = { format: 'png', width: 400, height: 473 };
+  const outputHeight = customHeaderDataUri ? 455 : 473;
+  const imgOptions = { format: 'png', width: 400, height: outputHeight };
   if (fs.existsSync(fontPath)) {
     imgOptions.resvg = {
       font: {
