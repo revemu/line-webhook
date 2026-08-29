@@ -988,7 +988,7 @@ function buildLiveFlex(matchInfo, theme) {
     if (isCurrent) {
       matchNumContents.push({
         type: 'image',
-        url: `${getBaseUrl()}/green_dot.png`,
+        url: `${getBaseUrl()}/img/green_dot.png`,
         position: 'absolute',
         offsetStart: '2px',
         offsetTop: '2px',
