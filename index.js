@@ -113,9 +113,27 @@ async function getImageAxios(messageId) {
 // Function to verify bank slip via EasySlip API v2 using QR Code payload
 const verifyEasySlipByPayload = slipService.verifyEasySlipByPayload;
 const verifyEasySlipByImage = slipService.verifyEasySlipByImage;
-// Function to read QR code from image buffer (Primary: zbarimg CLI ~132ms, Fallback: jsQR+Jimp in-memory)
+// Function to read QR code from image buffer (Primary: zxing-wasm in-memory ~6ms, Secondary: zbarimg CLI, Tertiary: jsQR)
 async function readQRCode(imageBuffer) {
-    // 1. Primary Pass: zbarimg CLI (Native C fast scanner)
+    let jimpImage = null;
+
+    // 1. Primary Pass: zxing-wasm (Fast WebAssembly scanner, in-memory)
+    try {
+        jimpImage = await Jimp.read(imageBuffer);
+        const imageData = {
+            data: new Uint8ClampedArray(jimpImage.bitmap.data),
+            width: jimpImage.bitmap.width,
+            height: jimpImage.bitmap.height
+        };
+        const results = await readBarcodesFromImageData(imageData, { formats: ['QRCode'] });
+        if (results && results.length > 0) {
+            return results.map(r => ({ type: r.format || 'QR-Code', data: r.text }));
+        }
+    } catch (zxingErr) {
+        console.warn('[readQRCode] Primary zxing-wasm decoder warning:', zxingErr.message || zxingErr);
+    }
+    /*
+    // 2. Secondary Pass: zbarimg CLI (Native C scanner fallback)
     let tempFilePath = null;
     try {
         const tempDir = "./temp/";
@@ -151,23 +169,6 @@ async function readQRCode(imageBuffer) {
         }
     }
 
-    // 2. Secondary Pass: zxing-wasm (Fast WebAssembly scanner, in-memory)
-    let jimpImage = null;
-    try {
-        jimpImage = await Jimp.read(imageBuffer);
-        const imageData = {
-            data: new Uint8ClampedArray(jimpImage.bitmap.data),
-            width: jimpImage.bitmap.width,
-            height: jimpImage.bitmap.height
-        };
-        const results = await readBarcodesFromImageData(imageData, { formats: ['QRCode'] });
-        if (results && results.length > 0) {
-            return results.map(r => ({ type: r.format || 'QR-Code', data: r.text }));
-        }
-    } catch (zxingErr) {
-        console.warn('[readQRCode] zxing-wasm decoder warning:', zxingErr.message || zxingErr);
-    }
-
     // 3. Tertiary Fallback Pass: jsQR + Jimp in-memory
     try {
         if (!jimpImage) {
@@ -183,7 +184,7 @@ async function readQRCode(imageBuffer) {
         }
     } catch (jsqrErr) {
         console.warn('[readQRCode] Tertiary jsQR fallback warning:', jsqrErr.message);
-    }
+    }*/
 
     return null;
 }
