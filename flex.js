@@ -392,38 +392,43 @@ function buildNowFlex(matchInfo, theme) {
   const makeHeaderContents = (iconType, iconText, titleText, matchNo, startTime, useLightColor) => {
     const textColor = useLightColor ? colors.textMuted : colors.textMutedDark;
     const isImg = iconType === 'image';
+    const iconBox = {
+      type: 'box',
+      layout: 'vertical',
+      width: isImg ? '8px' : '32px',
+      height: isImg ? '8px' : '32px',
+      flex: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      contents: isImg ? [
+        {
+          type: 'image',
+          url: iconText,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover',
+          animated: true
+        }
+      ] : [
+        {
+          type: 'text',
+          text: iconText,
+          size: 'xs',
+          color: textColor,
+          align: 'center',
+          gravity: 'center'
+        }
+      ]
+    };
+
+    if (isImg) {
+      iconBox.cornerRadius = '100px';
+      iconBox.backgroundColor = '#22c55e';
+      iconBox.margin = 'xs';
+    }
+
     return [
-      {
-        type: 'box',
-        layout: 'vertical',
-        width: isImg ? '8px' : '32px',
-        height: isImg ? '8px' : '32px',
-        flex: 0,
-        justifyContent: 'center',
-        alignItems: 'center',
-        cornerRadius: isImg ? '100px' : '0px',
-        backgroundColor: isImg ? '#22c55e' : 'transparent',
-        margin: isImg ? 'xs' : 'none',
-        contents: isImg ? [
-          {
-            type: 'image',
-            url: iconText,
-            size: 'full',
-            aspectRatio: '1:1',
-            aspectMode: 'cover',
-            animated: true
-          }
-        ] : [
-          {
-            type: 'text',
-            text: iconText,
-            size: 'xs',
-            color: textColor,
-            align: 'center',
-            gravity: 'center'
-          }
-        ]
-      },
+      iconBox,
       {
         type: 'box',
         layout: 'vertical',
