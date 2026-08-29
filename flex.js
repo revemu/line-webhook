@@ -432,7 +432,7 @@ function buildNowFlex(matchInfo, theme) {
         size: 'xs',
         weight: 'bold',
         color: useLightColor ? colors.textAccent : colors.textMutedLight,
-        margin: 'xs',
+        margin: 'none',
         flex: 1
       },
       {
@@ -989,7 +989,8 @@ function buildLiveFlex(matchInfo, theme) {
             size: 'sm',
             color: colors.textAccent,
             weight: 'bold',
-            margin: 'xs'
+            margin: 'none',
+            offsetStart: '-6px'
           }
         ]
       });
@@ -1020,7 +1021,8 @@ function buildLiveFlex(matchInfo, theme) {
             size: 'sm',
             color: colors.textMuted,
             weight: 'regular',
-            margin: 'xs'
+            margin: 'none',
+            offsetStart: '-6px'
           }
         ]
       });
