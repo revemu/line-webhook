@@ -100,9 +100,9 @@ app.use('/img', express.static(path.join(__dirname, 'img')));
 app.use(express.static(__dirname));
 
 // Serve green_dot.png static asset and fallback route aliases
-app.get(['/green_dot.png', '/img/green_dot.png', '/green_pulse_true.png', '/img/green_pulse_true.png'], (req, res) => {
+/*app.get(['/green_dot.png', '/img/green_dot.png', '/green_pulse_true.png', '/img/green_pulse_true.png'], (req, res) => {
     res.sendFile(path.join(__dirname, 'green_dot.png'));
-});
+});*/
 
 
 // Function to get image content from LINE (Optimized: Axios with Keep-Alive Agent ~1.37ms/req)
