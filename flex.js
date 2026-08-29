@@ -1781,7 +1781,8 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     margin: 'xs',
     contents: [
       makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
-      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor)
+      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor),
+      makeBoxButton('💰 จ่ายเงิน', '/qr', '004466')
     ]
   });
 
@@ -1810,7 +1811,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     ]
   });
 
-  bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+  /*bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
   bodyContents.push({
     type: 'text',
     text: `▶ ลงทะเบียนอัตโนมัติ (${autoRegCount}/24)`,
@@ -1835,7 +1836,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       registerButton,
       makeBoxButton('➖ ยกเลิก', '-autoreg', buttonCancelColor)
     ]
-  });
+  });*/
 
   const bubble = {
     type: 'bubble',
