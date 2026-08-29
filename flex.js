@@ -1781,21 +1781,19 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     margin: 'xs',
     contents: [
       makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
-      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor),
-      makeBoxButton('📱 QR ค่าสนาม', '/qr', '#15be1eff'),
-      makeBoxButton('📋 อื่นๆ', '/menu', '#12a5dfff')
+      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor)
     ]
   });
-  /*bodyContents.push({
+  bodyContents.push({
     type: 'box',
     layout: 'horizontal',
     spacing: 'md',
     margin: 'xs',
     contents: [
-      makeBoxButton('💰 จ่ายเงิน', '/qr', '#15be1eff'),
-      makeBoxButton('เมนูอื่นๆ', '/menu', '#12a5dfff')
+      makeBoxButton('📱 QR ค่าสนาม', '/qr', '#15be1eff'),
+      makeBoxButton('📋 อื่นๆ', '/menu', '#12a5dfff')
     ]
-  });*/
+  });
 
   /*const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
   const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
