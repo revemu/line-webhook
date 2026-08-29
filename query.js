@@ -346,10 +346,10 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
   if (!res || res.length < targetCount) {
     const poolRes = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color_pools'");
     let colors = poolRes && poolRes.length > 0 ? poolRes.map(r => r.value) : [];
-    
+
     const existingColors = res ? res.map(r => (r.color || '').toLowerCase()) : [];
     const availableColors = colors.filter(c => !existingColors.includes((c || '').toLowerCase()));
-    
+
     const shuffledAvailable = shuffleArray([...availableColors]);
     const numToInsert = targetCount - (res ? res.length : 0);
     const existingCount = res ? res.length : 0;
@@ -358,7 +358,7 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
       await newTeamColorWeek(shuffledAvailable[i], existingCount + i + 1, week_id);
     }
   } else {
-    console.log("Team color week already exist!");
+    //console.log("Team color week already exist!");
   }
 }
 
