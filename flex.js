@@ -1020,7 +1020,14 @@ function buildLiveFlex(matchInfo, theme) {
         layout: 'vertical',
         width: '14px',
         height: '14px',
-        flex: 0
+        flex: 0,
+        contents: [
+          {
+            type: 'text',
+            text: ' ',
+            size: 'xxs'
+          }
+        ]
       });
     }
     matchNumContents.push({
