@@ -1778,7 +1778,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     type: 'box',
     layout: 'horizontal',
     spacing: 'md',
-    margin: 'xs',
+    margin: 'md',
     contents: [
       makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
       makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor)
@@ -1788,10 +1788,10 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     type: 'box',
     layout: 'horizontal',
     spacing: 'md',
-    margin: 'xs',
+    margin: 'md',
     contents: [
-      makeBoxButton('📱 QR ค่าสนาม', '/qr', '#15be1eff'),
-      makeBoxButton('📋 อื่นๆ', '/menu', '#12a5dfff')
+      makeBoxButton('📱 QR ค่าสนาม', '/qr', '#15e6e6ff'),
+      makeBoxButton('📋 อื่นๆ', '/menu', '#eeeee7ff')
     ]
   });
 
