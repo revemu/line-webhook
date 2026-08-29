@@ -987,15 +987,24 @@ function buildLiveFlex(matchInfo, theme) {
     const matchNumContents = [];
     if (isCurrent) {
       matchNumContents.push({
-        type: 'image',
-        url: `${getBaseUrl()}/img/green_dot.png`,
+        type: 'box',
+        layout: 'vertical',
+        width: '8px',
+        height: '8px',
         position: 'absolute',
-        offsetStart: '2px',
-        offsetTop: '2px',
-        size: 'xxs',
-        aspectRatio: '1:1',
-        aspectMode: 'cover',
-        animated: true
+        offsetStart: '4px',
+        offsetTop: '6px',
+        cornerRadius: '100px',
+        backgroundColor: '#22c55e',
+        contents: [
+          {
+            type: 'image',
+            url: `${getBaseUrl()}/img/green_dot.png`,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover'
+          }
+        ]
       });
     }
     matchNumContents.push({
