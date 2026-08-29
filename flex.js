@@ -490,7 +490,7 @@ function buildNowFlex(matchInfo, theme) {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
-        contents: makeHeaderContents('image', `${getBaseUrl()}/green_dot.png`, 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
+        contents: makeHeaderContents('image', `${getBaseUrl()}/img/green_dot.png`, 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
       },
       // Score row: TeamA  score  TeamB
       {
@@ -1002,7 +1002,8 @@ function buildLiveFlex(matchInfo, theme) {
             url: `${getBaseUrl()}/img/green_dot.png`,
             size: 'full',
             aspectRatio: '1:1',
-            aspectMode: 'cover'
+            aspectMode: 'cover',
+            animated: true
           }
         ]
       });
