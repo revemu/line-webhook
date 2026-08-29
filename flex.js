@@ -998,13 +998,11 @@ function buildLiveFlex(matchInfo, theme) {
       matchNumContents.push({
         type: 'box',
         layout: 'vertical',
-        width: '48px',
-        height: '48px',
-        position: 'absolute',
-        //offsetStart: '0px',
-        //offsetTop: '4px',
-        //cornerRadius: '100px',
-        //backgroundColor: '#22c55e',
+        width: '14px',
+        height: '14px',
+        flex: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
         contents: [
           {
             type: 'image',
@@ -1015,6 +1013,14 @@ function buildLiveFlex(matchInfo, theme) {
             animated: true
           }
         ]
+      });
+    } else {
+      matchNumContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: '14px',
+        height: '14px',
+        flex: 0
       });
     }
     matchNumContents.push({
