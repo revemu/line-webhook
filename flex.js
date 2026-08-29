@@ -1782,7 +1782,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     contents: [
       makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
       makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor),
-      makeBoxButton('💰 จ่ายเงิน', '/qr', '004466')
+      makeBoxButton('💰 จ่ายเงิน', '/qr', '#15be1eff')
     ]
   });
 
