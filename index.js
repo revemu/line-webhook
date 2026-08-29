@@ -84,23 +84,27 @@ app.get('/img/green_dot.png', (req, res) => {
 });
 
 
-// Function to get image content from LINE
+// Function to get image content from LINE (Optimized: native fetch with Keep-Alive connection pooling & 10s timeout)
 async function getImageAxios(messageId) {
-    let access_token = config.channelAccessToken;
+    const access_token = config.channelAccessToken;
     const maxRetries = 3;
     let retries = 0;
     while (retries <= maxRetries) {
         try {
-            const response = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+            const response = await fetch(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
                 headers: {
                     'Authorization': `Bearer ${access_token}`
                 },
-                responseType: 'arraybuffer'
+                signal: AbortSignal.timeout(10000)
             });
-            return Buffer.from(response.data);
+            if (!response.ok) {
+                throw new Error(`LINE API returned status ${response.status}`);
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            return Buffer.from(arrayBuffer);
         } catch (error) {
             retries++;
-            console.error(`Error getting image content, retried: ${retries}`);
+            console.error(`Error getting image content (attempt ${retries}/${maxRetries}):`, error.message || error);
             if (retries > maxRetries)
                 throw error;
             else await new Promise(resolve => setTimeout(resolve, 1000));
