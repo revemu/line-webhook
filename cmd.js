@@ -5,7 +5,7 @@ const axios = require('axios');
 const slipService = require('./slip');
 const { getNextSaturday } = require('./utils/date');
 
-const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'slip', 'sliplist', 'verify']);
+const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify']);
 const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my']);
 const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt']);
 
@@ -366,8 +366,11 @@ const COMMAND_REGISTRY = {
         }
 
         if (!amountSpecified) {
-            if (!week || week.length === 0 || week[0].cost <= 0) return [{ type: 'text', quoteToken, text: "ยังไม่ได้คำนวณค่าสนามในสัปดาห์นี้ครับ" }];
-            amount = week[0].cost;
+            if (week && week.length > 0 && week[0].cost > 0) {
+                amount = week[0].cost;
+            } else {
+                amount = 0;
+            }
         }
 
         try {
@@ -395,6 +398,10 @@ const COMMAND_REGISTRY = {
         } catch (qrErr) {
             return [{ type: 'text', text: `เกิดข้อผิดพลาดในการสร้าง QR Code: ${qrErr.message}` }];
         }
+    },
+    'qrpay': async (context) => {
+        context.param = context.param ? `0 ${context.param}` : '0';
+        return COMMAND_REGISTRY['qr'](context);
     },
     'autoreglist': async (context) => { context.param = 'list'; return COMMAND_REGISTRY['autoreg'](context); },
     '+autoreg': async (context) => COMMAND_REGISTRY['autoreg'](context),

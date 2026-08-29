@@ -1950,7 +1950,8 @@ function buildWelcomeFlex(displayName, theme, imageUrl, dateStr = '') {
     margin: 'xs',
     contents: [
       makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
-      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor)
+      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor),
+      makeBoxButton('💰 จ่ายเงิน', '/qr', '004466')
     ]
   });
 
@@ -1981,7 +1982,7 @@ function buildWelcomeFlex(displayName, theme, imageUrl, dateStr = '') {
   });
 
   // Section 3: ลงทะเบียนอัตโนมัติ
-  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+  /*bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
   bodyContents.push({
     type: 'text',
     text: '▶ ลงทะเบียนอัตโนมัติ',
@@ -2000,7 +2001,7 @@ function buildWelcomeFlex(displayName, theme, imageUrl, dateStr = '') {
       makeBoxButton('➕ สมัคร', '+autoreg', buttonRegisterColor),
       makeBoxButton('➖ ยกเลิก', '-autoreg', buttonCancelColor)
     ]
-  });
+  });*/
 
   const bubble = {
     type: 'bubble',
