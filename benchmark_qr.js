@@ -5,8 +5,20 @@ const util = require('util');
 const execPromise = util.promisify(exec);
 const { Jimp } = require('jimp');
 const jsQR = require('jsqr');
-const { readBarcodesFromImageData } = require('zxing-wasm');
+const { readBarcodesFromImageData, setZXingModuleOverrides } = require('zxing-wasm');
 const qrGen = require('./qr_gen');
+
+// Configure zxing-wasm to load local .wasm binary from node_modules
+try {
+    const fullWasmPath = path.join(__dirname, 'node_modules', 'zxing-wasm', 'dist', 'full', 'zxing_full.wasm');
+    const readerWasmPath = path.join(__dirname, 'node_modules', 'zxing-wasm', 'dist', 'reader', 'zxing_reader.wasm');
+    const targetWasmPath = fs.existsSync(fullWasmPath) ? fullWasmPath : (fs.existsSync(readerWasmPath) ? readerWasmPath : null);
+
+    if (targetWasmPath) {
+        const wasmBinary = fs.readFileSync(targetWasmPath);
+        setZXingModuleOverrides({ wasmBinary });
+    }
+} catch (e) {}
 
 async function decodeZbarimg(tempFilePath) {
     const start = process.hrtime.bigint();

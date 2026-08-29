@@ -17,9 +17,24 @@ const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date')
 
 const execPromise = util.promisify(exec);
 
+const fsSync = require('fs');
 const { Jimp } = require('jimp');
 const jsQR = require('jsqr');
-const { readBarcodesFromImageData } = require('zxing-wasm');
+const { readBarcodesFromImageData, setZXingModuleOverrides } = require('zxing-wasm');
+
+// Configure zxing-wasm to load local .wasm binary from node_modules (prevents CDN fetch failures)
+try {
+    const fullWasmPath = path.join(__dirname, 'node_modules', 'zxing-wasm', 'dist', 'full', 'zxing_full.wasm');
+    const readerWasmPath = path.join(__dirname, 'node_modules', 'zxing-wasm', 'dist', 'reader', 'zxing_reader.wasm');
+    const targetWasmPath = fsSync.existsSync(fullWasmPath) ? fullWasmPath : (fsSync.existsSync(readerWasmPath) ? readerWasmPath : null);
+
+    if (targetWasmPath) {
+        const wasmBinary = fsSync.readFileSync(targetWasmPath);
+        setZXingModuleOverrides({ wasmBinary });
+    }
+} catch (wasmErr) {
+    console.warn('⚠️ Could not load local WASM binary for zxing-wasm:', wasmErr.message);
+}
 
 require('dotenv').config({ quiet: true });
 
