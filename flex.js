@@ -391,16 +391,20 @@ function buildNowFlex(matchInfo, theme) {
 
   const makeHeaderContents = (iconType, iconText, titleText, matchNo, startTime, useLightColor) => {
     const textColor = useLightColor ? colors.textMuted : colors.textMutedDark;
+    const isImg = iconType === 'image';
     return [
       {
         type: 'box',
         layout: 'vertical',
-        width: '32px',
-        height: '32px',
+        width: isImg ? '8px' : '32px',
+        height: isImg ? '8px' : '32px',
         flex: 0,
         justifyContent: 'center',
         alignItems: 'center',
-        contents: iconType === 'image' ? [
+        cornerRadius: isImg ? '100px' : '0px',
+        backgroundColor: isImg ? '#22c55e' : 'transparent',
+        margin: isImg ? 'xs' : 'none',
+        contents: isImg ? [
           {
             type: 'image',
             url: iconText,
@@ -490,7 +494,7 @@ function buildNowFlex(matchInfo, theme) {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
-        contents: makeHeaderContents('image', `${getBaseUrl()}/img/green_dot.png`, 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
+        contents: makeHeaderContents('image', `${getBaseUrl()}/img/green_pulse_true.png`, 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
       },
       // Score row: TeamA  score  TeamB
       {
@@ -999,7 +1003,7 @@ function buildLiveFlex(matchInfo, theme) {
         contents: [
           {
             type: 'image',
-            url: `${getBaseUrl()}/img/green_dot.png`,
+            url: `${getBaseUrl()}/img/green_pulse_true.png`,
             size: 'full',
             aspectRatio: '1:1',
             aspectMode: 'cover',
