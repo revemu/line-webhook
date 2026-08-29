@@ -20,7 +20,7 @@ const execPromise = util.promisify(exec);
 const fsSync = require('fs');
 const { Jimp } = require('jimp');
 const jsQR = require('jsqr');
-const { readBarcodesFromImageData, setZXingModuleOverrides } = require('zxing-wasm');
+const { readBarcodes, readBarcodesFromImageData, setZXingModuleOverrides } = require('zxing-wasm');
 
 // Configure zxing-wasm to load local .wasm binary from node_modules (prevents CDN fetch failures)
 try {
@@ -146,7 +146,8 @@ async function readQRCode(imageBuffer) {
             width: jimpImage.bitmap.width,
             height: jimpImage.bitmap.height
         };
-        const results = await readBarcodesFromImageData(imageData, { formats: ['QRCode'] });
+        //const results = await readBarcodesFromImageData(imageData, { formats: ['QRCode'] });
+        const results = await readBarcodes(imageData, { formats: ['QRCode'] });
         if (results && results.length > 0) {
             return results.map(r => ({ type: r.format || 'QR-Code', data: r.text }));
         }
