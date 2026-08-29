@@ -1782,8 +1782,8 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     contents: [
       makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
       makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor),
-      makeBoxButton('💰 จ่ายเงิน', '/qr', '#15be1eff'),
-      makeBoxButton('อื่นๆ', '/menu', '#12a5dfff')
+      makeBoxButton('📱 แสกนจ่าย', '/qr', '#15be1eff'),
+      makeBoxButton('📋 อื่นๆ', '/menu', '#12a5dfff')
     ]
   });
   /*bodyContents.push({
