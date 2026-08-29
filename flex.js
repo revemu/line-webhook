@@ -1001,7 +1001,7 @@ function buildLiveFlex(matchInfo, theme) {
         width: '32px',
         height: '32px',
         position: 'absolute',
-        offsetStart: '4px',
+        offsetStart: '0px',
         //offsetTop: '4px',
         cornerRadius: '100px',
         //backgroundColor: '#22c55e',
