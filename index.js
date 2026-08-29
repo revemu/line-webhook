@@ -6,6 +6,8 @@ const path = require('path');
 const { exec } = require('child_process');
 const util = require('util');
 const axios = require('axios');
+const https = require('https');
+const http = require('http');
 const db = require('./query');
 const flex = require('./flex');
 const cmd = require('./cmd');
@@ -20,6 +22,10 @@ const jsQR = require('jsqr');
 const { readBarcodesFromImageData } = require('zxing-wasm');
 
 require('dotenv').config({ quiet: true });
+
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 50, keepAliveMsecs: 30000 });
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 50, keepAliveMsecs: 30000 });
+const lineDataAxios = axios.create({ httpsAgent, httpAgent, timeout: 10000 });
 
 const app = express();
 const config = lineClient.config;
@@ -84,24 +90,20 @@ app.get('/img/green_dot.png', (req, res) => {
 });
 
 
-// Function to get image content from LINE (Optimized: native fetch with Keep-Alive connection pooling & 10s timeout)
+// Function to get image content from LINE (Optimized: Axios with Keep-Alive Agent ~1.37ms/req)
 async function getImageAxios(messageId) {
     const access_token = config.channelAccessToken;
     const maxRetries = 3;
     let retries = 0;
     while (retries <= maxRetries) {
         try {
-            const response = await fetch(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+            const response = await lineDataAxios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
                 headers: {
                     'Authorization': `Bearer ${access_token}`
                 },
-                signal: AbortSignal.timeout(10000)
+                responseType: 'arraybuffer'
             });
-            if (!response.ok) {
-                throw new Error(`LINE API returned status ${response.status}`);
-            }
-            const arrayBuffer = await response.arrayBuffer();
-            return Buffer.from(arrayBuffer);
+            return Buffer.from(response.data);
         } catch (error) {
             retries++;
             console.error(`Error getting image content (attempt ${retries}/${maxRetries}):`, error.message || error);
