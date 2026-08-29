@@ -395,8 +395,8 @@ function buildNowFlex(matchInfo, theme) {
     const iconBox = {
       type: 'box',
       layout: 'vertical',
-      width: isImg ? '8px' : '32px',
-      height: isImg ? '8px' : '32px',
+      width: '24px',
+      height: '24px',
       flex: 0,
       justifyContent: 'center',
       alignItems: 'center',
@@ -421,78 +421,71 @@ function buildNowFlex(matchInfo, theme) {
       ]
     };
 
-    if (isImg) {
-      iconBox.cornerRadius = '100px';
-      iconBox.backgroundColor = '#22c55e';
-      iconBox.margin = 'xs';
-    }
-
     return [
       iconBox,
       {
-        type: 'box',
-        layout: 'vertical',
-        width: '80px',
-        flex: 0,
-        justifyContent: 'center',
-        contents: [
-          {
-            type: 'text',
-            text: titleText,
-            size: 'xs',
-            color: textColor,
-            gravity: 'center'
-          }
-        ]
+        type: 'text',
+        text: `${titleText} [${matchNo}]`,
+        size: 'xs',
+        weight: 'bold',
+        color: useLightColor ? colors.textAccent : colors.textMutedLight,
+        margin: 'xs',
+        flex: 1
       },
       {
-        type: 'box',
-        layout: 'vertical',
-        width: '35px',
-        flex: 0,
-        justifyContent: 'center',
-        contents: [
-          {
-            type: 'text',
-            text: `[${matchNo}]`,
-            size: 'xs',
-            color: textColor,
-            align: 'center',
-            gravity: 'center'
-          }
-        ]
-      },
-      {
-        type: 'box',
-        layout: 'vertical',
-        width: '50px',
-        flex: 0,
-        justifyContent: 'center',
-        contents: [
-          {
-            type: 'text',
-            text: startTime,
-            size: 'xs',
-            color: textColor,
-            align: 'center',
-            gravity: 'center'
-          }
-        ]
+        type: 'text',
+        text: startTime || '',
+        size: 'xs',
+        color: textColor,
+        align: 'end'
       }
     ];
   };
 
   const bodyContents = [];
 
+  // ── Top Header block (matching /live theme) ──
+  const schedDate = matchInfo.sched ? matchInfo.sched.date : '';
+  const schedStart = matchInfo.sched ? matchInfo.sched.startTime : '';
+  const schedEnd = matchInfo.sched ? matchInfo.sched.endTime : '';
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    backgroundColor: colors.bgHeader,
+    paddingAll: 'sm',
+    cornerRadius: 'md',
+    contents: [
+      {
+        type: 'text',
+        text: '⚽ Now Match',
+        weight: 'bold',
+        size: 'sm',
+        color: colors.textPrimary,
+        align: 'start'
+      },
+      {
+        type: 'text',
+        text: schedDate ? `🕐 ${schedDate} ${schedStart}–${schedEnd}` : '🕐 แมตช์ปัจจุบัน',
+        size: 'xs',
+        color: colors.textMuted,
+        align: 'end',
+        margin: 'xs'
+      }
+    ]
+  });
+
+  bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
+
   // ── Current Match ──
   bodyContents.push({
     type: 'box',
     layout: 'vertical',
     backgroundColor: colors.bgCurrent,
-    paddingAll: 'md',
-    cornerRadius: 'md',
+    paddingAll: 'sm',
+    cornerRadius: 'sm',
     borderWidth: 'normal',
     borderColor: colors.borderCurrent,
+    margin: 'xs',
     contents: [
       // Header: label  [matchNo]  time — all same size
       {
@@ -505,7 +498,8 @@ function buildNowFlex(matchInfo, theme) {
       {
         type: 'box',
         layout: 'horizontal',
-        margin: 'md',
+        margin: 'xs',
+        alignItems: 'center',
         contents: [
           { type: 'text', text: cur.teamA || '?', size: 'md', weight: 'bold', color: colors.tdc(cur.teamA), flex: 2, align: 'end' },
           {
@@ -576,16 +570,17 @@ function buildNowFlex(matchInfo, theme) {
 
       if (s.hofBadges && s.hofBadges.length > 0) {
         for (const hb of s.hofBadges) {
+          const hbSize = hb.badgeSize || '16px';
           scorerContents.push({
             type: 'box',
             layout: 'vertical',
-            width: hb.size || '16px',
-            height: hb.size || '16px',
+            width: hbSize,
+            height: hbSize,
             flex: 0,
             contents: [
               {
                 type: 'image',
-                url: hb.url,
+                url: hb.badgeUrl,
                 size: 'full',
                 aspectRatio: '1:1',
                 aspectMode: 'cover',
@@ -595,36 +590,15 @@ function buildNowFlex(matchInfo, theme) {
             margin: 'xs'
           });
         }
-      } else if (s.hofCount && s.hofCount > 0 && s.hofBadgeUrl) {
-        const hSize = s.hofBadgeSize || '16px';
-        scorerContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: hSize,
-          height: hSize,
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: s.hofBadgeUrl,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              animated: true
-            }
-          ],
-          margin: 'xs'
-        });
       }
 
       scorerContents.push({
         type: 'text',
         text: nameText,
         size: 'xs',
-        color: s.nameColor || colors.textMutedLight,
-        flex: 0,
+        color: colors.textPrimary,
         margin: 'xs',
-        weight: 'bold'
+        gravity: 'center'
       });
 
       itemContents.push({
@@ -632,7 +606,7 @@ function buildNowFlex(matchInfo, theme) {
         layout: 'horizontal',
         alignItems: 'center',
         contents: scorerContents,
-        margin: 'md',
+        margin: 'xs',
         flex: 0
       });
     }
@@ -640,7 +614,7 @@ function buildNowFlex(matchInfo, theme) {
     bodyContents.push({
       type: 'box',
       layout: 'horizontal',
-      margin: 'sm',
+      margin: 'xs',
       alignItems: 'center',
       contents: itemContents
     });
@@ -666,7 +640,7 @@ function buildNowFlex(matchInfo, theme) {
         });
       }
       isFirst = false;
-      const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : a.name;
+      const nameText = a.assist > 1 ? `${a.name}(${a.assist})` : `${a.name}`;
 
       const assistContents = [];
       if (a.pictureUrl) {
@@ -698,16 +672,17 @@ function buildNowFlex(matchInfo, theme) {
 
       if (a.hofBadges && a.hofBadges.length > 0) {
         for (const hb of a.hofBadges) {
+          const hbSize = hb.badgeSize || '16px';
           assistContents.push({
             type: 'box',
             layout: 'vertical',
-            width: hb.size || '16px',
-            height: hb.size || '16px',
+            width: hbSize,
+            height: hbSize,
             flex: 0,
             contents: [
               {
                 type: 'image',
-                url: hb.url,
+                url: hb.badgeUrl,
                 size: 'full',
                 aspectRatio: '1:1',
                 aspectMode: 'cover',
@@ -717,36 +692,15 @@ function buildNowFlex(matchInfo, theme) {
             margin: 'xs'
           });
         }
-      } else if (a.hofCount && a.hofCount > 0 && a.hofBadgeUrl) {
-        const hSize = a.hofBadgeSize || '16px';
-        assistContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: hSize,
-          height: hSize,
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: a.hofBadgeUrl,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              animated: true
-            }
-          ],
-          margin: 'xs'
-        });
       }
 
       assistContents.push({
         type: 'text',
         text: nameText,
         size: 'xs',
-        color: a.nameColor || colors.textMutedLight,
-        flex: 0,
+        color: colors.textMutedLight,
         margin: 'xs',
-        weight: 'bold'
+        gravity: 'center'
       });
 
       itemContents.push({
@@ -754,7 +708,7 @@ function buildNowFlex(matchInfo, theme) {
         layout: 'horizontal',
         alignItems: 'center',
         contents: assistContents,
-        margin: 'md',
+        margin: 'xs',
         flex: 0
       });
     }
@@ -773,10 +727,12 @@ function buildNowFlex(matchInfo, theme) {
     bodyContents.push({
       type: 'box',
       layout: 'vertical',
-      margin: 'sm',
-      backgroundColor: colors.bgNext,
+      margin: 'xs',
+      backgroundColor: colors.bgNext || colors.bgRound,
       paddingAll: 'sm',
       cornerRadius: 'sm',
+      borderWidth: 'normal',
+      borderColor: '#00000000',
       contents: [
         // Header: label  [matchNo]  time — all same size
         {
@@ -790,6 +746,7 @@ function buildNowFlex(matchInfo, theme) {
           type: 'box',
           layout: 'horizontal',
           margin: 'xs',
+          alignItems: 'center',
           contents: [
             { type: 'text', text: nxt.teamA || '?', size: 'md', weight: 'bold', color: colors.tdc(nxt.teamA), flex: 2, align: 'end' },
             { type: 'text', text: 'vs', size: 'md', color: colors.textMuted, flex: 1, align: 'center' },
@@ -805,9 +762,11 @@ function buildNowFlex(matchInfo, theme) {
         type: 'box',
         layout: 'vertical',
         margin: 'xs',
-        backgroundColor: colors.bgNext2,
+        backgroundColor: colors.bgNext2 || colors.bgRound,
         paddingAll: 'sm',
         cornerRadius: 'sm',
+        borderWidth: 'normal',
+        borderColor: '#00000000',
         contents: [
           // Header: label  [matchNo]  time — all same size
           {
@@ -821,6 +780,7 @@ function buildNowFlex(matchInfo, theme) {
             type: 'box',
             layout: 'horizontal',
             margin: 'xs',
+            alignItems: 'center',
             contents: [
               { type: 'text', text: nxt2.teamA || '?', size: 'md', weight: 'bold', color: colors.tdc(nxt2.teamA), flex: 2, align: 'end' },
               { type: 'text', text: 'vs', size: 'md', color: colors.textMutedDark, flex: 1, align: 'center' },
