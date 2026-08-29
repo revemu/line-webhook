@@ -395,8 +395,8 @@ function buildNowFlex(matchInfo, theme) {
     const iconBox = {
       type: 'box',
       layout: 'vertical',
-      width: '24px',
-      height: '24px',
+      width: isImg ? '48px' : '24px',
+      height: isImg ? '48px' : '24px',
       flex: 0,
       justifyContent: 'center',
       alignItems: 'center',
