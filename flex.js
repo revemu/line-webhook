@@ -490,7 +490,7 @@ function buildNowFlex(matchInfo, theme) {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
-        contents: makeHeaderContents('image', `${getBaseUrl()}/green_pulse_true.png`, 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
+        contents: makeHeaderContents('image', `${getBaseUrl()}/green_dot.png`, 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
       },
       // Score row: TeamA  score  TeamB
       {
@@ -958,6 +958,9 @@ function buildLiveFlex(matchInfo, theme) {
     margin: 'xs',
     paddingStart: 'xs',
     paddingEnd: 'xs',
+    alignItems: 'center',
+    borderWidth: 'normal',
+    borderColor: '#00000000',
     contents: [
       { type: 'text', text: '#', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
       { type: 'text', text: 'เวลา', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
@@ -985,11 +988,13 @@ function buildLiveFlex(matchInfo, theme) {
     if (isCurrent) {
       matchNumContents.push({
         type: 'image',
-        url: `${getBaseUrl()}/green_pulse_true.png`,
+        url: `${getBaseUrl()}/green_dot.png`,
+        position: 'absolute',
+        offsetStart: '2px',
+        offsetTop: '2px',
         size: 'xxs',
         aspectRatio: '1:1',
-        aspectMode: 'cover',
-        animated: true
+        aspectMode: 'cover'
       });
     }
     matchNumContents.push({
@@ -998,7 +1003,8 @@ function buildLiveFlex(matchInfo, theme) {
       size: 'sm',
       color: isCurrent ? colors.textAccent : colors.textMuted,
       weight: isCurrent ? 'bold' : 'regular',
-      align: 'center'
+      align: 'center',
+      flex: 1
     });
 
     const matchBoxContents = [
@@ -1033,14 +1039,14 @@ function buildLiveFlex(matchInfo, theme) {
       paddingBottom: 'xs',
       margin: 'xs',
       alignItems: 'center',
+      borderWidth: 'normal',
+      borderColor: isCurrent ? colors.borderCurrent : '#00000000',
+      cornerRadius: 'sm',
       contents: matchBoxContents
     };
 
     if (isCurrent) {
       matchContainer.backgroundColor = colors.bgCurrent;
-      matchContainer.borderWidth = 'normal';
-      matchContainer.borderColor = colors.borderCurrent;
-      matchContainer.cornerRadius = 'sm';
     }
 
     bodyContents.push(matchContainer);

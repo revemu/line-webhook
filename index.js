@@ -99,8 +99,8 @@ app.use('/img/qr', express.static(path.join(__dirname, 'qr')));
 app.use('/img', express.static(path.join(__dirname, 'img')));
 app.use(express.static(__dirname));
 
-// Serve green_dot.png static asset
-app.get('/img/green_dot.png', (req, res) => {
+// Serve green_dot.png static asset and fallback route aliases
+app.get(['/green_dot.png', '/img/green_dot.png', '/green_pulse_true.png', '/img/green_pulse_true.png'], (req, res) => {
     res.sendFile(path.join(__dirname, 'green_dot.png'));
 });
 
