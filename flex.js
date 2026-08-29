@@ -998,8 +998,8 @@ function buildLiveFlex(matchInfo, theme) {
       matchNumContents.push({
         type: 'box',
         layout: 'vertical',
-        width: '8px',
-        height: '8px',
+        width: '16px',
+        height: '16px',
         position: 'absolute',
         offsetStart: '4px',
         offsetTop: '4px',
