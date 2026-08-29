@@ -994,7 +994,8 @@ function buildLiveFlex(matchInfo, theme) {
         offsetTop: '2px',
         size: 'xxs',
         aspectRatio: '1:1',
-        aspectMode: 'cover'
+        aspectMode: 'cover',
+        animated: true
       });
     }
     matchNumContents.push({
