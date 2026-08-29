@@ -971,9 +971,9 @@ function buildLiveFlex(matchInfo, theme) {
     borderWidth: 'normal',
     borderColor: '#00000000',
     contents: [
-      { type: 'text', text: '#', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 1, align: 'center' },
+      { type: 'text', text: '#', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
       { type: 'text', text: 'เวลา', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
-      { type: 'text', text: 'ทีม', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 6, align: 'center' }
+      { type: 'text', text: 'ทีม', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 5, align: 'center' }
     ]
   });
 
@@ -1007,10 +1007,20 @@ function buildLiveFlex(matchInfo, theme) {
           {
             type: 'image',
             url: `${getBaseUrl()}/img/green_pulse_true.png`,
+            position: 'absolute',
             size: 'full',
             aspectRatio: '1:1',
             aspectMode: 'cover',
             animated: true
+          },
+          {
+            type: 'text',
+            text: `${m.matchNo}`,
+            size: 'sm',
+            color: colors.textAccent,
+            weight: 'bold',
+            align: 'center',
+            gravity: 'center'
           }
         ]
       });
@@ -1019,32 +1029,29 @@ function buildLiveFlex(matchInfo, theme) {
         type: 'box',
         layout: 'vertical',
         width: '48px',
-        height: '14px',
+        height: '48px',
         flex: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
         contents: [
           {
             type: 'text',
-            text: ' ',
-            size: 'xxs'
+            text: `${m.matchNo}`,
+            size: 'sm',
+            color: colors.textMuted,
+            weight: 'regular',
+            align: 'center',
+            gravity: 'center'
           }
         ]
       });
     }
-    matchNumContents.push({
-      type: 'text',
-      text: `${m.matchNo}`,
-      size: 'sm',
-      color: isCurrent ? colors.textAccent : colors.textMuted,
-      weight: isCurrent ? 'bold' : 'regular',
-      align: 'center',
-      flex: 1
-    });
 
     const matchBoxContents = [
       {
         type: 'box',
         layout: 'horizontal',
-        flex: 1,
+        flex: 2,
         justifyContent: 'center',
         alignItems: 'center',
         contents: matchNumContents
@@ -1053,7 +1060,7 @@ function buildLiveFlex(matchInfo, theme) {
       {
         type: 'box',
         layout: 'horizontal',
-        flex: 6,
+        flex: 5,
         alignItems: 'center',
         contents: [
           { type: 'text', text: m.teamA || '?', size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
