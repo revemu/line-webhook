@@ -389,14 +389,17 @@ function buildNowFlex(matchInfo, theme) {
   const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table } = matchInfo;
   const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
 
-  const makeHeaderContents = (iconType, iconText, titleText, matchNo, startTime, useLightColor) => {
+  const makeHeaderContents = (iconType, iconText, titleText, matchNo, startTime, useLightColor, iconWidth, iconHeight) => {
     const textColor = useLightColor ? colors.textMuted : colors.textMutedDark;
     const isImg = iconType === 'image';
+    const defaultDim = isImg ? '48px' : '24px';
+    const w = iconWidth || defaultDim;
+    const h = iconHeight || defaultDim;
     const iconBox = {
       type: 'box',
       layout: 'vertical',
-      width: isImg ? '48px' : '24px',
-      height: isImg ? '48px' : '24px',
+      width: w,
+      height: h,
       flex: 0,
       justifyContent: 'center',
       alignItems: 'center',
