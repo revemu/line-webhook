@@ -997,21 +997,28 @@ function buildLiveFlex(matchInfo, theme) {
     if (isCurrent) {
       matchNumContents.push({
         type: 'box',
-        layout: 'vertical',
-        width: '48px',
-        height: '48px',
-        flex: 0,
-        justifyContent: 'center',
+        layout: 'horizontal',
         alignItems: 'center',
+        justifyContent: 'center',
         contents: [
           {
-            type: 'image',
-            url: `${getBaseUrl()}/img/green_pulse_true.png`,
-            position: 'absolute',
-            size: 'full',
-            aspectRatio: '1:1',
-            aspectMode: 'cover',
-            animated: true
+            type: 'box',
+            layout: 'vertical',
+            width: '24px',
+            height: '24px',
+            flex: 0,
+            justifyContent: 'center',
+            alignItems: 'center',
+            contents: [
+              {
+                type: 'image',
+                url: `${getBaseUrl()}/img/green_pulse_true.png`,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                animated: true
+              }
+            ]
           },
           {
             type: 'text',
@@ -1019,29 +1026,38 @@ function buildLiveFlex(matchInfo, theme) {
             size: 'sm',
             color: colors.textAccent,
             weight: 'bold',
-            align: 'center',
-            gravity: 'center'
+            margin: 'xs'
           }
         ]
       });
     } else {
       matchNumContents.push({
         type: 'box',
-        layout: 'vertical',
-        width: '48px',
-        height: '48px',
-        flex: 0,
-        justifyContent: 'center',
+        layout: 'horizontal',
         alignItems: 'center',
+        justifyContent: 'center',
         contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '24px',
+            height: '24px',
+            flex: 0,
+            contents: [
+              {
+                type: 'text',
+                text: ' ',
+                size: 'xxs'
+              }
+            ]
+          },
           {
             type: 'text',
             text: `${m.matchNo}`,
             size: 'sm',
             color: colors.textMuted,
             weight: 'regular',
-            align: 'center',
-            gravity: 'center'
+            margin: 'xs'
           }
         ]
       });
