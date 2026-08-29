@@ -998,12 +998,12 @@ function buildLiveFlex(matchInfo, theme) {
       matchNumContents.push({
         type: 'box',
         layout: 'vertical',
-        width: '32px',
-        height: '32px',
+        width: '48px',
+        height: '48px',
         position: 'absolute',
-        offsetStart: '0px',
+        //offsetStart: '0px',
         //offsetTop: '4px',
-        cornerRadius: '100px',
+        //cornerRadius: '100px',
         //backgroundColor: '#22c55e',
         contents: [
           {
