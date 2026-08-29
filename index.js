@@ -17,6 +17,7 @@ const execPromise = util.promisify(exec);
 
 const { Jimp } = require('jimp');
 const jsQR = require('jsqr');
+const { readBarcodesFromImageData } = require('zxing-wasm');
 
 require('dotenv').config({ quiet: true });
 
@@ -150,22 +151,39 @@ async function readQRCode(imageBuffer) {
         }
     }
 
-    // 2. Secondary Fallback Pass: jsQR + Jimp in-memory
-    /*try {
-        console.log('[readQRCode] Primary zbarimg found no QR code, running secondary jsQR fallback...');
-        const image = await Jimp.read(imageBuffer);
+    // 2. Secondary Pass: zxing-wasm (Fast WebAssembly scanner, in-memory)
+    let jimpImage = null;
+    try {
+        jimpImage = await Jimp.read(imageBuffer);
+        const imageData = {
+            data: new Uint8ClampedArray(jimpImage.bitmap.data),
+            width: jimpImage.bitmap.width,
+            height: jimpImage.bitmap.height
+        };
+        const results = await readBarcodesFromImageData(imageData, { formats: ['QRCode'] });
+        if (results && results.length > 0) {
+            return results.map(r => ({ type: r.format || 'QR-Code', data: r.text }));
+        }
+    } catch (zxingErr) {
+        console.warn('[readQRCode] zxing-wasm decoder warning:', zxingErr.message || zxingErr);
+    }
+
+    // 3. Tertiary Fallback Pass: jsQR + Jimp in-memory
+    try {
+        if (!jimpImage) {
+            jimpImage = await Jimp.read(imageBuffer);
+        }
         const qrCode = jsQR(
-            new Uint8ClampedArray(image.bitmap.data),
-            image.bitmap.width,
-            image.bitmap.height
+            new Uint8ClampedArray(jimpImage.bitmap.data),
+            jimpImage.bitmap.width,
+            jimpImage.bitmap.height
         );
         if (qrCode && qrCode.data) {
-            console.log('[readQRCode] Decoded QR code via secondary jsQR fallback!');
             return [{ type: 'QR-Code', data: qrCode.data }];
         }
     } catch (jsqrErr) {
-        console.warn('[readQRCode] Secondary jsQR fallback warning:', jsqrErr.message);
-    }*/
+        console.warn('[readQRCode] Tertiary jsQR fallback warning:', jsqrErr.message);
+    }
 
     return null;
 }
@@ -378,12 +396,7 @@ app.listen(3001, async () => {
     if (zbarimgInstalled) {
         console.log('✅ zbarimg command line tool is available');
     } else {
-        console.warn('⚠️  Warning: zbarimg command line tool is not installed');
-        console.log('Please install zbar-tools package:');
-        console.log('  Ubuntu/Debian: sudo apt-get install zbar-tools');
-        console.log('  CentOS/RHEL: sudo yum install zbar');
-        console.log('  macOS: brew install zbar');
-        console.log('  Windows: Download from http://zbar.sourceforge.net/');
+        console.warn('⚠️  zbarimg CLI not found. Using zxing-wasm (WebAssembly) & jsQR engines.');
     }
 });
 
