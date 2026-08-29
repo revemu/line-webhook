@@ -139,7 +139,7 @@ async function readQRCode(imageBuffer) {
     let jimpImage = null;
 
     // 1. Primary Pass: zxing-wasm (Fast WebAssembly scanner, in-memory)
-    try {
+    /*try {
         jimpImage = await Jimp.read(imageBuffer);
         const imageData = {
             data: new Uint8ClampedArray(jimpImage.bitmap.data),
@@ -153,8 +153,8 @@ async function readQRCode(imageBuffer) {
         }
     } catch (zxingErr) {
         console.warn('[readQRCode] Primary zxing-wasm decoder warning:', zxingErr.message || zxingErr);
-    }
-    /*
+    }*/
+
     // 2. Secondary Pass: zbarimg CLI (Native C scanner fallback)
     let tempFilePath = null;
     try {
@@ -190,7 +190,7 @@ async function readQRCode(imageBuffer) {
             try { await fs.unlink(tempFilePath); } catch (unlinkError) { }
         }
     }
-
+    /*
     // 3. Tertiary Fallback Pass: jsQR + Jimp in-memory
     try {
         if (!jimpImage) {
