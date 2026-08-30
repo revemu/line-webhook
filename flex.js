@@ -3771,9 +3771,9 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
         });
 
         if (info.pictureUrl) {
-          const avatarBox = createMemberAvatarBox(info.pictureUrl, '20px');
+          const avatarBox = createMemberAvatarBox(info.pictureUrl, '24px');
           if (avatarBox) {
-            avatarBox.margin = 'xs';
+            avatarBox.margin = 'sm';
             nameBoxContents.push(avatarBox);
           }
         }
@@ -3782,17 +3782,17 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
           nameBoxContents.push({
             type: 'box',
             layout: 'vertical',
-            width: info.badgeSize || '18px',
-            height: info.badgeSize || '18px',
+            width: info.badgeSize || '20px',
+            height: info.badgeSize || '20px',
             flex: 0,
-            margin: 'xs',
+            margin: 'sm',
             contents: [
               {
                 type: 'image',
                 url: info.badgeUrl,
                 size: 'full',
                 aspectRatio: '1:1',
-                aspectMode: 'cover',
+                aspectMode: 'fit',
                 animated: true
               }
             ]
@@ -3804,17 +3804,17 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
             nameBoxContents.push({
               type: 'box',
               layout: 'vertical',
-              width: hb.size || '18px',
-              height: hb.size || '18px',
+              width: hb.size || '20px',
+              height: hb.size || '20px',
               flex: 0,
-              margin: 'xs',
+              margin: 'sm',
               contents: [
                 {
                   type: 'image',
                   url: hb.url,
                   size: 'full',
                   aspectRatio: '1:1',
-                  aspectMode: 'cover',
+                  aspectMode: 'fit',
                   animated: true
                 }
               ]
@@ -3824,17 +3824,17 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
           nameBoxContents.push({
             type: 'box',
             layout: 'vertical',
-            width: info.hofBadgeSize || '18px',
-            height: info.hofBadgeSize || '18px',
+            width: info.hofBadgeSize || '20px',
+            height: info.hofBadgeSize || '20px',
             flex: 0,
-            margin: 'xs',
+            margin: 'sm',
             contents: [
               {
                 type: 'image',
                 url: info.hofBadgeUrl,
                 size: 'full',
                 aspectRatio: '1:1',
-                aspectMode: 'cover',
+                aspectMode: 'fit',
                 animated: true
               }
             ]
