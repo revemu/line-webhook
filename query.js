@@ -981,6 +981,71 @@ async function getTableWeek(week_id = 0) {
   }
 }
 
+async function getWeekLeaderStats(week_id) {
+  try {
+    const goalsQuery = `
+      SELECT 
+        mgt.member_id, 
+        m.name, 
+        mtw.team_id,
+        SUM(CASE WHEN mgt.status <= 2 THEN 1 ELSE 0 END) as goals,
+        SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END) as assists
+      FROM match_goal_tbl mgt
+      JOIN match_stat_tbl mst ON mgt.match_id = mst.id
+      JOIN member_tbl m ON mgt.member_id = m.id
+      LEFT JOIN member_team_week_tbl mtw ON mtw.member_id = m.id AND mtw.week_id = mst.week_id
+      WHERE mst.week_id = ?
+      GROUP BY mgt.member_id, m.name, mtw.team_id
+    `;
+    const goalRes = await executeQuery(goalsQuery, [week_id]);
+    if (!goalRes || goalRes.length === 0) return null;
+
+    const tableRows = await queryTableWeek(week_id);
+    const teamAvgPtsMap = {};
+    if (tableRows && tableRows.length > 0) {
+      tableRows.forEach(row => {
+        const matches = (Number(row.w) || 0) + (Number(row.d) || 0) + (Number(row.l) || 0);
+        const pts = Number(row.pts) || 0;
+        const avg = matches > 0 ? (pts / matches) : pts;
+        teamAvgPtsMap[row.team_week_id] = avg;
+      });
+    }
+
+    let maxGoals = 0;
+    let maxAssists = 0;
+    let maxMvpScore = -1;
+
+    let topScorer = null;
+    let topAssist = null;
+    let mvp = null;
+
+    goalRes.forEach(m => {
+      const g = Number(m.goals) || 0;
+      const a = Number(m.assists) || 0;
+      const teamAvg = teamAvgPtsMap[m.team_id] !== undefined ? teamAvgPtsMap[m.team_id] : 1;
+      const mvpScore = (g + a) * teamAvg;
+
+      if (g > maxGoals) {
+        maxGoals = g;
+        topScorer = { name: m.name, goals: g };
+      }
+      if (a > maxAssists) {
+        maxAssists = a;
+        topAssist = { name: m.name, assists: a };
+      }
+      if (mvpScore > maxMvpScore && (g + a) > 0) {
+        maxMvpScore = mvpScore;
+        mvp = { name: m.name, goals: g, assists: a, score: mvpScore };
+      }
+    });
+
+    return { topScorer, topAssist, mvp };
+  } catch (err) {
+    console.error("Error calculating week leader stats:", err.message);
+    return null;
+  }
+}
+
 async function getMatchWeek(week_id = 0, groupId = null) {
 
   const res = await queryWeekID(week_id);
@@ -1083,6 +1148,67 @@ async function getMatchWeek(week_id = 0, groupId = null) {
               { type: 'text', text: `${row.pts ?? 0}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
             ]
           });
+        });
+      }
+
+      // ── Weekly Leaders (Top Scorer, Top Assist, MVP) ──
+      const leaders = await getWeekLeaderStats(week_id);
+      if (leaders && (leaders.topScorer || leaders.topAssist || leaders.mvp)) {
+        const leaderItems = [];
+        if (leaders.topScorer) {
+          leaderItems.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            contents: [
+              { type: 'text', text: '⚽ ดาวซัลโว:', size: 'xs', color: colors.textMuted, flex: 3 },
+              { type: 'text', text: `${leaders.topScorer.name} (${leaders.topScorer.goals} ประตู)`, size: 'xs', color: colors.textPrimary, weight: 'bold', flex: 5, align: 'end' }
+            ]
+          });
+        }
+        if (leaders.topAssist) {
+          leaderItems.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            contents: [
+              { type: 'text', text: '👟 แอสซิสต์สูงสุด:', size: 'xs', color: colors.textMuted, flex: 3 },
+              { type: 'text', text: `${leaders.topAssist.name} (${leaders.topAssist.assists} แอสซิสต์)`, size: 'xs', color: colors.textPrimary, weight: 'bold', flex: 5, align: 'end' }
+            ]
+          });
+        }
+        if (leaders.mvp) {
+          leaderItems.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            contents: [
+              { type: 'text', text: '👑 MVP ประจำสัปดาห์:', size: 'xs', color: colors.textAccent, weight: 'bold', flex: 3 },
+              { type: 'text', text: `${leaders.mvp.name} (${leaders.mvp.score.toFixed(1)} คะแนน)`, size: 'xs', color: colors.textAccent, weight: 'bold', flex: 5, align: 'end' }
+            ]
+          });
+        }
+
+        tableBodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+        tableBodyContents.push({
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: colors.bgRound,
+          paddingAll: 'sm',
+          cornerRadius: 'md',
+          margin: 'sm',
+          contents: [
+            {
+              type: 'text',
+              text: '🏆 ยอดเยี่ยมประจำสัปดาห์',
+              size: 'xs',
+              weight: 'bold',
+              color: colors.textPrimary,
+              align: 'center',
+              margin: 'xs'
+            },
+            ...leaderItems
+          ]
         });
       }
 
