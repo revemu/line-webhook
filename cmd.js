@@ -429,7 +429,7 @@ const COMMAND_REGISTRY = {
             const msg = flex.buildAutoRegFlex('full', null, list, theme, autoregImageUrl);
             return { type: 'flex', altText: "รายชื่อลงชื่อออโต้เต็มแล้ว", contents: msg };
         }
-        await db.updateMemberAutoReg(member_id, 1);
+        await db.updateMemberAutoReg(member_id, 1, groupId);
         const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
         const updatedList = await db.getAutoRegList(groupId);
         const msg = flex.buildAutoRegFlex('add', memberInfo, updatedList, theme, autoregImageUrl);
@@ -440,7 +440,7 @@ const COMMAND_REGISTRY = {
         const theme = await db.getTheme();
         const autoregTpl = await db.getTemplate('autoreg', 'header');
         const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
-        await db.updateMemberAutoReg(member_id, 0);
+        await db.updateMemberAutoReg(member_id, 0, groupId);
         const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
         const list = await db.getAutoRegList(groupId);
         const msg = flex.buildAutoRegFlex('remove', memberInfo, list, theme, autoregImageUrl);

@@ -2258,6 +2258,141 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme, imageUrl = 
   return bubble;
 }
 
+function renderAutoRegTableRow(member, index, isCurrentMember, colors) {
+  const isWhite = colors.name === 'white';
+  const textPrimary = isWhite ? '#0f172a' : '#ffffff';
+  const textMuted = isWhite ? '#64748b' : '#94a3b8';
+
+  const rowBg = isCurrentMember
+    ? (isWhite ? '#eff6ff' : '#1e293b')
+    : (index % 2 === 0 ? (isWhite ? '#f8fafc' : '#16122d') : (isWhite ? '#ffffff' : '#0d0d1a'));
+  const rowBorder = isCurrentMember ? (isWhite ? '#3b82f6' : '#60a5fa') : (isWhite ? '#e2e8f0' : '#2a2a4a');
+
+  const avatarUrl = (member.picture_url && typeof member.picture_url === 'string' && member.picture_url.startsWith('http'))
+    ? member.picture_url
+    : 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
+
+  const hasDebt = Number(member.debt) > 0;
+  const statusBadge = hasDebt
+    ? {
+        type: 'box',
+        layout: 'horizontal',
+        backgroundColor: isWhite ? '#fef2f2' : '#450a0a',
+        cornerRadius: 'sm',
+        paddingStart: 'xs',
+        paddingEnd: 'xs',
+        paddingTop: 'xxs',
+        paddingBottom: 'xxs',
+        contents: [
+          {
+            type: 'text',
+            text: `⚠️ ค้าง ${member.debt}฿`,
+            size: 'xxs',
+            color: isWhite ? '#dc2626' : '#fca5a5',
+            weight: 'bold',
+            align: 'center'
+          }
+        ]
+      }
+    : {
+        type: 'box',
+        layout: 'horizontal',
+        backgroundColor: isWhite ? '#f0fdf4' : '#052e16',
+        cornerRadius: 'sm',
+        paddingStart: 'xs',
+        paddingEnd: 'xs',
+        paddingTop: 'xxs',
+        paddingBottom: 'xxs',
+        contents: [
+          {
+            type: 'text',
+            text: '✅ พร้อม',
+            size: 'xxs',
+            color: isWhite ? '#16a34a' : '#4ade80',
+            weight: 'bold',
+            align: 'center'
+          }
+        ]
+      };
+
+  const nameText = member.name || 'Unknown';
+
+  return {
+    type: 'box',
+    layout: 'horizontal',
+    backgroundColor: rowBg,
+    borderColor: rowBorder,
+    borderWidth: '1px',
+    cornerRadius: 'sm',
+    paddingAll: 'sm',
+    alignItems: 'center',
+    contents: [
+      // Index Pill
+      {
+        type: 'box',
+        layout: 'vertical',
+        width: '24px',
+        alignItems: 'center',
+        justifyContent: 'center',
+        contents: [
+          {
+            type: 'text',
+            text: `${index < 10 ? '0' + index : index}`,
+            size: 'xs',
+            weight: 'bold',
+            color: isCurrentMember ? (isWhite ? '#2563eb' : '#60a5fa') : textMuted,
+            align: 'center'
+          }
+        ]
+      },
+      // Avatar Image
+      {
+        type: 'box',
+        layout: 'vertical',
+        width: '26px',
+        height: '26px',
+        cornerRadius: '13px',
+        margin: 'xs',
+        contents: [
+          {
+            type: 'image',
+            url: avatarUrl,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover'
+          }
+        ]
+      },
+      // Member Name
+      {
+        type: 'box',
+        layout: 'vertical',
+        flex: 1,
+        margin: 'sm',
+        contents: [
+          {
+            type: 'text',
+            text: nameText,
+            size: 'sm',
+            weight: isCurrentMember ? 'bold' : 'normal',
+            color: member.donateColor || textPrimary,
+            maxLines: 1,
+            ellipsis: true
+          }
+        ]
+      },
+      // Status Indicator
+      {
+        type: 'box',
+        layout: 'vertical',
+        margin: 'xs',
+        alignItems: 'end',
+        contents: [statusBadge]
+      }
+    ]
+  };
+}
+
 function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
@@ -2267,7 +2402,6 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   const textMuted = isWhite ? '#64748b' : '#a0a8c0';
   const cardBg = isWhite ? '#f8fafc' : '#16122d';
   const cardBorder = isWhite ? '#e2e8f0' : '#2a2a4a';
-  const accentColor = isWhite ? '#15803d' : '#44cc66';
   const buttonColor = isWhite ? '#16a34a' : '#22c55e'; // Vibrant green
 
   let badgeText = '';
@@ -2279,10 +2413,10 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
 
   const countStr = list ? ` (${list.length}/24)` : '';
   if (action === 'list') {
-    badgeText = `👤 สมาชิกลงทะเบียนอัตโนมัติ${countStr}`;
+    badgeText = `📋 รายชื่อลงทะเบียนอัตโนมัติ${countStr}`;
     badgeBg = isWhite ? '#e0f2fe' : '#0c4a6e';
     badgeTextColor = isWhite ? '#0369a1' : '#38bdf8';
-    title = `สมาชิกลงทะเบียนอัตโนมัติ${countStr}`;
+    title = `รายชื่อลงทะเบียนอัตโนมัติ${countStr}`;
   } else if (action === 'add') {
     badgeText = `✅ สมัครลงทะเบียนอัตโนมัติสำเร็จ${countStr}`;
     badgeBg = isWhite ? '#dcfce7' : '#064e3b';
@@ -2355,45 +2489,67 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   const displayMember = typeof memberName === 'object' && memberName !== null ? memberName : { name: memberName };
   if (!list || list.length === 0) {
     bodyContents.push({
-      type: 'text',
-      text: 'ไม่มีสมาชิกในระบบลงทะเบียนอัตโนมัติ',
-      color: textMuted,
-      size: 'sm',
-      style: 'italic',
-      align: 'center',
-      margin: 'md'
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: cardBg,
+      borderColor: cardBorder,
+      borderWidth: '1px',
+      cornerRadius: 'md',
+      paddingAll: 'lg',
+      margin: 'md',
+      alignItems: 'center',
+      contents: [
+        {
+          type: 'text',
+          text: '📝 ยังไม่มีสมาชิกลงทะเบียนอัตโนมัติ',
+          color: textPrimary,
+          size: 'sm',
+          weight: 'bold',
+          align: 'center'
+        },
+        {
+          type: 'text',
+          text: 'กดปุ่ม "+ สมัครลงชื่อ" ด้านล่าง เพื่อลงชื่อเข้าเล่นโดยอัตโนมัติทุกสัปดาห์',
+          color: textMuted,
+          size: 'xs',
+          wrap: true,
+          align: 'center',
+          margin: 'sm'
+        }
+      ]
     });
   } else {
-    // List each member with badge and color in 2 columns
-    const rows = [];
-    for (let i = 0; i < list.length; i += 2) {
-      const m1 = list[i];
-      const m2 = list[i + 1];
+    // Capacity Progress Bar
+    const currentCount = list.length;
+    const maxPlayers = 24;
+    const ratio = Math.min(1.0, currentCount / maxPlayers);
+    let barColor = isWhite ? '#16a34a' : '#22c55e';
+    if (ratio >= 1.0) barColor = isWhite ? '#dc2626' : '#ef4444';
+    else if (ratio > 0.8) barColor = isWhite ? '#ca8a04' : '#eab308';
 
-      const isCurrent1 = displayMember && m1.id === displayMember.id;
-      const col1 = makeMemberColumn(m1, i + 1, colors, isCurrent1);
-
-      const cols = [col1];
-
-      if (m2) {
-        const isCurrent2 = displayMember && m2.id === displayMember.id;
-        const col2 = makeMemberColumn(m2, i + 2, colors, isCurrent2);
-        cols.push(col2);
-      } else {
-        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
-      }
-
-      const rowObj = {
+    const progressContents = [];
+    if (currentCount > 0) {
+      progressContents.push({
         type: 'box',
-        layout: 'horizontal',
-        contents: cols
-      };
-
-      if (i > 0) {
-        rowObj.margin = 'sm';
-      }
-
-      rows.push(rowObj);
+        layout: 'vertical',
+        backgroundColor: barColor,
+        height: '6px',
+        cornerRadius: 'md',
+        flex: currentCount,
+        contents: [{ type: 'filler' }]
+      });
+    }
+    const remaining = maxPlayers - currentCount;
+    if (remaining > 0) {
+      progressContents.push({
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: isWhite ? '#e2e8f0' : '#2a2a4a',
+        height: '6px',
+        cornerRadius: 'md',
+        flex: remaining,
+        contents: [{ type: 'filler' }]
+      });
     }
 
     bodyContents.push({
@@ -2401,10 +2557,103 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       layout: 'vertical',
       backgroundColor: cardBg,
       borderColor: cardBorder,
+      borderWidth: '1px',
       cornerRadius: 'md',
       paddingAll: 'md',
       margin: 'md',
-      contents: rows
+      contents: [
+        // Capacity Header Box
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: '📊 ความจุโควตาออโต้',
+              size: 'xs',
+              weight: 'bold',
+              color: textMuted,
+              flex: 1
+            },
+            {
+              type: 'text',
+              text: `${currentCount} / ${maxPlayers} คน`,
+              size: 'xs',
+              weight: 'bold',
+              color: barColor,
+              align: 'end',
+              flex: 1
+            }
+          ]
+        },
+        // Progress bar container
+        {
+          type: 'box',
+          layout: 'horizontal',
+          height: '6px',
+          margin: 'xs',
+          contents: progressContents
+        }
+      ]
+    });
+
+    // Table Header Row
+    const tableRows = [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        paddingStart: 'xs',
+        paddingEnd: 'xs',
+        paddingBottom: 'xs',
+        contents: [
+          {
+            type: 'text',
+            text: '#',
+            size: 'xxs',
+            weight: 'bold',
+            color: textMuted,
+            width: '24px',
+            align: 'center'
+          },
+          {
+            type: 'text',
+            text: 'สมาชิก',
+            size: 'xxs',
+            weight: 'bold',
+            color: textMuted,
+            flex: 1,
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: 'สถานะ',
+            size: 'xxs',
+            weight: 'bold',
+            color: textMuted,
+            align: 'end',
+            margin: 'xs'
+          }
+        ]
+      }
+    ];
+
+    // Generate table rows
+    list.forEach((m, idx) => {
+      const isCurrent = Boolean(displayMember && m.id === displayMember.id);
+      tableRows.push(renderAutoRegTableRow(m, idx + 1, isCurrent, colors));
+    });
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: cardBg,
+      borderColor: cardBorder,
+      borderWidth: '1px',
+      cornerRadius: 'md',
+      paddingAll: 'sm',
+      margin: 'md',
+      spacing: 'xs',
+      contents: tableRows
     });
   }
 
@@ -2491,15 +2740,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
             }
           ]
         },
-        // Title
-        /*{
-          type: 'text',
-          text: title,
-          weight: 'bold',
-          size: 'xl',
-          color: textPrimary
-        },*/
-        // Body contents (list or description)
+        // Body contents (table list or description)
         ...bodyContents,
         {
           type: 'separator',

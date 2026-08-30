@@ -424,9 +424,16 @@ async function newWeek(week_date) {
     const new_week_id = res.insertId;
     target_week_id = new_week_id;
 
-    // Auto-register members with auto_reg = 1, excluding those with outstanding debt
+    // Auto-register members using autoreg_tbl, excluding those with outstanding debt
     try {
-      const autoRegMembers = await executeQuery("SELECT id, name, debt FROM member_tbl WHERE auto_reg = 1");
+      await ensureAutoRegTable();
+      const autoRegMembers = await executeQuery(`
+        SELECT m.id, m.name, m.debt 
+        FROM autoreg_tbl a 
+        JOIN member_tbl m ON a.member_id = m.id 
+        WHERE a.status = 1 
+        ORDER BY a.priority_order ASC, a.created_at ASC, m.name ASC
+      `);
       for (const member of autoRegMembers) {
         if (member.debt > 0) {
           console.log(`[Auto-Reg] Skipped ${member.name} (ID: ${member.id}) due to outstanding debt of ${member.debt} baht`);
@@ -1240,9 +1247,16 @@ async function getMemberNY() {
 
 }
 
-async function getAutoRegCount() {
+async function getAutoRegCount(groupId = null) {
   try {
-    const autoRegRes = await executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
+    await ensureAutoRegTable();
+    let query = "SELECT COUNT(*) as count FROM autoreg_tbl WHERE status = 1";
+    const params = [];
+    if (groupId) {
+      query += " AND (group_id IS NULL OR group_id = ?)";
+      params.push(groupId);
+    }
+    const autoRegRes = await executeQuery(query, params);
     return autoRegRes.length > 0 ? autoRegRes[0].count : 0;
   } catch (err) {
     console.error("Error getting autoRegCount:", err.message);
@@ -1330,15 +1344,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
         const imageUrl = imgTpl ? imgTpl.url : null;
 
         const theme = await getTheme();
-        let autoRegCount = 0;
-        try {
-          const autoRegRes = await executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
-          if (autoRegRes.length > 0) {
-            autoRegCount = autoRegRes[0].count;
-          }
-        } catch (err) {
-          console.error("Error getting autoRegCount:", err.message);
-        }
+        const autoRegCount = await getAutoRegCount(groupId);
 
         const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl, theme, autoRegCount);
         let altHeader = `+${players.length}`;
@@ -2500,19 +2506,75 @@ async function updateHof() {
   }
 }
 
-async function updateMemberAutoReg(member_id, auto_reg) {
-  const query = "update member_tbl set auto_reg=? where id=?";
-  return await module.exports.executeQuery(query, [auto_reg, member_id]);
+async function ensureAutoRegTable() {
+  try {
+    const createSql = `
+      CREATE TABLE IF NOT EXISTS autoreg_tbl (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        member_id INT NOT NULL,
+        group_id VARCHAR(100) DEFAULT NULL,
+        priority_order INT DEFAULT 0,
+        status TINYINT(1) DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_member_group (member_id, group_id),
+        KEY idx_status_priority (status, priority_order, created_at)
+      )
+    `;
+    await executeQuery(createSql);
+
+    // Migrate existing member_tbl auto_reg = 1 entries
+    const migrateSql = `
+      INSERT IGNORE INTO autoreg_tbl (member_id, priority_order, status)
+      SELECT id, 0, 1 FROM member_tbl WHERE auto_reg = 1
+    `;
+    await executeQuery(migrateSql);
+  } catch (err) {
+    console.error("Error ensuring autoreg_tbl table:", err.message);
+  }
+}
+
+async function updateMemberAutoReg(member_id, auto_reg, groupId = null) {
+  await ensureAutoRegTable();
+  if (Number(auto_reg) === 1) {
+    const insertQuery = `
+      INSERT INTO autoreg_tbl (member_id, group_id, status)
+      VALUES (?, ?, 1)
+      ON DUPLICATE KEY UPDATE status = 1, updated_at = CURRENT_TIMESTAMP
+    `;
+    await executeQuery(insertQuery, [member_id, groupId]);
+    await executeQuery("UPDATE member_tbl SET auto_reg = 1 WHERE id = ?", [member_id]);
+  } else {
+    const deleteQuery = "DELETE FROM autoreg_tbl WHERE member_id = ?";
+    await executeQuery(deleteQuery, [member_id]);
+    await executeQuery("UPDATE member_tbl SET auto_reg = 0 WHERE id = ?", [member_id]);
+  }
 }
 
 async function getAutoRegList(groupId = null) {
-  const query = "SELECT * FROM member_tbl WHERE auto_reg = 1 ORDER BY name ASC";
-  const result = await executeQuery(query);
+  await ensureAutoRegTable();
+  let query = `
+    SELECT m.*, a.id as autoreg_id, a.priority_order, a.status as autoreg_status, a.created_at as autoreg_created_at
+    FROM autoreg_tbl a
+    JOIN member_tbl m ON a.member_id = m.id
+    WHERE a.status = 1
+  `;
+  const params = [];
+  if (groupId) {
+    query += " AND (a.group_id IS NULL OR a.group_id = ?)";
+    params.push(groupId);
+  }
+  query += " ORDER BY a.priority_order ASC, a.created_at ASC, m.name ASC";
+
+  const result = await executeQuery(query, params);
   if (result.length > 0) {
     await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
     const assets = await fetchDisplayAssets();
     return result.map(member => {
-      return resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+      const displayInfo = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+      displayInfo.autoreg_created_at = member.autoreg_created_at;
+      displayInfo.priority_order = member.priority_order;
+      return displayInfo;
     });
   }
   return [];
