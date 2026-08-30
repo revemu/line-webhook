@@ -3719,7 +3719,7 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
 
   const rankIcons = ['🥇', '🥈', '🥉'];
   result.forEach((member, i) => {
-    let displayName = "";
+    let nameBoxContents = [];
     let nameColor = colors.textMutedLight;
     let valText = "";
     const rankLabel = rankIcons[i] || `${i + 1}.`;
@@ -3741,28 +3741,43 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
         if (cl === 'yellow') return 'เหลือง (Yellow)';
         return col;
       };
-      displayName = `● ทีม${translateColor(member.color)}`;
+      const displayName = `● ทีม${translateColor(member.color)}`;
       nameColor = colors.tdc(member.color);
+      nameBoxContents.push({
+        type: 'text',
+        text: displayName,
+        size: 'xs',
+        color: nameColor,
+        flex: 1,
+        margin: 'sm'
+      });
     } else {
       const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
-      displayName = rankLabel + " " + (info.name || info.alias || '');
-      nameColor = colors.textMutedLight;
 
       if (type == 4) {
         valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
       } else {
         valText = `${member.goal}`;
       }
-    }
 
-    const nameBoxContents = [{
-      type: 'text',
-      text: displayName,
-      size: 'xs',
-      color: nameColor,
-      flex: 1,
-      margin: 'sm'
-    }];
+      if (i < 3) {
+        // TOP 3: Render avatar profile picture, HOF crowns, rank badge, donator name color via makeMemberColumn
+        const col = makeMemberColumn(info, rankLabel, colors, false);
+        nameBoxContents.push(col);
+      } else {
+        // Rank 4+: Simple text row
+        const displayName = rankLabel + " " + (info.name || info.alias || '');
+        nameColor = info.nameColor || colors.textMutedLight;
+        nameBoxContents.push({
+          type: 'text',
+          text: displayName,
+          size: 'xs',
+          color: nameColor,
+          flex: 1,
+          margin: 'sm'
+        });
+      }
+    }
 
     const rowContents = [
       {

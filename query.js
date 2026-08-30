@@ -1975,7 +1975,7 @@ function buildLuckyColorQuery(year) {
   `;
 }
 
-async function getTopStat(limit = 10, type = 0) {
+async function getTopStat(limit = 10, type = 0, groupId = null) {
   let header = "";
   let icon = "";
   let query = "";
@@ -2032,12 +2032,13 @@ async function getTopStat(limit = 10, type = 0) {
 
   const result = await executeQuery(query);
   if (result.length > 0) {
+    if (type != 6) {
+      await Promise.all(result.slice(0, 3).map(member => ensureMemberPicture(member, groupId)));
+    }
     const assets = await fetchDisplayAssets();
     const theme = await getTheme();
     return flex.buildTopStatFlex(result, type, header, icon, url, theme, assets, resolveMemberDisplayInfo);
   }
-
-
 }
 
 async function checkDebtCall() {

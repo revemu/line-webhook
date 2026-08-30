@@ -458,9 +458,10 @@ const COMMAND_REGISTRY = {
         return [{ type: 'text', text: "ไม่พบข้อมูลสถิติของสมาชิกท่านนี้" }];
     },
     'bottom': async (context) => {
-        const limit = context.param != '' ? Number(context.param) : 30;
+        const { param, groupId } = context;
+        const limit = param != '' ? Number(param) : 30;
         await db.updateHof();
-        const stats = await Promise.all([db.getTopStat(limit, 5), db.getTopStat(limit, 2)]);
+        const stats = await Promise.all([db.getTopStat(limit, 5, groupId), db.getTopStat(limit, 2, groupId)]);
         const carousel = flex.tpl_carousel; carousel.contents = stats.filter(x => x !== null && x !== undefined);
         return { type: 'flex', altText: `ทำเนียบซึมเศร้าประจำปี (${new Date().getFullYear()})`, contents: carousel };
     },
