@@ -1412,6 +1412,7 @@ async function ensureMvpWeekTable() {
         member_name VARCHAR(255) DEFAULT '',
         goals INT DEFAULT 0,
         assists INT DEFAULT 0,
+        clean_sheet INT DEFAULT 0,
         raw_score DECIMAL(10,4) DEFAULT 0.0000,
         rating DECIMAL(4,2) DEFAULT 0.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1420,6 +1421,10 @@ async function ensureMvpWeekTable() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await executeQuery(createSql);
+
+    try {
+      await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN clean_sheet INT DEFAULT 0");
+    } catch (e) {}
   } catch (err) {
     console.error("Error creating mvp_week_tbl table:", err.message);
   }
@@ -1434,19 +1439,21 @@ async function saveWeekMvpRecords(week_id, mvpList) {
     const name = item.name || '';
     const g = Number(item.goals) || 0;
     const a = Number(item.assists) || 0;
+    const cs = Number(item.cleanSheets !== undefined ? item.cleanSheets : (item.clean_sheet || 0)) || 0;
     const raw = parseFloat(item.rawScore || item.score || 0);
     const rat = parseFloat(item.score || 0);
 
     await executeQuery(`
-      INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, assists, raw_score, rating)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, assists, clean_sheet, raw_score, rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         member_name = VALUES(member_name),
         goals = VALUES(goals),
         assists = VALUES(assists),
+        clean_sheet = VALUES(clean_sheet),
         raw_score = VALUES(raw_score),
         rating = VALUES(rating)
-    `, [week_id, memId, name, g, a, raw, rat]);
+    `, [week_id, memId, name, g, a, cs, raw, rat]);
   }
 }
 
@@ -1702,6 +1709,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           name: p.member_name,
           goals: p.goals,
           assists: p.assists,
+          cleanSheets: Number(p.clean_sheet) || 0,
           rawScore: parseFloat(p.raw_score),
           score: parseFloat(p.rating),
           dateStr
@@ -1715,7 +1723,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     topPerformances.forEach((p, i) => {
       const rating = maxRawScore > 0 ? Math.min(10.0, (p.rawScore / maxRawScore) * 10).toFixed(1) : '0.0';
       console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
-      console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists} => (G + A) = ${p.goals + p.assists}`);
+      console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets: ${p.cleanSheets}`);
       console.log(`   └─ Raw MVP Score: ${p.rawScore.toFixed(4)}`);
       console.log(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
     });

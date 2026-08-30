@@ -586,8 +586,9 @@ const COMMAND_REGISTRY = {
         res.topPerformances.forEach((p, idx) => {
             const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
             const rating = res.maxRawScore > 0 ? Math.min(10.0, (p.rawScore / res.maxRawScore) * 10).toFixed(1) : '0.0';
+            const csText = (p.cleanSheets && p.cleanSheets > 0) ? ` + 🧤 ${p.cleanSheets}CS` : '';
             msg += `${medal} ${p.name} (${p.dateStr}) [Week ${p.week_id}]\n`;
-            msg += `   └─ ผลงาน: ⚽ ${p.goals}G + 👟 ${p.assists}A = ${p.goals + p.assists}\n`;
+            msg += `   └─ ผลงาน: ⚽ ${p.goals}G + 👟 ${p.assists}A${csText}\n`;
             msg += `   └─ Raw Score: ${p.rawScore.toFixed(4)}\n`;
             msg += `   => Rating: ${rating} / 10\n\n`;
         });
