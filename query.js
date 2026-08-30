@@ -1294,9 +1294,13 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         };
       }
 
-      // ── 2. Build Match Detail Bubbles (Chunked 5 matches per bubble) ──
+      // ── 2. Build Match Detail Bubbles (Dynamic chunking up to 8 matches per bubble) ──
       const matchBubbles = [];
-      const chunkSize = 5;
+      let chunkSize = 8;
+      if (matches.length > 8) {
+        const numBubbles = Math.ceil(matches.length / 8);
+        chunkSize = Math.ceil(matches.length / numBubbles);
+      }
 
       for (let i = 0; i < matches.length; i += chunkSize) {
         const matchChunk = matches.slice(i, i + chunkSize);
