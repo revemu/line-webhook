@@ -1730,6 +1730,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           goals: p.goals,
           assists: p.assists,
           cleanSheets: Number(p.clean_sheet) || 0,
+          conceded: Number(p.conceded) || 0,
           rawScore: parseFloat(p.raw_score),
           score: parseFloat(p.rating),
           dateStr
@@ -1743,7 +1744,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     topPerformances.forEach((p, i) => {
       const rating = maxRawScore > 0 ? Math.min(10.0, (p.rawScore / maxRawScore) * 10).toFixed(1) : '0.0';
       console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
-      console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets: ${p.cleanSheets}`);
+      console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets: ${p.cleanSheets}, Conceded (GA): ${p.conceded}`);
       console.log(`   └─ Raw MVP Score: ${p.rawScore.toFixed(4)}`);
       console.log(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
     });

@@ -602,8 +602,9 @@ const COMMAND_REGISTRY = {
             const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
             const rating = res.maxRawScore > 0 ? Math.min(10.0, (p.rawScore / res.maxRawScore) * 10).toFixed(1) : '0.0';
             const csText = (p.cleanSheets && p.cleanSheets > 0) ? ` + 🧤 ${p.cleanSheets}CS` : '';
+            const gaText = (p.conceded && p.conceded > 0) ? ` - 🥅 ${p.conceded}GA` : '';
             msg += `${medal} ${p.name} (${p.dateStr}) [Week ${p.week_id}]\n`;
-            msg += `   └─ ผลงาน: ⚽ ${p.goals}G + 👟 ${p.assists}A${csText}\n`;
+            msg += `   └─ ผลงาน: ⚽ ${p.goals}G + 👟 ${p.assists}A${csText}${gaText}\n`;
             msg += `   └─ Raw Score: ${p.rawScore.toFixed(4)}\n`;
             msg += `   => Rating: ${rating} / 10\n\n`;
         });
