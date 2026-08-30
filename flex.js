@@ -2446,52 +2446,25 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
     });
   }
 
-  // Construct footer buttons
-  const footerButtons = [];
-  if (action === 'list') {
-    const isFull = list && list.length >= 24;
-    const registerButton = isFull
-      ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
-      : makeBoxButton('➕ สมัครลงชื่อ', '+autoreg', buttonColor);
+  // Construct footer buttons (uniform 3-button menu across all actions)
+  const isFull = list && list.length >= 24;
+  const registerButton = isFull
+    ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
+    : makeBoxButton('➕ สมัคร', '+autoreg', buttonColor);
 
-    footerButtons.push({
+  const footerButtons = [
+    {
       type: 'box',
       layout: 'horizontal',
       spacing: 'sm',
       margin: 'sm',
       contents: [
+        makeBoxButton('📋 รายชื่อ', '/autoreglist', buttonColor),
         registerButton,
         makeBoxButton('➖ ยกเลิก', '-autoreg', isWhite ? '#ef4444' : '#b91c1c')
       ]
-    });
-  } else if (action === 'add' || action === 'already' || action === 'full') {
-    footerButtons.push({
-      type: 'box',
-      layout: 'horizontal',
-      spacing: 'sm',
-      margin: 'sm',
-      contents: [
-        makeBoxButton('📋 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', buttonColor),
-        makeBoxButton('➖ ยกเลิก', '-autoreg', isWhite ? '#ef4444' : '#b91c1c')
-      ]
-    });
-  } else if (action === 'remove') {
-    const isFull = list && list.length >= 24;
-    const registerButton = isFull
-      ? makeDisabledBoxButton('สมัคร (เต็ม)', '#9ca3af')
-      : makeBoxButton('➕ ลงทะเบียนอัตโนมัติ', '+autoreg', isWhite ? '#64748b' : '#334155');
-
-    footerButtons.push({
-      type: 'box',
-      layout: 'horizontal',
-      spacing: 'sm',
-      margin: 'sm',
-      contents: [
-        makeBoxButton('📋 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', buttonColor),
-        registerButton
-      ]
-    });
-  }
+    }
+  ];
 
   const bubble = {
     type: 'bubble',
