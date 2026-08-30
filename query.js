@@ -1079,6 +1079,8 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
     // Pass 1: Compute raw MVP scores with position weights from pos_tbl
     const rawScoresList = goalRes.map(m => {
+      if (isTempReserveMember(m.name)) return null;
+
       const g = Number(m.goals) || 0;
       const a = Number(m.assists) || 0;
       const teamId = Number(m.team_id) || 0;
@@ -1401,6 +1403,12 @@ async function setMemberPosition(member_id, pos_code, is_primary = 1) {
   }
 }
 
+function isTempReserveMember(name) {
+  if (!name) return true;
+  const n = String(name).trim().toLowerCase();
+  return n.startsWith('@team') || n.startsWith('+team') || /^@?\+?team\d+/i.test(n);
+}
+
 async function ensureMvpWeekTable() {
   try {
     const createSql = `
@@ -1420,6 +1428,10 @@ async function ensureMvpWeekTable() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await executeQuery(createSql);
+    // Cleanup temporary reserve slot records (@team1+1, @team1+7, +team1+2, etc.)
+    try {
+      await executeQuery("DELETE FROM mvp_week_tbl WHERE member_name LIKE '@team%' OR member_name LIKE 'team%' OR member_name LIKE '+team%'");
+    } catch (e) {}
   } catch (err) {
     console.error("Error creating mvp_week_tbl table:", err.message);
   }
@@ -1533,6 +1545,8 @@ async function calculateWeekRawMvp(week_id) {
   });
 
   return goalRes.map(m => {
+    if (isTempReserveMember(m.name)) return null;
+
     const g = Number(m.goals) || 0;
     const a = Number(m.assists) || 0;
     const teamId = Number(m.team_id) || 0;
