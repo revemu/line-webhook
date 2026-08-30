@@ -1202,15 +1202,15 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         };
 
         if (leaders.topScorers && leaders.topScorers.length > 0) {
-          const b = buildLeaderCategoryCard('⚽', 'ดาวซัลโวประจำสัปดาห์', leaders.topScorers, `${leaders.maxGoals} ประตู`);
+          const b = buildLeaderCategoryCard('⚽', 'ดาวซัลโว', leaders.topScorers, `${leaders.maxGoals} ประตู`);
           if (b) leaderCards.push(b);
         }
         if (leaders.topAssists && leaders.topAssists.length > 0) {
-          const b = buildLeaderCategoryCard('👟', 'แอสซิสต์สูงสุดประจำสัปดาห์', leaders.topAssists, `${leaders.maxAssists} แอสซิสต์`);
+          const b = buildLeaderCategoryCard('👟', 'แอสซิสต์สูงสุด', leaders.topAssists, `${leaders.maxAssists} แอสซิสต์`);
           if (b) leaderCards.push(b);
         }
         if (leaders.mvps && leaders.mvps.length > 0) {
-          const b = buildLeaderCategoryCard('👑', 'MVP ประจำสัปดาห์', leaders.mvps, `${leaders.maxMvpScore.toFixed(1)} คะแนน`);
+          const b = buildLeaderCategoryCard('👑', 'MVP', leaders.mvps, `${leaders.maxMvpScore.toFixed(1)} คะแนน`);
           if (b) leaderCards.push(b);
         }
 
