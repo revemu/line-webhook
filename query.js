@@ -1225,27 +1225,6 @@ async function ensurePosTables() {
     `;
     await executeQuery(createPosSql);
 
-    // Auto-migrate columns if table existed without pts columns
-    try {
-      await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_goal DECIMAL(6,2) DEFAULT 0.00");
-    } catch (e) {}
-    try {
-      await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_assist DECIMAL(6,2) DEFAULT 0.00");
-    } catch (e) {}
-    try {
-      await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_clean_sheet DECIMAL(6,2) DEFAULT 0.00");
-    } catch (e) {}
-
-    // Auto-migrate member_team_week_tbl for week-specific positions
-    try {
-      await executeQuery("ALTER TABLE member_team_week_tbl ADD COLUMN pos_id INT DEFAULT 0");
-    } catch (e) {}
-
-    // Auto-migrate member_tbl to store default position pos_id
-    try {
-      await executeQuery("ALTER TABLE member_tbl ADD COLUMN pos_id INT DEFAULT 0");
-    } catch (e) {}
-
     const createMemberPosSql = `
       CREATE TABLE IF NOT EXISTS member_pos_tbl (
         id INT AUTO_INCREMENT PRIMARY KEY,
