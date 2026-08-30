@@ -923,7 +923,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         }
         try {
           headerUrl = encodeURI(headerUrl);
-        } catch (e) {}
+        } catch (e) { }
       } else {
         headerUrl = null;
       }
@@ -1384,7 +1384,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
         let altHeader = `+${players.length}`;
         if (reserves.length > 0) altHeader += `(${reserves.length})`;
         if (goalies.length > 0) altHeader += `(${goalies.length})`;
-        const altText = `${altHeader} ${titleText} @ เสาร์ที่ ${dateStr} (${time_range} น.)`;
+        const altText = `${altHeader} ${titleText} @ เสาร์ที่ ${dateStr} - ${time_range} น.`;
         return [flexJson, sub, altText];
       }
 
