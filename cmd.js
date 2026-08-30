@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const db = require('./query');
 const flex = require('./flex');
 const qrGen = require('./qr_gen');
@@ -674,7 +676,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
     let is_mention = mentionResult.is_mention;
     param = mentionResult.param;
 
-    return handleCommandSwitch({
+    const result = await handleCommandSwitch({
         cmd,
         param,
         quoteToken,
@@ -688,6 +690,14 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         target_line_user_id,
         is_mention
     });
+
+    try {
+        const logFile = path.join(__dirname, 'latest_cmd_flex.json');
+        fs.writeFileSync(logFile, JSON.stringify(result, null, 2), 'utf8');
+        console.log(`[cmd] Saved command result to ${logFile}`);
+    } catch (e) {}
+
+    return result;
 }
 
 async function handleCommandSwitch(context) {

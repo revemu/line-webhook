@@ -156,6 +156,15 @@ function sanitizeFlexComponent(node) {
 async function replyMessage(replyToken, messages) {
   const client = getLineClient();
   const sanitizedMessages = sanitizeFlexComponent(messages);
+
+  try {
+    const logFile = path.join(__dirname, 'latest_flex.json');
+    fs.writeFileSync(logFile, JSON.stringify(sanitizedMessages, null, 2), 'utf8');
+    console.log(`[lineClient] Flex JSON saved to ${logFile}`);
+  } catch (fsErr) {
+    console.error('[lineClient] Failed to save flex JSON to file:', fsErr.message);
+  }
+
   try {
     return await client.replyMessage(replyToken, sanitizedMessages);
   } catch (error) {
