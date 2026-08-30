@@ -1190,13 +1190,14 @@ async function getMatchWeek(week_id = 0, groupId = null) {
                 ]
               },
               { type: 'separator', margin: 'xs', color: colors.separator },
-              ...memberCols.map(col => ({
+              {
                 type: 'box',
                 layout: 'horizontal',
                 margin: 'xs',
                 alignItems: 'center',
-                contents: [col]
-              }))
+                spacing: 'md',
+                contents: memberCols
+              }
             ]
           };
         };
