@@ -1017,38 +1017,31 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const teamMvpFactorMap = {};
     const teamInfoMap = {};
 
-    // Count actual total matches played per team in this week from match_stat_tbl
-    const playedMatches = await executeQuery(
-      "SELECT team_a_id, team_b_id FROM match_stat_tbl WHERE week_id = ?",
-      [week_id]
-    );
-    const teamMatchCounts = {};
-    if (playedMatches && playedMatches.length > 0) {
-      playedMatches.forEach(m => {
-        if (m.team_a_id) teamMatchCounts[m.team_a_id] = (teamMatchCounts[m.team_a_id] || 0) + 1;
-        if (m.team_b_id) teamMatchCounts[m.team_b_id] = (teamMatchCounts[m.team_b_id] || 0) + 1;
-      });
-    }
-
     console.log(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
     if (tableRows && tableRows.length > 0) {
       tableRows.forEach(row => {
         const teamId = row.team_week_id;
-        const tableMatches = (Number(row.w) || 0) + (Number(row.d) || 0) + (Number(row.l) || 0);
-        const matches = (teamMatchCounts[teamId] && teamMatchCounts[teamId] > 0) ? teamMatchCounts[teamId] : tableMatches;
+        const w = Number(row.w) || 0;
+        const d = Number(row.d) || 0;
+        const l = Number(row.l) || 0;
+        const totalMatches = w + d + l;
         const pts = Number(row.pts) || 0;
-        const avgPts = matches > 0 ? (pts / matches) : pts;
+
+        // Avg Pts = Total Points / Total Matches Played (W + D + L)
+        const avgPts = totalMatches > 0 ? (pts / totalMatches) : pts;
         const goalsAgainst = Number(row.a) || 0;
         const divisor = goalsAgainst > 0 ? goalsAgainst : 1;
         const factor = avgPts / divisor;
+
         teamMvpFactorMap[teamId] = factor;
-        teamInfoMap[teamId] = { color: row.color, matches, pts, avgPts, goalsAgainst, factor };
+        teamInfoMap[teamId] = { color: row.color, matches: totalMatches, pts, avgPts, goalsAgainst, factor };
 
         console.log(` [Team ${row.color || teamId} (ID: ${teamId})]`);
-        console.log(`   └─ Total Matches Played: ${matches}`);
-        console.log(`   └─ Points (Pts): ${pts} | Avg Pts: ${pts} / ${matches} = ${avgPts.toFixed(4)}`);
+        console.log(`   └─ Record: Wins (W): ${w}, Draws (D): ${d}, Losses (L): ${l} => Total Matches Played: ${totalMatches}`);
+        console.log(`   └─ Points (Pts): ${pts}`);
+        console.log(`   └─ Avg Pts Calculation: Points (${pts}) / Total Matches (${totalMatches > 0 ? totalMatches : 1}) = ${avgPts.toFixed(4)}`);
         console.log(`   └─ Goals Against (A): ${goalsAgainst}`);
-        console.log(`   └─ Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${goalsAgainst > 0 ? goalsAgainst : '1 (default)'}) = ${factor.toFixed(4)}`);
+        console.log(`   └─ Team Factor Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${goalsAgainst > 0 ? goalsAgainst : '1 (default)'}) = ${factor.toFixed(4)}`);
         console.log(`   => Team Factor = ${factor.toFixed(4)}`);
       });
     }
