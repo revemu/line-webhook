@@ -3590,7 +3590,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
         size: "xs",
         color: "#7878a8",
         flex: 0,
-        margin: "md",
+        margin: "sm",
         gravity: "center"
       });
     }
@@ -3608,60 +3608,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
       nameText += "🔄";
     }
 
-    const scorerContents = [];
-
-    // Rank Badge
-    const badgeSize = info.badgeSize || '16px';
-    if (info.badgeUrl && typeof info.badgeUrl === 'string' && info.badgeUrl.trim().startsWith('http')) {
-      let bUrl = info.badgeUrl.trim();
-      if (bUrl.startsWith('http://')) bUrl = bUrl.replace(/^http:\/\//i, 'https://');
-      scorerContents.push({
-        type: 'box',
-        layout: 'vertical',
-        width: badgeSize,
-        height: badgeSize,
-        flex: 0,
-        contents: [
-          {
-            type: 'image',
-            url: bUrl,
-            size: 'full',
-            aspectMode: 'fit',
-            animated: true
-          }
-        ],
-        margin: 'xs'
-      });
-    }
-
-    // HOF Badges
-    if (info.hofBadges && info.hofBadges.length > 0) {
-      for (const hb of info.hofBadges) {
-        if (hb && hb.url && typeof hb.url === 'string' && hb.url.trim().startsWith('http')) {
-          let hUrl = hb.url.trim();
-          if (hUrl.startsWith('http://')) hUrl = hUrl.replace(/^http:\/\//i, 'https://');
-          scorerContents.push({
-            type: 'box',
-            layout: 'vertical',
-            width: hb.size || '16px',
-            height: hb.size || '16px',
-            flex: 0,
-            contents: [
-              {
-                type: 'image',
-                url: hUrl,
-                size: 'full',
-                aspectMode: 'fit',
-                animated: true
-              }
-            ],
-            margin: 'xs'
-          });
-        }
-      }
-    }
-
-    scorerContents.push({
+    itemContents.push({
       type: "text",
       text: nameText || 'ไม่ระบุ',
       size: "xs",
@@ -3669,15 +3616,6 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
       flex: 0,
       margin: "xs",
       weight: 'bold'
-    });
-
-    itemContents.push({
-      type: 'box',
-      layout: 'horizontal',
-      alignItems: 'center',
-      contents: scorerContents,
-      margin: 'md',
-      flex: 0
     });
   }
 
