@@ -1272,7 +1272,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
       const tableBubble = {
         type: 'bubble',
-        size: 'giga',
+        size: 'mega',
         body: {
           type: 'box',
           layout: 'vertical',
@@ -1294,13 +1294,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         };
       }
 
-      // ── 2. Build Match Detail Bubbles (Dynamic chunking up to 8 matches per bubble) ──
+      // ── 2. Build Match Detail Bubbles (Up to 12 matches per bubble) ──
       const matchBubbles = [];
-      let chunkSize = 8;
-      if (matches.length > 8) {
-        const numBubbles = Math.ceil(matches.length / 8);
-        chunkSize = Math.ceil(matches.length / numBubbles);
-      }
+      const chunkSize = 12;
 
       for (let i = 0; i < matches.length; i += chunkSize) {
         const matchChunk = matches.slice(i, i + chunkSize);
@@ -1373,7 +1369,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
         const chunkBubble = {
           type: 'bubble',
-          size: 'giga',
+          size: 'mega',
           body: {
             type: 'box',
             layout: 'vertical',
