@@ -3249,7 +3249,8 @@ function buildMenuFlex(dateStr, theme, title = null, autoRegCount = 0) {
     margin: 'xs',
     contents: [
       makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
-      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor)
+      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor),
+      makeBoxButton('📱 QR ค่าสนาม', '/qr', '#088181ff')
     ]
   });
 
