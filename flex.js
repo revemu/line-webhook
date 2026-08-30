@@ -2607,13 +2607,20 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
         paddingBottom: 'xs',
         contents: [
           {
-            type: 'text',
-            text: '#',
-            size: 'xxs',
-            weight: 'bold',
-            color: textMuted,
+            type: 'box',
+            layout: 'vertical',
             width: '24px',
-            align: 'center'
+            alignItems: 'center',
+            contents: [
+              {
+                type: 'text',
+                text: '#',
+                size: 'xxs',
+                weight: 'bold',
+                color: textMuted,
+                align: 'center'
+              }
+            ]
           },
           {
             type: 'text',

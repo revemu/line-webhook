@@ -1253,7 +1253,7 @@ async function getAutoRegCount(groupId = null) {
     let query = "SELECT COUNT(*) as count FROM autoreg_tbl WHERE status = 1";
     const params = [];
     if (groupId) {
-      query += " AND (group_id IS NULL OR group_id = ?)";
+      query += " AND (group_id = '' OR group_id IS NULL OR group_id = ?)";
       params.push(groupId);
     }
     const autoRegRes = await executeQuery(query, params);
@@ -2512,7 +2512,7 @@ async function ensureAutoRegTable() {
       CREATE TABLE IF NOT EXISTS autoreg_tbl (
         id INT AUTO_INCREMENT PRIMARY KEY,
         member_id INT NOT NULL,
-        group_id VARCHAR(100) DEFAULT NULL,
+        group_id VARCHAR(100) NOT NULL DEFAULT '',
         priority_order INT DEFAULT 0,
         status TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -2523,10 +2523,25 @@ async function ensureAutoRegTable() {
     `;
     await executeQuery(createSql);
 
-    // Migrate existing member_tbl auto_reg = 1 entries
+    // Delete existing duplicate rows (keep earliest inserted record)
+    const cleanupSql = `
+      DELETE a1 FROM autoreg_tbl a1
+      INNER JOIN autoreg_tbl a2 
+      WHERE a1.id > a2.id 
+        AND a1.member_id = a2.member_id 
+        AND (a1.group_id = a2.group_id OR a1.group_id = '' OR a2.group_id = '')
+    `;
+    await executeQuery(cleanupSql);
+
+    // Migrate existing member_tbl auto_reg = 1 entries ONLY if not already present in autoreg_tbl
     const migrateSql = `
-      INSERT IGNORE INTO autoreg_tbl (member_id, priority_order, status)
-      SELECT id, 0, 1 FROM member_tbl WHERE auto_reg = 1
+      INSERT INTO autoreg_tbl (member_id, group_id, priority_order, status)
+      SELECT m.id, '', 0, 1 
+      FROM member_tbl m 
+      WHERE m.auto_reg = 1 
+        AND NOT EXISTS (
+          SELECT 1 FROM autoreg_tbl a WHERE a.member_id = m.id
+        )
     `;
     await executeQuery(migrateSql);
   } catch (err) {
@@ -2536,13 +2551,14 @@ async function ensureAutoRegTable() {
 
 async function updateMemberAutoReg(member_id, auto_reg, groupId = null) {
   await ensureAutoRegTable();
+  const targetGroup = groupId || '';
   if (Number(auto_reg) === 1) {
     const insertQuery = `
       INSERT INTO autoreg_tbl (member_id, group_id, status)
       VALUES (?, ?, 1)
       ON DUPLICATE KEY UPDATE status = 1, updated_at = CURRENT_TIMESTAMP
     `;
-    await executeQuery(insertQuery, [member_id, groupId]);
+    await executeQuery(insertQuery, [member_id, targetGroup]);
     await executeQuery("UPDATE member_tbl SET auto_reg = 1 WHERE id = ?", [member_id]);
   } else {
     const deleteQuery = "DELETE FROM autoreg_tbl WHERE member_id = ?";
@@ -2561,7 +2577,7 @@ async function getAutoRegList(groupId = null) {
   `;
   const params = [];
   if (groupId) {
-    query += " AND (a.group_id IS NULL OR a.group_id = ?)";
+    query += " AND (a.group_id = '' OR a.group_id = ?)";
     params.push(groupId);
   }
   query += " ORDER BY a.priority_order ASC, a.created_at ASC, m.name ASC";
