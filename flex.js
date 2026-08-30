@@ -3602,9 +3602,9 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
     }
     isFirst = false;
 
-    const info = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+    const info = resolveMemberDisplayInfo(member, assets ? assets.badges : {}, assets ? assets.donateColors : [], assets ? assets.hofCounts : {}, assets ? assets.hofBadge : {}, assets ? assets.hofAwards : {});
 
-    let nameText = info.name;
+    let nameText = info.name || 'ไม่ระบุ';
     if (member.goal > 1) {
       nameText = `+(${member.goal})${nameText}`;
     }
@@ -3616,7 +3616,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
 
     const scorerContents = [];
     const badgeSize = info.badgeSize || '16px';
-    if (info.badgeUrl) {
+    if (info.badgeUrl && typeof info.badgeUrl === 'string' && info.badgeUrl.trim().length > 0) {
       scorerContents.push({
         type: 'box',
         layout: 'vertical',
@@ -3626,7 +3626,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
         contents: [
           {
             type: 'image',
-            url: info.badgeUrl,
+            url: info.badgeUrl.trim(),
             size: 'full',
             aspectRatio: '1:1',
             aspectMode: 'fit',
@@ -3639,30 +3639,32 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
 
     if (info.hofBadges && info.hofBadges.length > 0) {
       for (const hb of info.hofBadges) {
-        scorerContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: hb.size || '16px',
-          height: hb.size || '16px',
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: hb.url,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'fit',
-              animated: true
-            }
-          ],
-          margin: 'xs'
-        });
+        if (hb && hb.url && typeof hb.url === 'string' && hb.url.trim().length > 0) {
+          scorerContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: hb.size || '16px',
+            height: hb.size || '16px',
+            flex: 0,
+            contents: [
+              {
+                type: 'image',
+                url: hb.url.trim(),
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'fit',
+                animated: true
+              }
+            ],
+            margin: 'xs'
+          });
+        }
       }
     }
 
     scorerContents.push({
       type: "text",
-      text: nameText,
+      text: nameText || 'ไม่ระบุ',
       size: "xs",
       color: info.nameColor || (goal_status === 3 ? '#bbddff' : '#ddddff'),
       flex: 0,

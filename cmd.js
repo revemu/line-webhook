@@ -298,7 +298,7 @@ const COMMAND_REGISTRY = {
         const week = await db.queryWeekID(0);
         if (week && week.length > 0) {
             const msg = await db.getMatchWeek(week[0].id, context.groupId);
-            if (msg) return { type: 'flex', altText: `Match Week - ${week[0].date}`, contents: msg };
+            if (msg) return { type: 'flex', altText: `Match Week - ${week[0].date ? new Date(week[0].date).toISOString().split('T')[0] : ''}`.trim(), contents: msg };
             return [{ type: 'text', text: "ยังไม่มีข้อมูลแมตช์ในสัปดาห์นี้" }];
         }
         return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];

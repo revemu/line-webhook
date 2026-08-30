@@ -880,7 +880,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       const colors = flex.getThemeColors(theme, assets.teamColors);
       const imgTpl = await getTemplate('matchweek', 'header');
       let headerUrl = imgTpl && imgTpl.url ? imgTpl.url.trim() : null;
-      if (headerUrl && headerUrl.toLowerCase() !== 'none') {
+      if (headerUrl && headerUrl.toLowerCase() !== 'none' && headerUrl.length > 0) {
         if (!headerUrl.startsWith('http://') && !headerUrl.startsWith('https://')) {
           const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
           headerUrl = headerUrl.startsWith('/') ? `${baseUrl}${headerUrl}` : `${baseUrl}/${headerUrl}`;
@@ -888,6 +888,11 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         if (headerUrl.startsWith('http://')) {
           headerUrl = headerUrl.replace('http://', 'https://');
         }
+        try {
+          headerUrl = encodeURI(headerUrl);
+        } catch (e) {}
+      } else {
+        headerUrl = null;
       }
 
       const date = new Date(res[0].date);
@@ -906,7 +911,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         contents: [
           {
             type: 'text',
-            text: '\u26bd \u0e1c\u0e25\u0e01\u0e32\u0e23\u0e41\u0e02\u0e48\u0e07\u0e02\u0e31\u0e19',
+            text: '⚽ ผลการแข่งขัน',
             weight: 'bold',
             size: 'lg',
             color: colors.textPrimary,
@@ -914,7 +919,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           },
           {
             type: 'text',
-            text: `\u0e40\u0e2a\u0e32\u0e23\u0e4c\u0e17\u0e35\u0e48 ${date_str}`,
+            text: `เสาร์ที่ ${date_str || ''}`,
             size: 'sm',
             color: colors.textMuted,
             align: 'center',
@@ -934,7 +939,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         const cardContents = [
           {
             type: 'text',
-            text: `\u0e41\u0e21\u0e15\u0e0a\u0e4c [${match.match_num}]`,
+            text: `แมตช์ [${match.match_num ?? '?'}]`,
             size: 'xs',
             color: colors.textMuted,
             align: 'center'
@@ -947,7 +952,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
               { type: 'text', text: team_a && team_a.color ? team_a.color : '?', size: 'lg', weight: 'bold', color: team_a ? colors.tdc(team_a.color) : colors.textPrimary, flex: 2, align: 'end' },
               {
                 type: 'text',
-                text: `${match.team_a_goal} - ${match.team_b_goal}`,
+                text: `${match.team_a_goal ?? 0} - ${match.team_b_goal ?? 0}`,
                 size: 'lg',
                 weight: 'bold',
                 color: colors.textAccent,
@@ -979,7 +984,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
         bodyContents.push({
           type: 'text',
-          text: '\ud83d\udcca \u0e15\u0e32\u0e23\u0e32\u0e07\u0e04\u0e30\u0e41\u0e19\u0e19',
+          text: '📊 ตารางคะแนน',
           size: 'sm',
           weight: 'bold',
           color: colors.textPrimary,
@@ -991,7 +996,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           layout: 'horizontal',
           margin: 'xs',
           contents: [
-            { type: 'text', text: '\u0e17\u0e35\u0e21', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 4 },
+            { type: 'text', text: 'ทีม', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 4 },
             { type: 'text', text: 'W', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center', margin: 'lg' },
             { type: 'text', text: 'D', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
             { type: 'text', text: 'L', size: 'xxs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
@@ -1000,7 +1005,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           ]
         });
 
-        const medals = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49', '4\ufe0f\u20e3'];
+        const medals = ['🥇', '🥈', '🥉', '4️⃣'];
         tableRows.forEach((row, i) => {
           const gd = (row.G || 0) - (row.A || 0);
           const gdStr = gd > 0 ? `+${gd}` : `${gd}`;
@@ -1010,12 +1015,12 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             layout: 'horizontal',
             margin: 'xs',
             contents: [
-              { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color}`, size: 'xs', color: colors.tdc(row.color), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
-              { type: 'text', text: `${row.w}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center', margin: 'lg' },
-              { type: 'text', text: `${row.d}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
-              { type: 'text', text: `${row.l}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
+              { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color || ''}`, size: 'xs', color: colors.tdc(row.color), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
+              { type: 'text', text: `${row.w ?? 0}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center', margin: 'lg' },
+              { type: 'text', text: `${row.d ?? 0}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
+              { type: 'text', text: `${row.l ?? 0}`, size: 'xs', color: colors.textMutedLight, flex: 1, align: 'center' },
               { type: 'text', text: gdStr, size: 'xs', color: gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
-              { type: 'text', text: `${row.pts}`, size: 'xs', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
+              { type: 'text', text: `${row.pts ?? 0}`, size: 'xs', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
             ]
           });
         });
@@ -1033,7 +1038,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         }
       };
 
-      if (headerUrl && headerUrl.toLowerCase() !== 'none') {
+      if (headerUrl && headerUrl.trim() !== '') {
         bubble.header = {
           type: 'box',
           layout: 'vertical',
