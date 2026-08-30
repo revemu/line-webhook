@@ -1091,6 +1091,22 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       }
     } catch (e) {}
 
+    // Auto-update reference benchmark if current week sets a NEW record higher than stored refMaxScore
+    if (maxRawMvpScore > refMaxScore) {
+      refMaxScore = maxRawMvpScore;
+      try {
+        const existing = await executeQuery("SELECT id FROM template_tpl WHERE name = 'max_mvp_score'");
+        if (existing && existing.length > 0) {
+          await executeQuery("UPDATE template_tpl SET value = ? WHERE name = 'max_mvp_score'", [maxRawMvpScore.toFixed(4)]);
+        } else {
+          await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('max_mvp_score', ?)", [maxRawMvpScore.toFixed(4)]);
+        }
+        console.log(`🔥 [Auto-Update Benchmark] New Record MVP Score: ${maxRawMvpScore.toFixed(4)} saved as 10.00 reference!`);
+      } catch (err) {
+        console.error("Error auto-updating max_mvp_score:", err.message);
+      }
+    }
+
     // Fallback if benchmark not set yet: use max raw MVP score of current week
     if (!refMaxScore || isNaN(refMaxScore) || refMaxScore <= 0) {
       refMaxScore = maxRawMvpScore;
