@@ -1421,10 +1421,6 @@ async function ensureMvpWeekTable() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await executeQuery(createSql);
-
-    try {
-      await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN clean_sheet INT DEFAULT 0");
-    } catch (e) {}
   } catch (err) {
     console.error("Error creating mvp_week_tbl table:", err.message);
   }
