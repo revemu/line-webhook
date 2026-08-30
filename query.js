@@ -1082,7 +1082,6 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const g = Number(m.goals) || 0;
       const a = Number(m.assists) || 0;
       const teamId = Number(m.team_id) || 0;
-      if (teamId < 100) return null;
 
       const cleanSheets = teamCleanSheetsMap[teamId] || 0;
 
@@ -1537,7 +1536,6 @@ async function calculateWeekRawMvp(week_id) {
     const g = Number(m.goals) || 0;
     const a = Number(m.assists) || 0;
     const teamId = Number(m.team_id) || 0;
-    if (teamId < 100) return null;
 
     const cleanSheets = teamCleanSheetsMap[teamId] || 0;
 
