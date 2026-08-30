@@ -1017,19 +1017,36 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const teamMvpFactorMap = {};
     const teamInfoMap = {};
 
+    // Calculate actual Goals Against (GA) per team from match_stat_tbl for this week
+    const teamGaMap = {};
+    const matchScores = await executeQuery(
+      "SELECT team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
+      [week_id]
+    );
+    if (matchScores && matchScores.length > 0) {
+      matchScores.forEach(m => {
+        const gaA = Number(m.team_b_goal) || 0;
+        const gaB = Number(m.team_a_goal) || 0;
+        if (m.team_a_id) teamGaMap[m.team_a_id] = (teamGaMap[m.team_a_id] || 0) + gaA;
+        if (m.team_b_id) teamGaMap[m.team_b_id] = (teamGaMap[m.team_b_id] || 0) + gaB;
+      });
+    }
+
     console.log(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
     if (tableRows && tableRows.length > 0) {
       tableRows.forEach(row => {
         const teamId = row.team_week_id;
-        const w = Number(row.w) || 0;
-        const d = Number(row.d) || 0;
-        const l = Number(row.l) || 0;
+        const w = Number(row.w !== undefined ? row.w : (row.W || 0));
+        const d = Number(row.d !== undefined ? row.d : (row.D || 0));
+        const l = Number(row.l !== undefined ? row.l : (row.L || 0));
         const totalMatches = w + d + l;
-        const pts = Number(row.pts) || 0;
+        const pts = Number(row.pts !== undefined ? row.pts : (row.PTS || 0));
 
-        // Avg Pts = Total Points / Total Matches Played (W + D + L)
+        // Avg Pts = Total Points / Total Matches Played (w + d + l)
         const avgPts = totalMatches > 0 ? (pts / totalMatches) : pts;
-        const goalsAgainst = Number(row.a) || 0;
+        const goalsScored = Number(row.G !== undefined ? row.G : (row.g || 0));
+        const goalsConceded = Number(row.A !== undefined ? row.A : (row.a || 0));
+        const goalsAgainst = (teamGaMap[teamId] !== undefined && teamGaMap[teamId] > 0) ? teamGaMap[teamId] : goalsConceded;
         const divisor = goalsAgainst > 0 ? goalsAgainst : 1;
         const factor = avgPts / divisor;
 
@@ -1040,7 +1057,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         console.log(`   └─ Record: Wins (W): ${w}, Draws (D): ${d}, Losses (L): ${l} => Total Matches Played: ${totalMatches}`);
         console.log(`   └─ Points (Pts): ${pts}`);
         console.log(`   └─ Avg Pts Calculation: Points (${pts}) / Total Matches (${totalMatches > 0 ? totalMatches : 1}) = ${avgPts.toFixed(4)}`);
-        console.log(`   └─ Goals Against (A): ${goalsAgainst}`);
+        console.log(`   └─ Goals Against (A) [from match_stat_tbl]: ${goalsAgainst}`);
         console.log(`   └─ Team Factor Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${divisor}) = ${factor.toFixed(4)}`);
         console.log(`   => Team Factor = ${factor.toFixed(4)}`);
       });
