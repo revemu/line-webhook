@@ -465,7 +465,7 @@ const COMMAND_REGISTRY = {
             db.getTopStat(limit, 0, groupId), // Top Scorers
             db.getTopStat(limit, 1, groupId), // Top Assists
             db.getTopStat(limit, 4, groupId), // Most MVP Count
-            db.getTopStat(limit, 2, groupId)  // Own Goals / Spy
+            db.getTopStat(limit, 6, groupId)  // Own Goals / Spy
         ]);
         const carousel = JSON.parse(JSON.stringify(flex.tpl_carousel));
         carousel.contents = stats.filter(x => x !== null && x !== undefined);
