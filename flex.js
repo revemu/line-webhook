@@ -2398,7 +2398,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
           contents: [
             {
               type: 'text',
-              text: '📊 ความจุโควตาออโต้',
+              text: '📊 จำนวนสมาชิกที่ลงทะเบียน',
               size: 'xs',
               weight: 'bold',
               color: textMuted,
