@@ -60,8 +60,22 @@ function sanitizeFlexComponent(node, parentBox = null) {
 
   const result = { ...node };
 
+  // Root LINE Image Message (e.g. /qr output, NOT a Flex image component)
+  if (result.type === 'image' && result.originalContentUrl) {
+    if (result.originalContentUrl.startsWith('http://')) {
+      result.originalContentUrl = result.originalContentUrl.replace('http://', 'https://');
+    }
+    if (result.previewImageUrl && result.previewImageUrl.startsWith('http://')) {
+      result.previewImageUrl = result.previewImageUrl.replace('http://', 'https://');
+    }
+    return result;
+  }
+
   // 1. Text Component
   if (result.type === 'text') {
+    if (!parentBox && typeof result.text === 'string' && result.text.length > 0) {
+      return result;
+    }
     if (result.text === undefined || result.text === null || String(result.text).trim() === '') {
       result.text = ' ';
     } else {
@@ -157,6 +171,15 @@ function sanitizeFlexComponent(node, parentBox = null) {
 }
 
 /**
+ * Checks if a message node or array contains Flex Message objects.
+ */
+function isFlexPayload(node) {
+  if (!node || typeof node !== 'object') return false;
+  if (Array.isArray(node)) return node.some(isFlexPayload);
+  return node.type === 'flex' || node.type === 'bubble' || node.type === 'carousel';
+}
+
+/**
  * Replies to a LINE event using SDK client with formatted error handling.
  * @param {string} replyToken 
  * @param {Object|Array} messages 
@@ -164,20 +187,23 @@ function sanitizeFlexComponent(node, parentBox = null) {
  */
 async function replyMessage(replyToken, messages) {
   const client = getLineClient();
-  const sanitizedMessages = sanitizeFlexComponent(messages);
+  const isFlex = isFlexPayload(messages);
+  const outgoingMessages = isFlex ? sanitizeFlexComponent(messages) : messages;
+
+  if (isFlex) {
+    try {
+      const jsonStr = JSON.stringify(outgoingMessages, null, 2);
+      const tempDir = path.join(__dirname, 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      const logFile = path.join(tempDir, 'latest_flex.json');
+      fs.writeFileSync(logFile, jsonStr, 'utf8');
+    } catch (fsErr) {}
+  }
 
   try {
-    const jsonStr = JSON.stringify(sanitizedMessages, null, 2);
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    const logFile = path.join(tempDir, 'latest_flex.json');
-    fs.writeFileSync(logFile, jsonStr, 'utf8');
-  } catch (fsErr) {}
-
-  try {
-    return await client.replyMessage(replyToken, sanitizedMessages);
+    return await client.replyMessage(replyToken, outgoingMessages);
   } catch (error) {
     console.error('Error replying message:', error);
     let details = null;
