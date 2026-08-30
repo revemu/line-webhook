@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const { Client } = require('@line/bot-sdk');
 require('dotenv').config({ quiet: true });
 
@@ -158,9 +161,16 @@ async function replyMessage(replyToken, messages) {
   const sanitizedMessages = sanitizeFlexComponent(messages);
 
   try {
-    const logFile = path.join(__dirname, 'latest_flex.json');
-    fs.writeFileSync(logFile, JSON.stringify(sanitizedMessages, null, 2), 'utf8');
-    console.log(`[lineClient] Flex JSON saved to ${logFile}`);
+    const jsonStr = JSON.stringify(sanitizedMessages, null, 2);
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const localLogFile = path.join(__dirname, 'latest_flex.json');
+    const tempLogFile = path.join(tempDir, 'latest_flex.json');
+    fs.writeFileSync(localLogFile, jsonStr, 'utf8');
+    fs.writeFileSync(tempLogFile, jsonStr, 'utf8');
+    console.log(`[lineClient] Flex JSON saved to ${localLogFile} and ${tempLogFile}`);
   } catch (fsErr) {
     console.error('[lineClient] Failed to save flex JSON to file:', fsErr.message);
   }
