@@ -1015,17 +1015,41 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
     const tableRows = await queryTableWeek(week_id);
     const teamMvpFactorMap = {};
+    const teamInfoMap = {};
+
+    // Count actual total matches played per team in this week from match_stat_tbl
+    const playedMatches = await executeQuery(
+      "SELECT team_a_id, team_b_id FROM match_stat_tbl WHERE week_id = ?",
+      [week_id]
+    );
+    const teamMatchCounts = {};
+    if (playedMatches && playedMatches.length > 0) {
+      playedMatches.forEach(m => {
+        if (m.team_a_id) teamMatchCounts[m.team_a_id] = (teamMatchCounts[m.team_a_id] || 0) + 1;
+        if (m.team_b_id) teamMatchCounts[m.team_b_id] = (teamMatchCounts[m.team_b_id] || 0) + 1;
+      });
+    }
+
     console.log(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
     if (tableRows && tableRows.length > 0) {
       tableRows.forEach(row => {
-        const matches = (Number(row.w) || 0) + (Number(row.d) || 0) + (Number(row.l) || 0);
+        const teamId = row.team_week_id;
+        const tableMatches = (Number(row.w) || 0) + (Number(row.d) || 0) + (Number(row.l) || 0);
+        const matches = (teamMatchCounts[teamId] && teamMatchCounts[teamId] > 0) ? teamMatchCounts[teamId] : tableMatches;
         const pts = Number(row.pts) || 0;
         const avgPts = matches > 0 ? (pts / matches) : pts;
         const goalsAgainst = Number(row.a) || 0;
         const divisor = goalsAgainst > 0 ? goalsAgainst : 1;
         const factor = avgPts / divisor;
-        teamMvpFactorMap[row.team_week_id] = factor;
-        console.log(` [Team ${row.color || row.team_week_id}] Matches: ${matches}, Pts: ${pts}, AvgPts: ${avgPts.toFixed(2)}, Goals Against: ${goalsAgainst}, Factor (AvgPts/GA): ${factor.toFixed(4)}`);
+        teamMvpFactorMap[teamId] = factor;
+        teamInfoMap[teamId] = { color: row.color, matches, pts, avgPts, goalsAgainst, factor };
+
+        console.log(` [Team ${row.color || teamId} (ID: ${teamId})]`);
+        console.log(`   └─ Total Matches Played: ${matches}`);
+        console.log(`   └─ Points (Pts): ${pts} | Avg Pts: ${pts} / ${matches} = ${avgPts.toFixed(4)}`);
+        console.log(`   └─ Goals Against (A): ${goalsAgainst}`);
+        console.log(`   └─ Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${goalsAgainst > 0 ? goalsAgainst : '1 (default)'}) = ${factor.toFixed(4)}`);
+        console.log(`   => Team Factor = ${factor.toFixed(4)}`);
       });
     }
 
@@ -1038,8 +1062,14 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const a = Number(m.assists) || 0;
       const factor = teamMvpFactorMap[m.team_id] !== undefined ? teamMvpFactorMap[m.team_id] : 1;
       const mvpScore = (g + a) * factor;
+      const teamDetails = teamInfoMap[m.team_id];
+      const teamName = teamDetails ? teamDetails.color : `ID ${m.team_id}`;
 
-      console.log(` [Player ${m.name}] Goals (G): ${g}, Assists (A): ${a}, (G+A): ${g + a}, Team Factor: ${factor.toFixed(4)}, MVP Score: ${mvpScore.toFixed(4)}`);
+      console.log(` [Player ${m.name}] (Team: ${teamName})`);
+      console.log(`   └─ Goals (G): ${g}, Assists (A): ${a} => (G + A) = ${g + a}`);
+      console.log(`   └─ Team Factor: ${factor.toFixed(4)}`);
+      console.log(`   └─ Calculation: (G + A: ${g + a}) * Team Factor (${factor.toFixed(4)}) = ${mvpScore.toFixed(4)}`);
+      console.log(`   => Final MVP Score = ${mvpScore.toFixed(4)}`);
 
       if (g > maxGoals) maxGoals = g;
       if (a > maxAssists) maxAssists = a;
