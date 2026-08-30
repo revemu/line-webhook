@@ -46,6 +46,108 @@ async function fetchUserProfile(userId, groupId = null) {
 }
 
 /**
+ * Recursively sanitizes and validates Flex Message components to strictly adhere to LINE Messaging API requirements.
+ * Fixes empty text fields, invalid borderWidths, invalid image URLs, and removes empty boxes/headers.
+ */
+function sanitizeFlexComponent(node) {
+  if (!node || typeof node !== 'object') return node;
+
+  if (Array.isArray(node)) {
+    return node.map(sanitizeFlexComponent).filter(Boolean);
+  }
+
+  const result = { ...node };
+
+  // 1. Text Component
+  if (result.type === 'text') {
+    if (result.text === undefined || result.text === null || String(result.text).trim() === '') {
+      result.text = ' ';
+    } else {
+      result.text = String(result.text);
+    }
+    if (result.weight && !['regular', 'bold'].includes(result.weight)) {
+      result.weight = 'regular';
+    }
+    if (result.color && typeof result.color === 'string' && !result.color.startsWith('#') && result.color !== 'transparent') {
+      delete result.color;
+    }
+  }
+
+  // 2. Image / Icon Component
+  if (result.type === 'image' || result.type === 'icon') {
+    let url = result.url;
+    if (!url || typeof url !== 'string' || url.trim() === '' || url.toLowerCase() === 'none') {
+      return null;
+    }
+    url = url.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+      url = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
+    }
+    if (url.startsWith('http://')) {
+      url = url.replace('http://', 'https://');
+    }
+    try {
+      url = encodeURI(url);
+    } catch (e) {}
+    result.url = url;
+  }
+
+  // 3. Box Component
+  if (result.type === 'box') {
+    if (result.borderWidth && !['none', 'xs', 'sm', 'md', 'lg', 'xl', 'semi-bold', 'bold'].includes(result.borderWidth)) {
+      result.borderWidth = 'sm';
+    }
+    if (result.alignItems && !['flex-start', 'center', 'flex-end'].includes(result.alignItems)) {
+      delete result.alignItems;
+    }
+    if (result.justifyContent && !['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'].includes(result.justifyContent)) {
+      delete result.justifyContent;
+    }
+    if (Array.isArray(result.contents)) {
+      result.contents = result.contents.map(sanitizeFlexComponent).filter(Boolean);
+      if (result.contents.length === 0) {
+        return null;
+      }
+    }
+  }
+
+  // 4. Bubble Container
+  if (result.type === 'bubble') {
+    if (result.header) {
+      result.header = sanitizeFlexComponent(result.header);
+      if (!result.header || (result.header.contents && result.header.contents.length === 0)) {
+        delete result.header;
+      }
+    }
+    if (result.hero) {
+      result.hero = sanitizeFlexComponent(result.hero);
+      if (!result.hero) delete result.hero;
+    }
+    if (result.body) {
+      result.body = sanitizeFlexComponent(result.body);
+      if (!result.body) delete result.body;
+    }
+    if (result.footer) {
+      result.footer = sanitizeFlexComponent(result.footer);
+      if (!result.footer) delete result.footer;
+    }
+  }
+
+  // 5. Root Flex Message Object
+  if (result.type === 'flex') {
+    if (!result.altText || typeof result.altText !== 'string' || result.altText.trim() === '') {
+      result.altText = 'LINE Notification';
+    }
+    if (result.contents) {
+      result.contents = sanitizeFlexComponent(result.contents);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Replies to a LINE event using SDK client with formatted error handling.
  * @param {string} replyToken 
  * @param {Object|Array} messages 
@@ -53,8 +155,9 @@ async function fetchUserProfile(userId, groupId = null) {
  */
 async function replyMessage(replyToken, messages) {
   const client = getLineClient();
+  const sanitizedMessages = sanitizeFlexComponent(messages);
   try {
-    return await client.replyMessage(replyToken, messages);
+    return await client.replyMessage(replyToken, sanitizedMessages);
   } catch (error) {
     console.error('Error replying message:', error);
     let details = null;
@@ -67,6 +170,7 @@ async function replyMessage(replyToken, messages) {
     }
     if (details) {
       console.error('LINE API Error Details:', JSON.stringify(details, null, 2));
+      console.error('Sanitized Payload That Failed:', JSON.stringify(sanitizedMessages, null, 2));
     } else {
       console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     }
