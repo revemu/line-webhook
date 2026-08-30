@@ -3420,5 +3420,6 @@ module.exports = {
   getNoticedSlips,
   getSlipById,
   setMemberDebt,
-  updateWeekTimeRange
+  updateWeekTimeRange,
+  calcAndSaveMaxMvpScore
 };
