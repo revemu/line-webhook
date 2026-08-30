@@ -3756,7 +3756,7 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
 
       if (type == 4) {
-        valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
+        valText = `${member.goal} ครั้ง`;
       } else {
         valText = `${member.goal}`;
       }

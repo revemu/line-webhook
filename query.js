@@ -2592,6 +2592,28 @@ function buildGoalQuery(statusCondition, year, limit = null) {
   return sql;
 }
 
+function buildMvpCountQuery(year, limit = null) {
+  let sql = `SELECT 
+    member_tbl.id,
+    member_tbl.name, 
+    member_tbl.alias, 
+    member_tbl.rank,
+    member_tbl.donate,
+    member_tbl.picture_url,
+    member_tbl.line_user_id,
+    COUNT(*) as goal
+    FROM mvp_week_tbl m
+    JOIN member_tbl ON m.member_id = member_tbl.id
+    JOIN week_tbl ON m.week_id = week_tbl.id
+    WHERE YEAR(week_tbl.date) = ${year}
+      AND member_tbl.id <> 121 AND member_tbl.id <> 169
+      AND member_tbl.team_id <> 101
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    ORDER BY goal DESC`;
+  if (limit) sql += ` LIMIT ${limit}`;
+  return sql;
+}
+
 function buildAvgPtsQuery(year, limit = null) {
   let sql = `SELECT 
     member_tbl.id,
@@ -2709,9 +2731,9 @@ async function getTopStat(limit = 10, type = 0, groupId = null) {
     icon = "🥅";
     query = buildGoalQuery(status, currentYear, limit);
   } else if (type == 4) {
-    header = `Top ${limit} Avg Pts`;
-    icon = "📊";
-    query = buildAvgPtsQuery(currentYear, limit);
+    header = `Top ${limit} MVP`;
+    icon = "👑";
+    query = buildMvpCountQuery(currentYear, limit);
   } else if (type == 5) {
     header = `ซึมเศร้าสะสม`;
     icon = "📉";
