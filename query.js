@@ -1015,6 +1015,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
     const tableRows = await queryTableWeek(week_id);
     const teamMvpFactorMap = {};
+    console.log(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
     if (tableRows && tableRows.length > 0) {
       tableRows.forEach(row => {
         const matches = (Number(row.w) || 0) + (Number(row.d) || 0) + (Number(row.l) || 0);
@@ -1022,7 +1023,9 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         const avgPts = matches > 0 ? (pts / matches) : pts;
         const goalsAgainst = Number(row.a) || 0;
         const divisor = goalsAgainst > 0 ? goalsAgainst : 1;
-        teamMvpFactorMap[row.team_week_id] = avgPts / divisor;
+        const factor = avgPts / divisor;
+        teamMvpFactorMap[row.team_week_id] = factor;
+        console.log(` [Team ${row.color || row.team_week_id}] Matches: ${matches}, Pts: ${pts}, AvgPts: ${avgPts.toFixed(2)}, Goals Against: ${goalsAgainst}, Factor (AvgPts/GA): ${factor.toFixed(4)}`);
       });
     }
 
@@ -1035,6 +1038,8 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const a = Number(m.assists) || 0;
       const factor = teamMvpFactorMap[m.team_id] !== undefined ? teamMvpFactorMap[m.team_id] : 1;
       const mvpScore = (g + a) * factor;
+
+      console.log(` [Player ${m.name}] Goals (G): ${g}, Assists (A): ${a}, (G+A): ${g + a}, Team Factor: ${factor.toFixed(4)}, MVP Score: ${mvpScore.toFixed(4)}`);
 
       if (g > maxGoals) maxGoals = g;
       if (a > maxAssists) maxAssists = a;
@@ -1053,6 +1058,9 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const topScorers = maxGoals > 0 ? formattedList.filter(item => item.goals === maxGoals) : [];
     const topAssists = maxAssists > 0 ? formattedList.filter(item => item.assists === maxAssists) : [];
     const mvps = maxMvpScore > 0 ? formattedList.filter(item => Math.abs(item.score - maxMvpScore) < 0.001) : [];
+
+    console.log(` [MVP Winner(s)] Max Score: ${maxMvpScore.toFixed(4)} | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
+    console.log(`=============================================\n`);
 
     return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore };
   } catch (err) {
