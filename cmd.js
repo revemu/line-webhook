@@ -559,28 +559,40 @@ const COMMAND_REGISTRY = {
     },
     'maxmvpscore': async (context) => {
         const { param, quoteToken } = context;
-        const weeks = (param && !isNaN(Number(param))) ? Number(param) : 48;
-        const res = await db.calcAndSaveMaxMvpScore(weeks);
-        if (!res || res.maxRawScore === 0) {
-            return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูลคะแนน MVP สำหรับคำนวณ ${weeks} สัปดาห์ย้อนหลัง` }];
+        let year = null;
+        let reset = false;
+
+        if (param && param.trim() !== '') {
+            const tokens = param.trim().toLowerCase().split(/\s+/);
+            tokens.forEach(tok => {
+                if (tok === 'reset' || tok === 'force' || tok === 'rebuild') {
+                    reset = true;
+                } else if (!isNaN(Number(tok)) && Number(tok) > 2000) {
+                    year = Number(tok);
+                }
+            });
         }
 
-        let msg = `🏆 รายละเอียดคะแนน MVP สูงสุดอ้างอิง ${res.weeksChecked} สัปดาห์ย้อนหลัง\n`;
-        msg += `📌 Reference Benchmark (10.00 คะแนน): ${res.maxRawScore.toFixed(4)}\n\n`;
-        msg += `🔥 รายละเอียด Top 5 ผลงาน MVP สูงสุดตลอดกาล:\n\n`;
+        const res = await db.calcAndSaveMaxMvpScore({ year, reset });
+        if (!res || res.weeksChecked === 0) {
+            return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูลสัปดาห์สำหรับคำนวณ ${year ? `ปี ${year}` : ''}` }];
+        }
+
+        let msg = `🏆 รายละเอียดคะแนน MVP สูงสุดอ้างอิง ${res.year ? `ปี ${res.year}` : 'ทุกสัปดาห์'}\n`;
+        msg += `📌 Reference Benchmark (10.00 คะแนน): ${res.maxRawScore.toFixed(4)}\n`;
+        msg += `📊 สรุปการซิงค์: ${res.weeksChecked} สัปดาห์ (ข้ามสัปดาห์เดิม ${res.skipped} | เพิ่มใหม่ ${res.newInserted}${reset ? ' | รีเซ็ตแล้ว' : ''})\n\n`;
+        msg += `🔥 รายละเอียด Top 5 ผลงาน MVP สูงสุด:\n\n`;
 
         res.topPerformances.forEach((p, idx) => {
             const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
-            const rating = Math.min(10.0, (p.rawScore / res.maxRawScore) * 10).toFixed(1);
-            msg += `${medal} ${p.name} (${p.dateStr}) [ทีม: ${p.teamName || '?'}]\n`;
-            msg += `   └─ ทีม: W:${p.w} D:${p.d} L:${p.l} (${p.matches} นัด) | ${p.pts} แต้ม | AvgPts: ${p.avgPts.toFixed(2)}\n`;
-            msg += `   └─ เสียประตู (A): ${p.goalsAgainst} | Team Factor: ${p.factor.toFixed(4)}\n`;
+            const rating = res.maxRawScore > 0 ? Math.min(10.0, (p.rawScore / res.maxRawScore) * 10).toFixed(1) : '0.0';
+            msg += `${medal} ${p.name} (${p.dateStr}) [Week ${p.week_id}]\n`;
             msg += `   └─ ผลงาน: ⚽ ${p.goals}G + 👟 ${p.assists}A = ${p.goals + p.assists}\n`;
-            msg += `   └─ Raw Score: (${p.goals + p.assists}) × ${p.factor.toFixed(4)} = ${p.rawScore.toFixed(4)}\n`;
+            msg += `   └─ Raw Score: ${p.rawScore.toFixed(4)}\n`;
             msg += `   => Rating: ${rating} / 10\n\n`;
         });
 
-        msg += `✅ บันทึกคะแนนอ้างอิง 10.00 (Benchmark) สำหรับ /matchweek เรียบร้อยแล้ว!`;
+        msg += `✅ อัพเดทคะแนนอ้างอิง 10.00 (Benchmark) เรียบร้อยแล้ว!`;
         return [{ type: 'text', text: msg }];
     },
     'slip': async (context) => {
