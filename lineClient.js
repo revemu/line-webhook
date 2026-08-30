@@ -102,9 +102,18 @@ function sanitizeFlexComponent(node, parentBox = null) {
 
   // 3. Box Component
   if (result.type === 'box') {
-    if (result.borderWidth && !['none', 'xs', 'sm', 'md', 'lg', 'xl', 'semi-bold', 'bold'].includes(result.borderWidth)) {
-      result.borderWidth = 'sm';
+    if (result.borderWidth) {
+      if (!['none', 'xs', 'sm', 'md', 'lg', 'xl', 'semi-bold', 'bold'].includes(result.borderWidth)) {
+        result.borderWidth = 'sm';
+      }
+      if (!result.borderColor || typeof result.borderColor !== 'string' || result.borderColor.trim() === '' || result.borderColor === '#00000000' || result.borderColor.toLowerCase() === 'transparent') {
+        delete result.borderWidth;
+        delete result.borderColor;
+      }
+    } else if (result.borderColor === '#00000000' || (typeof result.borderColor === 'string' && result.borderColor.toLowerCase() === 'transparent')) {
+      delete result.borderColor;
     }
+
     if (result.alignItems && !['flex-start', 'center', 'flex-end'].includes(result.alignItems)) {
       delete result.alignItems;
     }

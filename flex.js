@@ -734,8 +734,6 @@ function buildNowFlex(matchInfo, theme) {
       backgroundColor: colors.bgNext || colors.bgRound,
       paddingAll: 'sm',
       cornerRadius: 'sm',
-      borderWidth: 'sm',
-      borderColor: '#00000000',
       contents: [
         // Header: label  [matchNo]  time — all same size
         {
@@ -768,8 +766,6 @@ function buildNowFlex(matchInfo, theme) {
         backgroundColor: colors.bgNext2 || colors.bgRound,
         paddingAll: 'sm',
         cornerRadius: 'sm',
-        borderWidth: 'sm',
-        borderColor: '#00000000',
         contents: [
           // Header: label  [matchNo]  time — all same size
           {
@@ -931,8 +927,6 @@ function buildLiveFlex(matchInfo, theme) {
     paddingStart: 'xs',
     paddingEnd: 'xs',
     alignItems: 'center',
-    borderWidth: 'sm',
-    borderColor: '#00000000',
     contents: [
       { type: 'text', text: '#', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
       { type: 'text', text: 'เวลา', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
@@ -1060,14 +1054,14 @@ function buildLiveFlex(matchInfo, theme) {
       paddingBottom: 'xs',
       margin: 'xs',
       alignItems: 'center',
-      borderWidth: 'sm',
-      borderColor: isCurrent ? colors.borderCurrent : '#00000000',
       cornerRadius: 'sm',
       contents: matchBoxContents
     };
 
     if (isCurrent) {
       matchContainer.backgroundColor = colors.bgCurrent;
+      matchContainer.borderWidth = 'sm';
+      matchContainer.borderColor = colors.borderCurrent;
     }
 
     bodyContents.push(matchContainer);
