@@ -1188,6 +1188,7 @@ async function calculateWeekRawMvp(week_id) {
   }
 
   const teamMvpFactorMap = {};
+  const teamDetailsMap = {};
   tableRows.forEach(row => {
     const teamId = row.team_week_id;
     const w = Number(row.w !== undefined ? row.w : (row.W || 0));
@@ -1200,7 +1201,20 @@ async function calculateWeekRawMvp(week_id) {
     const goalsConceded = Number(row.A !== undefined ? row.A : (row.a || 0));
     const goalsAgainst = (teamGaMap[teamId] !== undefined && teamGaMap[teamId] > 0) ? teamGaMap[teamId] : goalsConceded;
     const divisor = goalsAgainst > 0 ? goalsAgainst : 1;
-    teamMvpFactorMap[teamId] = avgPts / divisor;
+    const factor = avgPts / divisor;
+
+    teamMvpFactorMap[teamId] = factor;
+    teamDetailsMap[teamId] = {
+      teamName: row.color || `ID ${teamId}`,
+      w,
+      d,
+      l,
+      matches: totalMatches,
+      pts,
+      avgPts,
+      goalsAgainst,
+      factor
+    };
   });
 
   return goalRes.map(m => {
@@ -1208,13 +1222,24 @@ async function calculateWeekRawMvp(week_id) {
     const a = Number(m.assists) || 0;
     const factor = teamMvpFactorMap[m.team_id] !== undefined ? teamMvpFactorMap[m.team_id] : 1;
     const rawScore = (g + a) * factor;
+    const td = teamDetailsMap[m.team_id] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor };
+
     return {
       week_id,
       member_id: m.member_id,
       name: m.name,
       goals: g,
       assists: a,
-      rawScore
+      rawScore,
+      teamName: td.teamName,
+      w: td.w,
+      d: td.d,
+      l: td.l,
+      matches: td.matches,
+      pts: td.pts,
+      avgPts: td.avgPts,
+      goalsAgainst: td.goalsAgainst,
+      factor: td.factor
     };
   }).filter(p => (p.goals + p.assists) > 0);
 }
@@ -1253,6 +1278,24 @@ async function calcAndSaveMaxMvpScore(limitWeeks = 48) {
     }
 
     const topPerformances = allPerformances.slice(0, 5);
+
+    console.log(`\n======================================================`);
+    console.log(`🏆 ALL-TIME TOP 5 RAW MVP SCORES (LAST ${weeks.length} WEEKS)`);
+    console.log(`======================================================`);
+    topPerformances.forEach((p, i) => {
+      const rating = maxRawScore > 0 ? Math.min(10.0, (p.rawScore / maxRawScore) * 10).toFixed(1) : '0.0';
+      console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Team: ${p.teamName || '?'}]`);
+      console.log(`   └─ Team Record: W:${p.w}, D:${p.d}, L:${p.l} => Matches: ${p.matches} | Pts: ${p.pts}`);
+      console.log(`   └─ Team Avg Pts: Pts (${p.pts}) / Matches (${p.matches}) = ${p.avgPts.toFixed(4)}`);
+      console.log(`   └─ Team Goals Against (A): ${p.goalsAgainst}`);
+      console.log(`   └─ Team Factor Calculation: Avg Pts (${p.avgPts.toFixed(4)}) / Goals Against (${p.goalsAgainst > 0 ? p.goalsAgainst : 1}) = ${p.factor.toFixed(4)}`);
+      console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists} => (G + A) = ${p.goals + p.assists}`);
+      console.log(`   └─ Raw MVP Score Calculation: (G + A: ${p.goals + p.assists}) * Team Factor (${p.factor.toFixed(4)}) = ${p.rawScore.toFixed(4)}`);
+      console.log(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
+    });
+    console.log(`📌 Benchmark Max Raw Score Saved to DB (10.00 Ref): ${maxRawScore.toFixed(4)}`);
+    console.log(`======================================================\n`);
+
     return { maxRawScore, topPerformances, weeksChecked: weeks.length };
   } catch (err) {
     console.error("Error calculating max MVP score across weeks:", err.message);

@@ -565,17 +565,22 @@ const COMMAND_REGISTRY = {
             return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูลคะแนน MVP สำหรับคำนวณ ${weeks} สัปดาห์ย้อนหลัง` }];
         }
 
-        let msg = `🏆 คะแนน MVP สูงสุดอ้างอิง ${res.weeksChecked} สัปดาห์ย้อนหลัง\n`;
+        let msg = `🏆 รายละเอียดคะแนน MVP สูงสุดอ้างอิง ${res.weeksChecked} สัปดาห์ย้อนหลัง\n`;
         msg += `📌 Reference Benchmark (10.00 คะแนน): ${res.maxRawScore.toFixed(4)}\n\n`;
-        msg += `🔥 Top 5 ผลงาน MVP สูงสุดตลอดกาล:\n`;
+        msg += `🔥 รายละเอียด Top 5 ผลงาน MVP สูงสุดตลอดกาล:\n\n`;
 
         res.topPerformances.forEach((p, idx) => {
             const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
             const rating = Math.min(10.0, (p.rawScore / res.maxRawScore) * 10).toFixed(1);
-            msg += `${medal} ${p.name} (${p.dateStr})\n   ⚽ ${p.goals}G | 👟 ${p.assists}A | Raw: ${p.rawScore.toFixed(4)} (${rating}/10)\n`;
+            msg += `${medal} ${p.name} (${p.dateStr}) [ทีม: ${p.teamName || '?'}]\n`;
+            msg += `   └─ ทีม: W:${p.w} D:${p.d} L:${p.l} (${p.matches} นัด) | ${p.pts} แต้ม | AvgPts: ${p.avgPts.toFixed(2)}\n`;
+            msg += `   └─ เสียประตู (A): ${p.goalsAgainst} | Team Factor: ${p.factor.toFixed(4)}\n`;
+            msg += `   └─ ผลงาน: ⚽ ${p.goals}G + 👟 ${p.assists}A = ${p.goals + p.assists}\n`;
+            msg += `   └─ Raw Score: (${p.goals + p.assists}) × ${p.factor.toFixed(4)} = ${p.rawScore.toFixed(4)}\n`;
+            msg += `   => Rating: ${rating} / 10\n\n`;
         });
 
-        msg += `\n✅ บันทึกคะแนนอ้างอิง 10.00 (Benchmark) สำหรับ /matchweek เรียบร้อยแล้ว!`;
+        msg += `✅ บันทึกคะแนนอ้างอิง 10.00 (Benchmark) สำหรับ /matchweek เรียบร้อยแล้ว!`;
         return [{ type: 'text', text: msg }];
     },
     'slip': async (context) => {
