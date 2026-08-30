@@ -2376,8 +2376,7 @@ function renderAutoRegTableRow(member, index, isCurrentMember, colors) {
             size: 'sm',
             weight: isCurrentMember ? 'bold' : 'normal',
             color: member.donateColor || textPrimary,
-            maxLines: 1,
-            ellipsis: true
+            maxLines: 1
           }
         ]
       },
