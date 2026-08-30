@@ -3610,16 +3610,6 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
 
     const scorerContents = [];
 
-    // Profile Avatar
-    const avatarUrl = (info.pictureUrl && typeof info.pictureUrl === 'string' && info.pictureUrl.trim().startsWith('http')) ? info.pictureUrl.trim() : null;
-    if (avatarUrl) {
-      const avatarBox = createMemberAvatarBox(avatarUrl, '18px');
-      if (avatarBox) {
-        avatarBox.margin = 'xs';
-        scorerContents.push(avatarBox);
-      }
-    }
-
     // Rank Badge
     const badgeSize = info.badgeSize || '16px';
     if (info.badgeUrl && typeof info.badgeUrl === 'string' && info.badgeUrl.trim().startsWith('http')) {
