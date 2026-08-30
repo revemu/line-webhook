@@ -414,7 +414,8 @@ const COMMAND_REGISTRY = {
         const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
         if (param.toLowerCase() === 'list') {
             const list = await db.getAutoRegList(groupId);
-            const msg = flex.buildAutoRegFlex('list', null, list, theme, autoregImageUrl);
+            const callerMember = member_id ? { id: member_id, name: member_name } : null;
+            const msg = flex.buildAutoRegFlex('list', callerMember, list, theme, autoregImageUrl);
             return { type: 'flex', altText: "สมาชิกลงชื่ออัตโนมัติ", contents: msg };
         }
         const list = await db.getAutoRegList(groupId);
