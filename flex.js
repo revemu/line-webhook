@@ -3761,9 +3761,96 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       }
 
       if (i < 3) {
-        // TOP 3: Render avatar profile picture, HOF crowns, rank badge, donator name color via makeMemberColumn
-        const col = makeMemberColumn(info, rankLabel, colors, false);
-        nameBoxContents.push(col);
+        // TOP 3: Render rank medal, avatar picture, rank badge, HOF crowns, and donator colored name
+        nameBoxContents.push({
+          type: 'text',
+          text: rankLabel,
+          size: 'xs',
+          flex: 0
+        });
+
+        if (info.pictureUrl) {
+          const avatarBox = createMemberAvatarBox(info.pictureUrl, '20px');
+          if (avatarBox) {
+            avatarBox.margin = 'xs';
+            nameBoxContents.push(avatarBox);
+          }
+        }
+
+        if (info.badgeUrl) {
+          nameBoxContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: info.badgeSize || '18px',
+            height: info.badgeSize || '18px',
+            flex: 0,
+            margin: 'xs',
+            contents: [
+              {
+                type: 'image',
+                url: info.badgeUrl,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                animated: true
+              }
+            ]
+          });
+        }
+
+        if (info.hofBadges && info.hofBadges.length > 0) {
+          for (const hb of info.hofBadges) {
+            nameBoxContents.push({
+              type: 'box',
+              layout: 'vertical',
+              width: hb.size || '18px',
+              height: hb.size || '18px',
+              flex: 0,
+              margin: 'xs',
+              contents: [
+                {
+                  type: 'image',
+                  url: hb.url,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'cover',
+                  animated: true
+                }
+              ]
+            });
+          }
+        } else if (info.hofCount && info.hofCount > 0 && info.hofBadgeUrl) {
+          nameBoxContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: info.hofBadgeSize || '18px',
+            height: info.hofBadgeSize || '18px',
+            flex: 0,
+            margin: 'xs',
+            contents: [
+              {
+                type: 'image',
+                url: info.hofBadgeUrl,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                animated: true
+              }
+            ]
+          });
+        }
+
+        const displayName = info.name || info.alias || '';
+        nameColor = info.nameColor || colors.textMutedLight;
+        nameBoxContents.push({
+          type: 'text',
+          text: displayName,
+          size: 'xs',
+          color: nameColor,
+          weight: isTop ? 'bold' : 'regular',
+          flex: 1,
+          margin: 'xs'
+        });
       } else {
         // Rank 4+: Simple text row
         const displayName = rankLabel + " " + (info.name || info.alias || '');
