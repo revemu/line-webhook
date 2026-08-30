@@ -1019,9 +1019,10 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const teamMvpFactorMap = {};
     const teamInfoMap = {};
 
-    // Calculate actual Goals Against (GA) and Clean Sheets per team from match_stat_tbl for this week
+    // Calculate actual Goals Against (GA), Clean Sheets, and Wins per team from match_stat_tbl for this week
     const teamGaMap = {};
     const teamCleanSheetsMap = {};
+    const teamWinsMap = {};
     const matchScores = await executeQuery(
       "SELECT team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
       [week_id]
@@ -1030,13 +1031,18 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       matchScores.forEach(m => {
         const gaA = Number(m.team_b_goal) || 0;
         const gaB = Number(m.team_a_goal) || 0;
+        const gA = Number(m.team_a_goal) || 0;
+        const gB = Number(m.team_b_goal) || 0;
+
         if (m.team_a_id) {
           teamGaMap[m.team_a_id] = (teamGaMap[m.team_a_id] || 0) + gaA;
           if (gaA === 0) teamCleanSheetsMap[m.team_a_id] = (teamCleanSheetsMap[m.team_a_id] || 0) + 1;
+          if (gA > gB) teamWinsMap[m.team_a_id] = (teamWinsMap[m.team_a_id] || 0) + 1;
         }
         if (m.team_b_id) {
           teamGaMap[m.team_b_id] = (teamGaMap[m.team_b_id] || 0) + gaB;
           if (gaB === 0) teamCleanSheetsMap[m.team_b_id] = (teamCleanSheetsMap[m.team_b_id] || 0) + 1;
+          if (gB > gA) teamWinsMap[m.team_b_id] = (teamWinsMap[m.team_b_id] || 0) + 1;
         }
       });
     }
@@ -1052,6 +1058,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       tableRows.forEach(row => {
         const teamId = row.team_week_id;
         const w = Number(row.w !== undefined ? row.w : (row.W || 0));
+        if (w > 0) teamWinsMap[teamId] = w;
         const d = Number(row.d !== undefined ? row.d : (row.D || 0));
         const l = Number(row.l !== undefined ? row.l : (row.L || 0));
         const totalMatches = w + d + l;
@@ -1077,7 +1084,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       });
     }
 
-    // Pass 1: Compute raw MVP scores with position weights from pos_tbl
+    // Pass 1: Compute raw MVP scores with position weights from pos_tbl + match wins * 1.5
     const rawScoresList = goalRes.map(m => {
       if (isTempReserveMember(m.name)) return null;
 
@@ -1086,6 +1093,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const teamId = Number(m.team_id) || 0;
 
       const cleanSheets = teamCleanSheetsMap[teamId] || 0;
+      const wins = teamWinsMap[teamId] || 0;
 
       let pos = defaultPos;
       if (m.week_pos_id > 0 && posMap[m.week_pos_id]) {
@@ -1098,10 +1106,10 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const ptsAssist = parseFloat(pos.pts_assist) || 3.0;
       const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
 
-      // Raw MVP score comes strictly from pos_tbl points
-      const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet);
+      // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * 1.5)
+      const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * 1.5);
 
-      return { member: m, g, a, cleanSheets, pos, ptsGoal, ptsAssist, ptsCleanSheet, rawScore };
+      return { member: m, g, a, cleanSheets, wins, pos, ptsGoal, ptsAssist, ptsCleanSheet, rawScore };
     }).filter(item => item !== null);
 
     let maxGoals = 0;
@@ -1148,6 +1156,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const g = item.g;
       const a = item.a;
       const cleanSheets = item.cleanSheets;
+      const wins = item.wins;
       const pos = item.pos;
       const ptsGoal = item.ptsGoal;
       const ptsAssist = item.ptsAssist;
@@ -1160,8 +1169,8 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
       console.log(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
       console.log(`   └─ Position Category Points: Goal: ${ptsGoal}, Assist: ${ptsAssist}, Clean Sheet: ${ptsCleanSheet}`);
-      console.log(`   └─ Player Stats: Goals (G): ${g}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}`);
-      console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) = ${rawScore.toFixed(4)}`);
+      console.log(`   └─ Player Stats: Goals (G): ${g}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}`);
+      console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * 1.5) = ${rawScore.toFixed(4)}`);
       console.log(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / Benchmark Ref ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
       console.log(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
 
@@ -1474,6 +1483,7 @@ async function calculateWeekRawMvp(week_id) {
 
   const teamGaMap = {};
   const teamCleanSheetsMap = {};
+  const teamWinsMap = {};
   const matchScores = await executeQuery(
     "SELECT team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
     [week_id]
@@ -1482,13 +1492,18 @@ async function calculateWeekRawMvp(week_id) {
     matchScores.forEach(m => {
       const gaA = Number(m.team_b_goal) || 0;
       const gaB = Number(m.team_a_goal) || 0;
+      const gA = Number(m.team_a_goal) || 0;
+      const gB = Number(m.team_b_goal) || 0;
+
       if (m.team_a_id) {
         teamGaMap[m.team_a_id] = (teamGaMap[m.team_a_id] || 0) + gaA;
         if (gaA === 0) teamCleanSheetsMap[m.team_a_id] = (teamCleanSheetsMap[m.team_a_id] || 0) + 1;
+        if (gA > gB) teamWinsMap[m.team_a_id] = (teamWinsMap[m.team_a_id] || 0) + 1;
       }
       if (m.team_b_id) {
         teamGaMap[m.team_b_id] = (teamGaMap[m.team_b_id] || 0) + gaB;
         if (gaB === 0) teamCleanSheetsMap[m.team_b_id] = (teamCleanSheetsMap[m.team_b_id] || 0) + 1;
+        if (gB > gA) teamWinsMap[m.team_b_id] = (teamWinsMap[m.team_b_id] || 0) + 1;
       }
     });
   }
@@ -1504,6 +1519,7 @@ async function calculateWeekRawMvp(week_id) {
   tableRows.forEach(row => {
     const teamId = row.team_week_id;
     const w = Number(row.w !== undefined ? row.w : (row.W || 0));
+    if (w > 0) teamWinsMap[teamId] = w;
     const d = Number(row.d !== undefined ? row.d : (row.D || 0));
     const l = Number(row.l !== undefined ? row.l : (row.L || 0));
     const totalMatches = w + d + l;
@@ -1537,6 +1553,7 @@ async function calculateWeekRawMvp(week_id) {
     const teamId = Number(m.team_id) || 0;
 
     const cleanSheets = teamCleanSheetsMap[teamId] || 0;
+    const wins = teamWinsMap[teamId] || 0;
 
     let pos = defaultPos;
     if (m.week_pos_id > 0 && posMap[m.week_pos_id]) {
@@ -1549,8 +1566,8 @@ async function calculateWeekRawMvp(week_id) {
     const ptsAssist = parseFloat(pos.pts_assist) || 3.0;
     const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
 
-    // Raw MVP score comes strictly from pos_tbl points
-    const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet);
+    // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * 1.5)
+    const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * 1.5);
     const td = teamDetailsMap[teamId] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor: 1 };
 
     return {
@@ -1560,6 +1577,7 @@ async function calculateWeekRawMvp(week_id) {
       goals: g,
       assists: a,
       cleanSheets,
+      wins,
       posCode: pos.code,
       posIcon: pos.icon || '',
       ptsGoal,
