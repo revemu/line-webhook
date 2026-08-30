@@ -3616,6 +3616,8 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
 
     const scorerContents = [];
     const badgeSize = info.badgeSize || '16px';
+    /* Temporarily disabled badge/avatar display for testing size limit */
+    /*
     if (info.badgeUrl && typeof info.badgeUrl === 'string' && info.badgeUrl.trim().length > 0) {
       scorerContents.push({
         type: 'box',
@@ -3659,6 +3661,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
         }
       }
     }
+    */
 
     scorerContents.push({
       type: "text",
