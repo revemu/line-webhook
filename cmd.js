@@ -596,14 +596,14 @@ const COMMAND_REGISTRY = {
             msg += `💰 ยอดเงิน: ${details.amountStr} บาท\n`;
             msg += `💸 โอนจาก: ${details.senderName} - ${details.senderBank}\n`;
             msg += `💵 ให้กับ: ${details.recipientName}\n`;
-            msg += `📌 สถานะ: ${slipToMe ? 'โอนให้เรา ✅' : 'ไม่เกี่ยวกับค่าสนาม 📝'}`;
-            if (slipToMe) {
-                const slipMember = await db.queryMemberbyLineID(slip.sender_id);
+            msg += `📌 สถานะ: ${slipToMe ? `โอนค่าสนาม ✅\n\n💳 อัพเดทข้อมูล slip ของ ${slip.sender_name} แล้ว` : 'ไม่เกี่ยวกับค่าสนาม 📝'}`;
+            /*if (slipToMe) {
+                //const slipMember = await db.queryMemberbyLineID(slip.sender_id);
                 if (slipMember && slipMember.length > 0) {
-                    await db.updateMemberWeek(slipMember[0].id, 1, 0);
-                    msg += `\n\n💳 อัพเดทการชำระเงินให้ ${slip.sender_name} แล้ว`;
+                    //await db.updateMemberWeek(slipMember[0].id, 1, 0);
+                    msg += `\n\n💳 อัพเดทข้อมูล slip ของ ${slip.sender_name} แล้ว`;
                 }
-            }
+            }*/
             return [{ type: 'text', text: msg }];
         } else {
             const errMsg = verifyResult.error ? `${verifyResult.error.code} - ${verifyResult.error.message}` : 'ไม่ทราบสาเหตุ';
@@ -731,7 +731,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         }
         const logFile = path.join(tempDir, 'latest_cmd_flex.json');
         fs.writeFileSync(logFile, JSON.stringify(result, null, 2), 'utf8');
-    } catch (e) {}
+    } catch (e) { }
 
     return result;
 }
