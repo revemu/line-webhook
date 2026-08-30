@@ -1355,6 +1355,11 @@ function makeDisabledBoxButton(label, color = '#9ca3af', flexVal = 1, size = 'sm
 }
 
 function createMemberAvatarBox(url, size = '24px') {
+  if (!url || typeof url !== 'string' || !url.trim().startsWith('http')) return null;
+  let secureUrl = url.trim();
+  if (secureUrl.startsWith('http://')) {
+    secureUrl = secureUrl.replace(/^http:\/\//i, 'https://');
+  }
   return {
     type: 'box',
     layout: 'vertical',
@@ -1365,7 +1370,7 @@ function createMemberAvatarBox(url, size = '24px') {
     contents: [
       {
         type: 'image',
-        url: url,
+        url: secureUrl,
         size: 'full',
         aspectRatio: '1:1',
         aspectMode: 'cover'
@@ -3606,7 +3611,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
     const scorerContents = [];
 
     // Profile Avatar
-    const avatarUrl = (info.pictureUrl && typeof info.pictureUrl === 'string' && info.pictureUrl.startsWith('http')) ? info.pictureUrl : null;
+    const avatarUrl = (info.pictureUrl && typeof info.pictureUrl === 'string' && info.pictureUrl.trim().startsWith('http')) ? info.pictureUrl.trim() : null;
     if (avatarUrl) {
       const avatarBox = createMemberAvatarBox(avatarUrl, '18px');
       if (avatarBox) {
@@ -3617,7 +3622,9 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
 
     // Rank Badge
     const badgeSize = info.badgeSize || '16px';
-    if (info.badgeUrl && typeof info.badgeUrl === 'string' && info.badgeUrl.trim().length > 0) {
+    if (info.badgeUrl && typeof info.badgeUrl === 'string' && info.badgeUrl.trim().startsWith('http')) {
+      let bUrl = info.badgeUrl.trim();
+      if (bUrl.startsWith('http://')) bUrl = bUrl.replace(/^http:\/\//i, 'https://');
       scorerContents.push({
         type: 'box',
         layout: 'vertical',
@@ -3627,7 +3634,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
         contents: [
           {
             type: 'image',
-            url: info.badgeUrl.trim(),
+            url: bUrl,
             size: 'full',
             aspectMode: 'fit',
             animated: true
@@ -3640,7 +3647,9 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
     // HOF Badges
     if (info.hofBadges && info.hofBadges.length > 0) {
       for (const hb of info.hofBadges) {
-        if (hb && hb.url && typeof hb.url === 'string' && hb.url.trim().length > 0) {
+        if (hb && hb.url && typeof hb.url === 'string' && hb.url.trim().startsWith('http')) {
+          let hUrl = hb.url.trim();
+          if (hUrl.startsWith('http://')) hUrl = hUrl.replace(/^http:\/\//i, 'https://');
           scorerContents.push({
             type: 'box',
             layout: 'vertical',
@@ -3650,7 +3659,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
             contents: [
               {
                 type: 'image',
-                url: hb.url.trim(),
+                url: hUrl,
                 size: 'full',
                 aspectMode: 'fit',
                 animated: true
