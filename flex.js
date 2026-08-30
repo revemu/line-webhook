@@ -2258,140 +2258,6 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme, imageUrl = 
   return bubble;
 }
 
-function renderAutoRegTableRow(member, index, isCurrentMember, colors) {
-  const isWhite = colors.name === 'white';
-  const textPrimary = isWhite ? '#0f172a' : '#ffffff';
-  const textMuted = isWhite ? '#64748b' : '#94a3b8';
-
-  const rowBg = isCurrentMember
-    ? (isWhite ? '#eff6ff' : '#1e293b')
-    : (index % 2 === 0 ? (isWhite ? '#f8fafc' : '#16122d') : (isWhite ? '#ffffff' : '#0d0d1a'));
-  const rowBorder = isCurrentMember ? (isWhite ? '#3b82f6' : '#60a5fa') : (isWhite ? '#e2e8f0' : '#2a2a4a');
-
-  const avatarUrl = (member.picture_url && typeof member.picture_url === 'string' && member.picture_url.startsWith('http'))
-    ? member.picture_url
-    : 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
-
-  const hasDebt = Number(member.debt) > 0;
-  const statusBadge = hasDebt
-    ? {
-        type: 'box',
-        layout: 'horizontal',
-        backgroundColor: isWhite ? '#fef2f2' : '#450a0a',
-        cornerRadius: 'sm',
-        paddingStart: 'xs',
-        paddingEnd: 'xs',
-        paddingTop: 'xs',
-        paddingBottom: 'xs',
-        contents: [
-          {
-            type: 'text',
-            text: `⚠️ ค้าง ${member.debt}฿`,
-            size: 'xxs',
-            color: isWhite ? '#dc2626' : '#fca5a5',
-            weight: 'bold',
-            align: 'center'
-          }
-        ]
-      }
-    : {
-        type: 'box',
-        layout: 'horizontal',
-        backgroundColor: isWhite ? '#f0fdf4' : '#052e16',
-        cornerRadius: 'sm',
-        paddingStart: 'xs',
-        paddingEnd: 'xs',
-        paddingTop: 'xs',
-        paddingBottom: 'xs',
-        contents: [
-          {
-            type: 'text',
-            text: '✅ พร้อม',
-            size: 'xxs',
-            color: isWhite ? '#16a34a' : '#4ade80',
-            weight: 'bold',
-            align: 'center'
-          }
-        ]
-      };
-
-  const nameText = member.name || 'Unknown';
-
-  return {
-    type: 'box',
-    layout: 'horizontal',
-    backgroundColor: rowBg,
-    borderColor: rowBorder,
-    borderWidth: 'normal',
-    cornerRadius: 'sm',
-    paddingAll: 'sm',
-    alignItems: 'center',
-    contents: [
-      // Index Pill
-      {
-        type: 'box',
-        layout: 'vertical',
-        width: '24px',
-        alignItems: 'center',
-        justifyContent: 'center',
-        contents: [
-          {
-            type: 'text',
-            text: `${index < 10 ? '0' + index : index}`,
-            size: 'xs',
-            weight: 'bold',
-            color: isCurrentMember ? (isWhite ? '#2563eb' : '#60a5fa') : textMuted,
-            align: 'center'
-          }
-        ]
-      },
-      // Avatar Image
-      {
-        type: 'box',
-        layout: 'vertical',
-        width: '26px',
-        height: '26px',
-        cornerRadius: 'md',
-        margin: 'xs',
-        contents: [
-          {
-            type: 'image',
-            url: avatarUrl,
-            size: 'full',
-            aspectRatio: '1:1',
-            aspectMode: 'cover'
-          }
-        ]
-      },
-      // Member Name
-      {
-        type: 'box',
-        layout: 'vertical',
-        flex: 1,
-        margin: 'sm',
-        contents: [
-          {
-            type: 'text',
-            text: nameText,
-            size: 'sm',
-            weight: isCurrentMember ? 'bold' : 'normal',
-            color: member.donateColor || textPrimary,
-            maxLines: 1
-          }
-        ]
-      },
-      // Status Indicator
-      {
-        type: 'box',
-        layout: 'vertical',
-        margin: 'xs',
-        alignItems: 'flex-end',
-        contents: [statusBadge]
-      }
-    ]
-  };
-}
-
 function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
@@ -2596,58 +2462,37 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       ]
     });
 
-    // Table Header Row
-    const tableRows = [
-      {
+    // Render 2 columns per row using makeMemberColumn (same theme as +1 command)
+    const memberRows = [];
+    for (let i = 0; i < list.length; i += 2) {
+      const m1 = list[i];
+      const m2 = list[i + 1];
+
+      const isCurrent1 = Boolean(displayMember && m1.id === displayMember.id);
+      const col1 = makeMemberColumn(m1, i + 1, colors, isCurrent1);
+
+      const cols = [col1];
+
+      if (m2) {
+        const isCurrent2 = Boolean(displayMember && m2.id === displayMember.id);
+        const col2 = makeMemberColumn(m2, i + 2, colors, isCurrent2);
+        cols.push(col2);
+      } else {
+        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
+      }
+
+      const rowObj = {
         type: 'box',
         layout: 'horizontal',
-        paddingStart: 'xs',
-        paddingEnd: 'xs',
-        paddingBottom: 'xs',
-        contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            width: '24px',
-            alignItems: 'center',
-            contents: [
-              {
-                type: 'text',
-                text: '#',
-                size: 'xxs',
-                weight: 'bold',
-                color: textMuted,
-                align: 'center'
-              }
-            ]
-          },
-          {
-            type: 'text',
-            text: 'สมาชิก',
-            size: 'xxs',
-            weight: 'bold',
-            color: textMuted,
-            flex: 1,
-            margin: 'md'
-          },
-          {
-            type: 'text',
-            text: 'สถานะ',
-            size: 'xxs',
-            weight: 'bold',
-            color: textMuted,
-            align: 'end',
-            margin: 'xs'
-          }
-        ]
-      }
-    ];
+        contents: cols
+      };
 
-    // Generate table rows
-    list.forEach((m, idx) => {
-      const isCurrent = Boolean(displayMember && m.id === displayMember.id);
-      tableRows.push(renderAutoRegTableRow(m, idx + 1, isCurrent, colors));
-    });
+      if (i > 0) {
+        rowObj.margin = 'sm';
+      }
+
+      memberRows.push(rowObj);
+    }
 
     bodyContents.push({
       type: 'box',
@@ -2659,7 +2504,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       paddingAll: 'sm',
       margin: 'md',
       spacing: 'xs',
-      contents: tableRows
+      contents: memberRows
     });
   }
 
