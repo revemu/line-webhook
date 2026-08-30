@@ -229,9 +229,9 @@ async function fetchDisplayAssets() {
     hofResults.forEach(h => {
       hofCounts[h.member_id] = (hofCounts[h.member_id] || 0) + 1;
       if (!hofAwards[h.member_id]) {
-        hofAwards[h.member_id] = new Set();
+        hofAwards[h.member_id] = [];
       }
-      hofAwards[h.member_id].add(h.type);
+      hofAwards[h.member_id].push(h.type);
     });
   } catch (hofErr) {
     console.error('Error querying HOF counts:', hofErr.message);
@@ -2734,6 +2734,7 @@ async function updateHof() {
     const assists = await executeQuery(buildGoalQuery('= 3', currentYear));
     const ownGoals = await executeQuery(buildGoalQuery('= 2', currentYear));
     const players = await executeQuery(buildAvgPtsQuery(currentYear));
+    const bottomList = await executeQuery(buildBottomQuery(currentYear));
 
     // Find max counts and filter — shared queries return 'goal' column for counts, 'id' for member
     let topScorers = [];
@@ -2773,13 +2774,22 @@ async function updateHof() {
       }
     }
 
+    let topBottom = [];
+    if (bottomList && bottomList.length > 0) {
+      const maxBottom = Math.max(...bottomList.map(b => b.goal));
+      if (maxBottom > 0) {
+        topBottom = bottomList.filter(b => b.goal === maxBottom).map(b => b.id);
+      }
+    }
+
     // Sync HOF records instead of deleting and recreating
     await syncHofRecords('scorer', currentYear, topScorers);
     await syncHofRecords('assist', currentYear, topAssists);
     await syncHofRecords('own_goal', currentYear, topOwnGoals);
     await syncHofRecords('avg_pts', currentYear, topPlayers);
+    await syncHofRecords('bottom', currentYear, topBottom);
 
-    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Avg Pts): ${topPlayers.join(', ')}`);
+    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Avg Pts): ${topPlayers.join(', ')}, Top Bottom: ${topBottom.join(', ')}`);
   } catch (err) {
     console.error('Error updating HOF records:', err.message);
   }
