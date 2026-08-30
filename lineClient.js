@@ -172,10 +172,7 @@ async function replyMessage(replyToken, messages) {
     }
     const logFile = path.join(tempDir, 'latest_flex.json');
     fs.writeFileSync(logFile, jsonStr, 'utf8');
-    console.log(`[lineClient] Flex JSON saved to ${logFile}`);
-  } catch (fsErr) {
-    console.error('[lineClient] Failed to save flex JSON to file:', fsErr.message);
-  }
+  } catch (fsErr) {}
 
   try {
     return await client.replyMessage(replyToken, sanitizedMessages);
@@ -191,7 +188,6 @@ async function replyMessage(replyToken, messages) {
     }
     if (details) {
       console.error('LINE API Error Details:', JSON.stringify(details, null, 2));
-      console.error('Sanitized Payload That Failed:', JSON.stringify(sanitizedMessages, null, 2));
     } else {
       console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     }

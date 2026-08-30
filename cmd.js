@@ -698,7 +698,6 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         }
         const logFile = path.join(tempDir, 'latest_cmd_flex.json');
         fs.writeFileSync(logFile, JSON.stringify(result, null, 2), 'utf8');
-        console.log(`[cmd] Saved command result to ${logFile}`);
     } catch (e) {}
 
     return result;
