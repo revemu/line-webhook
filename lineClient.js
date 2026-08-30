@@ -52,11 +52,11 @@ async function fetchUserProfile(userId, groupId = null) {
  * Recursively sanitizes and validates Flex Message components to strictly adhere to LINE Messaging API requirements.
  * Fixes empty text fields, invalid borderWidths, invalid image URLs, and removes empty boxes/headers.
  */
-function sanitizeFlexComponent(node) {
+function sanitizeFlexComponent(node, parentBox = null) {
   if (!node || typeof node !== 'object') return node;
 
   if (Array.isArray(node)) {
-    return node.map(sanitizeFlexComponent).filter(Boolean);
+    return node.map(child => sanitizeFlexComponent(child, parentBox)).filter(Boolean);
   }
 
   const result = { ...node };
@@ -94,6 +94,11 @@ function sanitizeFlexComponent(node) {
       url = encodeURI(url);
     } catch (e) {}
     result.url = url;
+
+    // If parent box has explicit width/height, remove aspectRatio to prevent conflicting constraints
+    if (parentBox && (parentBox.width || parentBox.height)) {
+      delete result.aspectRatio;
+    }
   }
 
   // 3. Box Component
@@ -108,7 +113,7 @@ function sanitizeFlexComponent(node) {
       delete result.justifyContent;
     }
     if (Array.isArray(result.contents)) {
-      result.contents = result.contents.map(sanitizeFlexComponent).filter(Boolean);
+      result.contents = result.contents.map(child => sanitizeFlexComponent(child, result)).filter(Boolean);
       if (result.contents.length === 0) {
         return null;
       }

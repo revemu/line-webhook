@@ -3628,7 +3628,6 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
             type: 'image',
             url: info.badgeUrl.trim(),
             size: 'full',
-            aspectRatio: '1:1',
             aspectMode: 'fit',
             animated: true
           }
@@ -3651,7 +3650,6 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
                 type: 'image',
                 url: hb.url.trim(),
                 size: 'full',
-                aspectRatio: '1:1',
                 aspectMode: 'fit',
                 animated: true
               }
