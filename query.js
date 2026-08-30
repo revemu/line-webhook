@@ -866,15 +866,15 @@ async function getTableWeek(week_id = 0) {
 
 async function getMatchWeek(week_id = 0, groupId = null) {
 
-  res = await queryWeekID(week_id);
+  const res = await queryWeekID(week_id);
   console.log(res);
-  if (res.length > 0) {
+  if (res && res.length > 0) {
     if (week_id == 0) {
       week_id = res[0].id;
     }
     const matches = await queryMatchWeek(week_id);
     console.log(matches);
-    if (matches.length > 0) {
+    if (matches && matches.length > 0) {
       const assets = await fetchDisplayAssets();
       const theme = await getTheme();
       const colors = flex.getThemeColors(theme, assets.teamColors);

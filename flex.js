@@ -486,7 +486,7 @@ function buildNowFlex(matchInfo, theme) {
     backgroundColor: colors.bgCurrent,
     paddingAll: 'sm',
     cornerRadius: 'sm',
-    borderWidth: 'normal',
+    borderWidth: 'sm',
     borderColor: colors.borderCurrent,
     margin: 'xs',
     contents: [
@@ -734,7 +734,7 @@ function buildNowFlex(matchInfo, theme) {
       backgroundColor: colors.bgNext || colors.bgRound,
       paddingAll: 'sm',
       cornerRadius: 'sm',
-      borderWidth: 'normal',
+      borderWidth: 'sm',
       borderColor: '#00000000',
       contents: [
         // Header: label  [matchNo]  time — all same size
@@ -768,7 +768,7 @@ function buildNowFlex(matchInfo, theme) {
         backgroundColor: colors.bgNext2 || colors.bgRound,
         paddingAll: 'sm',
         cornerRadius: 'sm',
-        borderWidth: 'normal',
+        borderWidth: 'sm',
         borderColor: '#00000000',
         contents: [
           // Header: label  [matchNo]  time — all same size
@@ -931,7 +931,7 @@ function buildLiveFlex(matchInfo, theme) {
     paddingStart: 'xs',
     paddingEnd: 'xs',
     alignItems: 'center',
-    borderWidth: 'normal',
+    borderWidth: 'sm',
     borderColor: '#00000000',
     contents: [
       { type: 'text', text: '#', size: 'xs', weight: 'bold', color: colors.textMutedDark, flex: 2, align: 'center' },
@@ -1060,7 +1060,7 @@ function buildLiveFlex(matchInfo, theme) {
       paddingBottom: 'xs',
       margin: 'xs',
       alignItems: 'center',
-      borderWidth: 'normal',
+      borderWidth: 'sm',
       borderColor: isCurrent ? colors.borderCurrent : '#00000000',
       cornerRadius: 'sm',
       contents: matchBoxContents
@@ -2179,7 +2179,7 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme, imageUrl = 
           layout: 'vertical',
           backgroundColor: cardBg,
           borderColor: cardBorder,
-          borderWidth: 'normal',
+          borderWidth: 'sm',
           cornerRadius: 'md',
           paddingAll: 'md',
           spacing: 'xs',
@@ -2411,7 +2411,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       layout: 'vertical',
       backgroundColor: cardBg,
       borderColor: cardBorder,
-      borderWidth: 'normal',
+      borderWidth: 'sm',
       cornerRadius: 'md',
       paddingAll: 'md',
       margin: 'md',
@@ -3041,7 +3041,7 @@ function buildRegisterClosedFlex(theme, imageUrl = null) {
           layout: 'vertical',
           backgroundColor: cardBg,
           borderColor: cardBorder,
-          borderWidth: 'normal',
+          borderWidth: 'sm',
           cornerRadius: 'md',
           paddingAll: 'md',
           contents: [
@@ -3164,7 +3164,7 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
           layout: 'vertical',
           backgroundColor: cardBg,
           borderColor: cardBorder,
-          borderWidth: 'normal',
+          borderWidth: 'sm',
           cornerRadius: 'md',
           paddingAll: 'md',
           contents: [
@@ -3220,7 +3220,7 @@ function buildMenuFlex(dateStr, theme, title = null, autoRegCount = 0) {
       layout: 'vertical',
       backgroundColor: isWhite ? '#fee2e2' : '#7f1d1d',
       borderColor: isWhite ? '#fecaca' : '#991b1b',
-      borderWidth: 'normal',
+      borderWidth: 'sm',
       cornerRadius: 'md',
       paddingAll: 'md',
       contents: [
