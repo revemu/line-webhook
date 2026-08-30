@@ -1250,10 +1250,15 @@ async function getMemberNY() {
 async function getAutoRegCount(groupId = null) {
   try {
     await ensureAutoRegTable();
-    let query = "SELECT COUNT(*) as count FROM autoreg_tbl WHERE status = 1";
+    let query = `
+      SELECT COUNT(DISTINCT m.id) as count 
+      FROM member_tbl m 
+      LEFT JOIN autoreg_tbl a ON m.id = a.member_id 
+      WHERE (m.auto_reg = 1 OR a.status = 1)
+    `;
     const params = [];
     if (groupId) {
-      query += " AND (group_id = '' OR group_id IS NULL OR group_id = ?)";
+      query += " AND (a.group_id IS NULL OR a.group_id = '' OR a.group_id = ?)";
       params.push(groupId);
     }
     const autoRegRes = await executeQuery(query, params);
@@ -2523,15 +2528,8 @@ async function ensureAutoRegTable() {
     `;
     await executeQuery(createSql);
 
-    // Delete existing duplicate rows (keep earliest inserted record)
-    const cleanupSql = `
-      DELETE a1 FROM autoreg_tbl a1
-      INNER JOIN autoreg_tbl a2 
-      WHERE a1.id > a2.id 
-        AND a1.member_id = a2.member_id 
-        AND (a1.group_id = a2.group_id OR a1.group_id = '' OR a2.group_id = '')
-    `;
-    await executeQuery(cleanupSql);
+    // Normalize any legacy NULL group_id to empty string
+    await executeQuery("UPDATE autoreg_tbl SET group_id = '' WHERE group_id IS NULL");
 
     // Migrate existing member_tbl auto_reg = 1 entries ONLY if not already present in autoreg_tbl
     const migrateSql = `
@@ -2570,17 +2568,21 @@ async function updateMemberAutoReg(member_id, auto_reg, groupId = null) {
 async function getAutoRegList(groupId = null) {
   await ensureAutoRegTable();
   let query = `
-    SELECT m.*, a.id as autoreg_id, a.priority_order, a.status as autoreg_status, a.created_at as autoreg_created_at
-    FROM autoreg_tbl a
-    JOIN member_tbl m ON a.member_id = m.id
-    WHERE a.status = 1
+    SELECT m.*, 
+           COALESCE(a.id, 0) as autoreg_id, 
+           COALESCE(a.priority_order, 0) as priority_order, 
+           COALESCE(a.status, 1) as autoreg_status, 
+           COALESCE(a.created_at, CURRENT_TIMESTAMP) as autoreg_created_at
+    FROM member_tbl m
+    LEFT JOIN autoreg_tbl a ON m.id = a.member_id
+    WHERE (m.auto_reg = 1 OR a.status = 1)
   `;
   const params = [];
   if (groupId) {
-    query += " AND (a.group_id = '' OR a.group_id = ?)";
+    query += " AND (a.group_id IS NULL OR a.group_id = '' OR a.group_id = ?)";
     params.push(groupId);
   }
-  query += " ORDER BY a.priority_order ASC, a.created_at ASC, m.name ASC";
+  query += " ORDER BY COALESCE(a.priority_order, 0) ASC, COALESCE(a.created_at, CURRENT_TIMESTAMP) ASC, m.name ASC";
 
   const result = await executeQuery(query, params);
   if (result.length > 0) {
