@@ -1067,10 +1067,12 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const rawScoresList = goalRes.map(m => {
       const g = Number(m.goals) || 0;
       const a = Number(m.assists) || 0;
-      const factor = teamMvpFactorMap[m.team_id] !== undefined ? teamMvpFactorMap[m.team_id] : 1;
+      const teamId = Number(m.team_id) || 0;
+      if (teamId < 100) return null; // Skip members that do not have team_id >= 100
+      const factor = teamMvpFactorMap[teamId] !== undefined ? teamMvpFactorMap[teamId] : 1;
       const rawScore = (g + a) * factor;
       return { member: m, g, a, factor, rawScore };
-    });
+    }).filter(item => item !== null);
 
     let maxGoals = 0;
     let maxAssists = 0;
@@ -1287,9 +1289,12 @@ async function calculateWeekRawMvp(week_id) {
   return goalRes.map(m => {
     const g = Number(m.goals) || 0;
     const a = Number(m.assists) || 0;
-    const factor = teamMvpFactorMap[m.team_id] !== undefined ? teamMvpFactorMap[m.team_id] : 1;
+    const teamId = Number(m.team_id) || 0;
+    if (teamId < 100) return null; // Skip members that do not have team_id >= 100
+
+    const factor = teamMvpFactorMap[teamId] !== undefined ? teamMvpFactorMap[teamId] : 1;
     const rawScore = (g + a) * factor;
-    const td = teamDetailsMap[m.team_id] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor };
+    const td = teamDetailsMap[teamId] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor };
 
     return {
       week_id,
@@ -1308,7 +1313,7 @@ async function calculateWeekRawMvp(week_id) {
       goalsAgainst: td.goalsAgainst,
       factor: td.factor
     };
-  }).filter(p => (p.goals + p.assists) > 0);
+  }).filter(p => p !== null && (p.goals + p.assists) > 0);
 }
 
 async function calcAndSaveMaxMvpScore(options = {}) {
@@ -1357,15 +1362,25 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     const existingWeeksRes = await executeQuery("SELECT DISTINCT week_id FROM mvp_week_tbl");
     const existingWeekIds = new Set((existingWeeksRes || []).map(r => r.week_id));
 
+    console.log(`\n======================================================`);
+    console.log(`🚀 [MVP Sync Started] Total Weeks: ${weeks.length} | Year Filter: ${year || 'ALL'} | Reset Mode: ${reset}`);
+    console.log(`======================================================`);
+
     let skippedCount = 0;
     let newInsertedCount = 0;
+    let currIdx = 0;
 
     for (const w of weeks) {
+      currIdx++;
+      const dateStr = await getFormatDate(new Date(w.date), 'short');
+
       if (!reset && existingWeekIds.has(w.id)) {
         skippedCount++;
+        console.log(` ⏩ [${currIdx}/${weeks.length}] Week ID ${w.id} (${dateStr}) -> Already synced in mvp_week_tbl (Skipped)`);
         continue;
       }
 
+      console.log(` ⚙️ [${currIdx}/${weeks.length}] Processing Week ID ${w.id} (${dateStr})...`);
       const playerScores = await calculateWeekRawMvp(w.id);
       if (playerScores && playerScores.length > 0) {
         playerScores.sort((a, b) => b.rawScore - a.rawScore);
@@ -1373,6 +1388,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         const weekWinners = playerScores.filter(p => p.rawScore === maxRawForWeek);
         await saveWeekMvpRecords(w.id, weekWinners);
         newInsertedCount++;
+        console.log(`    ✅ Synced ${weekWinners.length} MVP winner(s) for Week ID ${w.id} (Top Raw Score: ${maxRawForWeek.toFixed(4)})`);
+      } else {
+        console.log(`    ⚠️ No valid team members (team_id > 0) scored in Week ID ${w.id}`);
       }
     }
 
