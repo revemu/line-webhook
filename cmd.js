@@ -696,11 +696,9 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
         }
-        const logFile = path.join(__dirname, 'latest_cmd_flex.json');
-        const tempLogFile = path.join(tempDir, 'latest_cmd_flex.json');
+        const logFile = path.join(tempDir, 'latest_cmd_flex.json');
         fs.writeFileSync(logFile, JSON.stringify(result, null, 2), 'utf8');
-        fs.writeFileSync(tempLogFile, JSON.stringify(result, null, 2), 'utf8');
-        console.log(`[cmd] Saved command result to ${logFile} and ${tempLogFile}`);
+        console.log(`[cmd] Saved command result to ${logFile}`);
     } catch (e) {}
 
     return result;
