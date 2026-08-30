@@ -897,140 +897,10 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       const date_str = await getFormatDate(date);
       let team_colors = await getTeamColorWeek(week_id);
 
-      const matchBodyContents = [];
-
-      // ── Header ──
-      matchBodyContents.push({
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: colors.bgRound,
-        paddingAll: 'md',
-        cornerRadius: 'md',
-        contents: [
-          {
-            type: 'text',
-            text: '⚽ ผลการแข่งขัน',
-            weight: 'bold',
-            size: 'lg',
-            color: colors.textPrimary,
-            align: 'center'
-          },
-          {
-            type: 'text',
-            text: `เสาร์ที่ ${date_str || ''}`,
-            size: 'sm',
-            color: colors.textMuted,
-            align: 'center',
-            margin: 'xs'
-          }
-        ]
-      });
-
-      // ── Match cards ──
-      for (const match of matches) {
-        const team_a = team_colors.filter(t => t.id === match.team_a_id)[0];
-        const team_b = team_colors.filter(t => t.id === match.team_b_id)[0];
-
-        const goalBox = await queryMatchGoal(match.id, 0, groupId);
-        const assistBox = await queryMatchGoal(match.id, 3, groupId);
-
-        const cardContents = [
-          {
-            type: 'box',
-            layout: 'horizontal',
-            alignItems: 'center',
-            margin: 'xs',
-            contents: [
-              {
-                type: 'text',
-                text: `[${match.match_num ?? '?'}]`,
-                size: 'xs',
-                color: colors.textMuted,
-                flex: 1,
-                align: 'start'
-              },
-              {
-                type: 'text',
-                text: team_a && team_a.color ? team_a.color : '?',
-                size: 'md',
-                weight: 'bold',
-                color: team_a ? colors.tdc(team_a.color) : colors.textPrimary,
-                flex: 3,
-                align: 'end'
-              },
-              {
-                type: 'text',
-                text: `${match.team_a_goal ?? 0} - ${match.team_b_goal ?? 0}`,
-                size: 'md',
-                weight: 'bold',
-                color: colors.textAccent,
-                flex: 2,
-                align: 'center'
-              },
-              {
-                type: 'text',
-                text: team_b && team_b.color ? team_b.color : '?',
-                size: 'md',
-                weight: 'bold',
-                color: team_b ? colors.tdc(team_b.color) : colors.textPrimary,
-                flex: 3,
-                align: 'start'
-              }
-            ]
-          }
-        ];
-
-        if (goalBox) cardContents.push(goalBox);
-        if (assistBox) cardContents.push(assistBox);
-
-        matchBodyContents.push({
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: colors.bgRound,
-          paddingAll: 'sm',
-          cornerRadius: 'md',
-          margin: 'sm',
-          contents: cardContents
-        });
-      }
-
-      const matchBubble = {
-        type: 'bubble',
-        size: 'giga',
-        body: {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: colors.bgMain,
-          paddingAll: 'sm',
-          contents: matchBodyContents
-        }
-      };
-
-      if (headerUrl && headerUrl.trim() !== '') {
-        matchBubble.header = {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: colors.bgHeader,
-          paddingAll: 'none',
-          contents: [
-            {
-              type: 'image',
-              url: headerUrl,
-              size: 'full',
-              aspectRatio: '20:7',
-              aspectMode: 'cover'
-            }
-          ]
-        };
-      }
-
-      // ── Standings Table (Bubble 2) ──
+      // ── 1. Build Standings Table Bubble (Bubble 1) ──
       const tableRows = await queryTableWeek(week_id);
-      if (!tableRows || tableRows.length === 0) {
-        return matchBubble;
-      }
-
       const tableBodyContents = [];
+
       tableBodyContents.push({
         type: 'box',
         layout: 'vertical',
@@ -1057,45 +927,77 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         ]
       });
 
-      tableBodyContents.push({
-        type: 'box',
-        layout: 'horizontal',
-        margin: 'md',
-        paddingStart: 'xs',
-        paddingEnd: 'xs',
-        contents: [
-          { type: 'text', text: 'ทีม', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
-          { type: 'text', text: 'W', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
-          { type: 'text', text: 'D', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
-          { type: 'text', text: 'L', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
-          { type: 'text', text: 'GD', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
-          { type: 'text', text: 'PTS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' }
-        ]
-      });
-
-      tableBodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
-
-      const medals = ['🥇', '🥈', '🥉', '4️⃣'];
-      tableRows.forEach((row, i) => {
-        const gd = (row.G || 0) - (row.A || 0);
-        const gdStr = gd > 0 ? `+${gd}` : `${gd}`;
+      if (tableRows && tableRows.length > 0) {
         tableBodyContents.push({
           type: 'box',
           layout: 'horizontal',
-          margin: 'sm',
+          margin: 'md',
           paddingStart: 'xs',
           paddingEnd: 'xs',
-          alignItems: 'center',
           contents: [
-            { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color || ''}`, size: 'sm', color: colors.tdc(row.color), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
-            { type: 'text', text: `${row.w ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
-            { type: 'text', text: `${row.d ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
-            { type: 'text', text: `${row.l ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
-            { type: 'text', text: gdStr, size: 'sm', color: gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
-            { type: 'text', text: `${row.pts ?? 0}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
+            { type: 'text', text: 'ทีม', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
+            { type: 'text', text: 'W', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'D', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'L', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'GD', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'PTS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' }
           ]
         });
-      });
+
+        tableBodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
+
+        const medals = ['🥇', '🥈', '🥉', '4️⃣'];
+        tableRows.forEach((row, i) => {
+          const gd = (row.G || 0) - (row.A || 0);
+          const gdStr = gd > 0 ? `+${gd}` : `${gd}`;
+          tableBodyContents.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'sm',
+            paddingStart: 'xs',
+            paddingEnd: 'xs',
+            alignItems: 'center',
+            contents: [
+              { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color || ''}`, size: 'sm', color: colors.tdc(row.color), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
+              { type: 'text', text: `${row.w ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+              { type: 'text', text: `${row.d ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+              { type: 'text', text: `${row.l ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+              { type: 'text', text: gdStr, size: 'sm', color: gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
+              { type: 'text', text: `${row.pts ?? 0}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
+            ]
+          });
+        });
+      }
+
+      // Compact Match Summary below table in Bubble 1
+      if (matches && matches.length > 0) {
+        tableBodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+        tableBodyContents.push({
+          type: 'text',
+          text: '⚽ สรุปผลการแข่งขันประจำสัปดาห์',
+          size: 'xs',
+          weight: 'bold',
+          color: colors.textPrimary,
+          margin: 'sm'
+        });
+
+        matches.forEach(m => {
+          const team_a = team_colors.find(t => t.id === m.team_a_id);
+          const team_b = team_colors.find(t => t.id === m.team_b_id);
+          tableBodyContents.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            alignItems: 'center',
+            contents: [
+              { type: 'text', text: `[${m.match_num ?? '?'}]`, size: 'xs', color: colors.textMuted, flex: 1 },
+              { type: 'text', text: team_a ? team_a.color : '?', size: 'xs', color: team_a ? colors.tdc(team_a.color) : colors.textPrimary, flex: 3, align: 'end' },
+              { type: 'text', text: `${m.team_a_goal ?? 0} - ${m.team_b_goal ?? 0}`, size: 'xs', color: colors.textAccent, weight: 'bold', flex: 2, align: 'center' },
+              { type: 'text', text: team_b ? team_b.color : '?', size: 'xs', color: team_b ? colors.tdc(team_b.color) : colors.textPrimary, flex: 3, align: 'start' }
+            ]
+          });
+        });
+      }
 
       const tableBubble = {
         type: 'bubble',
@@ -1116,22 +1018,116 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           backgroundColor: colors.bgHeader,
           paddingAll: 'none',
           contents: [
-            {
-              type: 'image',
-              url: headerUrl,
-              size: 'full',
-              aspectRatio: '20:7',
-              aspectMode: 'cover'
-            }
+            { type: 'image', url: headerUrl, size: 'full', aspectRatio: '20:7', aspectMode: 'cover' }
           ]
         };
+      }
+
+      // ── 2. Build Match Detail Bubbles (Chunked 5 matches per bubble) ──
+      const matchBubbles = [];
+      const chunkSize = 5;
+
+      for (let i = 0; i < matches.length; i += chunkSize) {
+        const matchChunk = matches.slice(i, i + chunkSize);
+        const startNum = matchChunk[0].match_num ?? (i + 1);
+        const endNum = matchChunk[matchChunk.length - 1].match_num ?? (i + matchChunk.length);
+
+        const matchBodyContents = [];
+
+        matchBodyContents.push({
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: colors.bgRound,
+          paddingAll: 'md',
+          cornerRadius: 'md',
+          contents: [
+            {
+              type: 'text',
+              text: matches.length > chunkSize ? `⚽ รายละเอียดแมตช์ [${startNum} - ${endNum}]` : '⚽ รายละเอียดการแข่งขัน',
+              weight: 'bold',
+              size: 'lg',
+              color: colors.textPrimary,
+              align: 'center'
+            },
+            {
+              type: 'text',
+              text: `เสาร์ที่ ${date_str || ''}`,
+              size: 'sm',
+              color: colors.textMuted,
+              align: 'center',
+              margin: 'xs'
+            }
+          ]
+        });
+
+        for (const match of matchChunk) {
+          const team_a = team_colors.filter(t => t.id === match.team_a_id)[0];
+          const team_b = team_colors.filter(t => t.id === match.team_b_id)[0];
+
+          const goalBox = await queryMatchGoal(match.id, 0, groupId);
+          const assistBox = await queryMatchGoal(match.id, 3, groupId);
+
+          const cardContents = [
+            {
+              type: 'box',
+              layout: 'horizontal',
+              alignItems: 'center',
+              margin: 'xs',
+              contents: [
+                { type: 'text', text: `[${match.match_num ?? '?'}]`, size: 'xs', color: colors.textMuted, flex: 1, align: 'start' },
+                { type: 'text', text: team_a && team_a.color ? team_a.color : '?', size: 'md', weight: 'bold', color: team_a ? colors.tdc(team_a.color) : colors.textPrimary, flex: 3, align: 'end' },
+                { type: 'text', text: `${match.team_a_goal ?? 0} - ${match.team_b_goal ?? 0}`, size: 'md', weight: 'bold', color: colors.textAccent, flex: 2, align: 'center' },
+                { type: 'text', text: team_b && team_b.color ? team_b.color : '?', size: 'md', weight: 'bold', color: team_b ? colors.tdc(team_b.color) : colors.textPrimary, flex: 3, align: 'start' }
+              ]
+            }
+          ];
+
+          if (goalBox) cardContents.push(goalBox);
+          if (assistBox) cardContents.push(assistBox);
+
+          matchBodyContents.push({
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: colors.bgRound,
+            paddingAll: 'sm',
+            cornerRadius: 'md',
+            margin: 'sm',
+            contents: cardContents
+          });
+        }
+
+        const chunkBubble = {
+          type: 'bubble',
+          size: 'giga',
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: colors.bgMain,
+            paddingAll: 'sm',
+            contents: matchBodyContents
+          }
+        };
+
+        if (headerUrl && headerUrl.trim() !== '') {
+          chunkBubble.header = {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: colors.bgHeader,
+            paddingAll: 'none',
+            contents: [
+              { type: 'image', url: headerUrl, size: 'full', aspectRatio: '20:7', aspectMode: 'cover' }
+            ]
+          };
+        }
+
+        matchBubbles.push(chunkBubble);
       }
 
       return {
         type: 'carousel',
         contents: [
           tableBubble,
-          matchBubble
+          ...matchBubbles
         ]
       };
 
