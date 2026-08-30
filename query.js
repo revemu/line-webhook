@@ -1122,30 +1122,35 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       if (item.rawScore > maxRawMvpScore && item.rawScore > 0) maxRawMvpScore = item.rawScore;
     });
 
-    // Retrieve benchmark reference max MVP score from mvp_week_tbl (or DB template_tpl)
+    // Determine the year for current week_id
+    let weekYear = new Date().getFullYear();
+    try {
+      const weekRes = await executeQuery("SELECT date FROM week_tbl WHERE id = ?", [week_id]);
+      if (weekRes && weekRes.length > 0 && weekRes[0].date) {
+        weekYear = new Date(weekRes[0].date).getFullYear();
+      }
+    } catch (e) {}
+
+    // Retrieve benchmark reference max MVP score for current year from mvp_week_tbl
     await ensureMvpWeekTable();
     let refMaxScore = 0;
     try {
-      const maxDbRes = await executeQuery("SELECT MAX(raw_score) as max_raw FROM mvp_week_tbl");
+      const maxDbRes = await executeQuery(`
+        SELECT MAX(m.raw_score) as max_raw 
+        FROM mvp_week_tbl m
+        JOIN week_tbl w ON m.week_id = w.id
+        WHERE YEAR(w.date) = ?
+      `, [weekYear]);
       if (maxDbRes && maxDbRes[0] && maxDbRes[0].max_raw) {
         refMaxScore = parseFloat(maxDbRes[0].max_raw);
       }
     } catch (e) {}
 
-    if (!refMaxScore || isNaN(refMaxScore) || refMaxScore <= 0) {
-      try {
-        const refTpl = await executeQuery("SELECT value FROM template_tpl WHERE name = 'max_mvp_score'");
-        if (refTpl && refTpl.length > 0) {
-          refMaxScore = parseFloat(refTpl[0].value);
-        }
-      } catch (e) {}
-    }
-
     if (maxRawMvpScore > refMaxScore) {
       refMaxScore = maxRawMvpScore;
     }
 
-    // Fallback if benchmark not set yet: use max raw MVP score of current week
+    // Fallback if benchmark not set yet for this year: use max raw MVP score of current week
     if (!refMaxScore || isNaN(refMaxScore) || refMaxScore <= 0) {
       refMaxScore = maxRawMvpScore;
     }
