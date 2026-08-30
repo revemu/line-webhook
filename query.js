@@ -1130,8 +1130,8 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       return {
         type: 'carousel',
         contents: [
-          matchBubble,
-          tableBubble
+          tableBubble,
+          matchBubble
         ]
       };
 
