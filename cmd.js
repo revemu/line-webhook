@@ -459,7 +459,7 @@ const COMMAND_REGISTRY = {
     },
     'top': async (context) => {
         const { param, groupId } = context;
-        const limit = (param && !isNaN(Number(param))) ? Number(param) : 10;
+        const limit = (param && !isNaN(Number(param))) ? Number(param) : 30;
         await db.updateHof();
         const stats = await Promise.all([
             db.getTopStat(limit, 0, groupId), // Top Scorers
