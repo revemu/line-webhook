@@ -1559,7 +1559,7 @@ function makeTwoColumnMemberRows(list, colors) {
   return rows;
 }
 
-function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme, autoRegCount = 0) {
+function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme, autoRegCount = 0, timeRange = '17:30-20:00') {
   const bodyContents = [];
   let finalImageUrl = imageUrl;
   if (!finalImageUrl) {
@@ -1571,7 +1571,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   const headerSubContents = [];
   headerSubContents.push({
     type: 'text',
-    text: `วันเสาร์ที่ ${dateStr}`,
+    text: `เสาร์ที่ ${dateStr}  ⏰ ${timeRange || '17:30-20:00'} น.`,
     size: 'xs',
     color: colors.textMuted
   });
@@ -1750,7 +1750,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
   bodyContents.push({
     type: 'text',
-    text: `▶ ลงชื่อสัปดาห์นี้ เสาร์ที่ ${dateStr} (${players.length}/${maxPlayers})`,
+    text: `▶ ลงชื่อสัปดาห์นี้ เสาร์ที่ ${dateStr} (${timeRange || '17:30-20:00'} น.) (${players.length}/${maxPlayers})`,
     size: 'sm',
     weight: 'bold',
     color: colors.textAccent,

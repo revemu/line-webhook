@@ -471,7 +471,7 @@ const COMMAND_REGISTRY = {
         return { type: 'flex', altText: "เมนูบริการของบอท", contents: msg };
     },
     'newweek': async (context) => {
-        const { quoteToken } = context;
+        const { quoteToken, param } = context;
         const [unpaidMsg, unpaidSub, unpaidCount] = await db.getMemberWeek2(0);
         const count = unpaidCount || 0;
 
@@ -483,10 +483,47 @@ const COMMAND_REGISTRY = {
             }];
         }
 
+        let customTimeRange = null;
+        if (param && param.trim() !== '') {
+            const timeMatch = param.trim().match(/(\d{1,2}[:.]\d{2}\s*-\s*\d{1,2}[:.]\d{2})/);
+            if (timeMatch) {
+                customTimeRange = timeMatch[1].replace(/\./g, ':');
+            }
+        }
+
         const next_sat = getNextSaturday();
-        await db.newWeek(next_sat);
+        await db.newWeek(next_sat, customTimeRange);
         return COMMAND_REGISTRY['register'](context);
     },
+    'weektime': async (context) => {
+        const { param, quoteToken, is_flex, groupId } = context;
+        if (!param || param.trim() === '') {
+            return [{
+                type: 'text',
+                quoteToken,
+                text: 'กรุณาระบุช่วงเวลาเตะบอล เช่น /weektime 18:00-20:30'
+            }];
+        }
+        const timeStr = param.trim().replace(/\./g, ':');
+        const updateRes = await db.updateWeekTimeRange(timeStr);
+        if (updateRes.success) {
+            const [flexMsg, sub, altTextStr] = await db.getMemberWeek0(1, is_flex, groupId);
+            if (is_flex && typeof flexMsg === 'object') {
+                return [
+                    { type: 'text', quoteToken, text: `✅ ปรับเวลาเตะบอลสัปดาห์นี้เป็น ${timeStr} น. แล้ว` },
+                    { type: 'flex', altText: altTextStr || "ลงชื่อเตะบอล", contents: flexMsg }
+                ];
+            } else {
+                return [
+                    { type: 'text', quoteToken, text: `✅ ปรับเวลาเตะบอลสัปดาห์นี้เป็น ${timeStr} น. แล้ว` },
+                    { type: 'text', quoteToken, text: flexMsg }
+                ];
+            }
+        } else {
+            return [{ type: 'text', quoteToken, text: `เกิดข้อผิดพลาด: ${updateRes.message}` }];
+        }
+    },
+    'setweektime': async (context) => COMMAND_REGISTRY['weektime'](context),
     'register': async (context) => { const { is_flex, groupId, member_id } = context; const [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId, member_id); if (is_flex && typeof msg === 'object') return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg }; return { type: 'textV2', text: msg, substitution: sub }; },
     'schedule': async (context) => {
         const { param, groupId } = context;

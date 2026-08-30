@@ -398,7 +398,35 @@ async function addTeamMemberWeek() {
 }
 
 
-async function newWeek(week_date) {
+async function ensureWeekTimeColumn() {
+  try {
+    const checkQuery = "SHOW COLUMNS FROM week_tbl LIKE 'time_range'";
+    const res = await executeQuery(checkQuery);
+    if (res.length === 0) {
+      console.log("[Migration] Adding time_range column to week_tbl...");
+      await executeQuery("ALTER TABLE week_tbl ADD COLUMN time_range VARCHAR(50) NOT NULL DEFAULT '17:30-20:00'");
+      console.log("✅ time_range column added to week_tbl successfully!");
+    }
+  } catch (err) {
+    console.error("Error ensuring time_range column in week_tbl:", err.message);
+  }
+}
+
+async function updateWeekTimeRange(timeRangeStr, targetWeekId = 0) {
+  await ensureWeekTimeColumn();
+  let week_id = targetWeekId;
+  if (week_id === 0) {
+    const week = await queryWeekID(0);
+    if (!week || week.length === 0) return { success: false, message: 'ไม่พบสัปดาห์ปัจจุบัน' };
+    week_id = week[0].id;
+  }
+  const query = "UPDATE week_tbl SET time_range = ? WHERE id = ?";
+  await executeQuery(query, [timeRangeStr, week_id]);
+  return { success: true, week_id, time_range: timeRangeStr };
+}
+
+async function newWeek(week_date, custom_time_range = null) {
+  await ensureWeekTimeColumn();
   // Self-healing cleanup for any previous corrupted B.E. dates in week_tbl
   try {
     await executeQuery("UPDATE week_tbl SET date = DATE_SUB(date, INTERVAL 543 YEAR) WHERE YEAR(date) > 2400");
@@ -411,16 +439,12 @@ async function newWeek(week_date) {
   const last_week = getShortDate(new Date(week[0].date));
   let new_week_num = week[0].number;
   let target_week_id = null;
-  console.log(last_week + " === " + date_str);
+  const time_range = custom_time_range || '17:30-20:00';
+
   if (last_week != date_str) {
     new_week_num = week[0].number + 1;
-    query = `insert into week_tbl values(null, '${new_week_num}', '${date_str}', 2, '${y}', 24, 0)`;
-    //console.log(query) ;
-
-
-    const res = await executeQuery(query);
-    //console.log(res) ;
-    //return res ;
+    const insertQuery = "INSERT INTO week_tbl (number, date, status, year, max, cost, time_range) VALUES (?, ?, 2, ?, 24, 0, ?)";
+    const res = await executeQuery(insertQuery, [new_week_num, date_str, y, time_range]);
     const new_week_id = res.insertId;
     target_week_id = new_week_id;
 
@@ -455,6 +479,9 @@ async function newWeek(week_date) {
     }
   } else {
     console.log(date_str + " already exist!");
+    if (custom_time_range && week && week.length > 0) {
+      await updateWeekTimeRange(custom_time_range, week[0].id);
+    }
     if (week && week.length > 0) {
       target_week_id = week[0].id;
     }
@@ -670,12 +697,13 @@ async function queryWeekDate(week_id = 0) {
 }
 
 async function queryWeekID(week_id = 0) {
+  await ensureWeekTimeColumn();
   let query = "";
   if (week_id == 0) {
-    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost FROM week_tbl ORDER BY id DESC LIMIT 1";
+    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
     return await executeQuery(query);
   } else {
-    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost FROM week_tbl where id=?";
+    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl where id=?";
     return await executeQuery(query, [week_id]);
   }
 }
@@ -1291,6 +1319,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     await addTeamColorWeek(3, week_id);
     const max_players = res[0].max;
     const date = new Date(res[0].date);
+    const time_range = res[0].time_range || '17:30-20:00';
 
     query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.fav_team_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
@@ -1351,11 +1380,11 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
         const theme = await getTheme();
         const autoRegCount = await getAutoRegCount(groupId);
 
-        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl, theme, autoRegCount);
+        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl, theme, autoRegCount, time_range);
         let altHeader = `+${players.length}`;
         if (reserves.length > 0) altHeader += `(${reserves.length})`;
         if (goalies.length > 0) altHeader += `(${goalies.length})`;
-        const altText = `${altHeader} ${titleText} @ เสาร์ที่ ${dateStr}`;
+        const altText = `${altHeader} ${titleText} @ เสาร์ที่ ${dateStr} (${time_range} น.)`;
         return [flexJson, sub, altText];
       }
 
@@ -2934,5 +2963,6 @@ module.exports = {
   updateSlipLog,
   getNoticedSlips,
   getSlipById,
-  setMemberDebt
+  setMemberDebt,
+  updateWeekTimeRange
 };
