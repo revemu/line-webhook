@@ -457,6 +457,21 @@ const COMMAND_REGISTRY = {
         const carousel = flex.tpl_carousel; carousel.contents = stats.filter(x => x !== null && x !== undefined);
         return { type: 'flex', altText: `ทำเนียบซึมเศร้าประจำปี (${new Date().getFullYear()})`, contents: carousel };
     },
+    'top': async (context) => {
+        const { param, groupId } = context;
+        const limit = (param && !isNaN(Number(param))) ? Number(param) : 10;
+        await db.updateHof();
+        const stats = await Promise.all([
+            db.getTopStat(limit, 0, groupId), // Top Scorers
+            db.getTopStat(limit, 1, groupId), // Top Assists
+            db.getTopStat(limit, 4, groupId), // Most MVP Count
+            db.getTopStat(limit, 2, groupId)  // Own Goals / Spy
+        ]);
+        const carousel = JSON.parse(JSON.stringify(flex.tpl_carousel));
+        carousel.contents = stats.filter(x => x !== null && x !== undefined);
+        return { type: 'flex', altText: `ทำเนียบอันดับประจำปี (${new Date().getFullYear()})`, contents: carousel };
+    },
+    'topstat': async (context) => COMMAND_REGISTRY['top'](context),
     'menu': async (context) => {
         const theme = await db.getTheme();
         const week = await db.queryWeekID(0);
