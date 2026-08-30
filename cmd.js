@@ -194,23 +194,15 @@ const COMMAND_REGISTRY = {
         }
         [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId, member_id);
 
-        if (noticeText) {
-            if (is_flex && typeof msg === 'object') {
-                return [
-                    { type: 'text', quoteToken: quoteToken, text: noticeText },
-                    { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg }
-                ];
-            } else {
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg };
+        } else {
+            if (noticeText) {
                 return [
                     { type: 'text', quoteToken: quoteToken, text: noticeText },
                     { type: 'textV2', quoteToken: quoteToken, text: msg, substitution: sub }
                 ];
             }
-        }
-
-        if (is_flex && typeof msg === 'object') {
-            return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg };
-        } else {
             return { type: 'textV2', quoteToken, text: msg, substitution: sub };
         }
     },
