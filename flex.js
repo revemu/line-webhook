@@ -486,7 +486,6 @@ function buildNowFlex(matchInfo, theme) {
     backgroundColor: colors.bgCurrent,
     paddingAll: 'sm',
     cornerRadius: 'sm',
-    borderWidth: 'sm',
     borderColor: colors.borderCurrent,
     margin: 'xs',
     contents: [
@@ -1060,7 +1059,6 @@ function buildLiveFlex(matchInfo, theme) {
 
     if (isCurrent) {
       matchContainer.backgroundColor = colors.bgCurrent;
-      matchContainer.borderWidth = 'sm';
       matchContainer.borderColor = colors.borderCurrent;
     }
 
@@ -1520,7 +1518,6 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
   if (isCurrent) {
     rowObj.backgroundColor = colors.bgCurrent;
     rowObj.borderColor = colors.borderCurrent;
-    rowObj.borderWidth = 'semi-bold';
     rowObj.cornerRadius = 'md';
     rowObj.paddingStart = 'sm';
     rowObj.paddingEnd = 'sm';
@@ -2173,7 +2170,6 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme, imageUrl = 
           layout: 'vertical',
           backgroundColor: cardBg,
           borderColor: cardBorder,
-          borderWidth: 'sm',
           cornerRadius: 'md',
           paddingAll: 'md',
           spacing: 'xs',
@@ -2405,7 +2401,6 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       layout: 'vertical',
       backgroundColor: cardBg,
       borderColor: cardBorder,
-      borderWidth: 'sm',
       cornerRadius: 'md',
       paddingAll: 'md',
       margin: 'md',
@@ -3035,7 +3030,6 @@ function buildRegisterClosedFlex(theme, imageUrl = null) {
           layout: 'vertical',
           backgroundColor: cardBg,
           borderColor: cardBorder,
-          borderWidth: 'sm',
           cornerRadius: 'md',
           paddingAll: 'md',
           contents: [
@@ -3158,7 +3152,6 @@ function buildAutoRegFullFlex(theme, imageUrl = null) {
           layout: 'vertical',
           backgroundColor: cardBg,
           borderColor: cardBorder,
-          borderWidth: 'sm',
           cornerRadius: 'md',
           paddingAll: 'md',
           contents: [
@@ -3214,7 +3207,6 @@ function buildMenuFlex(dateStr, theme, title = null, autoRegCount = 0) {
       layout: 'vertical',
       backgroundColor: isWhite ? '#fee2e2' : '#7f1d1d',
       borderColor: isWhite ? '#fecaca' : '#991b1b',
-      borderWidth: 'sm',
       cornerRadius: 'md',
       paddingAll: 'md',
       contents: [
