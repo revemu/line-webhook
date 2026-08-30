@@ -3725,8 +3725,6 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
     const rankLabel = rankIcons[i] || `${i + 1}.`;
     const isTop = i === 0;
 
-    const nameBoxContents = [];
-
     if (type == 6) {
       const wins = Number(member.wins || 0);
       const matches = Number(member.matches || 0);
@@ -3745,129 +3743,26 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       };
       displayName = `● ทีม${translateColor(member.color)}`;
       nameColor = colors.tdc(member.color);
-
-      nameBoxContents.push({
-        type: 'text',
-        text: displayName,
-        size: 'xs',
-        color: nameColor,
-        flex: 1,
-        margin: 'sm'
-      });
     } else {
       const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
-      displayName = info.name || info.alias || '';
-      nameColor = info.nameColor || colors.textMutedLight;
+      displayName = rankLabel + " " + (info.name || info.alias || '');
+      nameColor = colors.textMutedLight;
 
       if (type == 4) {
         valText = `${Number(member.pts).toFixed(2)} (${member.m})`;
       } else {
         valText = `${member.goal}`;
       }
-
-      // Rank Medal / Number
-      nameBoxContents.push({
-        type: 'text',
-        text: rankLabel,
-        size: 'xs',
-        color: isTop ? colors.textAccent : colors.textMuted,
-        flex: 0,
-        gravity: 'center'
-      });
-
-      // Profile Avatar Box
-      const avatarUrl = (info.pictureUrl && typeof info.pictureUrl === 'string' && info.pictureUrl.trim().startsWith('http')) ? info.pictureUrl.trim() : null;
-      if (avatarUrl) {
-        const avatarBox = createMemberAvatarBox(avatarUrl, '20px');
-        if (avatarBox) {
-          avatarBox.margin = 'xs';
-          nameBoxContents.push(avatarBox);
-        }
-      }
-
-      // Rank Badge
-      const badgeSize = info.badgeSize || '16px';
-      if (info.badgeUrl && typeof info.badgeUrl === 'string' && info.badgeUrl.trim().startsWith('http')) {
-        let bUrl = info.badgeUrl.trim();
-        if (bUrl.startsWith('http://')) bUrl = bUrl.replace(/^http:\/\//i, 'https://');
-        nameBoxContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: badgeSize,
-          height: badgeSize,
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: bUrl,
-              size: 'full',
-              aspectMode: 'fit',
-              animated: true
-            }
-          ],
-          margin: 'xs'
-        });
-      }
-
-      // HOF Badges
-      if (info.hofBadges && info.hofBadges.length > 0) {
-        for (const hb of info.hofBadges) {
-          if (hb && hb.url && typeof hb.url === 'string' && hb.url.trim().startsWith('http')) {
-            let hUrl = hb.url.trim();
-            if (hUrl.startsWith('http://')) hUrl = hUrl.replace(/^http:\/\//i, 'https://');
-            nameBoxContents.push({
-              type: 'box',
-              layout: 'vertical',
-              width: hb.size || '16px',
-              height: hb.size || '16px',
-              flex: 0,
-              contents: [
-                {
-                  type: 'image',
-                  url: hUrl,
-                  size: 'full',
-                  aspectMode: 'fit',
-                  animated: true
-                }
-              ],
-              margin: 'xs'
-            });
-          }
-        }
-      } else if (info.hofCount && info.hofCount > 0 && info.hofBadgeUrl && typeof info.hofBadgeUrl === 'string' && info.hofBadgeUrl.trim().startsWith('http')) {
-        let hUrl = info.hofBadgeUrl.trim();
-        if (hUrl.startsWith('http://')) hUrl = hUrl.replace(/^http:\/\//i, 'https://');
-        nameBoxContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: info.hofBadgeSize || '16px',
-          height: info.hofBadgeSize || '16px',
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: hUrl,
-              size: 'full',
-              aspectMode: 'fit',
-              animated: true
-            }
-          ],
-          margin: 'xs'
-        });
-      }
-
-      // Member Name Text
-      nameBoxContents.push({
-        type: 'text',
-        text: displayName,
-        size: 'xs',
-        color: nameColor,
-        weight: 'bold',
-        flex: 1,
-        margin: 'xs',
-        gravity: 'center'
-      });
     }
+
+    const nameBoxContents = [{
+      type: 'text',
+      text: displayName,
+      size: 'xs',
+      color: nameColor,
+      flex: 1,
+      margin: 'sm'
+    }];
 
     const rowContents = [
       {

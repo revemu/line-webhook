@@ -1859,7 +1859,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
 // ── Shared query builders (used by both getTopStat and updateHof) ──
 
 function buildGoalQuery(statusCondition, year, limit = null) {
-  let sql = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id,
+  let sql = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate,
     goal_status_tbl.status, match_goal_tbl.status as statusid, COUNT(*) as goal
     FROM match_goal_tbl
     JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
@@ -1870,7 +1870,7 @@ function buildGoalQuery(statusCondition, year, limit = null) {
       AND YEAR(week_tbl.date) = ${year}
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
     ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
@@ -1883,8 +1883,6 @@ function buildAvgPtsQuery(year, limit = null) {
     member_tbl.alias, 
     member_tbl.rank,
     member_tbl.donate,
-    member_tbl.picture_url,
-    member_tbl.line_user_id,
     SUM(table_week_tbl.pts) 
         / SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS pts,
     SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS m
@@ -1895,7 +1893,7 @@ function buildAvgPtsQuery(year, limit = null) {
     WHERE week_tbl.year = ${year}
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
     HAVING COUNT(table_week_tbl.id) > (
         SELECT COUNT(*) * 0.6
         FROM week_tbl
@@ -1914,8 +1912,6 @@ function buildBottomQuery(year, limit = null) {
       member_tbl.alias, 
       member_tbl.rank,
       member_tbl.donate,
-      member_tbl.picture_url,
-      member_tbl.line_user_id,
       COUNT(*) as goal
     FROM member_team_week_tbl mtw
     JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
@@ -1930,7 +1926,7 @@ function buildBottomQuery(year, limit = null) {
         ORDER BY t2.pts ASC, (t2.g - t2.a) ASC
         LIMIT 1
       )
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate
     ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
@@ -1951,7 +1947,7 @@ function buildLuckyColorQuery(year) {
   `;
 }
 
-async function getTopStat(limit = 10, type = 0, groupId = null) {
+async function getTopStat(limit = 10, type = 0) {
   let header = "";
   let icon = "";
   let query = "";
@@ -2008,13 +2004,12 @@ async function getTopStat(limit = 10, type = 0, groupId = null) {
 
   const result = await executeQuery(query);
   if (result.length > 0) {
-    if (type != 6) {
-      await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
-    }
     const assets = await fetchDisplayAssets();
     const theme = await getTheme();
     return flex.buildTopStatFlex(result, type, header, icon, url, theme, assets, resolveMemberDisplayInfo);
   }
+
+
 }
 
 async function checkDebtCall() {
