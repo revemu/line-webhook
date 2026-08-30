@@ -1180,10 +1180,29 @@ async function ensurePosTables() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         code VARCHAR(10) NOT NULL UNIQUE,
         name VARCHAR(50) NOT NULL,
-        icon VARCHAR(10) DEFAULT ''
+        icon VARCHAR(10) DEFAULT '',
+        pts_goal DECIMAL(6,2) DEFAULT 0.00,
+        pts_assist DECIMAL(6,2) DEFAULT 0.00,
+        pts_clean_sheet DECIMAL(6,2) DEFAULT 0.00
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await executeQuery(createPosSql);
+
+    // Auto-migrate columns if table existed without pts columns
+    try {
+      await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_goal DECIMAL(6,2) DEFAULT 0.00");
+    } catch (e) {}
+    try {
+      await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_assist DECIMAL(6,2) DEFAULT 0.00");
+    } catch (e) {}
+    try {
+      await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_clean_sheet DECIMAL(6,2) DEFAULT 0.00");
+    } catch (e) {}
+
+    // Auto-migrate member_team_week_tbl for week-specific positions
+    try {
+      await executeQuery("ALTER TABLE member_team_week_tbl ADD COLUMN pos_id INT DEFAULT 0");
+    } catch (e) {}
 
     const createMemberPosSql = `
       CREATE TABLE IF NOT EXISTS member_pos_tbl (
@@ -1198,20 +1217,101 @@ async function ensurePosTables() {
     `;
     await executeQuery(createMemberPosSql);
 
-    // Seed default positions if empty
+    // Seed default positions with category points if empty
     const countRes = await executeQuery("SELECT COUNT(*) as count FROM pos_tbl");
     if (countRes && countRes[0] && countRes[0].count === 0) {
       await executeQuery(`
-        INSERT INTO pos_tbl (code, name, icon) VALUES
-        ('GK', 'Goalkeeper', '🧤'),
-        ('DF', 'Defender', '🛡️'),
-        ('MF', 'Midfielder', '⚙️'),
-        ('CF', 'Center Forward', '⚡')
+        INSERT INTO pos_tbl (code, name, icon, pts_goal, pts_assist, pts_clean_sheet) VALUES
+        ('GK', 'Goalkeeper', '🧤', 10.00, 6.00, 5.00),
+        ('DF', 'Defender', '🛡️', 6.00, 4.00, 4.00),
+        ('MF', 'Midfielder', '⚙️', 5.00, 3.00, 1.00),
+        ('CF', 'Center Forward', '⚡', 4.00, 3.00, 0.00)
       `);
-      console.log("🌱 [Seed DB] Default positions (GK, DF, MF, CF) inserted into pos_tbl!");
+      console.log("🌱 [Seed DB] Default positions (GK, DF, MF, CF) with category points inserted into pos_tbl!");
+    } else {
+      // Set default points if unpopulated
+      await executeQuery("UPDATE pos_tbl SET pts_goal = 10.00, pts_assist = 6.00, pts_clean_sheet = 5.00 WHERE UPPER(code) = 'GK' AND pts_goal = 0");
+      await executeQuery("UPDATE pos_tbl SET pts_goal = 6.00, pts_assist = 4.00, pts_clean_sheet = 4.00 WHERE UPPER(code) = 'DF' AND pts_goal = 0");
+      await executeQuery("UPDATE pos_tbl SET pts_goal = 5.00, pts_assist = 3.00, pts_clean_sheet = 1.00 WHERE UPPER(code) = 'MF' AND pts_goal = 0");
+      await executeQuery("UPDATE pos_tbl SET pts_goal = 4.00, pts_assist = 3.00, pts_clean_sheet = 0.00 WHERE UPPER(code) = 'CF' AND pts_goal = 0");
     }
   } catch (err) {
     console.error("Error creating position tables:", err.message);
+  }
+}
+
+async function setMemberWeekPosition(member_id, week_id, pos_code) {
+  await ensurePosTables();
+  try {
+    let posId = 0;
+    if (pos_code) {
+      const posRes = await executeQuery("SELECT id FROM pos_tbl WHERE UPPER(code) = UPPER(?)", [pos_code]);
+      if (posRes && posRes.length > 0) posId = posRes[0].id;
+    }
+
+    await executeQuery(
+      "UPDATE member_team_week_tbl SET pos_id = ? WHERE member_id = ? AND week_id = ?",
+      [posId, member_id, week_id]
+    );
+
+    return { success: true, member_id, week_id, pos_code: pos_code ? pos_code.toUpperCase() : 'DEFAULT', pos_id: posId };
+  } catch (err) {
+    console.error("Error setting member week position:", err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+async function getEffectiveMemberPosition(member_id, week_id = 0) {
+  await ensurePosTables();
+  try {
+    if (week_id > 0) {
+      const mtwRes = await executeQuery(
+        "SELECT pos_id FROM member_team_week_tbl WHERE member_id = ? AND week_id = ?",
+        [member_id, week_id]
+      );
+      if (mtwRes && mtwRes.length > 0 && mtwRes[0].pos_id > 0) {
+        const posRes = await executeQuery(
+          "SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet FROM pos_tbl WHERE id = ?",
+          [mtwRes[0].pos_id]
+        );
+        if (posRes && posRes.length > 0) {
+          return { ...posRes[0], is_custom_week: true };
+        }
+      }
+    }
+
+    const defRes = await executeQuery(`
+      SELECT p.id, p.code, p.name, p.icon, p.pts_goal, p.pts_assist, p.pts_clean_sheet 
+      FROM member_pos_tbl mp
+      JOIN pos_tbl p ON mp.pos_id = p.id
+      WHERE mp.member_id = ? AND mp.is_primary = 1
+      LIMIT 1
+    `, [member_id]);
+    if (defRes && defRes.length > 0) {
+      return { ...defRes[0], is_custom_week: false };
+    }
+
+    const fallbackRes = await executeQuery("SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet FROM pos_tbl ORDER BY id ASC LIMIT 1");
+    return fallbackRes && fallbackRes.length > 0 ? { ...fallbackRes[0], is_custom_week: false } : null;
+  } catch (err) {
+    console.error("Error getting effective position:", err.message);
+    return null;
+  }
+}
+
+async function updatePositionPoints(pos_code, pts_goal = 0, pts_assist = 0, pts_clean_sheet = 0) {
+  await ensurePosTables();
+  try {
+    const sql = `
+      UPDATE pos_tbl 
+      SET pts_goal = ?, pts_assist = ?, pts_clean_sheet = ? 
+      WHERE UPPER(code) = UPPER(?)
+    `;
+    await executeQuery(sql, [pts_goal, pts_assist, pts_clean_sheet, pos_code]);
+    return { success: true, pos_code: pos_code.toUpperCase(), pts_goal, pts_assist, pts_clean_sheet };
+  } catch (err) {
+    console.error("Error updating position points:", err.message);
+    return { success: false, error: err.message };
   }
 }
 
@@ -3724,5 +3824,8 @@ module.exports = {
   ensurePosTables,
   getAllPositions,
   getMemberPositions,
-  setMemberPosition
+  setMemberPosition,
+  updatePositionPoints,
+  setMemberWeekPosition,
+  getEffectiveMemberPosition
 };
