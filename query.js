@@ -1425,6 +1425,7 @@ async function ensureMvpWeekTable() {
         goals INT DEFAULT 0,
         assists INT DEFAULT 0,
         clean_sheet INT DEFAULT 0,
+        conceded INT DEFAULT 0,
         raw_score DECIMAL(10,4) DEFAULT 0.0000,
         rating DECIMAL(4,2) DEFAULT 0.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1452,20 +1453,22 @@ async function saveWeekMvpRecords(week_id, mvpList) {
     const g = Number(item.goals) || 0;
     const a = Number(item.assists) || 0;
     const cs = Number(item.cleanSheets !== undefined ? item.cleanSheets : (item.clean_sheet || 0)) || 0;
+    const ga = Number(item.goalsConceded !== undefined ? item.goalsConceded : (item.conceded || 0)) || 0;
     const raw = parseFloat(item.rawScore || item.score || 0);
     const rat = parseFloat(item.score || 0);
 
     await executeQuery(`
-      INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, assists, clean_sheet, raw_score, rating)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, assists, clean_sheet, conceded, raw_score, rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         member_name = VALUES(member_name),
         goals = VALUES(goals),
         assists = VALUES(assists),
         clean_sheet = VALUES(clean_sheet),
+        conceded = VALUES(conceded),
         raw_score = VALUES(raw_score),
         rating = VALUES(rating)
-    `, [week_id, memId, name, g, a, cs, raw, rat]);
+    `, [week_id, memId, name, g, a, cs, ga, raw, rat]);
   }
 }
 
