@@ -3897,7 +3897,7 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
 
   return {
     type: 'bubble',
-    size: 'hecto',
+    size: 'kilo',
     header: {
       type: 'box',
       layout: 'vertical',
