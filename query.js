@@ -432,7 +432,7 @@ async function newWeek(week_date) {
         FROM autoreg_tbl a 
         JOIN member_tbl m ON a.member_id = m.id 
         WHERE a.status = 1 
-        ORDER BY a.priority_order ASC, a.created_at ASC, m.name ASC
+        ORDER BY a.id ASC, m.id ASC
       `);
       for (const member of autoRegMembers) {
         if (member.debt > 0) {
@@ -2582,7 +2582,7 @@ async function getAutoRegList(groupId = null) {
     query += " AND (a.group_id IS NULL OR a.group_id = '' OR a.group_id = ?)";
     params.push(groupId);
   }
-  query += " ORDER BY COALESCE(a.priority_order, 0) ASC, COALESCE(a.created_at, CURRENT_TIMESTAMP) ASC, m.name ASC";
+  query += " ORDER BY CASE WHEN a.id IS NULL OR a.id = 0 THEN 99999999 ELSE a.id END ASC, m.id ASC";
 
   const result = await executeQuery(query, params);
   if (result.length > 0) {

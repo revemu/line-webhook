@@ -1528,6 +1528,37 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
   return rowObj;
 }
 
+function makeTwoColumnMemberRows(list, colors) {
+  if (!list || list.length === 0) return [];
+  const half = Math.ceil(list.length / 2);
+  const rows = [];
+
+  for (let i = 0; i < half; i++) {
+    const p1 = list[i];
+    const p2Index = i + half;
+    const p2 = p2Index < list.length ? list[p2Index] : null;
+
+    const cols = [
+      makeMemberColumn(p1, i + 1, colors, p1 ? Boolean(p1.isCurrent) : false)
+    ];
+
+    if (p2) {
+      cols.push(makeMemberColumn(p2, p2Index + 1, colors, Boolean(p2.isCurrent)));
+    } else {
+      cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
+    }
+
+    rows.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'xs',
+      contents: cols
+    });
+  }
+
+  return rows;
+}
+
 function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme, autoRegCount = 0) {
   const bodyContents = [];
   let finalImageUrl = imageUrl;
@@ -1667,33 +1698,10 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       margin: 'sm'
     });
 
-    const rows = [];
-    for (let i = 0; i < players.length; i += 2) {
-      const p1 = players[i];
-      const p2 = players[i + 1];
-
-      const cols = [
-        makeMemberColumn(p1, i + 1, colors, p1.isCurrent)
-      ];
-
-      if (p2) {
-        cols.push(makeMemberColumn(p2, i + 2, colors, p2.isCurrent));
-      } else {
-        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
-      }
-
-      rows.push({
-        type: 'box',
-        layout: 'horizontal',
-        margin: 'xs',
-        contents: cols
-      });
-    }
-
     bodyContents.push({
       type: 'box',
       layout: 'vertical',
-      contents: rows
+      contents: makeTwoColumnMemberRows(players, colors)
     });
   }
 
@@ -1709,32 +1717,10 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       margin: 'sm'
     });
 
-    const reserveRows = [];
-    for (let i = 0; i < reserves.length; i += 2) {
-      const r1 = reserves[i];
-      const r2 = reserves[i + 1];
-
-      const cols = [
-        makeMemberColumn(r1, i + 1, colors, r1.isCurrent)
-      ];
-
-      if (r2) {
-        cols.push(makeMemberColumn(r2, i + 2, colors, r2.isCurrent));
-      } else {
-        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
-      }
-
-      reserveRows.push({
-        type: 'box',
-        layout: 'horizontal',
-        margin: 'xs',
-        contents: cols
-      });
-    }
     bodyContents.push({
       type: 'box',
       layout: 'vertical',
-      contents: reserveRows
+      contents: makeTwoColumnMemberRows(reserves, colors)
     });
   }
 
@@ -1750,32 +1736,10 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       margin: 'sm'
     });
 
-    const goalieRows = [];
-    for (let i = 0; i < goalies.length; i += 2) {
-      const g1 = goalies[i];
-      const g2 = goalies[i + 1];
-
-      const cols = [
-        makeMemberColumn(g1, i + 1, colors, g1.isCurrent)
-      ];
-
-      if (g2) {
-        cols.push(makeMemberColumn(g2, i + 2, colors, g2.isCurrent));
-      } else {
-        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
-      }
-
-      goalieRows.push({
-        type: 'box',
-        layout: 'horizontal',
-        margin: 'xs',
-        contents: cols
-      });
-    }
     bodyContents.push({
       type: 'box',
       layout: 'vertical',
-      contents: goalieRows
+      contents: makeTwoColumnMemberRows(goalies, colors)
     });
   }
 
@@ -2462,37 +2426,11 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       ]
     });
 
-    // Render 2 columns per row using makeMemberColumn (same theme as +1 command)
-    const memberRows = [];
-    for (let i = 0; i < list.length; i += 2) {
-      const m1 = list[i];
-      const m2 = list[i + 1];
-
-      const isCurrent1 = Boolean(displayMember && m1.id === displayMember.id);
-      const col1 = makeMemberColumn(m1, i + 1, colors, isCurrent1);
-
-      const cols = [col1];
-
-      if (m2) {
-        const isCurrent2 = Boolean(displayMember && m2.id === displayMember.id);
-        const col2 = makeMemberColumn(m2, i + 2, colors, isCurrent2);
-        cols.push(col2);
-      } else {
-        cols.push({ type: 'box', layout: 'horizontal', flex: 1, contents: [{ type: 'filler' }] });
-      }
-
-      const rowObj = {
-        type: 'box',
-        layout: 'horizontal',
-        contents: cols
-      };
-
-      if (i > 0) {
-        rowObj.margin = 'sm';
-      }
-
-      memberRows.push(rowObj);
-    }
+    // Render 2 columns top-to-bottom using makeTwoColumnMemberRows
+    const preparedList = list.map(m => {
+      const isCurrent = Boolean(displayMember && m.id === displayMember.id);
+      return { ...m, isCurrent };
+    });
 
     bodyContents.push({
       type: 'box',
@@ -2504,7 +2442,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       paddingAll: 'sm',
       margin: 'md',
       spacing: 'xs',
-      contents: memberRows
+      contents: makeTwoColumnMemberRows(preparedList, colors)
     });
   }
 
