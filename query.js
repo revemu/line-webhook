@@ -1014,13 +1014,15 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const assets = await fetchDisplayAssets();
 
     const tableRows = await queryTableWeek(week_id);
-    const teamAvgPtsMap = {};
+    const teamMvpFactorMap = {};
     if (tableRows && tableRows.length > 0) {
       tableRows.forEach(row => {
         const matches = (Number(row.w) || 0) + (Number(row.d) || 0) + (Number(row.l) || 0);
         const pts = Number(row.pts) || 0;
-        const avg = matches > 0 ? (pts / matches) : pts;
-        teamAvgPtsMap[row.team_week_id] = avg;
+        const avgPts = matches > 0 ? (pts / matches) : pts;
+        const goalsAgainst = Number(row.a) || 0;
+        const divisor = goalsAgainst > 0 ? goalsAgainst : 1;
+        teamMvpFactorMap[row.team_week_id] = avgPts / divisor;
       });
     }
 
@@ -1031,8 +1033,8 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const formattedList = goalRes.map(m => {
       const g = Number(m.goals) || 0;
       const a = Number(m.assists) || 0;
-      const teamAvg = teamAvgPtsMap[m.team_id] !== undefined ? teamAvgPtsMap[m.team_id] : 1;
-      const mvpScore = (g + a) * teamAvg;
+      const factor = teamMvpFactorMap[m.team_id] !== undefined ? teamMvpFactorMap[m.team_id] : 1;
+      const mvpScore = (g + a) * factor;
 
       if (g > maxGoals) maxGoals = g;
       if (a > maxAssists) maxAssists = a;
