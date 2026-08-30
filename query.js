@@ -1173,6 +1173,99 @@ async function getWeekLeaderStats(week_id, groupId = null) {
   }
 }
 
+async function ensurePosTables() {
+  try {
+    const createPosSql = `
+      CREATE TABLE IF NOT EXISTS pos_tbl (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(10) NOT NULL UNIQUE,
+        name VARCHAR(50) NOT NULL,
+        icon VARCHAR(10) DEFAULT ''
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `;
+    await executeQuery(createPosSql);
+
+    const createMemberPosSql = `
+      CREATE TABLE IF NOT EXISTS member_pos_tbl (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        member_id INT NOT NULL,
+        pos_id INT NOT NULL,
+        is_primary TINYINT DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_member_pos (member_id, pos_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `;
+    await executeQuery(createMemberPosSql);
+
+    // Seed default positions if empty
+    const countRes = await executeQuery("SELECT COUNT(*) as count FROM pos_tbl");
+    if (countRes && countRes[0] && countRes[0].count === 0) {
+      await executeQuery(`
+        INSERT INTO pos_tbl (code, name, icon) VALUES
+        ('GK', 'Goalkeeper', '🧤'),
+        ('DF', 'Defender', '🛡️'),
+        ('MF', 'Midfielder', '⚙️'),
+        ('CF', 'Center Forward', '⚡')
+      `);
+      console.log("🌱 [Seed DB] Default positions (GK, DF, MF, CF) inserted into pos_tbl!");
+    }
+  } catch (err) {
+    console.error("Error creating position tables:", err.message);
+  }
+}
+
+async function getAllPositions() {
+  await ensurePosTables();
+  try {
+    return await executeQuery("SELECT * FROM pos_tbl ORDER BY id ASC");
+  } catch (err) {
+    console.error("Error fetching positions:", err.message);
+    return [];
+  }
+}
+
+async function getMemberPositions(member_id) {
+  await ensurePosTables();
+  try {
+    const sql = `
+      SELECT p.id, p.code, p.name, p.icon, mp.is_primary
+      FROM member_pos_tbl mp
+      JOIN pos_tbl p ON mp.pos_id = p.id
+      WHERE mp.member_id = ?
+      ORDER BY mp.is_primary DESC, p.id ASC
+    `;
+    return await executeQuery(sql, [member_id]);
+  } catch (err) {
+    console.error("Error fetching member positions:", err.message);
+    return [];
+  }
+}
+
+async function setMemberPosition(member_id, pos_code, is_primary = 1) {
+  await ensurePosTables();
+  try {
+    const posRes = await executeQuery("SELECT id FROM pos_tbl WHERE UPPER(code) = UPPER(?)", [pos_code]);
+    if (!posRes || posRes.length === 0) return { success: false, message: `Unknown position code: ${pos_code}` };
+    const posId = posRes[0].id;
+
+    if (is_primary) {
+      await executeQuery("UPDATE member_pos_tbl SET is_primary = 0 WHERE member_id = ?", [member_id]);
+    }
+
+    await executeQuery(`
+      INSERT INTO member_pos_tbl (member_id, pos_id, is_primary)
+      VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE is_primary = VALUES(is_primary)
+    `, [member_id, posId, is_primary ? 1 : 0]);
+
+    return { success: true, member_id, pos_code: pos_code.toUpperCase(), pos_id: posId };
+  } catch (err) {
+    console.error("Error setting member position:", err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 async function ensureMvpWeekTable() {
   try {
     const createSql = `
@@ -3627,5 +3720,9 @@ module.exports = {
   updateWeekTimeRange,
   calcAndSaveMaxMvpScore,
   ensureMvpWeekTable,
-  saveWeekMvpRecords
+  saveWeekMvpRecords,
+  ensurePosTables,
+  getAllPositions,
+  getMemberPositions,
+  setMemberPosition
 };
