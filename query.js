@@ -1034,14 +1034,14 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         const factor = avgPts / divisor;
 
         teamMvpFactorMap[teamId] = factor;
-        teamInfoMap[teamId] = { color: row.color, matches: totalMatches, pts, avgPts, goalsAgainst, factor };
+        teamInfoMap[teamId] = { color: row.color, w, d, l, matches: totalMatches, pts, avgPts, goalsAgainst, divisor, factor };
 
         console.log(` [Team ${row.color || teamId} (ID: ${teamId})]`);
         console.log(`   └─ Record: Wins (W): ${w}, Draws (D): ${d}, Losses (L): ${l} => Total Matches Played: ${totalMatches}`);
         console.log(`   └─ Points (Pts): ${pts}`);
         console.log(`   └─ Avg Pts Calculation: Points (${pts}) / Total Matches (${totalMatches > 0 ? totalMatches : 1}) = ${avgPts.toFixed(4)}`);
         console.log(`   └─ Goals Against (A): ${goalsAgainst}`);
-        console.log(`   └─ Team Factor Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${goalsAgainst > 0 ? goalsAgainst : '1 (default)'}) = ${factor.toFixed(4)}`);
+        console.log(`   └─ Team Factor Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${divisor}) = ${factor.toFixed(4)}`);
         console.log(`   => Team Factor = ${factor.toFixed(4)}`);
       });
     }
@@ -1057,12 +1057,25 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const mvpScore = (g + a) * factor;
       const teamDetails = teamInfoMap[m.team_id];
       const teamName = teamDetails ? teamDetails.color : `ID ${m.team_id}`;
+      const w = teamDetails ? teamDetails.w : 0;
+      const d = teamDetails ? teamDetails.d : 0;
+      const l = teamDetails ? teamDetails.l : 0;
+      const tMatches = teamDetails ? teamDetails.matches : 1;
+      const tPts = teamDetails ? teamDetails.pts : 0;
+      const tAvgPts = teamDetails ? teamDetails.avgPts : 0;
+      const tGa = teamDetails ? teamDetails.goalsAgainst : 0;
+      const tDiv = teamDetails ? teamDetails.divisor : 1;
 
       console.log(` [Player ${m.name}] (Team: ${teamName})`);
-      console.log(`   └─ Goals (G): ${g}, Assists (A): ${a} => (G + A) = ${g + a}`);
-      console.log(`   └─ Team Factor: ${factor.toFixed(4)}`);
-      console.log(`   └─ Calculation: (G + A: ${g + a}) * Team Factor (${factor.toFixed(4)}) = ${mvpScore.toFixed(4)}`);
+      console.log(`   └─ Team Record: W:${w}, D:${d}, L:${l} => Matches: ${tMatches} | Pts: ${tPts}`);
+      console.log(`   └─ Team Avg Pts: Pts (${tPts}) / Matches (${tMatches > 0 ? tMatches : 1}) = ${tAvgPts.toFixed(4)}`);
+      console.log(`   └─ Team Goals Against (A): ${tGa}`);
+      console.log(`   └─ Team Factor Calculation: Avg Pts (${tAvgPts.toFixed(4)}) / Goals Against (${tDiv}) = ${factor.toFixed(4)}`);
+      console.log(`   └─ Player Stats: Goals (G): ${g}, Assists (A): ${a} => (G + A) = ${g + a}`);
+      console.log(`   └─ Player MVP Score Calculation: (G + A: ${g + a}) * Team Factor (${factor.toFixed(4)}) = ${mvpScore.toFixed(4)}`);
       console.log(`   => Final MVP Score = ${mvpScore.toFixed(4)}`);
+
+
 
       if (g > maxGoals) maxGoals = g;
       if (a > maxAssists) maxAssists = a;
