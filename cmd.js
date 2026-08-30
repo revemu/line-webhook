@@ -288,22 +288,24 @@ const COMMAND_REGISTRY = {
         return [{ type: 'text', text: "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม" }];
     },
     'teamweek': async (context) => {
-        const week = await db.queryWeekID(0);
+        const { param, groupId } = context;
+        const week = await db.queryWeekID(param);
         if (week && week.length > 0) {
-            const msg = await db.getTeamWeek(week[0].id, context.groupId);
+            const msg = await db.getTeamWeek(week[0].id, groupId);
             if (msg) return { type: 'flex', altText: `Team Week - ${week[0].date}`, contents: msg };
-            return [{ type: 'text', text: "ยังไม่มีข้อมูลทีมในสัปดาห์นี้" }];
+            return [{ type: 'text', text: `ยังไม่มีข้อมูลทีมในสัปดาห์ ${week[0].date}` }];
         }
-        return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];
+        return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
     },
     'matchweek': async (context) => {
-        const week = await db.queryWeekID(0);
+        const { param, groupId } = context;
+        const week = await db.queryWeekID(param);
         if (week && week.length > 0) {
-            const msg = await db.getMatchWeek(week[0].id, context.groupId);
-            if (msg) return { type: 'flex', altText: `Match Week - ${week[0].date ? new Date(week[0].date).toISOString().split('T')[0] : ''}`.trim(), contents: msg };
-            return [{ type: 'text', text: "ยังไม่มีข้อมูลแมตช์ในสัปดาห์นี้" }];
+            const msg = await db.getMatchWeek(week[0].id, groupId);
+            if (msg) return { type: 'flex', altText: `Match Week - ${week[0].date ? week[0].date : ''}`.trim(), contents: msg };
+            return [{ type: 'text', text: `ยังไม่มีข้อมูลแมตช์ในสัปดาห์ ${week[0].date}` }];
         }
-        return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];
+        return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
     },
     'tableweek': async () => ({ type: 'text', text: "แสดงตารางใน /matchweek แทนแล้ว" }),
     'topscorer': async () => ({ type: 'text', text: "ให้ใช้ /top แทน" }),

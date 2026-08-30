@@ -3604,9 +3604,19 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
     }
 
     const scorerContents = [];
+
+    // Profile Avatar
+    const avatarUrl = (info.pictureUrl && typeof info.pictureUrl === 'string' && info.pictureUrl.startsWith('http')) ? info.pictureUrl : null;
+    if (avatarUrl) {
+      const avatarBox = createMemberAvatarBox(avatarUrl, '18px');
+      if (avatarBox) {
+        avatarBox.margin = 'xs';
+        scorerContents.push(avatarBox);
+      }
+    }
+
+    // Rank Badge
     const badgeSize = info.badgeSize || '16px';
-    /* Temporarily disabled badge/avatar display for testing size limit */
-    /*
     if (info.badgeUrl && typeof info.badgeUrl === 'string' && info.badgeUrl.trim().length > 0) {
       scorerContents.push({
         type: 'box',
@@ -3627,6 +3637,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
       });
     }
 
+    // HOF Badges
     if (info.hofBadges && info.hofBadges.length > 0) {
       for (const hb of info.hofBadges) {
         if (hb && hb.url && typeof hb.url === 'string' && hb.url.trim().length > 0) {
@@ -3650,7 +3661,6 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
         }
       }
     }
-    */
 
     scorerContents.push({
       type: "text",

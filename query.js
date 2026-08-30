@@ -696,16 +696,97 @@ async function queryWeekDate(week_id = 0) {
   }
 }
 
-async function queryWeekID(week_id = 0) {
+async function queryWeekID(week_param = 0) {
   await ensureWeekTimeColumn();
-  let query = "";
-  if (week_id == 0) {
-    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
+
+  if (!week_param || week_param === 0 || String(week_param).trim() === '0') {
+    const query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
     return await executeQuery(query);
-  } else {
-    query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl where id=?";
-    return await executeQuery(query, [week_id]);
   }
+
+  const strParam = String(week_param).trim();
+
+  // 1. If numeric (e.g. 5, 12)
+  if (/^\d+$/.test(strParam)) {
+    const num = Number(strParam);
+    const query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE id = ? OR number = ? ORDER BY id DESC LIMIT 1";
+    const res = await executeQuery(query, [num, num]);
+    if (res && res.length > 0) return res;
+  }
+
+  // 2. Format DD/MM or DD-MM or DD.MM (e.g. 30/08, 30-8, 30.08)
+  const slashMatch = strParam.match(/^(\d{1,2})[\/\-\.](\d{1,2})(?:[\/\-\.](\d{2,4}))?$/);
+  if (slashMatch) {
+    const day = parseInt(slashMatch[1], 10);
+    const month = parseInt(slashMatch[2], 10);
+    let year = slashMatch[3] ? parseInt(slashMatch[3], 10) : null;
+    if (year) {
+      if (year < 100) year += 2000;
+      if (year > 2500) year -= 543;
+    }
+
+    let query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE DAY(date) = ? AND MONTH(date) = ?";
+    const params = [day, month];
+    if (year) {
+      query += " AND YEAR(date) = ?";
+      params.push(year);
+    }
+    query += " ORDER BY id DESC LIMIT 1";
+
+    const res = await executeQuery(query, params);
+    if (res && res.length > 0) return res;
+  }
+
+  // 3. Format Thai Date (e.g. 30ส.ค., 30 ส.ค., 30สิงหาคม)
+  const thaiMonths = {
+    'ม.ค.': 1, 'มกรา': 1, 'มกราคม': 1,
+    'ก.พ.': 2, 'กุมภา': 2, 'กุมภาพันธ์': 2,
+    'มี.ค.': 3, 'มีนา': 3, 'มีนาคม': 3,
+    'เม.ย.': 4, 'เมษา': 4, 'เมษายน': 4,
+    'พ.ค.': 5, 'พฤษภา': 5, 'พฤษภาคม': 5,
+    'มิ.ย.': 6, 'มิถุนา': 6, 'มิถุนายน': 6,
+    'ก.ค.': 7, 'กรกฎา': 7, 'กรกฎาคม': 7,
+    'ส.ค.': 8, 'สิงหา': 8, 'สิงหาคม': 8,
+    'ก.ย.': 9, 'กันยา': 9, 'กันยายน': 9,
+    'ต.ค.': 10, 'ตุลา': 10, 'ตุลาคม': 10,
+    'พ.ย.': 11, 'พฤศจิกา': 11, 'พฤศจิกายน': 11,
+    'ธ.ค.': 12, 'ธันวา': 12, 'ธันวาคม': 12
+  };
+
+  const thaiMatch = strParam.match(/^(\d{1,2})\s*([ก-ฮa-zA-Z\.]+)(?:\s*(\d{2,4}))?$/);
+  if (thaiMatch) {
+    const day = parseInt(thaiMatch[1], 10);
+    const monthStr = thaiMatch[2].trim();
+    let month = null;
+    for (const [key, val] of Object.entries(thaiMonths)) {
+      if (monthStr.startsWith(key) || key.startsWith(monthStr)) {
+        month = val;
+        break;
+      }
+    }
+    if (month) {
+      let year = thaiMatch[3] ? parseInt(thaiMatch[3], 10) : null;
+      if (year) {
+        if (year < 100) year += 2000;
+        if (year > 2500) year -= 543;
+      }
+
+      let query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE DAY(date) = ? AND MONTH(date) = ?";
+      const params = [day, month];
+      if (year) {
+        query += " AND YEAR(date) = ?";
+        params.push(year);
+      }
+      query += " ORDER BY id DESC LIMIT 1";
+
+      const res = await executeQuery(query, params);
+      if (res && res.length > 0) return res;
+    }
+  }
+
+  // Fallback to latest week if nothing matched
+  const fallbackQuery = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
+  return await executeQuery(fallbackQuery);
 }
 
 async function unregisterMember(member_id) {
@@ -818,6 +899,7 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
     return null;
   }
 
+  await Promise.all(match_goals.map(member => ensureMemberPicture(member, groupId)));
   const assets = await fetchDisplayAssets();
   return flex.buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMemberDisplayInfo);
 }
