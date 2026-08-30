@@ -2281,8 +2281,8 @@ function renderAutoRegTableRow(member, index, isCurrentMember, colors) {
         cornerRadius: 'sm',
         paddingStart: 'xs',
         paddingEnd: 'xs',
-        paddingTop: 'xxs',
-        paddingBottom: 'xxs',
+        paddingTop: 'xs',
+        paddingBottom: 'xs',
         contents: [
           {
             type: 'text',
@@ -2301,8 +2301,8 @@ function renderAutoRegTableRow(member, index, isCurrentMember, colors) {
         cornerRadius: 'sm',
         paddingStart: 'xs',
         paddingEnd: 'xs',
-        paddingTop: 'xxs',
-        paddingBottom: 'xxs',
+        paddingTop: 'xs',
+        paddingBottom: 'xs',
         contents: [
           {
             type: 'text',
@@ -2322,7 +2322,7 @@ function renderAutoRegTableRow(member, index, isCurrentMember, colors) {
     layout: 'horizontal',
     backgroundColor: rowBg,
     borderColor: rowBorder,
-    borderWidth: '1px',
+    borderWidth: 'normal',
     cornerRadius: 'sm',
     paddingAll: 'sm',
     alignItems: 'center',
@@ -2351,7 +2351,7 @@ function renderAutoRegTableRow(member, index, isCurrentMember, colors) {
         layout: 'vertical',
         width: '26px',
         height: '26px',
-        cornerRadius: '13px',
+        cornerRadius: 'md',
         margin: 'xs',
         contents: [
           {
@@ -2385,7 +2385,7 @@ function renderAutoRegTableRow(member, index, isCurrentMember, colors) {
         type: 'box',
         layout: 'vertical',
         margin: 'xs',
-        alignItems: 'end',
+        alignItems: 'flex-end',
         contents: [statusBadge]
       }
     ]
@@ -2492,7 +2492,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       layout: 'vertical',
       backgroundColor: cardBg,
       borderColor: cardBorder,
-      borderWidth: '1px',
+      borderWidth: 'normal',
       cornerRadius: 'md',
       paddingAll: 'lg',
       margin: 'md',
@@ -2556,7 +2556,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       layout: 'vertical',
       backgroundColor: cardBg,
       borderColor: cardBorder,
-      borderWidth: '1px',
+      borderWidth: 'normal',
       cornerRadius: 'md',
       paddingAll: 'md',
       margin: 'md',
@@ -2654,7 +2654,7 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       layout: 'vertical',
       backgroundColor: cardBg,
       borderColor: cardBorder,
-      borderWidth: '1px',
+      borderWidth: 'normal',
       cornerRadius: 'md',
       paddingAll: 'sm',
       margin: 'md',
