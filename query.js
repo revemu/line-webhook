@@ -1063,15 +1063,48 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       });
     }
 
-    let maxGoals = 0;
-    let maxAssists = 0;
-    let maxMvpScore = 0;
-
-    const formattedList = goalRes.map(m => {
+    // Pass 1: Compute raw MVP scores and find max raw score
+    const rawScoresList = goalRes.map(m => {
       const g = Number(m.goals) || 0;
       const a = Number(m.assists) || 0;
       const factor = teamMvpFactorMap[m.team_id] !== undefined ? teamMvpFactorMap[m.team_id] : 1;
-      const mvpScore = (g + a) * factor;
+      const rawScore = (g + a) * factor;
+      return { member: m, g, a, factor, rawScore };
+    });
+
+    let maxGoals = 0;
+    let maxAssists = 0;
+    let maxRawMvpScore = 0;
+
+    rawScoresList.forEach(item => {
+      if (item.g > maxGoals) maxGoals = item.g;
+      if (item.a > maxAssists) maxAssists = item.a;
+      if (item.rawScore > maxRawMvpScore && (item.g + item.a) > 0) maxRawMvpScore = item.rawScore;
+    });
+
+    // Retrieve 48-week benchmark reference max MVP score (from /maxmvpscore or DB template)
+    let refMaxScore = 0;
+    try {
+      const refTpl = await executeQuery("SELECT value FROM template_tpl WHERE name = 'max_mvp_score'");
+      if (refTpl && refTpl.length > 0) {
+        refMaxScore = parseFloat(refTpl[0].value);
+      }
+    } catch (e) {}
+
+    // Fallback if benchmark not set yet: use max raw MVP score of current week
+    if (!refMaxScore || isNaN(refMaxScore) || refMaxScore <= 0) {
+      refMaxScore = maxRawMvpScore;
+    }
+
+    // Pass 2: Normalize to 1-10 rating scale against refMaxScore
+    const formattedList = rawScoresList.map(item => {
+      const m = item.member;
+      const g = item.g;
+      const a = item.a;
+      const factor = item.factor;
+      const rawScore = item.rawScore;
+      const normalizedScore = (refMaxScore > 0 && (g + a) > 0) ? Math.min(10.0, (rawScore / refMaxScore) * 10) : 0;
+
       const teamDetails = teamInfoMap[m.team_id];
       const teamName = teamDetails ? teamDetails.color : `ID ${m.team_id}`;
       const w = teamDetails ? teamDetails.w : 0;
@@ -1089,36 +1122,141 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       console.log(`   └─ Team Goals Against (A): ${tGa}`);
       console.log(`   └─ Team Factor Calculation: Avg Pts (${tAvgPts.toFixed(4)}) / Goals Against (${tDiv}) = ${factor.toFixed(4)}`);
       console.log(`   └─ Player Stats: Goals (G): ${g}, Assists (A): ${a} => (G + A) = ${g + a}`);
-      console.log(`   └─ Player MVP Score Calculation: (G + A: ${g + a}) * Team Factor (${factor.toFixed(4)}) = ${mvpScore.toFixed(4)}`);
-      console.log(`   => Final MVP Score = ${mvpScore.toFixed(4)}`);
-
-
-
-      if (g > maxGoals) maxGoals = g;
-      if (a > maxAssists) maxAssists = a;
-      if (mvpScore > maxMvpScore && (g + a) > 0) maxMvpScore = mvpScore;
+      console.log(`   └─ Raw MVP Score: (G + A: ${g + a}) * Team Factor (${factor.toFixed(4)}) = ${rawScore.toFixed(4)}`);
+      console.log(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / Benchmark Ref ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
+      console.log(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
 
       const info = resolveMemberDisplayInfo(m, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
       return {
         ...m,
         goals: g,
         assists: a,
-        score: mvpScore,
+        rawScore,
+        score: normalizedScore,
         info
       };
     });
 
     const topScorers = maxGoals > 0 ? formattedList.filter(item => item.goals === maxGoals) : [];
     const topAssists = maxAssists > 0 ? formattedList.filter(item => item.assists === maxAssists) : [];
-    const mvps = maxMvpScore > 0 ? formattedList.filter(item => Math.abs(item.score - maxMvpScore) < 0.001) : [];
+    const mvps = maxRawMvpScore > 0 ? formattedList.filter(item => item.rawScore === maxRawMvpScore) : [];
+    const maxMvpScore = mvps.length > 0 ? mvps[0].score : 0;
 
-    console.log(` [MVP Winner(s)] Max Score: ${maxMvpScore.toFixed(4)} | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
+    console.log(` [MVP Winner(s)] Max Raw: ${maxRawMvpScore.toFixed(4)} | Benchmark Ref: ${refMaxScore.toFixed(4)} | Leader Rating: ${maxMvpScore.toFixed(1)}/10 | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
     console.log(`=============================================\n`);
 
     return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore };
   } catch (err) {
     console.error("Error calculating week leader stats:", err.message);
     return null;
+  }
+}
+
+async function calculateWeekRawMvp(week_id) {
+  const goalsQuery = `
+    SELECT 
+      mgt.member_id, 
+      m.name, 
+      mtw.team_id,
+      SUM(CASE WHEN mgt.status <= 2 THEN 1 ELSE 0 END) as goals,
+      SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END) as assists
+    FROM match_goal_tbl mgt
+    JOIN match_stat_tbl mst ON mgt.match_id = mst.id
+    JOIN member_tbl m ON mgt.member_id = m.id
+    LEFT JOIN member_team_week_tbl mtw ON mtw.member_id = m.id AND mtw.week_id = mst.week_id
+    WHERE mst.week_id = ?
+    GROUP BY mgt.member_id, m.name, mtw.team_id
+  `;
+  const goalRes = await executeQuery(goalsQuery, [week_id]);
+  if (!goalRes || goalRes.length === 0) return [];
+
+  const tableRows = await queryTableWeek(week_id);
+  if (!tableRows || tableRows.length === 0) return [];
+
+  const teamGaMap = {};
+  const matchScores = await executeQuery(
+    "SELECT team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
+    [week_id]
+  );
+  if (matchScores && matchScores.length > 0) {
+    matchScores.forEach(m => {
+      const gaA = Number(m.team_b_goal) || 0;
+      const gaB = Number(m.team_a_goal) || 0;
+      if (m.team_a_id) teamGaMap[m.team_a_id] = (teamGaMap[m.team_a_id] || 0) + gaA;
+      if (m.team_b_id) teamGaMap[m.team_b_id] = (teamGaMap[m.team_b_id] || 0) + gaB;
+    });
+  }
+
+  const teamMvpFactorMap = {};
+  tableRows.forEach(row => {
+    const teamId = row.team_week_id;
+    const w = Number(row.w !== undefined ? row.w : (row.W || 0));
+    const d = Number(row.d !== undefined ? row.d : (row.D || 0));
+    const l = Number(row.l !== undefined ? row.l : (row.L || 0));
+    const totalMatches = w + d + l;
+    const pts = Number(row.pts !== undefined ? row.pts : (row.PTS || 0));
+
+    const avgPts = totalMatches > 0 ? (pts / totalMatches) : pts;
+    const goalsConceded = Number(row.A !== undefined ? row.A : (row.a || 0));
+    const goalsAgainst = (teamGaMap[teamId] !== undefined && teamGaMap[teamId] > 0) ? teamGaMap[teamId] : goalsConceded;
+    const divisor = goalsAgainst > 0 ? goalsAgainst : 1;
+    teamMvpFactorMap[teamId] = avgPts / divisor;
+  });
+
+  return goalRes.map(m => {
+    const g = Number(m.goals) || 0;
+    const a = Number(m.assists) || 0;
+    const factor = teamMvpFactorMap[m.team_id] !== undefined ? teamMvpFactorMap[m.team_id] : 1;
+    const rawScore = (g + a) * factor;
+    return {
+      week_id,
+      member_id: m.member_id,
+      name: m.name,
+      goals: g,
+      assists: a,
+      rawScore
+    };
+  }).filter(p => (p.goals + p.assists) > 0);
+}
+
+async function calcAndSaveMaxMvpScore(limitWeeks = 48) {
+  try {
+    const weeks = await executeQuery(
+      `SELECT id, date FROM week_tbl ORDER BY date DESC LIMIT ${parseInt(limitWeeks, 10)}`
+    );
+    if (!weeks || weeks.length === 0) return { maxRawScore: 0, topPerformances: [], weeksChecked: 0 };
+
+    let allPerformances = [];
+    for (const w of weeks) {
+      const dateStr = await getFormatDate(new Date(w.date), 'short');
+      const playerScores = await calculateWeekRawMvp(w.id);
+      playerScores.forEach(p => {
+        allPerformances.push({
+          ...p,
+          dateStr
+        });
+      });
+    }
+
+    allPerformances.sort((a, b) => b.rawScore - a.rawScore);
+
+    const maxRawScore = allPerformances.length > 0 ? allPerformances[0].rawScore : 0;
+
+    // Save maxRawScore to template_tpl
+    if (maxRawScore > 0) {
+      const existing = await executeQuery("SELECT id FROM template_tpl WHERE name = 'max_mvp_score'");
+      if (existing && existing.length > 0) {
+        await executeQuery("UPDATE template_tpl SET value = ? WHERE name = 'max_mvp_score'", [maxRawScore.toFixed(4)]);
+      } else {
+        await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('max_mvp_score', ?)", [maxRawScore.toFixed(4)]);
+      }
+    }
+
+    const topPerformances = allPerformances.slice(0, 5);
+    return { maxRawScore, topPerformances, weeksChecked: weeks.length };
+  } catch (err) {
+    console.error("Error calculating max MVP score across weeks:", err.message);
+    return { maxRawScore: 0, topPerformances: [], weeksChecked: 0, error: err.message };
   }
 }
 

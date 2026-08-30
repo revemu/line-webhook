@@ -557,12 +557,26 @@ const COMMAND_REGISTRY = {
         const cur = matchInfo.currentMatch;
         return { type: 'flex', altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''}`, contents: flex.buildLiveFlex(matchInfo, theme) };
     },
-    'top': async (context) => {
-        const limit = context.param != '' ? Number(context.param) : 30;
-        await db.updateHof();
-        const stats = await Promise.all([db.getTopStat(limit, 0), db.getTopStat(limit, 1), db.getTopStat(limit, 4), db.getTopStat(limit, 6)]);
-        const carousel = flex.tpl_carousel; carousel.contents = stats.filter(x => x !== null && x !== undefined);
-        return { type: 'flex', altText: `Top ${limit} Stat (${new Date().getFullYear()})`, contents: carousel };
+    'maxmvpscore': async (context) => {
+        const { param, quoteToken } = context;
+        const weeks = (param && !isNaN(Number(param))) ? Number(param) : 48;
+        const res = await db.calcAndSaveMaxMvpScore(weeks);
+        if (!res || res.maxRawScore === 0) {
+            return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูลคะแนน MVP สำหรับคำนวณ ${weeks} สัปดาห์ย้อนหลัง` }];
+        }
+
+        let msg = `🏆 คะแนน MVP สูงสุดอ้างอิง ${res.weeksChecked} สัปดาห์ย้อนหลัง\n`;
+        msg += `📌 Reference Benchmark (10.00 คะแนน): ${res.maxRawScore.toFixed(4)}\n\n`;
+        msg += `🔥 Top 5 ผลงาน MVP สูงสุดตลอดกาล:\n`;
+
+        res.topPerformances.forEach((p, idx) => {
+            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
+            const rating = Math.min(10.0, (p.rawScore / res.maxRawScore) * 10).toFixed(1);
+            msg += `${medal} ${p.name} (${p.dateStr})\n   ⚽ ${p.goals}G | 👟 ${p.assists}A | Raw: ${p.rawScore.toFixed(4)} (${rating}/10)\n`;
+        });
+
+        msg += `\n✅ บันทึกคะแนนอ้างอิง 10.00 (Benchmark) สำหรับ /matchweek เรียบร้อยแล้ว!`;
+        return [{ type: 'text', text: msg }];
     },
     'slip': async (context) => {
         const { member, groupId } = context;
