@@ -4427,11 +4427,23 @@ async function getMvpList(targetYear = null, groupId = null) {
     return b.week_id - a.week_id;
   });
 
+  let bestMvpBadgeUrl = null;
+  if (assets.hofBadge) {
+    const badgeObj = assets.hofBadge['best_mvp'] || assets.hofBadge['mvp'] || assets.hofBadge['top_mvp'] || assets.hofBadge['default'] || Object.values(assets.hofBadge)[0];
+    if (badgeObj && badgeObj.url) {
+      bestMvpBadgeUrl = badgeObj.url;
+    }
+  }
+  if (!bestMvpBadgeUrl) {
+    bestMvpBadgeUrl = 'https://bearbit.org/pic/crown.gif';
+  }
+
   return {
     year,
     bestRating,
     bestRaw,
     yrBenchmark,
+    bestMvpBadgeUrl,
     bestMvpPlayers,
     totalWeeks: weeksList.length,
     weeks: weeksList

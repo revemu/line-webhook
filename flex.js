@@ -3994,7 +3994,7 @@ function buildTeamWeekFlex(teamColors, teamMembersMap, theme, assets = {}, resol
 }
 
 function buildMvpListFlex(mvpData, theme) {
-  const { year, bestRating, bestRaw, yrBenchmark, bestMvpPlayers, totalWeeks, weeks } = mvpData;
+  const { year, bestRating, bestRaw, yrBenchmark, bestMvpBadgeUrl, bestMvpPlayers, totalWeeks, weeks } = mvpData;
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
@@ -4065,13 +4065,49 @@ function buildMvpListFlex(mvpData, theme) {
 
     // 👑 Noticeable Best MVP Top Highlight Card (Only shown on Page 1)
     if (page === 0 && bestMvpPlayers && bestMvpPlayers.length > 0) {
+      const titleContents = [];
+      if (bestMvpBadgeUrl) {
+        titleContents.push({
+          type: 'box',
+          layout: 'vertical',
+          width: '16px',
+          height: '16px',
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: bestMvpBadgeUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true
+            }
+          ]
+        });
+      }
+      titleContents.push({
+        type: 'text',
+        text: 'Best MVP',
+        weight: 'bold',
+        size: 'xs',
+        color: '#f59e0b',
+        flex: 1,
+        margin: bestMvpBadgeUrl ? 'xs' : 'none'
+      });
+
       const topMvpContents = [
         {
           type: 'box',
           layout: 'horizontal',
           alignItems: 'center',
           contents: [
-            { type: 'text', text: `👑 Best MVP`, weight: 'bold', size: 'xs', color: '#f59e0b', flex: 1 },
+            {
+              type: 'box',
+              layout: 'horizontal',
+              alignItems: 'center',
+              flex: 1,
+              contents: titleContents
+            },
             { type: 'text', text: `⭐ ${Number(bestRating || 0).toFixed(1)}/10`, weight: 'bold', size: 'xs', color: '#d97706', align: 'end' }
           ]
         }
