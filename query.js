@@ -489,7 +489,7 @@ async function newWeek(week_date, custom_time_range = null) {
         const existQuery = "SELECT 1 FROM member_team_week_tbl WHERE week_id = ? AND member_id = ?";
         const existRes = await executeQuery(existQuery, [new_week_id, member.id]);
         if (existRes.length === 0) {
-          const insertQuery = "insert into member_team_week_tbl (member_id, member_name, team_id, week_id, pay) values(?, ?, 0, ?, 0)";
+          const insertQuery = "insert into member_team_week_tbl (member_id, name, team_id, week_id, pay) values(?, ?, 0, ?, 0)";
           await executeQuery(insertQuery, [member.id, member.name, new_week_id]);
           console.log(`[Auto-Reg] Registered ${member.name} (ID: ${member.id}) for week ID ${new_week_id}`);
         } else {
@@ -549,7 +549,7 @@ async function removeReserveMembers() {
   const max_players = week[0].max;
 
   // Fetch all registered members for the week in order of registration
-  const query = "SELECT id, member_id, team_id, member_name FROM member_team_week_tbl WHERE week_id = ? ORDER BY id ASC";
+  const query = "SELECT id, member_id, team_id, name FROM member_team_week_tbl WHERE week_id = ? ORDER BY id ASC";
   const registrations = await executeQuery(query, [week_id]);
 
   let nonGoalieCount = 0;
@@ -873,7 +873,7 @@ async function registerMember(member_id, member_name) {
     if (res.length > 0) {
       return 1;
     } else {
-      const query = "insert into member_team_week_tbl (member_id, member_name, team_id, week_id, pay) values(?, ?, 0, ?, 0)";
+      const query = "insert into member_team_week_tbl (member_id, name, team_id, week_id, pay) values(?, ?, 0, ?, 0)";
       //console.log(query) ;
       const reg_res = await executeQuery(query, [member_id, member_name, week_id]);
       //console.log(reg_res) ;
