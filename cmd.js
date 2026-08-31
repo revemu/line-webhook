@@ -564,19 +564,6 @@ const COMMAND_REGISTRY = {
         if (!cur) return [{ type: 'text', text: 'ยังไม่มีข้อมูลแมตช์ปัจจุบัน' }];
         return { type: 'flex', altText: `⚽ แมตช์ปัจจุบัน [${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}`, contents: flex.buildNowFlex(matchInfo, theme) };
     },
-    'matchweek': async (context) => {
-        const { param, groupId } = context;
-        const weekParam = (param && param.trim() !== '') ? param.trim() : 0;
-        const result = await db.getMatchWeek(weekParam, groupId);
-        if (result) {
-            if (typeof result === 'object') {
-                return { type: 'flex', altText: '⚽ สรุปผลการแข่งขันประจำสัปดาห์', contents: result };
-            }
-            return [{ type: 'text', text: result }];
-        }
-        return [{ type: 'text', text: 'ยังไม่มีข้อมูลผลการแข่งขันประจำสัปดาห์' }];
-    },
-    'match': async (context) => COMMAND_REGISTRY['matchweek'](context),
     'live': async (context) => {
         const { groupId } = context;
         const theme = await db.getTheme();
@@ -827,20 +814,12 @@ module.exports = {
 };
 
 async function unknownCommandResponse(context) {
-    const { cmd, quoteToken } = context;
-    let msg = null;
-    try {
-        const theme = await db.getTheme();
-        const week = await db.queryWeekID(0);
-        const dateStr = week && week.length > 0 ? week[0].date : '';
-        const autoRegCount = await db.getAutoRegCount();
-        if (typeof flex.buildMenuFlex === 'function') {
-            msg = flex.buildMenuFlex(dateStr, theme, `ไม่รู้จักคำสั่ง: "${cmd}"`, autoRegCount);
-        }
-    } catch (e) {}
-
-    if (msg) {
-        return { type: 'flex', altText: `ไม่รู้จักคำสั่ง: "${cmd}"`, contents: msg };
-    }
-    return [{ type: 'text', quoteToken, text: `⚠️ ไม่รู้จักคำสั่ง: "${cmd}"` }];
+    const { cmd, quoteToken, groupId } = context;
+    const theme = await db.getTheme();
+    const week = await db.queryWeekID(0);
+    const dateStr = week.length > 0 ? week[0].date : '';
+    const autoRegCount = await db.getAutoRegCount();
+    const msg = flex.buildMenuFlex(dateStr, theme, `ไม่รู้จักคำสั่ง: "${cmd}"`, autoRegCount);
+    const altText = `ไม่รู้จักคำสั่ง: "${cmd}"`;
+    return { type: 'flex', altText, contents: msg };
 }
