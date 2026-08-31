@@ -3571,35 +3571,28 @@ function buildSlipListFlex(slips, theme) {
 }
 
 function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMemberDisplayInfo) {
-  const itemContents = [];
+  const spans = [];
 
-  itemContents.push({
-    type: "text",
-    text: icon,
-    size: "xs",
-    flex: 0,
-    color: "#a0a8c0",
-    gravity: "center"
+  spans.push({
+    type: "span",
+    text: `${icon} `,
+    color: "#a0a8c0"
   });
 
   let isFirst = true;
   for (const member of match_goals) {
     if (!isFirst) {
-      itemContents.push({
-        type: "text",
-        text: "•",
-        size: "xs",
-        color: "#7878a8",
-        flex: 0,
-        margin: "sm",
-        gravity: "center"
+      spans.push({
+        type: "span",
+        text: " • ",
+        color: "#7878a8"
       });
     }
     isFirst = false;
 
     const info = resolveMemberDisplayInfo(member, assets ? assets.badges : {}, assets ? assets.donateColors : [], assets ? assets.hofCounts : {}, assets ? assets.hofBadge : {}, assets ? assets.hofAwards : {});
 
-    let nameText = info.name || 'ไม่ระบุ';
+    let nameText = (info.name || 'ไม่ระบุ').replace(/^@+/, '');
     if (member.goal > 1) {
       nameText = `+(${member.goal})${nameText}`;
     }
@@ -3609,22 +3602,20 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
       nameText += "🔄";
     }
 
-    itemContents.push({
-      type: "text",
+    spans.push({
+      type: "span",
       text: nameText || 'ไม่ระบุ',
-      size: "xs",
       color: info.nameColor || (goal_status === 3 ? '#bbddff' : '#ddddff'),
-      flex: 1,
-      margin: "xs",
       weight: 'bold'
     });
   }
 
   return {
-    type: "box",
-    layout: "horizontal",
-    alignItems: "center",
-    contents: itemContents
+    type: "text",
+    text: icon,
+    contents: spans,
+    size: "xs",
+    wrap: true
   };
 }
 
