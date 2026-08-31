@@ -4170,8 +4170,8 @@ function buildMvpListFlex(mvpData, theme) {
             avatarUrl ? {
               type: 'box',
               layout: 'vertical',
-              width: '34px',
-              height: '34px',
+              width: '64px',
+              height: '64px',
               cornerRadius: '100px',
               borderWidth: 'normal',
               borderColor: '#f59e0b',
