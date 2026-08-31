@@ -4056,7 +4056,7 @@ function buildMvpListFlex(mvpData, theme) {
       bodyContents.push({
         type: 'text',
         text: `หน้า ${page + 1}/${totalPages} (${totalWeeks} สัปดาห์)`,
-        size: 'xxs',
+        size: 'sm',
         color: colors.textMuted,
         align: 'center',
         margin: 'xs'
@@ -4108,7 +4108,7 @@ function buildMvpListFlex(mvpData, theme) {
               flex: 1,
               contents: titleContents
             },
-            { type: 'text', text: `⭐ ${Number(bestRating || 0).toFixed(1)}/10`, weight: 'bold', size: 'xs', color: '#d97706', align: 'end' }
+            { type: 'text', text: `⭐ ${Number(bestRating || 0).toFixed(1)}`, weight: 'bold', size: 'xs', color: '#d97706', align: 'end' }
           ]
         }
       ];
