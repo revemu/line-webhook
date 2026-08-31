@@ -4257,15 +4257,18 @@ function buildMvpListFlex(mvpData, theme) {
         });
       });
 
-      bodyContents.push({
+      const weekBox = {
         type: 'box',
         layout: 'vertical',
-        backgroundColor: isEven ? bgCard : 'transparent',
         paddingAll: 'sm',
         cornerRadius: 'sm',
         margin: 'xs',
         contents: weekContents
-      });
+      };
+      if (isEven) {
+        weekBox.backgroundColor = bgCard;
+      }
+      bodyContents.push(weekBox);
     });
 
     bubbles.push({
