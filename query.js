@@ -1915,7 +1915,11 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           contents: [
             { type: 'text', text: 'สมาชิก', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
             { type: 'text', text: 'pos', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
-            { type: 'text', text: 'G/A (Rate)', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4, align: 'center' },
+            { type: 'text', text: 'G', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'A', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'CS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'OG', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+            { type: 'text', text: 'Rate', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
             { type: 'text', text: 'MVP Rating', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
           ]
         });
@@ -1977,22 +1981,22 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             });
           }
 
-          // HOF Badges for Weekly Winners (MVP 👑, Most Scorer ⚽, Most Assist 👟)
+          // HOF Badges for Weekly Winners (Most Goal ⚽, Most Assist 👟, MVP 👑)
           const weekBadgeUrls = [];
 
-          if (isMvp) {
-            const mvpRaw = (assets.hofBadge && assets.hofBadge['mvp']) ? assets.hofBadge['mvp'].url : (p.info && p.info.hofBadgeUrl ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif');
-            const cleanUrl = ensureSanitizedUrl(mvpRaw);
+          if (isTopScorer) {
+            const scorerRaw = (assets.hofBadge && assets.hofBadge['scorer']) ? assets.hofBadge['scorer'].url : ((assets.hofBadge && assets.hofBadge['top_scorer']) ? assets.hofBadge['top_scorer'].url : ((assets.hofBadge && assets.hofBadge['goal']) ? assets.hofBadge['goal'].url : 'https://bearbit.org/pic/crown.gif'));
+            const cleanUrl = ensureSanitizedUrl(scorerRaw);
             if (cleanUrl) weekBadgeUrls.push(cleanUrl);
           }
-          if (isTopScorer) {
-            const scorerRaw = (assets.hofBadge && assets.hofBadge['scorer']) ? assets.hofBadge['scorer'].url : ((assets.hofBadge && assets.hofBadge['top_scorer']) ? assets.hofBadge['top_scorer'].url : null);
-            const cleanUrl = ensureSanitizedUrl(scorerRaw);
+          if (isTopAssist) {
+            const assistRaw = (assets.hofBadge && assets.hofBadge['assist']) ? assets.hofBadge['assist'].url : ((assets.hofBadge && assets.hofBadge['top_assist']) ? assets.hofBadge['top_assist'].url : 'https://bearbit.org/pic/crown.gif');
+            const cleanUrl = ensureSanitizedUrl(assistRaw);
             if (cleanUrl && !weekBadgeUrls.includes(cleanUrl)) weekBadgeUrls.push(cleanUrl);
           }
-          if (isTopAssist) {
-            const assistRaw = (assets.hofBadge && assets.hofBadge['assist']) ? assets.hofBadge['assist'].url : ((assets.hofBadge && assets.hofBadge['top_assist']) ? assets.hofBadge['top_assist'].url : null);
-            const cleanUrl = ensureSanitizedUrl(assistRaw);
+          if (isMvp) {
+            const mvpRaw = (assets.hofBadge && assets.hofBadge['mvp']) ? assets.hofBadge['mvp'].url : ((assets.hofBadge && assets.hofBadge['top_mvp']) ? assets.hofBadge['top_mvp'].url : (p.info && p.info.hofBadgeUrl ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif'));
+            const cleanUrl = ensureSanitizedUrl(mvpRaw);
             if (cleanUrl && !weekBadgeUrls.includes(cleanUrl)) weekBadgeUrls.push(cleanUrl);
           }
 
@@ -2041,14 +2045,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
           const teamMatches = p.matches || 1;
           const gaTotal = (p.goals || 0) + (p.assists || 0);
-          const gaRate = teamMatches > 0 ? (gaTotal / teamMatches).toFixed(1) : gaTotal.toFixed(1);
-
-          const statParts = [];
-          if (p.goals > 0) statParts.push(`⚽${p.goals}`);
-          if (p.assists > 0) statParts.push(`👟${p.assists}`);
-          if (p.own_goals > 0) statParts.push(`🥅${p.own_goals}`);
-          const statIcons = statParts.length > 0 ? statParts.join(' ') : '-';
-          const statStr = gaTotal > 0 ? `${statIcons} (${gaRate}/m)` : (statParts.length > 0 ? `${statIcons}` : '-');
+          const gaRateStr = teamMatches > 0 ? `${(gaTotal / teamMatches).toFixed(1)}/m` : `${gaTotal.toFixed(1)}/m`;
 
           const posIcon = p.pos ? (p.pos.icon || '') : '';
           const posCode = p.pos ? p.pos.code : '';
@@ -2082,10 +2079,45 @@ async function getMatchWeek(week_id = 0, groupId = null) {
               },
               {
                 type: 'text',
-                text: statStr,
+                text: `${p.goals ?? 0}`,
                 size: 'xs',
-                color: colors.textMutedLight || colors.textMuted,
-                flex: 4,
+                color: p.goals > 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : colors.textMutedLight,
+                flex: 1,
+                align: 'center',
+                weight: p.goals > 0 ? 'bold' : 'regular'
+              },
+              {
+                type: 'text',
+                text: `${p.assists ?? 0}`,
+                size: 'xs',
+                color: p.assists > 0 ? colors.textAccent : colors.textMutedLight,
+                flex: 1,
+                align: 'center',
+                weight: p.assists > 0 ? 'bold' : 'regular'
+              },
+              {
+                type: 'text',
+                text: `${p.cleanSheets ?? 0}`,
+                size: 'xs',
+                color: p.cleanSheets > 0 ? '#3b82f6' : colors.textMutedLight,
+                flex: 1,
+                align: 'center'
+              },
+              {
+                type: 'text',
+                text: `${p.own_goals ?? 0}`,
+                size: 'xs',
+                color: p.own_goals > 0 ? (colors.name === 'white' ? '#dc2626' : '#ff8888') : colors.textMutedLight,
+                flex: 1,
+                align: 'center',
+                weight: p.own_goals > 0 ? 'bold' : 'regular'
+              },
+              {
+                type: 'text',
+                text: gaRateStr,
+                size: 'xs',
+                color: colors.textMutedLight,
+                flex: 2,
                 align: 'center'
               },
               {
