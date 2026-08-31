@@ -1018,14 +1018,14 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         m.pos_id as member_pos_id,
         mtw.team_id,
         mtw.pos_id as week_pos_id,
-        COALESCE(SUM(CASE WHEN mgt.status = 1 THEN 1 ELSE 0 END), 0) as goals,
+        COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as goals,
         COALESCE(SUM(CASE WHEN mgt.status = 2 THEN 1 ELSE 0 END), 0) as own_goals,
         COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
       FROM member_team_week_tbl mtw
       JOIN member_tbl m ON mtw.member_id = m.id
       LEFT JOIN match_stat_tbl mst ON mtw.week_id = mst.week_id
       LEFT JOIN match_goal_tbl mgt ON mgt.match_id = mst.id AND mgt.member_id = mtw.member_id
-      WHERE mtw.week_id = ? AND mtw.team_id > 0
+      WHERE mtw.week_id = ?
       GROUP BY mtw.member_id, m.id, m.name, m.alias, m.rank, m.donate, m.picture_url, m.line_user_id, m.pos_id, mtw.team_id, mtw.pos_id
     `;
     const goalRes = await executeQuery(goalsQuery, [week_id]);
@@ -1515,14 +1515,14 @@ async function calculateWeekRawMvp(week_id) {
       m.pos_id as member_pos_id,
       mtw.team_id,
       mtw.pos_id as week_pos_id,
-      COALESCE(SUM(CASE WHEN mgt.status = 1 THEN 1 ELSE 0 END), 0) as goals,
+      COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as goals,
       COALESCE(SUM(CASE WHEN mgt.status = 2 THEN 1 ELSE 0 END), 0) as own_goals,
       COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
     FROM member_team_week_tbl mtw
     JOIN member_tbl m ON mtw.member_id = m.id
     LEFT JOIN match_stat_tbl mst ON mtw.week_id = mst.week_id
     LEFT JOIN match_goal_tbl mgt ON mgt.match_id = mst.id AND mgt.member_id = mtw.member_id
-    WHERE mtw.week_id = ? AND mtw.team_id > 0
+    WHERE mtw.week_id = ?
     GROUP BY mtw.member_id, m.name, m.pos_id, mtw.team_id, mtw.pos_id
   `;
   const goalRes = await executeQuery(goalsQuery, [week_id]);
