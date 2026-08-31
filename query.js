@@ -2044,9 +2044,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           const gaRate = teamMatches > 0 ? (gaTotal / teamMatches).toFixed(1) : gaTotal.toFixed(1);
 
           const statParts = [];
-          if (p.goals > 0) statParts.push(`⚽${p.goals}`);
+          //if (p.goals > 0) statParts.push(`⚽${p.goals}`);
           if (p.assists > 0) statParts.push(`👟${p.assists}`);
-          if (p.own_goals > 0) statParts.push(`🥅${p.own_goals}`);
+          //if (p.own_goals > 0) statParts.push(`🥅${p.own_goals}`);
           const statIcons = statParts.length > 0 ? statParts.join(' ') : '-';
           //const statStr = gaTotal > 0 ? `(${gaRate})` : (statParts.length > 0 ? `${statIcons}` : '-');
           const statStr = `${statIcons}`;
