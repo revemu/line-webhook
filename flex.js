@@ -4056,7 +4056,7 @@ function buildMvpListFlex(mvpData, theme) {
       bodyContents.push({
         type: 'text',
         text: `หน้า ${page + 1}/${totalPages} (${totalWeeks} สัปดาห์)`,
-        size: 'sm',
+        size: 'xs',
         color: colors.textMuted,
         align: 'center',
         margin: 'xs'
@@ -4087,7 +4087,7 @@ function buildMvpListFlex(mvpData, theme) {
       }
       titleContents.push({
         type: 'text',
-        text: 'Best MVP',
+        text: 'Best MVP of the Year!',
         weight: 'bold',
         size: 'xs',
         color: '#f59e0b',
