@@ -4430,11 +4430,18 @@ async function getMvpList(targetYear = null, groupId = null) {
   let bestMvpBadgeUrl = null;
   if (assets.hofBadge) {
     const badgeObj = assets.hofBadge['best_mvp'] || assets.hofBadge['mvp'] || assets.hofBadge['top_mvp'] || assets.hofBadge['default'] || Object.values(assets.hofBadge)[0];
-    if (badgeObj && badgeObj.url) {
-      bestMvpBadgeUrl = badgeObj.url;
+    if (badgeObj && badgeObj.url && badgeObj.url.toLowerCase() !== 'none') {
+      bestMvpBadgeUrl = badgeObj.url.trim();
+      if (!bestMvpBadgeUrl.startsWith('http://') && !bestMvpBadgeUrl.startsWith('https://')) {
+        const baseUrl = global.baseWebhookUrl || 'https://api.revemu.org';
+        bestMvpBadgeUrl = bestMvpBadgeUrl.startsWith('/') ? `${baseUrl}${bestMvpBadgeUrl}` : `${baseUrl}/${bestMvpBadgeUrl}`;
+      }
+      if (bestMvpBadgeUrl.startsWith('http://')) {
+        bestMvpBadgeUrl = bestMvpBadgeUrl.replace('http://', 'https://');
+      }
     }
   }
-  if (!bestMvpBadgeUrl) {
+  if (!bestMvpBadgeUrl || !bestMvpBadgeUrl.startsWith('https://')) {
     bestMvpBadgeUrl = 'https://bearbit.org/pic/crown.gif';
   }
 

@@ -4066,7 +4066,20 @@ function buildMvpListFlex(mvpData, theme) {
     // 👑 Noticeable Best MVP Top Highlight Card (Only shown on Page 1)
     if (page === 0 && bestMvpPlayers && bestMvpPlayers.length > 0) {
       const titleContents = [];
-      if (bestMvpBadgeUrl) {
+      let bUrl = bestMvpBadgeUrl ? String(bestMvpBadgeUrl).trim() : null;
+      if (bUrl && bUrl.toLowerCase() !== 'none' && bUrl !== '') {
+        if (!bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
+          const baseUrl = global.baseWebhookUrl || 'https://api.revemu.org';
+          bUrl = bUrl.startsWith('/') ? `${baseUrl}${bUrl}` : `${baseUrl}/${bUrl}`;
+        }
+        if (bUrl.startsWith('http://')) {
+          bUrl = bUrl.replace('http://', 'https://');
+        }
+      } else {
+        bUrl = null;
+      }
+
+      if (bUrl && bUrl.startsWith('https://')) {
         titleContents.push({
           type: 'box',
           layout: 'vertical',
@@ -4076,7 +4089,7 @@ function buildMvpListFlex(mvpData, theme) {
           contents: [
             {
               type: 'image',
-              url: bestMvpBadgeUrl,
+              url: bUrl,
               size: 'full',
               aspectRatio: '1:1',
               aspectMode: 'cover',
@@ -4092,7 +4105,7 @@ function buildMvpListFlex(mvpData, theme) {
         size: 'xs',
         color: '#f59e0b',
         flex: 1,
-        margin: bestMvpBadgeUrl ? 'xs' : 'none'
+        margin: (bUrl && bUrl.startsWith('https://')) ? 'xs' : 'none'
       });
 
       const topMvpContents = [
