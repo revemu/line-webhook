@@ -4071,14 +4071,14 @@ function buildMvpListFlex(mvpData, theme) {
           layout: 'horizontal',
           alignItems: 'center',
           contents: [
-            { type: 'text', text: `👑 อันดับ 1 MVP สูงสุดแห่งปี`, weight: 'bold', size: 'xs', color: '#f59e0b', flex: 1 },
+            { type: 'text', text: `👑 Best MVP`, weight: 'bold', size: 'xs', color: '#f59e0b', flex: 1 },
             { type: 'text', text: `⭐ ${Number(bestRating || 0).toFixed(1)}/10`, weight: 'bold', size: 'xs', color: '#d97706', align: 'end' }
           ]
         }
       ];
 
       bestMvpPlayers.forEach(p => {
-        const statsStr = `⚽${p.goals} 👟${p.assists}${p.cleanSheets > 0 ? ` 🧤${p.cleanSheets}CS` : ''} • Benchmark: ${p.rawScore.toFixed(4)}`;
+        const statsStr = `⚽ ${p.goals} 👟 ${p.assists}${p.cleanSheets > 0 ? ` 🧤 ${p.cleanSheets}` : ''} • Score: ${p.rawScore.toFixed(2)}`;
         const avatarUrl = p.info ? p.info.pictureUrl : null;
         const nameColor = (p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff');
 
@@ -4182,7 +4182,7 @@ function buildMvpListFlex(mvpData, theme) {
                 },
                 {
                   type: 'text',
-                  text: `สัปดาห์: ${p.dateStr || ''}`,
+                  text: `${p.dateStr || ''}`,
                   size: 'xxs',
                   color: colors.textMuted,
                   margin: 'xs'
@@ -4213,7 +4213,7 @@ function buildMvpListFlex(mvpData, theme) {
       const isEven = wIdx % 2 === 1;
 
       w.mvps.forEach(mvp => {
-        const statsStr = `⚽${mvp.goals} 👟${mvp.assists}${mvp.cleanSheets > 0 ? ` 🧤${mvp.cleanSheets}CS` : ''} (Raw: ${mvp.rawScore.toFixed(2)})`;
+        const statsStr = `⚽ ${mvp.goals}, 👟 ${mvp.assists}${mvp.cleanSheets > 0 ? `, 🧤 ${mvp.cleanSheets}` : ''} (Score: ${mvp.rawScore.toFixed(2)})`;
         const avatarUrl = mvp.info ? mvp.info.pictureUrl : null;
         const nameColor = (mvp.info && mvp.info.nameColor) || colors.textPrimary;
 
