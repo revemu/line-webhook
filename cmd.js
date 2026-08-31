@@ -443,10 +443,8 @@ const COMMAND_REGISTRY = {
     'stat': async (context) => {
         const { member_id, groupId } = context;
         const theme = await db.getTheme();
-        const statTpl = await db.getTemplate('stat', 'header');
-        const statsImageUrl = statTpl ? statTpl.url : null;
         const statsData = await db.getMemberStats(member_id, groupId);
-        if (statsData) return { type: 'flex', altText: `สถิติส่วนตัวของ ${statsData.member.name}`, contents: flex.buildMemberStatsFlex(statsData, theme, statsImageUrl) };
+        if (statsData) return { type: 'flex', altText: `สถิติส่วนตัวของ ${statsData.member.name}`, contents: flex.buildMemberStatsFlex(statsData, theme) };
         return [{ type: 'text', text: "ไม่พบข้อมูลสถิติของสมาชิกท่านนี้" }];
     },
     'bottom': async (context) => {
