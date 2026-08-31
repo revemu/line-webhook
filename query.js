@@ -4032,14 +4032,24 @@ async function getMemberStats(memberId, groupId = null) {
     WHERE m.member_id = ?
   `;
 
-  const [goalResult, ptResult, dateResult, bottomResult, champResult, colorResult, mvpResult] = await Promise.all([
+  const ratingQuery = `
+    SELECT 
+      MAX(CASE WHEN (w.year = YEAR(CURRENT_DATE()) OR YEAR(w.date) = YEAR(CURRENT_DATE())) THEN mtw.rating ELSE 0 END) as best_rating_year,
+      MAX(mtw.rating) as best_rating_alltime
+    FROM member_team_week_tbl mtw
+    JOIN week_tbl w ON mtw.week_id = w.id
+    WHERE mtw.member_id = ?
+  `;
+
+  const [goalResult, ptResult, dateResult, bottomResult, champResult, colorResult, mvpResult, ratingResult] = await Promise.all([
     executeQuery(goalQuery, [memberId]),
     executeQuery(ptQuery, [memberId]),
     executeQuery(dateQuery, [memberId]),
     executeQuery(bottomQuery, [memberId]),
     executeQuery(champQuery, [memberId]),
     executeQuery(colorQuery, [memberId]),
-    executeQuery(mvpQuery, [memberId])
+    executeQuery(mvpQuery, [memberId]),
+    executeQuery(ratingQuery, [memberId])
   ]);
 
   const goals = goalResult[0] || {};
@@ -4048,6 +4058,7 @@ async function getMemberStats(memberId, groupId = null) {
   const bottom = bottomResult[0] || {};
   const champ = champResult[0] || {};
   const mvp = (mvpResult && mvpResult[0]) ? mvpResult[0] : {};
+  const ratingRow = (ratingResult && ratingResult[0]) ? ratingResult[0] : {};
 
   const bottomYear = Number(bottom.bottom_year || 0);
   const bottomAllTime = Number(bottom.bottom_alltime || 0);
@@ -4055,6 +4066,8 @@ async function getMemberStats(memberId, groupId = null) {
   const champAllTime = Number(champ.champ_alltime || 0);
   const mvpYear = Number(mvp.mvp_year || 0);
   const mvpAllTime = Number(mvp.mvp_alltime || 0);
+  const bestRatingYear = parseFloat(ratingRow.best_rating_year || 0);
+  const bestRatingAlltime = parseFloat(ratingRow.best_rating_alltime || 0);
   const weeksYear = Number(pts.weeks_year || 0);
   const weeksAlltime = Number(pts.weeks_alltime || 0);
 
@@ -4106,6 +4119,10 @@ async function getMemberStats(memberId, groupId = null) {
         yearPct: weeksYear > 0 ? Number((mvpYear / weeksYear * 100).toFixed(1)) : 0,
         alltime: mvpAllTime,
         alltimePct: weeksAlltime > 0 ? Number((mvpAllTime / weeksAlltime * 100).toFixed(1)) : 0
+      },
+      bestRating: {
+        year: bestRatingYear > 0 ? bestRatingYear.toFixed(1) : '0.0',
+        alltime: bestRatingAlltime > 0 ? bestRatingAlltime.toFixed(1) : '0.0'
       },
       matches: {
         year: matchesYear,
