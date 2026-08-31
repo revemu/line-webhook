@@ -3614,7 +3614,7 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
       text: nameText || 'ไม่ระบุ',
       size: "xs",
       color: info.nameColor || (goal_status === 3 ? '#bbddff' : '#ddddff'),
-      flex: 0,
+      flex: 1,
       margin: "xs",
       weight: 'bold'
     });
