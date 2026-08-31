@@ -4066,7 +4066,7 @@ function buildMvpListFlex(mvpData, theme) {
     // 👑 Noticeable Best MVP Top Highlight Card (Only shown on Page 1)
     if (page === 0 && bestMvpPlayers && bestMvpPlayers.length > 0) {
       const titleContents = [];
-      if (bestMvpBadgeUrl) {
+      if (bestMvpBadgeUrl && bestMvpBadgeUrl.startsWith('https://')) {
         titleContents.push({
           type: 'box',
           layout: 'vertical',
@@ -4119,7 +4119,7 @@ function buildMvpListFlex(mvpData, theme) {
         const nameColor = (p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff');
 
         const pBadges = [];
-        if (p.info && p.info.badgeUrl) {
+        if (p.info && p.info.badgeUrl && p.info.badgeUrl.startsWith('https://')) {
           pBadges.push({
             type: 'box',
             layout: 'vertical',
@@ -4131,7 +4131,7 @@ function buildMvpListFlex(mvpData, theme) {
         }
         if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
           for (const hb of p.info.hofBadges) {
-            if (hb.url) {
+            if (hb.url && hb.url.startsWith('https://')) {
               pBadges.push({
                 type: 'box',
                 layout: 'vertical',
@@ -4142,7 +4142,7 @@ function buildMvpListFlex(mvpData, theme) {
               });
             }
           }
-        } else if (p.info && p.info.hofBadgeUrl) {
+        } else if (p.info && p.info.hofBadgeUrl && p.info.hofBadgeUrl.startsWith('https://')) {
           pBadges.push({
             type: 'box',
             layout: 'vertical',
@@ -4161,13 +4161,14 @@ function buildMvpListFlex(mvpData, theme) {
           flex: 1
         });
 
+        const isP事AvatarValid = avatarUrl && avatarUrl.startsWith('https://');
         topMvpContents.push({
           type: 'box',
           layout: 'horizontal',
           margin: 'sm',
           alignItems: 'center',
           contents: [
-            avatarUrl ? {
+            isP事AvatarValid ? {
               type: 'box',
               layout: 'vertical',
               width: '34px',
@@ -4254,7 +4255,7 @@ function buildMvpListFlex(mvpData, theme) {
         const nameColor = (mvp.info && mvp.info.nameColor) || colors.textPrimary;
 
         const nameContents = [];
-        if (mvp.info && mvp.info.badgeUrl) {
+        if (mvp.info && mvp.info.badgeUrl && mvp.info.badgeUrl.startsWith('https://')) {
           nameContents.push({
             type: 'box',
             layout: 'vertical',
@@ -4266,7 +4267,7 @@ function buildMvpListFlex(mvpData, theme) {
         }
         if (mvp.info && mvp.info.hofBadges && mvp.info.hofBadges.length > 0) {
           for (const hb of mvp.info.hofBadges) {
-            if (hb.url) {
+            if (hb.url && hb.url.startsWith('https://')) {
               nameContents.push({
                 type: 'box',
                 layout: 'vertical',
@@ -4277,7 +4278,7 @@ function buildMvpListFlex(mvpData, theme) {
               });
             }
           }
-        } else if (mvp.info && mvp.info.hofBadgeUrl) {
+        } else if (mvp.info && mvp.info.hofBadgeUrl && mvp.info.hofBadgeUrl.startsWith('https://')) {
           nameContents.push({
             type: 'box',
             layout: 'vertical',
@@ -4296,13 +4297,14 @@ function buildMvpListFlex(mvpData, theme) {
           flex: 1
         });
 
+        const isMvpAvatarValid = avatarUrl && avatarUrl.startsWith('https://');
         const row = {
           type: 'box',
           layout: 'horizontal',
           paddingAll: 'xs',
           alignItems: 'center',
           contents: [
-            avatarUrl ? {
+            isMvpAvatarValid ? {
               type: 'box',
               layout: 'vertical',
               width: '28px',
