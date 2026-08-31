@@ -1928,7 +1928,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         tableBodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
         tableBodyContents.push({
           type: 'text',
-          text: '⭐ คะแนน MVP สมาชิกประจำสัปดาห์',
+          text: '⭐ สถิติสมาชิกประจำสัปดาห์',
           size: 'xs',
           weight: 'bold',
           color: colors.textPrimary,
