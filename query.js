@@ -1070,7 +1070,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const allPositions = await getAllPositions();
     const posMap = {};
     allPositions.forEach(p => { posMap[p.id] = p; });
-    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0 };
+    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0, pts_wins: 1.5 };
 
     console.log(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
     if (tableRows && tableRows.length > 0) {
@@ -1103,7 +1103,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       });
     }
 
-    // Pass 1: Compute raw MVP scores with position weights from pos_tbl + match wins * 1.5 - own goals * pts_og
+    // Pass 1: Compute raw MVP scores with position weights from pos_tbl + match wins * pts_wins - own goals * pts_og
     const rawScoresList = goalRes.map(m => {
       if (isTempReserveMember(m.name)) return null;
 
@@ -1127,13 +1127,14 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
       const ptsConceded = parseFloat(pos.pts_conceded || pos.pts_goal_against) || 0.0;
       const ptsOg = parseFloat(pos.pts_og) || 2.0;
+      const ptsWins = parseFloat(pos.pts_wins !== undefined ? pos.pts_wins : (pos.pts_win !== undefined ? pos.pts_win : 1.5)) || 1.5;
 
       const goalsConceded = teamGaMap[teamId] || 0;
 
-      // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * 1.5) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
-      const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * 1.5) - (goalsConceded * ptsConceded) - (og * ptsOg);
+      // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
+      const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
 
-      return { member: m, g, og, a, cleanSheets, wins, goalsConceded, pos, ptsGoal, ptsAssist, ptsCleanSheet, ptsConceded, ptsOg, rawScore };
+      return { member: m, g, og, a, cleanSheets, wins, goalsConceded, pos, ptsGoal, ptsAssist, ptsCleanSheet, ptsConceded, ptsOg, ptsWins, rawScore };
     }).filter(item => item !== null);
 
     let maxGoals = 0;
@@ -1194,6 +1195,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const ptsCleanSheet = item.ptsCleanSheet;
       const ptsConceded = item.ptsConceded;
       const ptsOg = item.ptsOg;
+      const ptsWins = item.ptsWins;
       const rawScore = item.rawScore;
       const normalizedScore = (refMaxScore > 0 && rawScore > 0) ? Math.min(10.0, (rawScore / refMaxScore) * 10) : 0;
 
@@ -1201,9 +1203,9 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const teamName = teamDetails ? teamDetails.color : `ID ${m.team_id}`;
 
       console.log(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
-      console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
+      console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
       console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}`);
-      console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * 1.5) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScore.toFixed(4)}`);
+      console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScore.toFixed(4)}`);
       console.log(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / Benchmark Ref ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
       console.log(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
 
@@ -1224,6 +1226,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         ptsCleanSheet,
         ptsConceded,
         ptsOg,
+        ptsWins,
         rawScore,
         score: normalizedScore,
         info
@@ -1562,7 +1565,7 @@ async function calculateWeekRawMvp(week_id) {
   const allPositions = await getAllPositions();
   const posMap = {};
   allPositions.forEach(p => { posMap[p.id] = p; });
-  const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0 };
+  const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0, pts_wins: 1.5 };
 
   const teamMvpFactorMap = {};
   const teamDetailsMap = {};
@@ -1618,11 +1621,12 @@ async function calculateWeekRawMvp(week_id) {
     const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
     const ptsConceded = parseFloat(pos.pts_conceded || pos.pts_goal_against) || 0.0;
     const ptsOg = parseFloat(pos.pts_og) || 2.0;
+    const ptsWins = parseFloat(pos.pts_wins !== undefined ? pos.pts_wins : (pos.pts_win !== undefined ? pos.pts_win : 1.5)) || 1.5;
 
     const goalsConceded = teamGaMap[teamId] || 0;
 
-    // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * 1.5) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
-    const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * 1.5) - (goalsConceded * ptsConceded) - (og * ptsOg);
+    // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
+    const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
     const td = teamDetailsMap[teamId] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor: 1 };
 
     return {
@@ -1642,6 +1646,7 @@ async function calculateWeekRawMvp(week_id) {
       ptsCleanSheet,
       ptsConceded,
       ptsOg,
+      ptsWins,
       rawScore,
       teamName: td.teamName
     };
