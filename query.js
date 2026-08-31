@@ -989,7 +989,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
   try {
     const goalsQuery = `
       SELECT 
-        mgt.member_id, 
+        mtw.member_id, 
         m.id,
         m.name, 
         m.alias,
@@ -1000,14 +1000,15 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         m.pos_id as member_pos_id,
         mtw.team_id,
         mtw.pos_id as week_pos_id,
-        SUM(CASE WHEN mgt.status <= 2 THEN 1 ELSE 0 END) as goals,
-        SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END) as assists
-      FROM match_goal_tbl mgt
-      JOIN match_stat_tbl mst ON mgt.match_id = mst.id
-      JOIN member_tbl m ON mgt.member_id = m.id
-      LEFT JOIN member_team_week_tbl mtw ON mtw.member_id = m.id AND mtw.week_id = mst.week_id
-      WHERE mst.week_id = ?
-      GROUP BY mgt.member_id, m.id, m.name, m.alias, m.rank, m.donate, m.picture_url, m.line_user_id, m.pos_id, mtw.team_id, mtw.pos_id
+        COALESCE(SUM(CASE WHEN mgt.status = 1 THEN 1 ELSE 0 END), 0) as goals,
+        COALESCE(SUM(CASE WHEN mgt.status = 2 THEN 1 ELSE 0 END), 0) as own_goals,
+        COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
+      FROM member_team_week_tbl mtw
+      JOIN member_tbl m ON mtw.member_id = m.id
+      LEFT JOIN match_stat_tbl mst ON mtw.week_id = mst.week_id
+      LEFT JOIN match_goal_tbl mgt ON mgt.match_id = mst.id AND mgt.member_id = mtw.member_id
+      WHERE mtw.week_id = ? AND mtw.team_id > 0
+      GROUP BY mtw.member_id, m.id, m.name, m.alias, m.rank, m.donate, m.picture_url, m.line_user_id, m.pos_id, mtw.team_id, mtw.pos_id
     `;
     const goalRes = await executeQuery(goalsQuery, [week_id]);
     if (!goalRes || goalRes.length === 0) return null;
@@ -1051,7 +1052,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const allPositions = await getAllPositions();
     const posMap = {};
     allPositions.forEach(p => { posMap[p.id] = p; });
-    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0 };
+    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0 };
 
     console.log(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
     if (tableRows && tableRows.length > 0) {
@@ -1084,11 +1085,12 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       });
     }
 
-    // Pass 1: Compute raw MVP scores with position weights from pos_tbl + match wins * 1.5
+    // Pass 1: Compute raw MVP scores with position weights from pos_tbl + match wins * 1.5 - own goals * pts_og
     const rawScoresList = goalRes.map(m => {
       if (isTempReserveMember(m.name)) return null;
 
       const g = Number(m.goals) || 0;
+      const og = Number(m.own_goals) || 0;
       const a = Number(m.assists) || 0;
       const teamId = Number(m.team_id) || 0;
 
@@ -1106,13 +1108,14 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const ptsAssist = parseFloat(pos.pts_assist) || 3.0;
       const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
       const ptsConceded = parseFloat(pos.pts_conceded || pos.pts_goal_against) || 0.0;
+      const ptsOg = parseFloat(pos.pts_og) || 2.0;
 
       const goalsConceded = teamGaMap[teamId] || 0;
 
-      // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * 1.5) - (GoalsConceded * ptsConceded)
-      const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * 1.5) - (goalsConceded * ptsConceded);
+      // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * 1.5) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
+      const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * 1.5) - (goalsConceded * ptsConceded) - (og * ptsOg);
 
-      return { member: m, g, a, cleanSheets, wins, goalsConceded, pos, ptsGoal, ptsAssist, ptsCleanSheet, ptsConceded, rawScore };
+      return { member: m, g, og, a, cleanSheets, wins, goalsConceded, pos, ptsGoal, ptsAssist, ptsCleanSheet, ptsConceded, ptsOg, rawScore };
     }).filter(item => item !== null);
 
     let maxGoals = 0;
@@ -1162,6 +1165,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const formattedList = rawScoresList.map(item => {
       const m = item.member;
       const g = item.g;
+      const og = item.og;
       const a = item.a;
       const cleanSheets = item.cleanSheets;
       const wins = item.wins;
@@ -1171,6 +1175,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const ptsAssist = item.ptsAssist;
       const ptsCleanSheet = item.ptsCleanSheet;
       const ptsConceded = item.ptsConceded;
+      const ptsOg = item.ptsOg;
       const rawScore = item.rawScore;
       const normalizedScore = (refMaxScore > 0 && rawScore > 0) ? Math.min(10.0, (rawScore / refMaxScore) * 10) : 0;
 
@@ -1178,9 +1183,9 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const teamName = teamDetails ? teamDetails.color : `ID ${m.team_id}`;
 
       console.log(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
-      console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Goal Conceded Deduct: -${ptsConceded}`);
-      console.log(`   └─ Player Stats: Goals (G): ${g}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}`);
-      console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * 1.5) - (${goalsConceded} * ${ptsConceded}) = ${rawScore.toFixed(4)}`);
+      console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
+      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}`);
+      console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * 1.5) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScore.toFixed(4)}`);
       console.log(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / Benchmark Ref ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
       console.log(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
 
@@ -1188,7 +1193,18 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       return {
         ...m,
         goals: g,
+        own_goals: og,
         assists: a,
+        cleanSheets,
+        wins,
+        goalsConceded,
+        pos,
+        teamName,
+        ptsGoal,
+        ptsAssist,
+        ptsCleanSheet,
+        ptsConceded,
+        ptsOg,
         rawScore,
         score: normalizedScore,
         info
@@ -1208,7 +1224,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     console.log(` [MVP Winner(s)] Max Raw: ${maxRawMvpScore.toFixed(4)} | Benchmark Ref: ${refMaxScore.toFixed(4)} | Leader Rating: ${maxMvpScore.toFixed(1)}/10 | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
     console.log(`=============================================\n`);
 
-    return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore };
+    return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore, allPlayerRatings: formattedList };
   } catch (err) {
     console.error("Error calculating week leader stats:", err.message);
     return null;
@@ -1299,7 +1315,7 @@ async function getEffectiveMemberPosition(member_id, week_id = 0) {
       );
       if (mtwRes && mtwRes.length > 0 && mtwRes[0].pos_id > 0) {
         const posRes = await executeQuery(
-          "SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded FROM pos_tbl WHERE id = ?",
+          "SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og FROM pos_tbl WHERE id = ?",
           [mtwRes[0].pos_id]
         );
         if (posRes && posRes.length > 0) {
@@ -1312,7 +1328,7 @@ async function getEffectiveMemberPosition(member_id, week_id = 0) {
     const mRes = await executeQuery("SELECT pos_id FROM member_tbl WHERE id = ?", [member_id]);
     if (mRes && mRes.length > 0 && mRes[0].pos_id > 0) {
       const posRes = await executeQuery(
-        "SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded FROM pos_tbl WHERE id = ?",
+        "SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og FROM pos_tbl WHERE id = ?",
         [mRes[0].pos_id]
       );
       if (posRes && posRes.length > 0) {
@@ -1322,7 +1338,7 @@ async function getEffectiveMemberPosition(member_id, week_id = 0) {
 
     // 3. Fallback to member_pos_tbl primary position
     const defRes = await executeQuery(`
-      SELECT p.id, p.code, p.name, p.icon, p.pts_goal, p.pts_assist, p.pts_clean_sheet, p.pts_conceded 
+      SELECT p.id, p.code, p.name, p.icon, p.pts_goal, p.pts_assist, p.pts_clean_sheet, p.pts_conceded, p.pts_og 
       FROM member_pos_tbl mp
       JOIN pos_tbl p ON mp.pos_id = p.id
       WHERE mp.member_id = ? AND mp.is_primary = 1
@@ -1333,7 +1349,7 @@ async function getEffectiveMemberPosition(member_id, week_id = 0) {
     }
 
     // 4. Fallback to default position (first position in pos_tbl)
-    const fallbackRes = await executeQuery("SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded FROM pos_tbl ORDER BY id ASC LIMIT 1");
+    const fallbackRes = await executeQuery("SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og FROM pos_tbl ORDER BY id ASC LIMIT 1");
     return fallbackRes && fallbackRes.length > 0 ? { ...fallbackRes[0], is_custom_week: false } : null;
   } catch (err) {
     console.error("Error getting effective position:", err.message);
@@ -1341,16 +1357,16 @@ async function getEffectiveMemberPosition(member_id, week_id = 0) {
   }
 }
 
-async function updatePositionPoints(pos_code, pts_goal = 0, pts_assist = 0, pts_clean_sheet = 0, pts_conceded = 0) {
+async function updatePositionPoints(pos_code, pts_goal = 0, pts_assist = 0, pts_clean_sheet = 0, pts_conceded = 0, pts_og = 0) {
   await ensurePosTables();
   try {
     const sql = `
       UPDATE pos_tbl 
-      SET pts_goal = ?, pts_assist = ?, pts_clean_sheet = ?, pts_conceded = ? 
+      SET pts_goal = ?, pts_assist = ?, pts_clean_sheet = ?, pts_conceded = ?, pts_og = ? 
       WHERE UPPER(code) = UPPER(?)
     `;
-    await executeQuery(sql, [pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pos_code]);
-    return { success: true, pos_code: pos_code.toUpperCase(), pts_goal, pts_assist, pts_clean_sheet, pts_conceded };
+    await executeQuery(sql, [pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og, pos_code]);
+    return { success: true, pos_code: pos_code.toUpperCase(), pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og };
   } catch (err) {
     console.error("Error updating position points:", err.message);
     return { success: false, error: err.message };
@@ -1475,19 +1491,20 @@ async function saveWeekMvpRecords(week_id, mvpList) {
 async function calculateWeekRawMvp(week_id) {
   const goalsQuery = `
     SELECT 
-      mgt.member_id, 
+      mtw.member_id, 
       m.name, 
       m.pos_id as member_pos_id,
       mtw.team_id,
       mtw.pos_id as week_pos_id,
-      SUM(CASE WHEN mgt.status <= 2 THEN 1 ELSE 0 END) as goals,
-      SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END) as assists
-    FROM match_goal_tbl mgt
-    JOIN match_stat_tbl mst ON mgt.match_id = mst.id
-    JOIN member_tbl m ON mgt.member_id = m.id
-    LEFT JOIN member_team_week_tbl mtw ON mtw.member_id = m.id AND mtw.week_id = mst.week_id
-    WHERE mst.week_id = ?
-    GROUP BY mgt.member_id, m.name, m.pos_id, mtw.team_id, mtw.pos_id
+      COALESCE(SUM(CASE WHEN mgt.status = 1 THEN 1 ELSE 0 END), 0) as goals,
+      COALESCE(SUM(CASE WHEN mgt.status = 2 THEN 1 ELSE 0 END), 0) as own_goals,
+      COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
+    FROM member_team_week_tbl mtw
+    JOIN member_tbl m ON mtw.member_id = m.id
+    LEFT JOIN match_stat_tbl mst ON mtw.week_id = mst.week_id
+    LEFT JOIN match_goal_tbl mgt ON mgt.match_id = mst.id AND mgt.member_id = mtw.member_id
+    WHERE mtw.week_id = ? AND mtw.team_id > 0
+    GROUP BY mtw.member_id, m.name, m.pos_id, mtw.team_id, mtw.pos_id
   `;
   const goalRes = await executeQuery(goalsQuery, [week_id]);
   if (!goalRes || goalRes.length === 0) return [];
@@ -1526,7 +1543,7 @@ async function calculateWeekRawMvp(week_id) {
   const allPositions = await getAllPositions();
   const posMap = {};
   allPositions.forEach(p => { posMap[p.id] = p; });
-  const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0 };
+  const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0 };
 
   const teamMvpFactorMap = {};
   const teamDetailsMap = {};
@@ -1563,6 +1580,7 @@ async function calculateWeekRawMvp(week_id) {
     if (isTempReserveMember(m.name)) return null;
 
     const g = Number(m.goals) || 0;
+    const og = Number(m.own_goals) || 0;
     const a = Number(m.assists) || 0;
     const teamId = Number(m.team_id) || 0;
 
@@ -1580,11 +1598,12 @@ async function calculateWeekRawMvp(week_id) {
     const ptsAssist = parseFloat(pos.pts_assist) || 3.0;
     const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
     const ptsConceded = parseFloat(pos.pts_conceded || pos.pts_goal_against) || 0.0;
+    const ptsOg = parseFloat(pos.pts_og) || 2.0;
 
     const goalsConceded = teamGaMap[teamId] || 0;
 
-    // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * 1.5) - (GoalsConceded * ptsConceded)
-    const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * 1.5) - (goalsConceded * ptsConceded);
+    // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * 1.5) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
+    const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * 1.5) - (goalsConceded * ptsConceded) - (og * ptsOg);
     const td = teamDetailsMap[teamId] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor: 1 };
 
     return {
@@ -1592,6 +1611,7 @@ async function calculateWeekRawMvp(week_id) {
       member_id: m.member_id,
       name: m.name,
       goals: g,
+      own_goals: og,
       assists: a,
       cleanSheets,
       wins,
@@ -1602,6 +1622,7 @@ async function calculateWeekRawMvp(week_id) {
       ptsAssist,
       ptsCleanSheet,
       ptsConceded,
+      ptsOg,
       rawScore,
       teamName: td.teamName
     };
@@ -1943,31 +1964,126 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         }
       }
 
-      // Compact Match Summary below table in Bubble 1
-      if (matches && matches.length > 0) {
+      // ── Member MVP Score Rating Table in Bubble 1 ──
+      if (leaders && leaders.allPlayerRatings && leaders.allPlayerRatings.length > 0) {
         tableBodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
         tableBodyContents.push({
           type: 'text',
-          text: '⚽ สรุปผลการแข่งขันประจำสัปดาห์',
+          text: '⭐ คะแนน MVP สมาชิกประจำสัปดาห์',
           size: 'xs',
           weight: 'bold',
           color: colors.textPrimary,
-          margin: 'sm'
+          margin: 'sm',
+          align: 'center'
         });
 
-        matches.forEach(m => {
-          const team_a = team_colors.find(t => t.id === m.team_a_id);
-          const team_b = team_colors.find(t => t.id === m.team_b_id);
+        // Table Header
+        tableBodyContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'xs',
+          paddingStart: 'xs',
+          paddingEnd: 'xs',
+          alignItems: 'center',
+          contents: [
+            { type: 'text', text: 'สมาชิก', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
+            { type: 'text', text: 'ทีม/ตำแหน่ง', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 3, align: 'center' },
+            { type: 'text', text: 'ผลงาน', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 3, align: 'center' },
+            { type: 'text', text: 'MVP Rating', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
+          ]
+        });
+
+        tableBodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
+
+        const sortedPlayers = [...leaders.allPlayerRatings].sort((a, b) => (b.rawScore || 0) - (a.rawScore || 0));
+
+        sortedPlayers.forEach((p, i) => {
+          const isTop1 = (i === 0) || (sortedPlayers[0] && p.rawScore === sortedPlayers[0].rawScore);
+
+          const nameColContents = [];
+          if (isTop1) {
+            const hofBadgeUrl = (p.info && p.info.hofBadgeUrl) ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif';
+            nameColContents.push({
+              type: 'image',
+              url: hofBadgeUrl,
+              size: 'xxs',
+              aspectRatio: '1:1',
+              aspectMode: 'fit',
+              flex: 0
+            });
+            nameColContents.push({
+              type: 'text',
+              text: p.name || '',
+              size: 'xs',
+              color: (p.info && p.info.nameColor) ? p.info.nameColor : colors.textPrimary,
+              weight: 'bold',
+              margin: 'xs',
+              flex: 1
+            });
+          } else {
+            nameColContents.push({
+              type: 'text',
+              text: p.name || '',
+              size: 'xs',
+              color: (p.info && p.info.nameColor) ? p.info.nameColor : colors.textPrimary,
+              weight: 'regular',
+              flex: 1
+            });
+          }
+
+          const statParts = [];
+          if (p.goals > 0) statParts.push(`⚽${p.goals}`);
+          if (p.assists > 0) statParts.push(`👟${p.assists}`);
+          if (p.own_goals > 0) statParts.push(`🥅${p.own_goals}`);
+          const statStr = statParts.length > 0 ? statParts.join(' ') : '-';
+
+          const posIcon = p.pos ? (p.pos.icon || '') : '';
+          const posCode = p.pos ? p.pos.code : '';
+          const teamName = p.teamName || '';
+          const teamColorHex = colors.tdc(teamName);
+
+          const ratingScoreStr = (p.score || 0).toFixed(1);
+
           tableBodyContents.push({
             type: 'box',
             layout: 'horizontal',
             margin: 'xs',
+            paddingStart: 'xs',
+            paddingEnd: 'xs',
             alignItems: 'center',
             contents: [
-              { type: 'text', text: `[${m.match_num ?? '?'}]`, size: 'xs', color: colors.textMuted, flex: 1 },
-              { type: 'text', text: team_a ? team_a.color : '?', size: 'xs', color: team_a ? colors.tdc(team_a.color) : colors.textPrimary, flex: 3, align: 'end' },
-              { type: 'text', text: `${m.team_a_goal ?? 0} - ${m.team_b_goal ?? 0}`, size: 'xs', color: colors.textAccent, weight: 'bold', flex: 2, align: 'center' },
-              { type: 'text', text: team_b ? team_b.color : '?', size: 'xs', color: team_b ? colors.tdc(team_b.color) : colors.textPrimary, flex: 3, align: 'start' }
+              {
+                type: 'box',
+                layout: 'horizontal',
+                alignItems: 'center',
+                flex: 4,
+                contents: nameColContents
+              },
+              {
+                type: 'text',
+                text: `${posIcon}${posCode} ${teamName}`,
+                size: 'xs',
+                color: teamColorHex || colors.textMuted,
+                flex: 3,
+                align: 'center'
+              },
+              {
+                type: 'text',
+                text: statStr,
+                size: 'xs',
+                color: colors.textMutedLight || colors.textMuted,
+                flex: 3,
+                align: 'center'
+              },
+              {
+                type: 'text',
+                text: ratingScoreStr,
+                size: 'xs',
+                weight: 'bold',
+                color: isTop1 ? '#eab308' : (colors.textAccent || colors.textPrimary),
+                flex: 2,
+                align: 'end'
+              }
             ]
           });
         });
