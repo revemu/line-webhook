@@ -72,6 +72,24 @@ async function executeQuery(query, params = []) {
   }
 }
 
+function ensureSanitizedUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  let clean = url.trim();
+  if (clean === '' || clean.toLowerCase() === 'none' || clean.toLowerCase() === 'null') return null;
+
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+    clean = clean.startsWith('/') ? `${baseUrl}${clean}` : `${baseUrl}/${clean}`;
+  }
+  if (clean.startsWith('http://')) {
+    clean = clean.replace('http://', 'https://');
+  }
+  try {
+    clean = encodeURI(clean);
+  } catch (e) {}
+  return clean;
+}
+
 async function getAdminCommands() {
   const results = await executeQuery("SELECT cmd FROM admin_cmd_tbl");
   return results.map(r => r.cmd);
@@ -202,7 +220,7 @@ async function fetchDisplayAssets() {
   try {
     const badgeResults = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'rank_badge'");
     badgeResults.forEach(r => {
-      badges[r.value] = { url: r.url, size: r.size };
+      badges[r.value] = { url: ensureSanitizedUrl(r.url), size: r.size };
     });
   } catch (badgeErr) {
     console.error('Error querying rank badges:', badgeErr.message);
@@ -241,7 +259,7 @@ async function fetchDisplayAssets() {
   try {
     const hofBadgeTpls = await executeQuery("SELECT id, value, url, size FROM template_tpl WHERE name = 'hof_badge' ORDER BY id ASC");
     hofBadgeTpls.forEach(r => {
-      hofBadge[r.value] = { id: r.id, url: r.url, size: r.size || '20px' };
+      hofBadge[r.value] = { id: r.id, url: ensureSanitizedUrl(r.url), size: r.size || '20px' };
     });
   } catch (hofBadgeErr) {
     console.error('Error querying HOF badge template:', hofBadgeErr.message);
@@ -1792,21 +1810,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       const theme = await getTheme();
       const colors = flex.getThemeColors(theme, assets.teamColors);
       const imgTpl = await getTemplate('matchweek', 'header');
-      let headerUrl = imgTpl && imgTpl.url ? imgTpl.url.trim() : null;
-      if (headerUrl && headerUrl.toLowerCase() !== 'none' && headerUrl.length > 0) {
-        if (!headerUrl.startsWith('http://') && !headerUrl.startsWith('https://')) {
-          const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-          headerUrl = headerUrl.startsWith('/') ? `${baseUrl}${headerUrl}` : `${baseUrl}/${headerUrl}`;
-        }
-        if (headerUrl.startsWith('http://')) {
-          headerUrl = headerUrl.replace('http://', 'https://');
-        }
-        try {
-          headerUrl = encodeURI(headerUrl);
-        } catch (e) { }
-      } else {
-        headerUrl = null;
-      }
+      let headerUrl = ensureSanitizedUrl(imgTpl ? imgTpl.url : null);
 
       const date = new Date(res[0].date);
       const date_str = await getFormatDate(date);
@@ -1928,7 +1932,8 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           const nameColContents = [];
 
           // Avatar Picture (20px)
-          if (p.info && p.info.pictureUrl) {
+          const picUrl = ensureSanitizedUrl(p.info ? (p.info.pictureUrl || p.picture_url || p.pictureUrl) : null);
+          if (picUrl) {
             nameColContents.push({
               type: 'box',
               layout: 'vertical',
@@ -1939,7 +1944,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
               contents: [
                 {
                   type: 'image',
-                  url: p.info.pictureUrl,
+                  url: picUrl,
                   size: 'full',
                   aspectRatio: '1:1',
                   aspectMode: 'cover'
@@ -1949,7 +1954,8 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           }
 
           // Rank Badge (reduced width 14px)
-          if (p.info && p.info.badgeUrl) {
+          const rankBadgeUrl = ensureSanitizedUrl(p.info ? p.info.badgeUrl : null);
+          if (rankBadgeUrl) {
             nameColContents.push({
               type: 'box',
               layout: 'vertical',
@@ -1960,7 +1966,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
               contents: [
                 {
                   type: 'image',
-                  url: p.info.badgeUrl,
+                  url: rankBadgeUrl,
                   size: 'full',
                   aspectRatio: '1:1',
                   aspectMode: 'fit',
@@ -1974,44 +1980,51 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           const weekBadgeUrls = [];
 
           if (isMvp) {
-            const mvpUrl = (assets.hofBadge && assets.hofBadge['mvp']) ? assets.hofBadge['mvp'].url : (p.info && p.info.hofBadgeUrl ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif');
-            if (mvpUrl) weekBadgeUrls.push(mvpUrl);
+            const mvpRaw = (assets.hofBadge && assets.hofBadge['mvp']) ? assets.hofBadge['mvp'].url : (p.info && p.info.hofBadgeUrl ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif');
+            const cleanUrl = ensureSanitizedUrl(mvpRaw);
+            if (cleanUrl) weekBadgeUrls.push(cleanUrl);
           }
           if (isTopScorer) {
-            const scorerUrl = (assets.hofBadge && assets.hofBadge['scorer']) ? assets.hofBadge['scorer'].url : ((assets.hofBadge && assets.hofBadge['top_scorer']) ? assets.hofBadge['top_scorer'].url : null);
-            if (scorerUrl && !weekBadgeUrls.includes(scorerUrl)) weekBadgeUrls.push(scorerUrl);
+            const scorerRaw = (assets.hofBadge && assets.hofBadge['scorer']) ? assets.hofBadge['scorer'].url : ((assets.hofBadge && assets.hofBadge['top_scorer']) ? assets.hofBadge['top_scorer'].url : null);
+            const cleanUrl = ensureSanitizedUrl(scorerRaw);
+            if (cleanUrl && !weekBadgeUrls.includes(cleanUrl)) weekBadgeUrls.push(cleanUrl);
           }
           if (isTopAssist) {
-            const assistUrl = (assets.hofBadge && assets.hofBadge['assist']) ? assets.hofBadge['assist'].url : ((assets.hofBadge && assets.hofBadge['top_assist']) ? assets.hofBadge['top_assist'].url : null);
-            if (assistUrl && !weekBadgeUrls.includes(assistUrl)) weekBadgeUrls.push(assistUrl);
+            const assistRaw = (assets.hofBadge && assets.hofBadge['assist']) ? assets.hofBadge['assist'].url : ((assets.hofBadge && assets.hofBadge['top_assist']) ? assets.hofBadge['top_assist'].url : null);
+            const cleanUrl = ensureSanitizedUrl(assistRaw);
+            if (cleanUrl && !weekBadgeUrls.includes(cleanUrl)) weekBadgeUrls.push(cleanUrl);
           }
 
           // Fallback HOF badge if Top 1 but no specific weekly award URL matched
           if (isTop1 && weekBadgeUrls.length === 0) {
-            const defaultHofUrl = (p.info && p.info.hofBadgeUrl) ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif';
-            if (defaultHofUrl) weekBadgeUrls.push(defaultHofUrl);
+            const defaultHofRaw = (p.info && p.info.hofBadgeUrl) ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif';
+            const cleanUrl = ensureSanitizedUrl(defaultHofRaw);
+            if (cleanUrl) weekBadgeUrls.push(cleanUrl);
           }
 
           // Render reduced HOF Badges (width 14px)
           weekBadgeUrls.forEach(bUrl => {
-            nameColContents.push({
-              type: 'box',
-              layout: 'vertical',
-              width: '14px',
-              height: '14px',
-              flex: 0,
-              margin: 'xs',
-              contents: [
-                {
-                  type: 'image',
-                  url: bUrl,
-                  size: 'full',
-                  aspectRatio: '1:1',
-                  aspectMode: 'fit',
-                  animated: true
-                }
-              ]
-            });
+            const validBUrl = ensureSanitizedUrl(bUrl);
+            if (validBUrl) {
+              nameColContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: '14px',
+                height: '14px',
+                flex: 0,
+                margin: 'xs',
+                contents: [
+                  {
+                    type: 'image',
+                    url: validBUrl,
+                    size: 'full',
+                    aspectRatio: '1:1',
+                    aspectMode: 'fit',
+                    animated: true
+                  }
+                ]
+              });
+            }
           });
 
           // Member Name
