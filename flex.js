@@ -4070,8 +4070,8 @@ function buildMvpListFlex(mvpData, theme) {
         titleContents.push({
           type: 'box',
           layout: 'vertical',
-          width: '28px',
-          height: '28px',
+          width: '22px',
+          height: '22px',
           flex: 0,
           contents: [
             {
