@@ -1043,7 +1043,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const teamCleanSheetsMap = {};
     const teamWinsMap = {};
     const matchScores = await executeQuery(
-      "SELECT team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
+      "SELECT id, team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
       [week_id]
     );
     if (matchScores && matchScores.length > 0) {
@@ -1063,6 +1063,23 @@ async function getWeekLeaderStats(week_id, groupId = null) {
           if (gaB === 0) teamCleanSheetsMap[m.team_b_id] = (teamCleanSheetsMap[m.team_b_id] || 0) + 1;
           if (gB > gA) teamWinsMap[m.team_b_id] = (teamWinsMap[m.team_b_id] || 0) + 1;
         }
+      });
+    }
+
+    // Query distinct matches where members participated (scored or assisted, including for other teams)
+    const memberGoalMatchesRes = await executeQuery(`
+      SELECT DISTINCT mgt.member_id, mgt.match_id 
+      FROM match_goal_tbl mgt
+      JOIN match_stat_tbl mst ON mgt.match_id = mst.id
+      WHERE mst.week_id = ?
+    `, [week_id]);
+    const memberPlayedMatchIdsMap = {};
+    if (memberGoalMatchesRes && memberGoalMatchesRes.length > 0) {
+      memberGoalMatchesRes.forEach(r => {
+        if (!memberPlayedMatchIdsMap[r.member_id]) {
+          memberPlayedMatchIdsMap[r.member_id] = new Set();
+        }
+        memberPlayedMatchIdsMap[r.member_id].add(r.match_id);
       });
     }
 
@@ -1131,7 +1148,19 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
       const goalsConceded = teamGaMap[teamId] || 0;
       const teamDetails = teamInfoMap[teamId];
-      const matches = (teamDetails && teamDetails.matches > 0) ? teamDetails.matches : 1;
+
+      // Calculate total matches for this member: primary team matches + any extra matches where member scored/assisted for another team
+      const primaryMatchIds = matchScores
+        ? matchScores.filter(ms => ms.team_a_id === teamId || ms.team_b_id === teamId).map(ms => ms.id)
+        : [];
+      const allPlayerMatchIds = new Set(primaryMatchIds);
+      const memKey = m.member_id || m.id;
+      if (memberPlayedMatchIdsMap[memKey]) {
+        memberPlayedMatchIdsMap[memKey].forEach(mId => allPlayerMatchIds.add(mId));
+      }
+      const matches = allPlayerMatchIds.size > 0 
+        ? allPlayerMatchIds.size 
+        : ((teamDetails && teamDetails.matches > 0) ? teamDetails.matches : 1);
 
       // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
       const rawScoreTotal = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
@@ -1546,7 +1575,7 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
   const teamCleanSheetsMap = {};
   const teamWinsMap = {};
   const matchScores = await executeQuery(
-    "SELECT team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
+    "SELECT id, team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
     [week_id]
   );
   if (matchScores && matchScores.length > 0) {
@@ -1566,6 +1595,23 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
         if (gaB === 0) teamCleanSheetsMap[m.team_b_id] = (teamCleanSheetsMap[m.team_b_id] || 0) + 1;
         if (gB > gA) teamWinsMap[m.team_b_id] = (teamWinsMap[m.team_b_id] || 0) + 1;
       }
+    });
+  }
+
+  // Query distinct matches where members participated (scored or assisted, including for other teams)
+  const memberGoalMatchesRes = await executeQuery(`
+    SELECT DISTINCT mgt.member_id, mgt.match_id 
+    FROM match_goal_tbl mgt
+    JOIN match_stat_tbl mst ON mgt.match_id = mst.id
+    WHERE mst.week_id = ?
+  `, [week_id]);
+  const memberPlayedMatchIdsMap = {};
+  if (memberGoalMatchesRes && memberGoalMatchesRes.length > 0) {
+    memberGoalMatchesRes.forEach(r => {
+      if (!memberPlayedMatchIdsMap[r.member_id]) {
+        memberPlayedMatchIdsMap[r.member_id] = new Set();
+      }
+      memberPlayedMatchIdsMap[r.member_id].add(r.match_id);
     });
   }
 
@@ -1633,7 +1679,19 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
 
     const goalsConceded = teamGaMap[teamId] || 0;
     const td = teamDetailsMap[teamId] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor: 1 };
-    const matches = td.matches > 0 ? td.matches : 1;
+
+    // Calculate total matches for this member: primary team matches + any extra matches where member scored/assisted for another team
+    const primaryMatchIds = matchScores
+      ? matchScores.filter(ms => ms.team_a_id === teamId || ms.team_b_id === teamId).map(ms => ms.id)
+      : [];
+    const allPlayerMatchIds = new Set(primaryMatchIds);
+    const memKey = m.member_id || m.id;
+    if (memberPlayedMatchIdsMap[memKey]) {
+      memberPlayedMatchIdsMap[memKey].forEach(mId => allPlayerMatchIds.add(mId));
+    }
+    const matches = allPlayerMatchIds.size > 0 
+      ? allPlayerMatchIds.size 
+      : ((td && td.matches > 0) ? td.matches : 1);
 
     // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
     const rawScoreTotal = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
