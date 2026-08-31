@@ -4034,12 +4034,26 @@ function buildMvpListFlex(mvpData, theme) {
     };
   }
 
-  const chunkSize = 12;
+  const page1ChunkSize = 4;
+  const pageNChunkSize = 5;
+  const maxBubbles = 5;
+  const chunks = [];
+  let currentIdx = 0;
+  let pIdx = 0;
+
+  while (currentIdx < weeks.length && chunks.length < maxBubbles) {
+    const size = pIdx === 0 ? page1ChunkSize : pageNChunkSize;
+    const chunk = weeks.slice(currentIdx, currentIdx + size);
+    currentIdx += size;
+    chunks.push(chunk);
+    pIdx++;
+  }
+
+  const totalPages = chunks.length;
   const bubbles = [];
-  const totalPages = Math.ceil(weeks.length / chunkSize);
 
   for (let page = 0; page < totalPages; page++) {
-    const chunk = weeks.slice(page * chunkSize, (page + 1) * chunkSize);
+    const chunk = chunks[page];
     const bodyContents = [];
 
     // Header Title
@@ -4130,7 +4144,7 @@ function buildMvpListFlex(mvpData, theme) {
           });
         }
         if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
-          for (const hb of p.info.hofBadges) {
+          for (const hb of p.info.hofBadges.slice(0, 2)) {
             if (hb.url && hb.url.startsWith('https://')) {
               pBadges.push({
                 type: 'box',
@@ -4266,7 +4280,7 @@ function buildMvpListFlex(mvpData, theme) {
           });
         }
         if (mvp.info && mvp.info.hofBadges && mvp.info.hofBadges.length > 0) {
-          for (const hb of mvp.info.hofBadges) {
+          for (const hb of mvp.info.hofBadges.slice(0, 2)) {
             if (hb.url && hb.url.startsWith('https://')) {
               nameContents.push({
                 type: 'box',
