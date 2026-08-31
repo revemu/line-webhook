@@ -4154,7 +4154,7 @@ function buildMvpListFlex(mvpData, theme) {
         }
         pBadges.push({
           type: 'text',
-          text: p.name || '',
+          text: (p.name || '').substring(1) || '',
           weight: 'bold',
           size: 'xs',
           color: nameColor,
