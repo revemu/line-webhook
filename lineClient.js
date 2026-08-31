@@ -157,17 +157,6 @@ function sanitizeFlexComponent(node, parentBox = null) {
     }
   }
 
-  // 4.5 Carousel Container
-  if (result.type === 'carousel') {
-    if (Array.isArray(result.contents)) {
-      result.contents = result.contents.map(child => sanitizeFlexComponent(child, parentBox)).filter(Boolean);
-      if (result.contents.length > 10) {
-        console.warn(`[sanitizeFlexComponent] Carousel contains ${result.contents.length} bubbles, truncating to max 10 allowed by LINE API!`);
-        result.contents = result.contents.slice(0, 10);
-      }
-    }
-  }
-
   // 5. Root Flex Message Object
   if (result.type === 'flex') {
     if (!result.altText || typeof result.altText !== 'string' || result.altText.trim() === '') {
@@ -216,6 +205,7 @@ async function replyMessage(replyToken, messages) {
   try {
     return await client.replyMessage(replyToken, outgoingMessages);
   } catch (error) {
+    console.error('Error replying message:', error);
     let details = null;
     if (error.response && error.response.data) {
       details = error.response.data;
@@ -227,8 +217,9 @@ async function replyMessage(replyToken, messages) {
     if (details) {
       console.error('LINE API Error Details:', JSON.stringify(details, null, 2));
     } else {
-      console.error('LINE API Error Details:', JSON.stringify({ message: error.message || 'Unknown error sending message' }, null, 2));
+      console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     }
+    throw error;
   }
 }
 
