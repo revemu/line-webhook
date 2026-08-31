@@ -4310,19 +4310,19 @@ async function getMvpList(targetYear = null, groupId = null) {
   // Ensure member pictures
   await Promise.all(mvpRows.map(r => r.id ? ensureMemberPicture(r, groupId) : Promise.resolve()));
 
-  // Group by week_id
-  const weekMap = {};
+  // Group by week_id preserving chronological order (newest to oldest)
+  const weekMap = new Map();
   for (const row of mvpRows) {
     const wId = row.week_id;
-    if (!weekMap[wId]) {
+    if (!weekMap.has(wId)) {
       const wDate = row.date ? new Date(row.date) : null;
       const dateStr = wDate ? await getFormatDate(wDate, 'short') : `สัปดาห์ ${wId}`;
-      weekMap[wId] = {
+      weekMap.set(wId, {
         week_id: wId,
         date: row.date,
         dateStr,
         mvps: []
-      };
+      });
     }
 
     const info = resolveMemberDisplayInfo(
@@ -4341,7 +4341,7 @@ async function getMvpList(targetYear = null, groupId = null) {
     const rawScore = parseFloat(row.raw_score || 0);
     const rating = parseFloat(row.rating || 0);
 
-    weekMap[wId].mvps.push({
+    weekMap.get(wId).mvps.push({
       member_id: row.member_id,
       name: row.member_name || (row.name || ''),
       info,
@@ -4354,7 +4354,14 @@ async function getMvpList(targetYear = null, groupId = null) {
     });
   }
 
-  const weeksList = Object.values(weekMap);
+  // Sort weeks from new to old
+  const weeksList = Array.from(weekMap.values()).sort((a, b) => {
+    const timeA = a.date ? new Date(a.date).getTime() : 0;
+    const timeB = b.date ? new Date(b.date).getTime() : 0;
+    if (timeB !== timeA) return timeB - timeA;
+    return b.week_id - a.week_id;
+  });
+
   return {
     year,
     bestRating,

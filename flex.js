@@ -4134,12 +4134,21 @@ function buildMvpListFlex(mvpData, theme) {
           alignItems: 'center',
           contents: [
             avatarUrl ? {
-              type: 'image',
-              url: avatarUrl,
-              size: '28px',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              flex: 0
+              type: 'box',
+              layout: 'vertical',
+              width: '28px',
+              height: '28px',
+              cornerRadius: '100px',
+              flex: 0,
+              contents: [
+                {
+                  type: 'image',
+                  url: avatarUrl,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'cover'
+                }
+              ]
             } : {
               type: 'box',
               layout: 'vertical',
