@@ -1884,87 +1884,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         });
       }
 
-      // ── Weekly Leaders (Top Scorer, Top Assist, MVP with Avatars & HOF) ──
+      // ── Weekly Leaders & Member MVP Score Rating Table in Bubble 1 ──
       const leaders = await getWeekLeaderStats(week_id, groupId);
-      if (leaders && ((leaders.topScorers && leaders.topScorers.length > 0) || (leaders.topAssists && leaders.topAssists.length > 0) || (leaders.mvps && leaders.mvps.length > 0))) {
-        const leaderCards = [];
 
-        const buildLeaderCategoryCard = (icon, titleText, leaderList, valueText) => {
-          if (!leaderList || leaderList.length === 0) return null;
-          const memberCols = leaderList.map(leaderObj => flex.makeMemberColumn(leaderObj.info, null, colors, false));
-
-          return {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: colors.bgMain,
-            borderColor: colors.borderCurrent || colors.separator,
-            borderWidth: 'normal',
-            cornerRadius: 'md',
-            paddingAll: 'sm',
-            margin: 'xs',
-            spacing: 'xs',
-            contents: [
-              {
-                type: 'box',
-                layout: 'horizontal',
-                alignItems: 'center',
-                contents: [
-                  { type: 'text', text: `${icon} ${titleText}`, size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1 },
-                  { type: 'text', text: valueText, size: 'xs', weight: 'bold', color: colors.textAccent, align: 'end', flex: 1 }
-                ]
-              },
-              { type: 'separator', margin: 'xs', color: colors.separator },
-              ...memberCols.map(col => ({
-                type: 'box',
-                layout: 'horizontal',
-                margin: 'xs',
-                alignItems: 'center',
-                contents: [col]
-              }))
-            ]
-          };
-        };
-
-        if (leaders.topScorers && leaders.topScorers.length > 0) {
-          const b = buildLeaderCategoryCard('⚽', 'ดาวซัลโว', leaders.topScorers, `${leaders.maxGoals} ประตู`);
-          if (b) leaderCards.push(b);
-        }
-        if (leaders.topAssists && leaders.topAssists.length > 0) {
-          const b = buildLeaderCategoryCard('👟', 'แอสซิสต์สูงสุด', leaders.topAssists, `${leaders.maxAssists} แอสซิสต์`);
-          if (b) leaderCards.push(b);
-        }
-        if (leaders.mvps && leaders.mvps.length > 0) {
-          const b = buildLeaderCategoryCard('👑', 'MVP', leaders.mvps, `${leaders.maxMvpScore.toFixed(1)} คะแนน`);
-          if (b) leaderCards.push(b);
-        }
-
-        if (leaderCards.length > 0) {
-          tableBodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
-          tableBodyContents.push({
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: colors.bgRound,
-            paddingAll: 'sm',
-            cornerRadius: 'md',
-            margin: 'sm',
-            spacing: 'xs',
-            contents: [
-              {
-                type: 'text',
-                text: '🏆 ทำเนียบยอดเยี่ยมประจำสัปดาห์',
-                size: 'xs',
-                weight: 'bold',
-                color: colors.textPrimary,
-                align: 'center',
-                margin: 'xs'
-              },
-              ...leaderCards
-            ]
-          });
-        }
-      }
-
-      // ── Member MVP Score Rating Table in Bubble 1 ──
       if (leaders && leaders.allPlayerRatings && leaders.allPlayerRatings.length > 0) {
         tableBodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
         tableBodyContents.push({
@@ -1999,37 +1921,109 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
         sortedPlayers.forEach((p, i) => {
           const isTop1 = (i === 0) || (sortedPlayers[0] && p.rawScore === sortedPlayers[0].rawScore);
+          const isMvp = leaders.mvps && leaders.mvps.some(m => m.id === p.id);
+          const isTopScorer = leaders.topScorers && leaders.topScorers.some(ts => ts.id === p.id);
+          const isTopAssist = leaders.topAssists && leaders.topAssists.some(ta => ta.id === p.id);
 
           const nameColContents = [];
-          if (isTop1) {
-            const hofBadgeUrl = (p.info && p.info.hofBadgeUrl) ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif';
+
+          // Avatar Picture (20px)
+          if (p.info && p.info.pictureUrl) {
             nameColContents.push({
-              type: 'image',
-              url: hofBadgeUrl,
-              size: 'xxs',
-              aspectRatio: '1:1',
-              aspectMode: 'fit',
-              flex: 0
-            });
-            nameColContents.push({
-              type: 'text',
-              text: p.name || '',
-              size: 'xs',
-              color: (p.info && p.info.nameColor) ? p.info.nameColor : colors.textPrimary,
-              weight: 'bold',
-              margin: 'xs',
-              flex: 1
-            });
-          } else {
-            nameColContents.push({
-              type: 'text',
-              text: p.name || '',
-              size: 'xs',
-              color: (p.info && p.info.nameColor) ? p.info.nameColor : colors.textPrimary,
-              weight: 'regular',
-              flex: 1
+              type: 'box',
+              layout: 'vertical',
+              width: '20px',
+              height: '20px',
+              cornerRadius: '100px',
+              flex: 0,
+              contents: [
+                {
+                  type: 'image',
+                  url: p.info.pictureUrl,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'cover'
+                }
+              ]
             });
           }
+
+          // Rank Badge (reduced width 14px)
+          if (p.info && p.info.badgeUrl) {
+            nameColContents.push({
+              type: 'box',
+              layout: 'vertical',
+              width: '14px',
+              height: '14px',
+              flex: 0,
+              margin: 'xs',
+              contents: [
+                {
+                  type: 'image',
+                  url: p.info.badgeUrl,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'fit',
+                  animated: true
+                }
+              ]
+            });
+          }
+
+          // HOF Badges for Weekly Winners (MVP 👑, Most Scorer ⚽, Most Assist 👟)
+          const weekBadgeUrls = [];
+
+          if (isMvp) {
+            const mvpUrl = (assets.hofBadge && assets.hofBadge['mvp']) ? assets.hofBadge['mvp'].url : (p.info && p.info.hofBadgeUrl ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif');
+            if (mvpUrl) weekBadgeUrls.push(mvpUrl);
+          }
+          if (isTopScorer) {
+            const scorerUrl = (assets.hofBadge && assets.hofBadge['scorer']) ? assets.hofBadge['scorer'].url : ((assets.hofBadge && assets.hofBadge['top_scorer']) ? assets.hofBadge['top_scorer'].url : null);
+            if (scorerUrl && !weekBadgeUrls.includes(scorerUrl)) weekBadgeUrls.push(scorerUrl);
+          }
+          if (isTopAssist) {
+            const assistUrl = (assets.hofBadge && assets.hofBadge['assist']) ? assets.hofBadge['assist'].url : ((assets.hofBadge && assets.hofBadge['top_assist']) ? assets.hofBadge['top_assist'].url : null);
+            if (assistUrl && !weekBadgeUrls.includes(assistUrl)) weekBadgeUrls.push(assistUrl);
+          }
+
+          // Fallback HOF badge if Top 1 but no specific weekly award URL matched
+          if (isTop1 && weekBadgeUrls.length === 0) {
+            const defaultHofUrl = (p.info && p.info.hofBadgeUrl) ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif';
+            if (defaultHofUrl) weekBadgeUrls.push(defaultHofUrl);
+          }
+
+          // Render reduced HOF Badges (width 14px)
+          weekBadgeUrls.forEach(bUrl => {
+            nameColContents.push({
+              type: 'box',
+              layout: 'vertical',
+              width: '14px',
+              height: '14px',
+              flex: 0,
+              margin: 'xs',
+              contents: [
+                {
+                  type: 'image',
+                  url: bUrl,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'fit',
+                  animated: true
+                }
+              ]
+            });
+          });
+
+          // Member Name
+          nameColContents.push({
+            type: 'text',
+            text: p.name || '',
+            size: 'xs',
+            color: (p.info && p.info.nameColor) ? p.info.nameColor : colors.textPrimary,
+            weight: (isTop1 || isMvp || isTopScorer || isTopAssist) ? 'bold' : 'regular',
+            margin: 'xs',
+            flex: 1
+          });
 
           const statParts = [];
           if (p.goals > 0) statParts.push(`⚽${p.goals}`);
