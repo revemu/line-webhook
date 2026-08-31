@@ -4255,7 +4255,7 @@ function buildMvpListFlex(mvpData, theme) {
         const nameColor = (mvp.info && mvp.info.nameColor) || colors.textPrimary;
 
         const nameContents = [];
-        if (mvp.info && mvp.info.badgeUrl) {
+        /*if (mvp.info && mvp.info.badgeUrl) {
           nameContents.push({
             type: 'box',
             layout: 'vertical',
@@ -4287,7 +4287,7 @@ function buildMvpListFlex(mvpData, theme) {
             flex: 0,
             contents: [{ type: 'image', url: mvp.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
           });
-        }
+        }*/
         nameContents.push({
           type: 'text',
           text: `${w.dateStr || ''} - ${mvp.name || ''}`,
