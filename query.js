@@ -2083,7 +2083,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
               },
               {
                 type: 'text',
-                text: statStr,
+                text: `1`,
                 size: 'xs',
                 color: colors.textMutedLight || colors.textMuted,
                 flex: 4,
