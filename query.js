@@ -1292,6 +1292,21 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       await saveWeekMvpRecords(week_id, mvps);
     }
 
+    // Update player ratings into member_team_week_tbl for this week
+    if (formattedList && formattedList.length > 0) {
+      for (const item of formattedList) {
+        const memId = item.member_id || item.id;
+        if (memId && item.score !== undefined) {
+          try {
+            await executeQuery(
+              "UPDATE member_team_week_tbl SET rating = ? WHERE week_id = ? AND member_id = ?",
+              [Number(item.score).toFixed(2), week_id, memId]
+            );
+          } catch (e) { }
+        }
+      }
+    }
+
     // If this week sets a new highest MVP score record for this year, update template_tpl & normalize mvp_week_tbl ratings
     if (isNewYearRecord && refMaxScore > 0) {
       try {
@@ -1819,6 +1834,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     let skippedCount = 0;
     let newInsertedCount = 0;
     let currIdx = 0;
+    const weekScoresCache = {};
 
     for (const w of weeks) {
       currIdx++;
@@ -1832,6 +1848,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
 
       console.log(` ⚙️ [${currIdx}/${weeks.length}] Processing Week ID ${w.id} (${dateStr})...`);
       const playerScores = await calculateWeekRawMvp(w.id);
+      weekScoresCache[w.id] = playerScores;
       if (playerScores && playerScores.length > 0) {
         playerScores.sort((a, b) => b.rawScore - a.rawScore);
         const maxRawForWeek = playerScores[0].rawScore;
@@ -1913,6 +1930,29 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       }
       console.log(`📌 Saved yearly benchmarks to template_tpl: ${Object.entries(yearlyMaxMap).map(([yr, val]) => `${yr}: ${val.toFixed(4)}`).join(' | ')}`);
     }
+
+    // Update rating in member_team_week_tbl for ALL participants of every week
+    console.log(`\n⚙️ [MVP Sync] Updating rating in member_team_week_tbl for all participants...`);
+    for (const w of weeks) {
+      const pScores = weekScoresCache[w.id] || await calculateWeekRawMvp(w.id);
+      if (!pScores || pScores.length === 0) continue;
+      const wDate = w.date ? new Date(w.date) : new Date();
+      const wYear = wDate.getFullYear();
+      const yrBench = yearlyMaxMap[wYear] || maxRawScore;
+      if (!yrBench || yrBench <= 0) continue;
+
+      for (const p of pScores) {
+        if (!p || !p.member_id) continue;
+        const pRating = p.rawScore > 0 ? Math.min(10.0, (p.rawScore / yrBench) * 10) : 0;
+        try {
+          await executeQuery(
+            "UPDATE member_team_week_tbl SET rating = ? WHERE week_id = ? AND member_id = ?",
+            [pRating.toFixed(2), w.id, p.member_id]
+          );
+        } catch (e) { }
+      }
+    }
+    console.log(`✅ [MVP Sync] Completed updating member_team_week_tbl ratings across ${weeks.length} weeks`);
 
     let topSql = `
       SELECT m.*, w.date 
@@ -3983,13 +4023,23 @@ async function getMemberStats(memberId, groupId = null) {
     GROUP BY t_col.color
   `;
 
-  const [goalResult, ptResult, dateResult, bottomResult, champResult, colorResult] = await Promise.all([
+  const mvpQuery = `
+    SELECT 
+      SUM(CASE WHEN (w.year = YEAR(CURRENT_DATE()) OR YEAR(w.date) = YEAR(CURRENT_DATE())) THEN 1 ELSE 0 END) as mvp_year,
+      COUNT(*) as mvp_alltime
+    FROM mvp_week_tbl m
+    JOIN week_tbl w ON m.week_id = w.id
+    WHERE m.member_id = ?
+  `;
+
+  const [goalResult, ptResult, dateResult, bottomResult, champResult, colorResult, mvpResult] = await Promise.all([
     executeQuery(goalQuery, [memberId]),
     executeQuery(ptQuery, [memberId]),
     executeQuery(dateQuery, [memberId]),
     executeQuery(bottomQuery, [memberId]),
     executeQuery(champQuery, [memberId]),
-    executeQuery(colorQuery, [memberId])
+    executeQuery(colorQuery, [memberId]),
+    executeQuery(mvpQuery, [memberId])
   ]);
 
   const goals = goalResult[0] || {};
@@ -3997,11 +4047,14 @@ async function getMemberStats(memberId, groupId = null) {
   const firstMatchDate = dateResult[0] ? dateResult[0].first_match_date : null;
   const bottom = bottomResult[0] || {};
   const champ = champResult[0] || {};
+  const mvp = (mvpResult && mvpResult[0]) ? mvpResult[0] : {};
 
   const bottomYear = Number(bottom.bottom_year || 0);
   const bottomAllTime = Number(bottom.bottom_alltime || 0);
   const champYear = Number(champ.champ_year || 0);
   const champAllTime = Number(champ.champ_alltime || 0);
+  const mvpYear = Number(mvp.mvp_year || 0);
+  const mvpAllTime = Number(mvp.mvp_alltime || 0);
   const weeksYear = Number(pts.weeks_year || 0);
   const weeksAlltime = Number(pts.weeks_alltime || 0);
 
@@ -4047,6 +4100,12 @@ async function getMemberStats(memberId, groupId = null) {
       owngoals: {
         year: Number(goals.owngoals_year || 0),
         alltime: Number(goals.owngoals_alltime || 0)
+      },
+      mvp: {
+        year: mvpYear,
+        yearPct: weeksYear > 0 ? Number((mvpYear / weeksYear * 100).toFixed(1)) : 0,
+        alltime: mvpAllTime,
+        alltimePct: weeksAlltime > 0 ? Number((mvpAllTime / weeksAlltime * 100).toFixed(1)) : 0
       },
       matches: {
         year: matchesYear,

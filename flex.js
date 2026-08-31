@@ -2805,19 +2805,24 @@ function buildMemberStatsFlex(data, theme, imageUrl) {
   bodyContents.push(makeStatRow('⚽', 'ประตู (Goals)', stats.goals.year, stats.goals.alltime, false));
   bodyContents.push(makeStatRow('👟', 'แอสซิสต์ (Assists)', stats.assists.year, stats.assists.alltime, true));
   bodyContents.push(makeStatRow('🥅', 'สปายฝั่งตรงข้าม (OG)', stats.owngoals.year, stats.owngoals.alltime, false));
-  bodyContents.push(makeStatRow('📊', 'คะแนนเฉลี่ย (Avg Pts)', stats.avgpts.year.toFixed(2), stats.avgpts.alltime.toFixed(2), true));
-  bodyContents.push(makeStatRow('🏟️', 'นัดที่ลงเล่น (Matches)', stats.matches.year, stats.matches.alltime, false));
-  bodyContents.push(makeStatRow('📅', 'สัปดาห์ที่ร่วม (Weeks)', stats.weeks.year, stats.weeks.alltime, true));
 
-  bodyContents.push(makeStatRow('📈', '% ชนะ (Win %)', stats.win.yearPct + '%', stats.win.alltimePct + '%', false));
+  const mvpYear = stats.mvp ? stats.mvp.year : 0;
+  const mvpAlltime = stats.mvp ? stats.mvp.alltime : 0;
+  bodyContents.push(makeStatRow('🌟', 'MVP ประจำสัปดาห์', mvpYear, mvpAlltime, true));
+
+  bodyContents.push(makeStatRow('📊', 'คะแนนเฉลี่ย (Avg Pts)', stats.avgpts.year.toFixed(2), stats.avgpts.alltime.toFixed(2), false));
+  bodyContents.push(makeStatRow('🏟️', 'นัดที่ลงเล่น (Matches)', stats.matches.year, stats.matches.alltime, true));
+  bodyContents.push(makeStatRow('📅', 'สัปดาห์ที่ร่วม (Weeks)', stats.weeks.year, stats.weeks.alltime, false));
+
+  bodyContents.push(makeStatRow('📈', '% ชนะ (Win %)', stats.win.yearPct + '%', stats.win.alltimePct + '%', true));
 
   const champYearStr = `${stats.champ.year} (${stats.champ.yearPct}%)`;
   const champAlltimeStr = `${stats.champ.alltime} (${stats.champ.alltimePct}%)`;
-  bodyContents.push(makeStatRow('👑', 'แชมป์ประจำสัปดาห์', champYearStr, champAlltimeStr, true));
+  bodyContents.push(makeStatRow('👑', 'แชมป์ประจำสัปดาห์', champYearStr, champAlltimeStr, false));
 
   const bottomYearStr = `${stats.bottom.year} (${stats.bottom.yearPct}%)`;
   const bottomAlltimeStr = `${stats.bottom.alltime} (${stats.bottom.alltimePct}%)`;
-  bodyContents.push(makeStatRow('📉', 'ซึมเศร้าประจำสัปดาห์', bottomYearStr, bottomAlltimeStr, false));
+  bodyContents.push(makeStatRow('📉', 'ซึมเศร้าประจำสัปดาห์', bottomYearStr, bottomAlltimeStr, true));
 
   // ── Team Color Stats Section ──
   if (colorStats && colorStats.length > 0) {
