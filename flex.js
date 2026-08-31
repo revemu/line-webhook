@@ -4218,7 +4218,7 @@ function buildMvpListFlex(mvpData, theme) {
               text: statsParts.join('  '),
               size: 'xxs',
               color: colors.textMuted,
-              margin: 'xxs'
+              margin: 'xs'
             }
           ]
         });
