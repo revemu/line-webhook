@@ -72,23 +72,6 @@ async function executeQuery(query, params = []) {
   }
 }
 
-function ensureSanitizedUrl(url) {
-  if (!url || typeof url !== 'string') return null;
-  let clean = url.trim();
-  if (clean === '' || clean.toLowerCase() === 'none' || clean.toLowerCase() === 'null') return null;
-
-  if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
-    const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-    clean = clean.startsWith('/') ? `${baseUrl}${clean}` : `${baseUrl}/${clean}`;
-  }
-  if (clean.startsWith('http://')) {
-    clean = clean.replace('http://', 'https://');
-  }
-  try {
-    clean = encodeURI(clean);
-  } catch (e) { }
-  return clean;
-}
 
 async function getAdminCommands() {
   const results = await executeQuery("SELECT cmd FROM admin_cmd_tbl");
@@ -223,7 +206,7 @@ async function fetchDisplayAssets() {
   try {
     const badgeResults = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'rank_badge'");
     badgeResults.forEach(r => {
-      badges[r.value] = { url: ensureSanitizedUrl(r.url), size: r.size };
+      badges[r.value] = { url: r.url, size: r.size };
     });
   } catch (badgeErr) {
     console.error('Error querying rank badges:', badgeErr.message);
@@ -262,7 +245,7 @@ async function fetchDisplayAssets() {
   try {
     const hofBadgeTpls = await executeQuery("SELECT id, value, url, size FROM template_tpl WHERE name = 'hof_badge' ORDER BY id ASC");
     hofBadgeTpls.forEach(r => {
-      hofBadge[r.value] = { id: r.id, url: ensureSanitizedUrl(r.url), size: r.size || '20px' };
+      hofBadge[r.value] = { id: r.id, url: r.url, size: r.size || '20px' };
     });
   } catch (hofBadgeErr) {
     console.error('Error querying HOF badge template:', hofBadgeErr.message);
@@ -2085,7 +2068,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       const theme = await getTheme();
       const colors = flex.getThemeColors(theme, assets.teamColors);
       const imgTpl = await getTemplate('matchweek', 'header');
-      let headerUrl = ensureSanitizedUrl(imgTpl ? imgTpl.url : null);
+      let headerUrl = imgTpl ? imgTpl.url : null;
 
       const date = new Date(res[0].date);
       const date_str = await getFormatDate(date);
@@ -2212,31 +2195,26 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
           if (isMvp) {
             const mvpRaw = (assets.hofBadge && assets.hofBadge['mvp']) ? assets.hofBadge['mvp'].url : (p.info && p.info.hofBadgeUrl ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif');
-            const cleanUrl = ensureSanitizedUrl(mvpRaw);
-            if (cleanUrl) weekBadgeUrls.push(cleanUrl);
+            if (mvpRaw) weekBadgeUrls.push(mvpRaw);
           }
           if (isTopScorer) {
             const scorerRaw = (assets.hofBadge && assets.hofBadge['scorer']) ? assets.hofBadge['scorer'].url : ((assets.hofBadge && assets.hofBadge['top_scorer']) ? assets.hofBadge['top_scorer'].url : null);
-            const cleanUrl = ensureSanitizedUrl(scorerRaw);
-            if (cleanUrl && !weekBadgeUrls.includes(cleanUrl)) weekBadgeUrls.push(cleanUrl);
+            if (scorerRaw && !weekBadgeUrls.includes(scorerRaw)) weekBadgeUrls.push(scorerRaw);
           }
           if (isTopAssist) {
             const assistRaw = (assets.hofBadge && assets.hofBadge['assist']) ? assets.hofBadge['assist'].url : ((assets.hofBadge && assets.hofBadge['top_assist']) ? assets.hofBadge['top_assist'].url : null);
-            const cleanUrl = ensureSanitizedUrl(assistRaw);
-            if (cleanUrl && !weekBadgeUrls.includes(cleanUrl)) weekBadgeUrls.push(cleanUrl);
+            if (assistRaw && !weekBadgeUrls.includes(assistRaw)) weekBadgeUrls.push(assistRaw);
           }
 
           // Fallback HOF badge if Top 1 but no specific weekly award URL matched
           if (isTop1 && weekBadgeUrls.length === 0) {
             const defaultHofRaw = (p.info && p.info.hofBadgeUrl) ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif';
-            const cleanUrl = ensureSanitizedUrl(defaultHofRaw);
-            if (cleanUrl) weekBadgeUrls.push(cleanUrl);
+            if (defaultHofRaw) weekBadgeUrls.push(defaultHofRaw);
           }
 
           // Render reduced HOF Badges (width 14px)
           weekBadgeUrls.forEach(bUrl => {
-            const validBUrl = ensureSanitizedUrl(bUrl);
-            if (validBUrl) {
+            if (bUrl) {
               nameColContents.push({
                 type: 'box',
                 layout: 'vertical',

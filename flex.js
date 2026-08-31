@@ -4063,8 +4063,8 @@ function buildMvpListFlex(mvpData, theme) {
       });
     }
 
-    // 👑 Noticeable Best MVP Top Highlight Card
-    if (bestMvpPlayers && bestMvpPlayers.length > 0) {
+    // 👑 Noticeable Best MVP Top Highlight Card (Only shown on Page 1)
+    if (page === 0 && bestMvpPlayers && bestMvpPlayers.length > 0) {
       const topMvpContents = [
         {
           type: 'box',
@@ -4079,7 +4079,7 @@ function buildMvpListFlex(mvpData, theme) {
 
       bestMvpPlayers.forEach(p => {
         const statsStr = `⚽${p.goals} 👟${p.assists}${p.cleanSheets > 0 ? ` 🧤${p.cleanSheets}CS` : ''} • Benchmark: ${p.rawScore.toFixed(4)}`;
-        const avatarUrl = (p.info && p.info.pictureUrl) ? p.info.pictureUrl : null;
+        const avatarUrl = p.info ? p.info.pictureUrl : null;
         const nameColor = (p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff');
 
         const pBadges = [];
@@ -4090,19 +4090,21 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
-            contents: [{ type: 'image', url: p.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+            contents: [{ type: 'image', url: p.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
           });
         }
         if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
           for (const hb of p.info.hofBadges) {
-            pBadges.push({
-              type: 'box',
-              layout: 'vertical',
-              width: '14px',
-              height: '14px',
-              flex: 0,
-              contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
-            });
+            if (hb.url) {
+              pBadges.push({
+                type: 'box',
+                layout: 'vertical',
+                width: '14px',
+                height: '14px',
+                flex: 0,
+                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+              });
+            }
           }
         } else if (p.info && p.info.hofBadgeUrl) {
           pBadges.push({
@@ -4111,12 +4113,12 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
-            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
           });
         }
         pBadges.push({
           type: 'text',
-          text: p.name,
+          text: p.name || '',
           weight: 'bold',
           size: 'xs',
           color: nameColor,
@@ -4135,7 +4137,7 @@ function buildMvpListFlex(mvpData, theme) {
               width: '34px',
               height: '34px',
               cornerRadius: '100px',
-              borderWidth: 'semi-bold',
+              borderWidth: 'normal',
               borderColor: '#f59e0b',
               flex: 0,
               contents: [
@@ -4180,7 +4182,7 @@ function buildMvpListFlex(mvpData, theme) {
                 },
                 {
                   type: 'text',
-                  text: `สัปดาห์: ${p.dateStr}`,
+                  text: `สัปดาห์: ${p.dateStr || ''}`,
                   size: 'xxs',
                   color: colors.textMuted,
                   margin: 'xs'
@@ -4212,7 +4214,7 @@ function buildMvpListFlex(mvpData, theme) {
 
       w.mvps.forEach(mvp => {
         const statsStr = `⚽${mvp.goals} 👟${mvp.assists}${mvp.cleanSheets > 0 ? ` 🧤${mvp.cleanSheets}CS` : ''} (Raw: ${mvp.rawScore.toFixed(2)})`;
-        const avatarUrl = (mvp.info && mvp.info.pictureUrl) ? mvp.info.pictureUrl : null;
+        const avatarUrl = mvp.info ? mvp.info.pictureUrl : null;
         const nameColor = (mvp.info && mvp.info.nameColor) || colors.textPrimary;
 
         const nameContents = [];
@@ -4223,19 +4225,21 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
-            contents: [{ type: 'image', url: mvp.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+            contents: [{ type: 'image', url: mvp.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
           });
         }
         if (mvp.info && mvp.info.hofBadges && mvp.info.hofBadges.length > 0) {
           for (const hb of mvp.info.hofBadges) {
-            nameContents.push({
-              type: 'box',
-              layout: 'vertical',
-              width: '14px',
-              height: '14px',
-              flex: 0,
-              contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
-            });
+            if (hb.url) {
+              nameContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: '14px',
+                height: '14px',
+                flex: 0,
+                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+              });
+            }
           }
         } else if (mvp.info && mvp.info.hofBadgeUrl) {
           nameContents.push({
@@ -4244,12 +4248,12 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
-            contents: [{ type: 'image', url: mvp.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+            contents: [{ type: 'image', url: mvp.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
           });
         }
         nameContents.push({
           type: 'text',
-          text: `${w.dateStr} - ${mvp.name}`,
+          text: `${w.dateStr || ''} - ${mvp.name || ''}`,
           weight: 'bold',
           size: 'xs',
           color: nameColor,
