@@ -1130,11 +1130,15 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const ptsWins = parseFloat(pos.pts_wins !== undefined ? pos.pts_wins : (pos.pts_win !== undefined ? pos.pts_win : 1.5)) || 1.5;
 
       const goalsConceded = teamGaMap[teamId] || 0;
+      const teamDetails = teamInfoMap[teamId];
+      const matches = (teamDetails && teamDetails.matches > 0) ? teamDetails.matches : 1;
 
-      // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
-      const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
+      // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
+      const rawScoreTotal = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
+      // Normalized Per-Match Raw MVP score
+      const rawScore = matches > 0 ? (rawScoreTotal / matches) : rawScoreTotal;
 
-      return { member: m, g, og, a, cleanSheets, wins, goalsConceded, pos, ptsGoal, ptsAssist, ptsCleanSheet, ptsConceded, ptsOg, ptsWins, rawScore };
+      return { member: m, g, og, a, cleanSheets, wins, goalsConceded, matches, pos, ptsGoal, ptsAssist, ptsCleanSheet, ptsConceded, ptsOg, ptsWins, rawScoreTotal, rawScore };
     }).filter(item => item !== null);
 
     let maxGoals = 0;
@@ -1189,6 +1193,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const cleanSheets = item.cleanSheets;
       const wins = item.wins;
       const goalsConceded = item.goalsConceded;
+      const matches = item.matches;
       const pos = item.pos;
       const ptsGoal = item.ptsGoal;
       const ptsAssist = item.ptsAssist;
@@ -1196,6 +1201,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const ptsConceded = item.ptsConceded;
       const ptsOg = item.ptsOg;
       const ptsWins = item.ptsWins;
+      const rawScoreTotal = item.rawScoreTotal;
       const rawScore = item.rawScore;
       const normalizedScore = (refMaxScore > 0 && rawScore > 0) ? Math.min(10.0, (rawScore / refMaxScore) * 10) : 0;
 
@@ -1204,8 +1210,9 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
       console.log(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
       console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}`);
-      console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScore.toFixed(4)}`);
+      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
+      console.log(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
+      console.log(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches Played (${matches}) = ${rawScore.toFixed(4)}`);
       console.log(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / Benchmark Ref ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
       console.log(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
 
@@ -1218,7 +1225,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         cleanSheets,
         wins,
         goalsConceded,
-        matches: teamDetails ? teamDetails.matches : 0,
+        matches,
         pos,
         teamName,
         ptsGoal,
@@ -1227,6 +1234,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         ptsConceded,
         ptsOg,
         ptsWins,
+        rawScoreTotal,
         rawScore,
         score: normalizedScore,
         info
@@ -1624,16 +1632,20 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
     const ptsWins = parseFloat(pos.pts_wins !== undefined ? pos.pts_wins : (pos.pts_win !== undefined ? pos.pts_win : 1.5)) || 1.5;
 
     const goalsConceded = teamGaMap[teamId] || 0;
-
-    // Raw MVP score = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
-    const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
     const td = teamDetailsMap[teamId] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor: 1 };
+    const matches = td.matches > 0 ? td.matches : 1;
+
+    // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
+    const rawScoreTotal = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
+    // Per-Match Raw MVP score
+    const rawScore = matches > 0 ? (rawScoreTotal / matches) : rawScoreTotal;
 
     if (verbose) {
       console.log(` [Player ${m.name}] (Team: ${td.teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
       console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}`);
-      console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScore.toFixed(4)}`);
+      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
+      console.log(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
+      console.log(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches (${matches}) = ${rawScore.toFixed(4)}`);
     }
 
     return {
@@ -1646,6 +1658,7 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
       cleanSheets,
       wins,
       goalsConceded,
+      matches,
       posCode: pos.code,
       posIcon: pos.icon || '',
       ptsGoal,
@@ -1654,6 +1667,7 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
       ptsConceded,
       ptsOg,
       ptsWins,
+      rawScoreTotal,
       rawScore,
       teamName: td.teamName
     };
@@ -1732,7 +1746,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         const weekWinners = playerScores.filter(p => p.rawScore === maxRawForWeek);
         await saveWeekMvpRecords(w.id, weekWinners);
         newInsertedCount++;
-        console.log(`    ✅ Synced ${weekWinners.length} MVP winner(s) for Week ID ${w.id} (Top Raw Score: ${maxRawForWeek.toFixed(4)})`);
+        console.log(`    ✅ Synced ${weekWinners.length} MVP winner(s) for Week ID ${w.id} (Top Per-Match Raw Score: ${maxRawForWeek.toFixed(4)})`);
       } else {
         console.log(`    ⚠️ No valid team members (team_id > 0) scored in Week ID ${w.id}`);
       }
@@ -1809,14 +1823,15 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       if (detail) {
         console.log(`#${i + 1} [Player ${detail.name}] (${p.dateStr}) [Week ID: ${p.week_id}] (Team: ${detail.teamName}) [Position: ${detail.posCode} ${detail.posIcon}]`);
         console.log(`   └─ Position Category Points: Goal: +${detail.ptsGoal}, Assist: +${detail.ptsAssist}, Clean Sheet: +${detail.ptsCleanSheet}, Match Win: +${detail.ptsWins}, Goal Conceded Deduct: -${detail.ptsConceded}, Own Goal Deduct: -${detail.ptsOg}`);
-        console.log(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Goals Against (GA): ${detail.goalsConceded}`);
-        console.log(`   └─ Raw MVP Score: (${detail.goals} * ${detail.ptsGoal}) + (${detail.assists} * ${detail.ptsAssist}) + (${detail.cleanSheets} * ${detail.ptsCleanSheet}) + (${detail.wins} * ${detail.ptsWins}) - (${detail.goalsConceded} * ${detail.ptsConceded}) - (${detail.own_goals} * ${detail.ptsOg}) = ${detail.rawScore.toFixed(4)}`);
+        console.log(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Goals Against (GA): ${detail.goalsConceded}, Matches Played (M): ${detail.matches}`);
+        console.log(`   └─ Raw MVP Score (Total): (${detail.goals} * ${detail.ptsGoal}) + (${detail.assists} * ${detail.ptsAssist}) + (${detail.cleanSheets} * ${detail.ptsCleanSheet}) + (${detail.wins} * ${detail.ptsWins}) - (${detail.goalsConceded} * ${detail.ptsConceded}) - (${detail.own_goals} * ${detail.ptsOg}) = ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)}`);
+        console.log(`   └─ Per-Match Raw MVP Score: ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)} / ${detail.matches} = ${detail.rawScore.toFixed(4)}`);
         console.log(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Benchmark Ref ${maxRawScore.toFixed(4)}) * 10 = ${rating} / 10`);
         console.log(`   => Final MVP Rating = ${rating} / 10\n`);
       } else {
         console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
         console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets (CS): ${p.cleanSheets}, Conceded (GA): ${p.conceded}`);
-        console.log(`   └─ Raw MVP Score: ${p.rawScore.toFixed(4)}`);
+        console.log(`   └─ Per-Match Raw MVP Score: ${p.rawScore.toFixed(4)}`);
         console.log(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
       }
     }
@@ -1946,9 +1961,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           alignItems: 'center',
           contents: [
             { type: 'text', text: 'สมาชิก', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
-            { type: 'text', text: 'pos', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
+            { type: 'text', text: 'POS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
             { type: 'text', text: 'G/A', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4, align: 'center' },
-            { type: 'text', text: 'MVP', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
+            { type: 'text', text: 'Rating', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
           ]
         });
 
