@@ -4156,7 +4156,7 @@ function buildMvpListFlex(mvpData, theme) {
           type: 'text',
           text: (p.name || '').substring(1) || '',
           weight: 'bold',
-          size: 'xs',
+          size: 'sm',
           color: nameColor,
           flex: 1
         });
@@ -4290,9 +4290,9 @@ function buildMvpListFlex(mvpData, theme) {
         }*/
         nameContents.push({
           type: 'text',
-          text: `${mvp.name || ''}`,
+          text: `${(mvp.name || '').substring(1)}`,
           weight: 'bold',
-          size: 'xs',
+          size: 'sm',
           color: nameColor,
           flex: 1
         });
