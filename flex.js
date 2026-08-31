@@ -4161,14 +4161,14 @@ function buildMvpListFlex(mvpData, theme) {
           flex: 1
         });
 
-        const isP事AvatarValid = avatarUrl && avatarUrl.startsWith('https://');
+        const isPAvatarValid = avatarUrl && avatarUrl.startsWith('https://');
         topMvpContents.push({
           type: 'box',
           layout: 'horizontal',
           margin: 'sm',
           alignItems: 'center',
           contents: [
-            isP事AvatarValid ? {
+            isPAvatarValid ? {
               type: 'box',
               layout: 'vertical',
               width: '34px',
