@@ -73,6 +73,20 @@ async function executeQuery(query, params = []) {
 }
 
 
+function getFullUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  let u = url.trim();
+  if (u === '' || u.toLowerCase() === 'none' || u.toLowerCase() === 'null') return null;
+  if (!u.startsWith('http://') && !u.startsWith('https://')) {
+    const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+    u = u.startsWith('/') ? `${baseUrl}${u}` : `${baseUrl}/${u}`;
+  }
+  if (u.startsWith('http://')) {
+    u = u.replace('http://', 'https://');
+  }
+  return u;
+}
+
 async function getAdminCommands() {
   const results = await executeQuery("SELECT cmd FROM admin_cmd_tbl");
   return results.map(r => r.cmd);
@@ -206,7 +220,7 @@ async function fetchDisplayAssets() {
   try {
     const badgeResults = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'rank_badge'");
     badgeResults.forEach(r => {
-      badges[r.value] = { url: r.url, size: r.size };
+      badges[r.value] = { url: getFullUrl(r.url), size: r.size };
     });
   } catch (badgeErr) {
     console.error('Error querying rank badges:', badgeErr.message);
@@ -245,7 +259,7 @@ async function fetchDisplayAssets() {
   try {
     const hofBadgeTpls = await executeQuery("SELECT id, value, url, size FROM template_tpl WHERE name = 'hof_badge' ORDER BY id ASC");
     hofBadgeTpls.forEach(r => {
-      hofBadge[r.value] = { id: r.id, url: r.url, size: r.size || '20px' };
+      hofBadge[r.value] = { id: r.id, url: getFullUrl(r.url), size: r.size || '20px' };
     });
   } catch (hofBadgeErr) {
     console.error('Error querying HOF badge template:', hofBadgeErr.message);
