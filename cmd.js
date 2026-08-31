@@ -566,8 +566,8 @@ const COMMAND_REGISTRY = {
     },
     'matchweek': async (context) => {
         const { param, groupId } = context;
-        const week_id = (param && !isNaN(Number(param))) ? Number(param) : 0;
-        const result = await db.getMatchWeek(week_id, groupId);
+        const weekParam = (param && param.trim() !== '') ? param.trim() : 0;
+        const result = await db.getMatchWeek(weekParam, groupId);
         if (result) {
             if (typeof result === 'object') {
                 return { type: 'flex', altText: '⚽ สรุปผลการแข่งขันประจำสัปดาห์', contents: result };
