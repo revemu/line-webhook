@@ -97,8 +97,17 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
   name_display = (name_display || '').replace('@', '');
 
   const badgeInfo = badges[String(member.rank || 0)] || null;
-  let badgeUrl = getFullUrl(badgeInfo ? badgeInfo.url : null);
+  let badgeUrl = badgeInfo ? badgeInfo.url : null;
   const badgeSize = badgeInfo ? (badgeInfo.size || '20px') : '20px';
+  if (badgeUrl) {
+    if (!badgeUrl.startsWith('http://') && !badgeUrl.startsWith('https://')) {
+      const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+      badgeUrl = badgeUrl.startsWith('/') ? `${baseUrl}${badgeUrl}` : `${baseUrl}/${badgeUrl}`;
+    }
+    if (badgeUrl.startsWith('http://')) {
+      badgeUrl = badgeUrl.replace('http://', 'https://');
+    }
+  }
 
   let nameColor = null;
   const memberDonate = member.donate || 0;
@@ -130,10 +139,17 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
       if (!badge) {
         badge = hofBadge['default'] || Object.values(hofBadge)[0] || { id: 0, url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
       }
-      let bUrl = getFullUrl(badge.url);
+      let bUrl = badge.url ? badge.url.trim() : null;
       let bSize = badge.size || '20px';
       let bId = badge.id || 0;
-      if (bUrl) {
+      if (bUrl && bUrl.toLowerCase() !== 'none' && bUrl !== '') {
+        if (!bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
+          const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+          bUrl = bUrl.startsWith('/') ? `${baseUrl}${bUrl}` : `${baseUrl}/${bUrl}`;
+        }
+        if (bUrl.startsWith('http://')) {
+          bUrl = bUrl.replace('http://', 'https://');
+        }
         badgesWithId.push({ id: bId, url: bUrl, size: bSize });
       }
     }
@@ -141,8 +157,15 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     badgesWithId.forEach(b => hofBadges.push({ url: b.url, size: b.size }));
   } else if (hofCount > 0) {
     let badge = hofBadge['default'] || Object.values(hofBadge)[0] || { url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
-    let bUrl = getFullUrl(badge.url);
-    if (bUrl) {
+    let bUrl = badge.url ? badge.url.trim() : null;
+    if (bUrl && bUrl.toLowerCase() !== 'none' && bUrl !== '') {
+      if (!bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
+        const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+        bUrl = bUrl.startsWith('/') ? `${baseUrl}${bUrl}` : `${baseUrl}/${bUrl}`;
+      }
+      if (bUrl.startsWith('http://')) {
+        bUrl = bUrl.replace('http://', 'https://');
+      }
       hofBadges.push({ url: bUrl, size: badge.size || '20px' });
     }
   }
@@ -156,11 +179,27 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     selectedHofBadge = Object.values(hofBadge)[0];
   }
 
-  let hofBadgeUrl = getFullUrl(selectedHofBadge ? selectedHofBadge.url : (hofCount > 0 ? 'https://bearbit.org/pic/crown.gif' : null));
+  let hofBadgeUrl = selectedHofBadge ? selectedHofBadge.url : (hofCount > 0 ? 'https://bearbit.org/pic/crown.gif' : null);
   let hofBadgeSize = selectedHofBadge ? (selectedHofBadge.size || '20px') : '20px';
+  if (hofBadgeUrl && !hofBadgeUrl.startsWith('http://') && !hofBadgeUrl.startsWith('https://')) {
+    const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+    hofBadgeUrl = hofBadgeUrl.startsWith('/') ? `${baseUrl}${hofBadgeUrl}` : `${baseUrl}/${hofBadgeUrl}`;
+  }
+  if (hofBadgeUrl && hofBadgeUrl.startsWith('http://')) {
+    hofBadgeUrl = hofBadgeUrl.replace('http://', 'https://');
+  }
 
   let rawPic = member.picture_url || member.pictureUrl;
-  let pictureUrl = getFullUrl(rawPic);
+  let pictureUrl = rawPic ? String(rawPic).trim() : null;
+  if (pictureUrl) {
+    if (pictureUrl.toLowerCase() === 'none' || pictureUrl.toLowerCase() === 'null' || pictureUrl === '') {
+      pictureUrl = null;
+    } else {
+      if (pictureUrl.startsWith('http://')) {
+        pictureUrl = pictureUrl.replace('http://', 'https://');
+      }
+    }
+  }
 
   return {
     id: member.id,

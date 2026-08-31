@@ -4034,26 +4034,12 @@ function buildMvpListFlex(mvpData, theme) {
     };
   }
 
-  const page1ChunkSize = 6;
-  const pageNChunkSize = 7;
-  const maxBubbles = 6;
-  const chunks = [];
-  let currentIdx = 0;
-  let pIdx = 0;
-
-  while (currentIdx < weeks.length && chunks.length < maxBubbles) {
-    const size = pIdx === 0 ? page1ChunkSize : pageNChunkSize;
-    const chunk = weeks.slice(currentIdx, currentIdx + size);
-    currentIdx += size;
-    chunks.push(chunk);
-    pIdx++;
-  }
-
-  const totalPages = chunks.length;
+  const chunkSize = 12;
   const bubbles = [];
+  const totalPages = Math.ceil(weeks.length / chunkSize);
 
   for (let page = 0; page < totalPages; page++) {
-    const chunk = chunks[page];
+    const chunk = weeks.slice(page * chunkSize, (page + 1) * chunkSize);
     const bodyContents = [];
 
     // Header Title
@@ -4080,15 +4066,23 @@ function buildMvpListFlex(mvpData, theme) {
     // 👑 Noticeable Best MVP Top Highlight Card (Only shown on Page 1)
     if (page === 0 && bestMvpPlayers && bestMvpPlayers.length > 0) {
       const titleContents = [];
-      if (bestMvpBadgeUrl && bestMvpBadgeUrl.startsWith('https://')) {
+      if (bestMvpBadgeUrl) {
         titleContents.push({
-          type: 'image',
-          url: bestMvpBadgeUrl,
-          size: '16px',
-          aspectRatio: '1:1',
-          aspectMode: 'cover',
-          animated: true,
-          flex: 0
+          type: 'box',
+          layout: 'vertical',
+          width: '16px',
+          height: '16px',
+          flex: 0,
+          contents: [
+            {
+              type: 'image',
+              url: bestMvpBadgeUrl,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true
+            }
+          ]
         });
       }
       titleContents.push({
@@ -4121,8 +4115,51 @@ function buildMvpListFlex(mvpData, theme) {
 
       bestMvpPlayers.forEach(p => {
         const statsStr = `⚽ ${p.goals} 👟 ${p.assists}${p.cleanSheets > 0 ? ` 🧤 ${p.cleanSheets}` : ''} • Score: ${p.rawScore.toFixed(2)}`;
-        const avatarUrl = (p.info && p.info.pictureUrl && p.info.pictureUrl.startsWith('https://')) ? p.info.pictureUrl : null;
+        const avatarUrl = p.info ? p.info.pictureUrl : null;
         const nameColor = (p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff');
+
+        const pBadges = [];
+        if (p.info && p.info.badgeUrl) {
+          pBadges.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '14px',
+            height: '14px',
+            flex: 0,
+            contents: [{ type: 'image', url: p.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+          });
+        }
+        if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
+          for (const hb of p.info.hofBadges) {
+            if (hb.url) {
+              pBadges.push({
+                type: 'box',
+                layout: 'vertical',
+                width: '14px',
+                height: '14px',
+                flex: 0,
+                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+              });
+            }
+          }
+        } else if (p.info && p.info.hofBadgeUrl) {
+          pBadges.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '14px',
+            height: '14px',
+            flex: 0,
+            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+          });
+        }
+        pBadges.push({
+          type: 'text',
+          text: p.name || '',
+          weight: 'bold',
+          size: 'xs',
+          color: nameColor,
+          flex: 1
+        });
 
         topMvpContents.push({
           type: 'box',
@@ -4131,12 +4168,23 @@ function buildMvpListFlex(mvpData, theme) {
           alignItems: 'center',
           contents: [
             avatarUrl ? {
-              type: 'image',
-              url: avatarUrl,
-              size: '34px',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              flex: 0
+              type: 'box',
+              layout: 'vertical',
+              width: '34px',
+              height: '34px',
+              cornerRadius: '100px',
+              borderWidth: 'normal',
+              borderColor: '#f59e0b',
+              flex: 0,
+              contents: [
+                {
+                  type: 'image',
+                  url: avatarUrl,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'cover'
+                }
+              ]
             } : {
               type: 'box',
               layout: 'vertical',
@@ -4156,11 +4204,10 @@ function buildMvpListFlex(mvpData, theme) {
               margin: 'sm',
               contents: [
                 {
-                  type: 'text',
-                  text: p.name || '',
-                  weight: 'bold',
-                  size: 'xs',
-                  color: nameColor
+                  type: 'box',
+                  layout: 'horizontal',
+                  alignItems: 'center',
+                  contents: pBadges
                 },
                 {
                   type: 'text',
@@ -4203,8 +4250,51 @@ function buildMvpListFlex(mvpData, theme) {
 
       w.mvps.forEach(mvp => {
         const statsStr = `⚽ ${mvp.goals}, 👟 ${mvp.assists}${mvp.cleanSheets > 0 ? `, 🧤 ${mvp.cleanSheets}` : ''} (Score: ${mvp.rawScore.toFixed(2)})`;
-        const avatarUrl = (mvp.info && mvp.info.pictureUrl && mvp.info.pictureUrl.startsWith('https://')) ? mvp.info.pictureUrl : null;
+        const avatarUrl = mvp.info ? mvp.info.pictureUrl : null;
         const nameColor = (mvp.info && mvp.info.nameColor) || colors.textPrimary;
+
+        const nameContents = [];
+        if (mvp.info && mvp.info.badgeUrl) {
+          nameContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '14px',
+            height: '14px',
+            flex: 0,
+            contents: [{ type: 'image', url: mvp.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+          });
+        }
+        if (mvp.info && mvp.info.hofBadges && mvp.info.hofBadges.length > 0) {
+          for (const hb of mvp.info.hofBadges) {
+            if (hb.url) {
+              nameContents.push({
+                type: 'box',
+                layout: 'vertical',
+                width: '14px',
+                height: '14px',
+                flex: 0,
+                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+              });
+            }
+          }
+        } else if (mvp.info && mvp.info.hofBadgeUrl) {
+          nameContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '14px',
+            height: '14px',
+            flex: 0,
+            contents: [{ type: 'image', url: mvp.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+          });
+        }
+        nameContents.push({
+          type: 'text',
+          text: `${w.dateStr || ''} - ${mvp.name || ''}`,
+          weight: 'bold',
+          size: 'xs',
+          color: nameColor,
+          flex: 1
+        });
 
         const row = {
           type: 'box',
@@ -4213,12 +4303,21 @@ function buildMvpListFlex(mvpData, theme) {
           alignItems: 'center',
           contents: [
             avatarUrl ? {
-              type: 'image',
-              url: avatarUrl,
-              size: '28px',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              flex: 0
+              type: 'box',
+              layout: 'vertical',
+              width: '28px',
+              height: '28px',
+              cornerRadius: '100px',
+              flex: 0,
+              contents: [
+                {
+                  type: 'image',
+                  url: avatarUrl,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'cover'
+                }
+              ]
             } : {
               type: 'box',
               layout: 'vertical',
@@ -4229,7 +4328,7 @@ function buildMvpListFlex(mvpData, theme) {
               alignItems: 'center',
               justifyContent: 'center',
               flex: 0,
-              contents: [{ type: 'text', text: '👑', size: 'xs', align: 'center' }]
+              contents: [{ type: 'text', text: '👤', size: 'sm', align: 'center', gravity: 'center' }]
             },
             {
               type: 'box',
@@ -4238,11 +4337,10 @@ function buildMvpListFlex(mvpData, theme) {
               margin: 'sm',
               contents: [
                 {
-                  type: 'text',
-                  text: `${w.dateStr || ''} - ${mvp.name || ''}`,
-                  weight: 'bold',
-                  size: 'xs',
-                  color: nameColor
+                  type: 'box',
+                  layout: 'horizontal',
+                  alignItems: 'center',
+                  contents: nameContents
                 },
                 {
                   type: 'text',
@@ -4254,7 +4352,7 @@ function buildMvpListFlex(mvpData, theme) {
             },
             {
               type: 'text',
-              text: `⭐ ${mvp.rating ? mvp.rating.toFixed(1) : '0.0'}`,
+              text: `⭐ ${mvp.rating > 0 ? mvp.rating.toFixed(1) : '0.0'}`,
               weight: 'bold',
               size: 'xs',
               color: '#d97706',
@@ -4268,7 +4366,6 @@ function buildMvpListFlex(mvpData, theme) {
           row.backgroundColor = bgCard;
           row.cornerRadius = 'sm';
         }
-
         bodyContents.push(row);
       });
     });
