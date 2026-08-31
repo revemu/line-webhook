@@ -3283,8 +3283,9 @@ function buildMenuFlex(dateStr, theme, title = null, autoRegCount = 0) {
     spacing: 'sm',
     margin: 'xs',
     contents: [
-      makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
-      makeBoxButton('📉 ทำเนียบซึมเศร้า', '/bottom', bottomStatsColor),
+      makeBoxButton('🏆 ผู้นำ', '/top', topStatsColor),
+      makeBoxButton('📉 ซึมเศร้า', '/bottom', bottomStatsColor),
+      makeBoxButton('👑 MVP', '/mvplist', '#dbb104ff'),
       makeBoxButton('📊 สถิติส่วนตัว', '/stat', personalStatsColor)
     ]
   });
