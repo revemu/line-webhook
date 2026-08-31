@@ -2227,7 +2227,7 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme, imageUrl = 
   return bubble;
 }
 
-function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
+function buildAutoRegFlex(action, memberName, list, theme) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
@@ -2519,24 +2519,6 @@ function buildAutoRegFlex(action, memberName, list, theme, imageUrl) {
       ]
     }
   };
-
-  const headerUrl = imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
-  if (headerUrl && headerUrl.toLowerCase() !== 'none') {
-    bubble.header = {
-      type: 'box',
-      layout: 'vertical',
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: headerUrl,
-          size: 'full',
-          aspectRatio: '20:10',
-          aspectMode: 'cover'
-        }
-      ]
-    };
-  }
 
   return bubble;
 }

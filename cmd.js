@@ -404,40 +404,36 @@ const COMMAND_REGISTRY = {
     'autoreg': async (context) => {
         const { param, groupId, member_id, member_name } = context;
         const theme = await db.getTheme();
-        const autoregTpl = await db.getTemplate('autoreg', 'header');
-        const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
         if (param.toLowerCase() === 'list') {
             const list = await db.getAutoRegList(groupId);
             const callerMember = member_id ? { id: member_id, name: member_name } : null;
-            const msg = flex.buildAutoRegFlex('list', callerMember, list, theme, autoregImageUrl);
+            const msg = flex.buildAutoRegFlex('list', callerMember, list, theme);
             return { type: 'flex', altText: "สมาชิกลงชื่ออัตโนมัติ", contents: msg };
         }
         const list = await db.getAutoRegList(groupId);
         const isAlreadyRegistered = list.some(m => m.id === member_id);
         if (isAlreadyRegistered) {
             const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
-            const msg = flex.buildAutoRegFlex('already', memberInfo, list, theme, autoregImageUrl);
+            const msg = flex.buildAutoRegFlex('already', memberInfo, list, theme);
             return { type: 'flex', altText: `ลงชื่ออัตโนมัติอยู่แล้ว: ${member_name}`, contents: msg };
         }
         if (list.length >= 24) {
-            const msg = flex.buildAutoRegFlex('full', null, list, theme, autoregImageUrl);
+            const msg = flex.buildAutoRegFlex('full', null, list, theme);
             return { type: 'flex', altText: "รายชื่อลงชื่อออโต้เต็มแล้ว", contents: msg };
         }
         await db.updateMemberAutoReg(member_id, 1, groupId);
         const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
         const updatedList = await db.getAutoRegList(groupId);
-        const msg = flex.buildAutoRegFlex('add', memberInfo, updatedList, theme, autoregImageUrl);
+        const msg = flex.buildAutoRegFlex('add', memberInfo, updatedList, theme);
         return { type: 'flex', altText: `สมัครลงชื่ออัตโนมัติสำเร็จ: ${member_name}`, contents: msg };
     },
     '-autoreg': async (context) => {
         const { member_id, member_name, groupId } = context;
         const theme = await db.getTheme();
-        const autoregTpl = await db.getTemplate('autoreg', 'header');
-        const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
         await db.updateMemberAutoReg(member_id, 0, groupId);
         const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
         const list = await db.getAutoRegList(groupId);
-        const msg = flex.buildAutoRegFlex('remove', memberInfo, list, theme, autoregImageUrl);
+        const msg = flex.buildAutoRegFlex('remove', memberInfo, list, theme);
         return { type: 'flex', altText: `ยกเลิกลงชื่ออัตโนมัติสำเร็จ: ${member_name}`, contents: msg };
     },
     'stat': async (context) => {
