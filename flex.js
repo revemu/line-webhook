@@ -4149,7 +4149,7 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
-            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', margin: 'sm', aspectMode: 'cover', animated: true }]
+            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
           });
         }
         pBadges.push({
@@ -4158,6 +4158,7 @@ function buildMvpListFlex(mvpData, theme) {
           weight: 'bold',
           size: 'sm',
           color: nameColor,
+          margin: 'xs',
           flex: 1
         });
 
