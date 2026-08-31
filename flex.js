@@ -3994,7 +3994,7 @@ function buildTeamWeekFlex(teamColors, teamMembersMap, theme, assets = {}, resol
 }
 
 function buildMvpListFlex(mvpData, theme) {
-  const { year, bestRating, bestRaw, yrBenchmark, totalWeeks, weeks } = mvpData;
+  const { year, bestRating, bestRaw, yrBenchmark, bestMvpPlayers, totalWeeks, weeks } = mvpData;
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
@@ -4042,60 +4042,167 @@ function buildMvpListFlex(mvpData, theme) {
     const chunk = weeks.slice(page * chunkSize, (page + 1) * chunkSize);
     const bodyContents = [];
 
-    // Header Card
+    // Header Title
     bodyContents.push({
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: bgHeader,
-      paddingAll: 'sm',
-      cornerRadius: 'md',
-      contents: [
-        {
-          type: 'text',
-          text: `🌟 ทำเนียบ MVP ประจำปี ${year}`,
-          weight: 'bold',
-          size: 'md',
-          color: colors.textPrimary,
-          align: 'center'
-        },
+      type: 'text',
+      text: `🌟 ทำเนียบ MVP ประจำปี ${year}`,
+      weight: 'bold',
+      size: 'md',
+      color: colors.textPrimary,
+      align: 'center'
+    });
+
+    if (totalPages > 1) {
+      bodyContents.push({
+        type: 'text',
+        text: `หน้า ${page + 1}/${totalPages} (${totalWeeks} สัปดาห์)`,
+        size: 'xxs',
+        color: colors.textMuted,
+        align: 'center',
+        margin: 'xs'
+      });
+    }
+
+    // 👑 Noticeable Best MVP Top Highlight Card
+    if (bestMvpPlayers && bestMvpPlayers.length > 0) {
+      const topMvpContents = [
         {
           type: 'box',
           layout: 'horizontal',
-          backgroundColor: isWhite ? '#fef3c7' : '#2d2410',
-          cornerRadius: 'sm',
-          paddingAll: 'xs',
-          margin: 'xs',
           alignItems: 'center',
           contents: [
-            {
-              type: 'text',
-              text: `🏆 Best: ${Number(bestRating || 0).toFixed(1)}/10`,
-              weight: 'bold',
-              size: 'xs',
-              color: '#d97706',
-              flex: 1,
-              align: 'center'
+            { type: 'text', text: `👑 อันดับ 1 MVP สูงสุดแห่งปี`, weight: 'bold', size: 'xs', color: '#f59e0b', flex: 1 },
+            { type: 'text', text: `⭐ ${Number(bestRating || 0).toFixed(1)}/10`, weight: 'bold', size: 'xs', color: '#d97706', align: 'end' }
+          ]
+        }
+      ];
+
+      bestMvpPlayers.forEach(p => {
+        const statsStr = `⚽${p.goals} 👟${p.assists}${p.cleanSheets > 0 ? ` 🧤${p.cleanSheets}CS` : ''} • Benchmark: ${p.rawScore.toFixed(4)}`;
+        const avatarUrl = (p.info && p.info.pictureUrl) ? p.info.pictureUrl : null;
+        const nameColor = (p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff');
+
+        const pBadges = [];
+        if (p.info && p.info.badgeUrl) {
+          pBadges.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '14px',
+            height: '14px',
+            flex: 0,
+            contents: [{ type: 'image', url: p.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+          });
+        }
+        if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
+          for (const hb of p.info.hofBadges) {
+            pBadges.push({
+              type: 'box',
+              layout: 'vertical',
+              width: '14px',
+              height: '14px',
+              flex: 0,
+              contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+            });
+          }
+        } else if (p.info && p.info.hofBadgeUrl) {
+          pBadges.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '14px',
+            height: '14px',
+            flex: 0,
+            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+          });
+        }
+        pBadges.push({
+          type: 'text',
+          text: p.name,
+          weight: 'bold',
+          size: 'xs',
+          color: nameColor,
+          flex: 1
+        });
+
+        topMvpContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'sm',
+          alignItems: 'center',
+          contents: [
+            avatarUrl ? {
+              type: 'box',
+              layout: 'vertical',
+              width: '34px',
+              height: '34px',
+              cornerRadius: '100px',
+              borderWidth: 'semi-bold',
+              borderColor: '#f59e0b',
+              flex: 0,
+              contents: [
+                {
+                  type: 'image',
+                  url: avatarUrl,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'cover'
+                }
+              ]
+            } : {
+              type: 'box',
+              layout: 'vertical',
+              width: '34px',
+              height: '34px',
+              cornerRadius: '100px',
+              backgroundColor: isWhite ? '#fef3c7' : '#3b2d10',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: 0,
+              contents: [{ type: 'text', text: '👑', size: 'md', align: 'center', gravity: 'center' }]
             },
             {
-              type: 'text',
-              text: `📌 Benchmark: ${Number(yrBenchmark || 0).toFixed(4)}`,
-              size: 'xxs',
-              color: colors.textMuted,
+              type: 'box',
+              layout: 'vertical',
               flex: 1,
-              align: 'center'
+              margin: 'sm',
+              contents: [
+                {
+                  type: 'box',
+                  layout: 'horizontal',
+                  alignItems: 'center',
+                  contents: pBadges
+                },
+                {
+                  type: 'text',
+                  text: statsStr,
+                  size: 'xxs',
+                  color: isWhite ? '#475569' : '#e2e8f0',
+                  margin: 'xs'
+                },
+                {
+                  type: 'text',
+                  text: `สัปดาห์: ${p.dateStr}`,
+                  size: 'xxs',
+                  color: colors.textMuted,
+                  margin: 'xs'
+                }
+              ]
             }
           ]
-        },
-        ...(totalPages > 1 ? [{
-          type: 'text',
-          text: `หน้า ${page + 1}/${totalPages} (${totalWeeks} สัปดาห์)`,
-          size: 'xxs',
-          color: colors.textMuted,
-          align: 'center',
-          margin: 'xs'
-        }] : [])
-      ]
-    });
+        });
+      });
+
+      bodyContents.push({
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: isWhite ? '#fffbeb' : '#231d0a',
+        cornerRadius: 'md',
+        borderWidth: 'normal',
+        borderColor: '#d97706',
+        paddingAll: 'sm',
+        margin: 'sm',
+        contents: topMvpContents
+      });
+    }
 
     bodyContents.push({ type: 'separator', margin: 'sm', color: separatorColor });
 

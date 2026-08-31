@@ -4409,6 +4409,38 @@ async function getMvpList(targetYear = null, groupId = null) {
     });
   }
 
+  // Find best MVP player(s) of the year for prominent display
+  const bestMvpPlayers = [];
+  if (bestRaw > 0) {
+    for (const row of mvpRows) {
+      if (parseFloat(row.raw_score) >= bestRaw - 0.0001) {
+        const wDate = row.date ? new Date(row.date) : null;
+        const dateStr = wDate ? await getFormatDate(wDate, 'short') : `สัปดาห์ ${row.week_id}`;
+        const info = resolveMemberDisplayInfo(
+          row.id ? row : { name: row.member_name, id: row.member_id, picture_url: null, rank: null, donate: null, line_user_id: null },
+          assets.badges,
+          assets.donateColors,
+          assets.hofCounts,
+          assets.hofBadge,
+          assets.hofAwards
+        );
+        bestMvpPlayers.push({
+          member_id: row.member_id,
+          name: row.member_name || (row.name || ''),
+          week_id: row.week_id,
+          dateStr,
+          info,
+          goals: Number(row.goals) || 0,
+          assists: Number(row.assists) || 0,
+          cleanSheets: Number(row.clean_sheet) || 0,
+          conceded: Number(row.conceded) || 0,
+          rawScore: parseFloat(row.raw_score || 0),
+          rating: parseFloat(row.rating || 0)
+        });
+      }
+    }
+  }
+
   // Sort weeks from new to old
   const weeksList = Array.from(weekMap.values()).sort((a, b) => {
     const timeA = a.date ? new Date(a.date).getTime() : 0;
@@ -4422,6 +4454,7 @@ async function getMvpList(targetYear = null, groupId = null) {
     bestRating,
     bestRaw,
     yrBenchmark,
+    bestMvpPlayers,
     totalWeeks: weeksList.length,
     weeks: weeksList
   };
