@@ -1879,28 +1879,6 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
           const nameColContents = [];
 
-          // Avatar Picture (20px)
-          const picUrl = ensureSanitizedUrl(p.info ? (p.info.pictureUrl || p.picture_url || p.pictureUrl) : null);
-          if (picUrl) {
-            nameColContents.push({
-              type: 'box',
-              layout: 'vertical',
-              width: '20px',
-              height: '20px',
-              cornerRadius: '100px',
-              flex: 0,
-              contents: [
-                {
-                  type: 'image',
-                  url: picUrl,
-                  size: 'full',
-                  aspectRatio: '1:1',
-                  aspectMode: 'cover'
-                }
-              ]
-            });
-          }
-
           // Rank Badge (reduced width 14px)
           const rankBadgeUrl = ensureSanitizedUrl(p.info ? p.info.badgeUrl : null);
           if (rankBadgeUrl) {
