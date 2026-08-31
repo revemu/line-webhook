@@ -4126,7 +4126,7 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
-            contents: [{ type: 'image', url: p.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+            contents: [{ type: 'image', url: p.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
           });
         }
         if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
@@ -4138,7 +4138,7 @@ function buildMvpListFlex(mvpData, theme) {
                 width: '14px',
                 height: '14px',
                 flex: 0,
-                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
               });
             }
           }
@@ -4149,7 +4149,7 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
-            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
           });
         }
         pBadges.push({
@@ -4261,7 +4261,7 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
-            contents: [{ type: 'image', url: mvp.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+            contents: [{ type: 'image', url: mvp.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
           });
         }
         if (mvp.info && mvp.info.hofBadges && mvp.info.hofBadges.length > 0) {
@@ -4273,7 +4273,7 @@ function buildMvpListFlex(mvpData, theme) {
                 width: '14px',
                 height: '14px',
                 flex: 0,
-                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
               });
             }
           }
@@ -4284,7 +4284,7 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
-            contents: [{ type: 'image', url: mvp.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+            contents: [{ type: 'image', url: mvp.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
           });
         }
         nameContents.push({
