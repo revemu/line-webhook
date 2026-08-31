@@ -1782,7 +1782,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     ]
   });
 
-  /*const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
+  const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
   const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
   const personalStatsColor = isWhite ? '#0284c7' : '#0ea5e9';
 
@@ -1801,11 +1801,12 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     spacing: 'sm',
     margin: 'xs',
     contents: [
-      makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
-      makeBoxButton('📉 ทำเนียบซึมเศร้า', '/bottom', bottomStatsColor),
-      makeBoxButton('📊 สถิติส่วนตัว', '/stat', personalStatsColor)
+      makeBoxButton('🏆 ผู้นำ', '/top', topStatsColor),
+      makeBoxButton('📉 ซึมเศร้า', '/bottom', bottomStatsColor),
+      makeBoxButton('👑 MVP', '/mvplist', '#dbb104ff'),
+      makeBoxButton('📊 ส่วนตัว', '/stat', personalStatsColor)
     ]
-  });*/
+  });
 
   /*bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
   bodyContents.push({
