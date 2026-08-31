@@ -4347,6 +4347,7 @@ function buildMvpListFlex(mvpData, theme) {
                   type: 'box',
                   layout: 'horizontal',
                   alignItems: 'center',
+                  margin: 'xs',
                   contents: nameContents
                 },
                 {
