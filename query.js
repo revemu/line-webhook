@@ -942,11 +942,15 @@ async function getTeamColorWeek(week_id) {
 }
 
 async function getTemplate(name, value) {
-  query = `select * from template_tpl where name='${name}' and value='${value}'`;
+  const query = `select * from template_tpl where name='${name}' and value='${value}'`;
 
   const result = await executeQuery(query);
   if (result.length > 0) {
-    return result[0];
+    const row = result[0];
+    if (row && row.url) {
+      row.url = getFullUrl(row.url);
+    }
+    return row;
   }
 }
 
@@ -2239,7 +2243,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
                 contents: [
                   {
                     type: 'image',
-                    url: validBUrl,
+                    url: bUrl,
                     size: 'full',
                     aspectRatio: '1:1',
                     aspectMode: 'fit',
