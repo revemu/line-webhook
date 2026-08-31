@@ -205,7 +205,6 @@ async function replyMessage(replyToken, messages) {
   try {
     return await client.replyMessage(replyToken, outgoingMessages);
   } catch (error) {
-    console.error('Error replying message:', error);
     let details = null;
     if (error.response && error.response.data) {
       details = error.response.data;
@@ -217,9 +216,8 @@ async function replyMessage(replyToken, messages) {
     if (details) {
       console.error('LINE API Error Details:', JSON.stringify(details, null, 2));
     } else {
-      console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      console.error('LINE API Error Details:', JSON.stringify({ message: error.message || 'Unknown error sending message' }, null, 2));
     }
-    throw error;
   }
 }
 
