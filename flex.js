@@ -4340,7 +4340,7 @@ function buildMvpListFlex(mvpData, theme) {
                 {
                   type: 'text',
                   text: `${w.dateStr || ''}`,
-                  size: 'xxs',
+                  size: 'xs',
                   color: colors.textMuted
                 },
                 {
