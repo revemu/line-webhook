@@ -1778,7 +1778,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     margin: 'md',
     contents: [
       makeBoxButton('📱 QR ค่าสนาม', '/qr', '#088181ff'),
-      makeBoxButton('📋 อื่นๆ', '/menu', '#9b9807ff')
+      makeBoxButton('📋 เมนูอื่นๆ', '/menu', '#9b9807ff')
     ]
   });
 
