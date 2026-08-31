@@ -1189,28 +1189,40 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       }
     } catch (e) { }
 
-    // Retrieve benchmark reference max MVP score for current year from mvp_week_tbl
+    // Retrieve benchmark reference max MVP score for current year from template_tpl / mvp_week_tbl
     await ensureMvpWeekTable();
     let refMaxScore = 0;
     try {
-      const maxDbRes = await executeQuery(`
-        SELECT MAX(m.raw_score) as max_raw 
-        FROM mvp_week_tbl m
-        JOIN week_tbl w ON m.week_id = w.id
-        WHERE YEAR(w.date) = ?
-      `, [weekYear]);
-      if (maxDbRes && maxDbRes[0] && maxDbRes[0].max_raw) {
-        refMaxScore = parseFloat(maxDbRes[0].max_raw);
+      const tplRes = await executeQuery("SELECT value FROM template_tpl WHERE name = ?", [`max_mvp_score_${weekYear}`]);
+      if (tplRes && tplRes.length > 0 && tplRes[0].value) {
+        refMaxScore = parseFloat(tplRes[0].value);
       }
     } catch (e) { }
 
+    if (!refMaxScore || refMaxScore <= 0) {
+      try {
+        const maxDbRes = await executeQuery(`
+          SELECT MAX(m.raw_score) as max_raw 
+          FROM mvp_week_tbl m
+          JOIN week_tbl w ON m.week_id = w.id
+          WHERE YEAR(w.date) = ?
+        `, [weekYear]);
+        if (maxDbRes && maxDbRes[0] && maxDbRes[0].max_raw) {
+          refMaxScore = parseFloat(maxDbRes[0].max_raw);
+        }
+      } catch (e) { }
+    }
+
+    let isNewYearRecord = false;
     if (maxRawMvpScore > refMaxScore) {
+      isNewYearRecord = true;
       refMaxScore = maxRawMvpScore;
     }
 
     // Fallback if benchmark not set yet for this year: use max raw MVP score of current week
     if (!refMaxScore || isNaN(refMaxScore) || refMaxScore <= 0) {
       refMaxScore = maxRawMvpScore;
+      isNewYearRecord = true;
     }
 
     // Pass 2: Normalize to 1-10 rating scale against refMaxScore
@@ -1278,6 +1290,28 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     // Save/update current week MVP winners into mvp_week_tbl
     if (mvps && mvps.length > 0) {
       await saveWeekMvpRecords(week_id, mvps);
+    }
+
+    // If this week sets a new highest MVP score record for this year, update template_tpl & normalize mvp_week_tbl ratings
+    if (isNewYearRecord && refMaxScore > 0) {
+      try {
+        const key = `max_mvp_score_${weekYear}`;
+        const ex = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
+        if (ex && ex.length > 0) {
+          await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [refMaxScore.toFixed(4), key]);
+        } else {
+          await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, refMaxScore.toFixed(4)]);
+        }
+        console.log(`🔥 [New Year Record] Updated ${key} in template_tpl to ${refMaxScore.toFixed(4)}`);
+
+        // Recalculate normalized rating in mvp_week_tbl for this year
+        await executeQuery(`
+          UPDATE mvp_week_tbl m
+          JOIN week_tbl w ON m.week_id = w.id
+          SET m.rating = LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2))
+          WHERE YEAR(w.date) = ? AND m.raw_score > 0
+        `, [refMaxScore, weekYear]);
+      } catch (e) { }
     }
 
     console.log(` [MVP Winner(s)] Max Raw: ${maxRawMvpScore.toFixed(4)} | Benchmark Ref: ${refMaxScore.toFixed(4)} | Leader Rating: ${maxMvpScore.toFixed(1)}/10 | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
@@ -1828,7 +1862,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('max_mvp_score', ?)", [maxRawScore.toFixed(4)]);
       }
 
-      // Update normalized 1-10 rating for all records in mvp_week_tbl
+      // Update normalized 1-10 rating for each year independently
       if (year) {
         await executeQuery(`
           UPDATE mvp_week_tbl m
@@ -1836,15 +1870,48 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           SET m.rating = LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2))
           WHERE YEAR(w.date) = ? AND m.raw_score > 0
         `, [maxRawScore, year]);
-        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all mvp_week_tbl records in year ${year}`);
+        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all records in year ${year} (Benchmark: ${maxRawScore.toFixed(4)})`);
       } else {
         await executeQuery(`
-          UPDATE mvp_week_tbl
-          SET rating = LEAST(10.00, ROUND((raw_score / ?) * 10, 2))
-          WHERE raw_score > 0
-        `, [maxRawScore]);
-        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all mvp_week_tbl records across all weeks`);
+          UPDATE mvp_week_tbl m
+          JOIN week_tbl w ON m.week_id = w.id
+          JOIN (
+            SELECT YEAR(w2.date) as yr, MAX(m2.raw_score) as yr_max
+            FROM mvp_week_tbl m2
+            JOIN week_tbl w2 ON m2.week_id = w2.id
+            WHERE m2.raw_score > 0
+            GROUP BY YEAR(w2.date)
+          ) yr_stats ON YEAR(w.date) = yr_stats.yr
+          SET m.rating = LEAST(10.00, ROUND((m.raw_score / yr_stats.yr_max) * 10, 2))
+          WHERE m.raw_score > 0 AND yr_stats.yr_max > 0
+        `);
+        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all records based on each year's best benchmark`);
       }
+    }
+
+    // Query yearly max scores and persist each year's benchmark into template_tpl ('max_mvp_score_YYYY')
+    const yearlyMaxRes = await executeQuery(`
+      SELECT YEAR(w.date) as yr, MAX(m.raw_score) as yr_max
+      FROM mvp_week_tbl m
+      JOIN week_tbl w ON m.week_id = w.id
+      WHERE m.raw_score > 0
+      GROUP BY YEAR(w.date)
+    `);
+    const yearlyMaxMap = {};
+    if (yearlyMaxRes && yearlyMaxRes.length > 0) {
+      for (const r of yearlyMaxRes) {
+        const yr = r.yr;
+        const yrMax = parseFloat(r.yr_max);
+        yearlyMaxMap[yr] = yrMax;
+        const key = `max_mvp_score_${yr}`;
+        const ex = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
+        if (ex && ex.length > 0) {
+          await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [yrMax.toFixed(4), key]);
+        } else {
+          await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, yrMax.toFixed(4)]);
+        }
+      }
+      console.log(`📌 Saved yearly benchmarks to template_tpl: ${Object.entries(yearlyMaxMap).map(([yr, val]) => `${yr}: ${val.toFixed(4)}`).join(' | ')}`);
     }
 
     let topSql = `
@@ -1864,7 +1931,12 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     let topPerformances = [];
     if (topDbPerformances && topDbPerformances.length > 0) {
       for (const p of topDbPerformances) {
-        const dateStr = p.date ? await getFormatDate(new Date(p.date), 'short') : '';
+        const pDate = p.date ? new Date(p.date) : null;
+        const pYear = pDate ? pDate.getFullYear() : (year || new Date().getFullYear());
+        const dateStr = pDate ? await getFormatDate(pDate, 'short') : '';
+        const yrBenchmark = yearlyMaxMap[pYear] || maxRawScore;
+        const normalizedRating = yrBenchmark > 0 ? Math.min(10.0, (parseFloat(p.raw_score) / yrBenchmark) * 10) : parseFloat(p.rating || 0);
+
         topPerformances.push({
           week_id: p.week_id,
           member_id: p.member_id,
@@ -1874,7 +1946,8 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           cleanSheets: Number(p.clean_sheet) || 0,
           conceded: Number(p.conceded) || 0,
           rawScore: parseFloat(p.raw_score),
-          score: parseFloat(p.rating),
+          score: normalizedRating,
+          yrBenchmark,
           dateStr
         });
       }
@@ -1885,7 +1958,8 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     console.log(`======================================================`);
     for (let i = 0; i < topPerformances.length; i++) {
       const p = topPerformances[i];
-      const rating = maxRawScore > 0 ? Math.min(10.0, (p.rawScore / maxRawScore) * 10).toFixed(1) : '0.0';
+      const rating = p.score > 0 ? p.score.toFixed(1) : '0.0';
+      const refBench = p.yrBenchmark || maxRawScore;
 
       // Retrieve full player score details for this week
       let detail = null;
@@ -1902,7 +1976,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         console.log(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Goals Against (GA): ${detail.goalsConceded}, Matches Played (M): ${detail.matches}`);
         console.log(`   └─ Raw MVP Score (Total): (${detail.goals} * ${detail.ptsGoal}) + (${detail.assists} * ${detail.ptsAssist}) + (${detail.cleanSheets} * ${detail.ptsCleanSheet}) + (${detail.wins} * ${detail.ptsWins}) - (${detail.goalsConceded} * ${detail.ptsConceded}) - (${detail.own_goals} * ${detail.ptsOg}) = ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)}`);
         console.log(`   └─ Per-Match Raw MVP Score: ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)} / ${detail.matches} = ${detail.rawScore.toFixed(4)}`);
-        console.log(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Benchmark Ref ${maxRawScore.toFixed(4)}) * 10 = ${rating} / 10`);
+        console.log(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Year Benchmark Ref ${refBench.toFixed(4)}) * 10 = ${rating} / 10`);
         console.log(`   => Final MVP Rating = ${rating} / 10\n`);
       } else {
         console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
