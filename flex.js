@@ -3992,6 +3992,305 @@ function buildTeamWeekFlex(teamColors, teamMembersMap, theme, assets = {}, resol
   return carousel;
 }
 
+function buildMvpListFlex(mvpData, theme) {
+  const { year, bestRating, bestRaw, yrBenchmark, totalWeeks, weeks } = mvpData;
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+
+  const bgMain = isWhite ? '#ffffff' : '#0d0d1a';
+  const bgCard = isWhite ? '#f8fafc' : '#141428';
+  const bgHeader = isWhite ? '#f1f5f9' : '#1a1a2e';
+  const separatorColor = isWhite ? '#e2e8f0' : '#2a2a4a';
+
+  if (!weeks || weeks.length === 0) {
+    return {
+      type: 'bubble',
+      size: 'mega',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: bgMain,
+        paddingAll: 'lg',
+        contents: [
+          {
+            type: 'text',
+            text: `🌟 ทำเนียบ MVP ประจำปี ${year}`,
+            weight: 'bold',
+            size: 'lg',
+            color: colors.textPrimary,
+            align: 'center'
+          },
+          {
+            type: 'text',
+            text: `ยังไม่มีข้อมูล MVP สำหรับปี ${year}`,
+            size: 'sm',
+            color: colors.textMuted,
+            align: 'center',
+            margin: 'md'
+          }
+        ]
+      }
+    };
+  }
+
+  const chunkSize = 10;
+  const bubbles = [];
+  const totalPages = Math.ceil(weeks.length / chunkSize);
+
+  for (let page = 0; page < totalPages; page++) {
+    const chunk = weeks.slice(page * chunkSize, (page + 1) * chunkSize);
+    const bodyContents = [];
+
+    // Header Card
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: bgHeader,
+      paddingAll: 'md',
+      cornerRadius: 'md',
+      contents: [
+        {
+          type: 'text',
+          text: `🌟 ทำเนียบ MVP ประจำปี ${year}`,
+          weight: 'bold',
+          size: 'md',
+          color: colors.textPrimary,
+          align: 'center'
+        },
+        {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: isWhite ? '#fef3c7' : '#2d2410',
+          cornerRadius: 'sm',
+          paddingAll: 'sm',
+          margin: 'sm',
+          contents: [
+            {
+              type: 'text',
+              text: `🏆 Best MVP Rating: ${Number(bestRating || 0).toFixed(1)} / 10`,
+              weight: 'bold',
+              size: 'xs',
+              color: '#d97706',
+              align: 'center'
+            },
+            {
+              type: 'text',
+              text: `📌 Benchmark เฉลี่ยต่อนัด: ${Number(yrBenchmark || 0).toFixed(4)}`,
+              size: 'xxs',
+              color: colors.textMuted,
+              align: 'center',
+              margin: 'xs'
+            }
+          ]
+        },
+        ...(totalPages > 1 ? [{
+          type: 'text',
+          text: `หน้า ${page + 1}/${totalPages} (ทั้งหมด ${totalWeeks} สัปดาห์)`,
+          size: 'xxs',
+          color: colors.textMuted,
+          align: 'center',
+          margin: 'xs'
+        }] : [])
+      ]
+    });
+
+    bodyContents.push({ type: 'separator', margin: 'md', color: separatorColor });
+
+    // Week MVP Rows
+    chunk.forEach((w, wIdx) => {
+      const isEven = wIdx % 2 === 1;
+      const weekContents = [];
+
+      // Week Date Header
+      weekContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        alignItems: 'center',
+        contents: [
+          {
+            type: 'text',
+            text: `📅 ${w.dateStr}`,
+            weight: 'bold',
+            size: 'xs',
+            color: colors.textAccent,
+            flex: 1
+          },
+          {
+            type: 'text',
+            text: `Week ID: ${w.week_id}`,
+            size: 'xxs',
+            color: colors.textMutedDark,
+            align: 'end'
+          }
+        ]
+      });
+
+      // MVP Winners of this week
+      w.mvps.forEach(mvp => {
+        const playerRow = [];
+
+        // Avatar
+        if (mvp.info && mvp.info.pictureUrl) {
+          playerRow.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '32px',
+            height: '32px',
+            cornerRadius: '100px',
+            flex: 0,
+            contents: [
+              {
+                type: 'image',
+                url: mvp.info.pictureUrl,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover'
+              }
+            ]
+          });
+        } else {
+          playerRow.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '32px',
+            height: '32px',
+            cornerRadius: '100px',
+            backgroundColor: isWhite ? '#e2e8f0' : '#22223b',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: 0,
+            contents: [
+              {
+                type: 'text',
+                text: '👤',
+                size: 'md',
+                align: 'center',
+                gravity: 'center'
+              }
+            ]
+          });
+        }
+
+        // Badges + Name
+        const nameBadges = [];
+        if (mvp.info && mvp.info.badgeUrl) {
+          nameBadges.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '16px',
+            height: '16px',
+            flex: 0,
+            contents: [{ type: 'image', url: mvp.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+          });
+        }
+        nameBadges.push({
+          type: 'text',
+          text: mvp.name,
+          weight: 'bold',
+          size: 'xs',
+          color: (mvp.info && mvp.info.nameColor) || colors.textPrimary,
+          flex: 1,
+          gravity: 'center'
+        });
+
+        // Stats summary text
+        const statsParts = [];
+        if (mvp.goals > 0) statsParts.push(`⚽ ${mvp.goals}`);
+        if (mvp.assists > 0) statsParts.push(`👟 ${mvp.assists}`);
+        if (mvp.cleanSheets > 0) statsParts.push(`🧤 ${mvp.cleanSheets}CS`);
+        statsParts.push(`(Raw: ${mvp.rawScore.toFixed(2)})`);
+
+        playerRow.push({
+          type: 'box',
+          layout: 'vertical',
+          flex: 1,
+          margin: 'sm',
+          justifyContent: 'center',
+          contents: [
+            {
+              type: 'box',
+              layout: 'horizontal',
+              alignItems: 'center',
+              contents: nameBadges
+            },
+            {
+              type: 'text',
+              text: statsParts.join('  '),
+              size: 'xxs',
+              color: colors.textMuted,
+              margin: 'xxs'
+            }
+          ]
+        });
+
+        // Rating Pill / Text
+        playerRow.push({
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: isWhite ? '#fef3c7' : '#3b2d10',
+          cornerRadius: 'sm',
+          paddingStart: 'sm',
+          paddingEnd: 'sm',
+          paddingTop: 'xs',
+          paddingBottom: 'xs',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 0,
+          contents: [
+            {
+              type: 'text',
+              text: `⭐ ${mvp.rating > 0 ? mvp.rating.toFixed(1) : '0.0'}`,
+              weight: 'bold',
+              size: 'xs',
+              color: '#d97706',
+              align: 'center'
+            }
+          ]
+        });
+
+        weekContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          alignItems: 'center',
+          margin: 'xs',
+          contents: playerRow
+        });
+      });
+
+      bodyContents.push({
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: isEven ? bgCard : 'transparent',
+        paddingAll: 'sm',
+        cornerRadius: 'sm',
+        margin: 'xs',
+        contents: weekContents
+      });
+    });
+
+    bubbles.push({
+      type: 'bubble',
+      size: 'mega',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: bgMain,
+        paddingAll: 'md',
+        contents: bodyContents
+      }
+    });
+  }
+
+  if (bubbles.length === 1) {
+    return bubbles[0];
+  }
+
+  return {
+    type: 'carousel',
+    contents: bubbles
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -4008,6 +4307,7 @@ module.exports = {
   buildRegisterClosedFlex,
   buildAutoRegFullFlex,
   buildMemberStatsFlex,
+  buildMvpListFlex,
   getThemeColors,
   buildMenuFlex,
   buildQrFlex,

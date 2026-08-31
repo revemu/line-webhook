@@ -612,6 +612,27 @@ const COMMAND_REGISTRY = {
         msg += `✅ อัพเดทคะแนนอ้างอิง 10.00 (Benchmark) เรียบร้อยแล้ว!`;
         return [{ type: 'text', text: msg }];
     },
+    'mvplist': async (context) => {
+        const { param, groupId, quoteToken } = context;
+        let year = null;
+        if (param && param.trim() !== '') {
+            const num = Number(param.trim());
+            if (!isNaN(num) && num > 2000) {
+                year = num;
+            }
+        }
+        const theme = await db.getTheme();
+        const mvpData = await db.getMvpList(year, groupId);
+        if (!mvpData || mvpData.weeks.length === 0) {
+            return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูล MVP ประจำปี ${mvpData ? mvpData.year : (year || new Date().getFullYear())}` }];
+        }
+        const flexContents = flex.buildMvpListFlex(mvpData, theme);
+        return {
+            type: 'flex',
+            altText: `🌟 ทำเนียบ MVP ประจำปี ${mvpData.year}`,
+            contents: flexContents
+        };
+    },
     'slip': async (context) => {
         const { member, groupId } = context;
         const theme = await db.getTheme();

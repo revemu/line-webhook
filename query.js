@@ -4244,6 +4244,127 @@ async function getSlipById(id) {
   return null;
 }
 
+async function getMvpList(targetYear = null, groupId = null) {
+  const currentYear = new Date().getFullYear();
+  const year = targetYear && !isNaN(Number(targetYear)) && Number(targetYear) > 2000 ? Number(targetYear) : currentYear;
+
+  await ensureMvpWeekTable();
+  await ensurePosTables();
+  const assets = await fetchDisplayAssets();
+
+  // 1. Fetch benchmark max score and best rating for that year
+  let bestRating = 0;
+  let bestRaw = 0;
+  try {
+    const bestRes = await executeQuery(`
+      SELECT MAX(m.rating) as best_rating, MAX(m.raw_score) as best_raw
+      FROM mvp_week_tbl m
+      JOIN week_tbl w ON m.week_id = w.id
+      WHERE YEAR(w.date) = ?
+    `, [year]);
+    if (bestRes && bestRes[0]) {
+      bestRating = parseFloat(bestRes[0].best_rating || 0);
+      bestRaw = parseFloat(bestRes[0].best_raw || 0);
+    }
+  } catch (e) { }
+
+  let yrBenchmark = bestRaw;
+  try {
+    const tplRes = await executeQuery("SELECT value FROM template_tpl WHERE name = ?", [`max_mvp_score_${year}`]);
+    if (tplRes && tplRes.length > 0 && tplRes[0].value) {
+      yrBenchmark = parseFloat(tplRes[0].value);
+    }
+  } catch (e) { }
+
+  // 2. Query all MVP winners of each week for that year
+  const mvpRows = await executeQuery(`
+    SELECT 
+      m.week_id,
+      m.member_id,
+      m.member_name,
+      m.goals,
+      m.assists,
+      m.clean_sheet,
+      m.conceded,
+      m.raw_score,
+      m.rating,
+      w.date,
+      mem.id,
+      mem.name,
+      mem.alias,
+      mem.rank,
+      mem.donate,
+      mem.picture_url,
+      mem.line_user_id
+    FROM mvp_week_tbl m
+    JOIN week_tbl w ON m.week_id = w.id
+    LEFT JOIN member_tbl mem ON m.member_id = mem.id
+    WHERE YEAR(w.date) = ?
+    ORDER BY w.date DESC, m.rating DESC, m.raw_score DESC
+  `, [year]);
+
+  if (!mvpRows || mvpRows.length === 0) {
+    return { year, bestRating, bestRaw, yrBenchmark, totalWeeks: 0, weeks: [] };
+  }
+
+  // Ensure member pictures
+  await Promise.all(mvpRows.map(r => r.id ? ensureMemberPicture(r, groupId) : Promise.resolve()));
+
+  // Group by week_id
+  const weekMap = {};
+  for (const row of mvpRows) {
+    const wId = row.week_id;
+    if (!weekMap[wId]) {
+      const wDate = row.date ? new Date(row.date) : null;
+      const dateStr = wDate ? await getFormatDate(wDate, 'short') : `สัปดาห์ ${wId}`;
+      weekMap[wId] = {
+        week_id: wId,
+        date: row.date,
+        dateStr,
+        mvps: []
+      };
+    }
+
+    const info = resolveMemberDisplayInfo(
+      row.id ? row : { name: row.member_name, id: row.member_id, picture_url: null, rank: null, donate: null, line_user_id: null },
+      assets.badges,
+      assets.donateColors,
+      assets.hofCounts,
+      assets.hofBadge,
+      assets.hofAwards
+    );
+
+    const goals = Number(row.goals) || 0;
+    const assists = Number(row.assists) || 0;
+    const cleanSheets = Number(row.clean_sheet) || 0;
+    const conceded = Number(row.conceded) || 0;
+    const rawScore = parseFloat(row.raw_score || 0);
+    const rating = parseFloat(row.rating || 0);
+
+    weekMap[wId].mvps.push({
+      member_id: row.member_id,
+      name: row.member_name || (row.name || ''),
+      info,
+      goals,
+      assists,
+      cleanSheets,
+      conceded,
+      rawScore,
+      rating
+    });
+  }
+
+  const weeksList = Object.values(weekMap);
+  return {
+    year,
+    bestRating,
+    bestRaw,
+    yrBenchmark,
+    totalWeeks: weeksList.length,
+    weeks: weeksList
+  };
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -4291,6 +4412,7 @@ module.exports = {
   getTemplate,
   getMemberDisplayInfo,
   getMemberStats,
+  getMvpList,
   getAdminCommands,
   logSlip,
   getSlipByQRCode,
