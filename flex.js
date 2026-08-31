@@ -4290,7 +4290,7 @@ function buildMvpListFlex(mvpData, theme) {
         }*/
         nameContents.push({
           type: 'text',
-          text: `${w.dateStr || ''} - ${mvp.name || ''}`,
+          text: `${mvp.name || ''}`,
           weight: 'bold',
           size: 'xs',
           color: nameColor,
