@@ -1510,7 +1510,7 @@ async function saveWeekMvpRecords(week_id, mvpList) {
   }
 }
 
-async function calculateWeekRawMvp(week_id) {
+async function calculateWeekRawMvp(week_id, verbose = false) {
   const goalsQuery = `
     SELECT 
       mtw.member_id, 
@@ -1629,10 +1629,12 @@ async function calculateWeekRawMvp(week_id) {
     const rawScore = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
     const td = teamDetailsMap[teamId] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor: 1 };
 
-    console.log(` [Player ${m.name}] (Team: ${td.teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
-    console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-    console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}`);
-    console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScore.toFixed(4)}`);
+    if (verbose) {
+      console.log(` [Player ${m.name}] (Team: ${td.teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
+      console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
+      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}`);
+      console.log(`   └─ Raw MVP Score: (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScore.toFixed(4)}`);
+    }
 
     return {
       week_id,
