@@ -4338,6 +4338,12 @@ function buildMvpListFlex(mvpData, theme) {
               margin: 'sm',
               contents: [
                 {
+                  type: 'text',
+                  text: `${w.dateStr || ''}`,
+                  size: 'xxs',
+                  color: colors.textMuted
+                },
+                {
                   type: 'box',
                   layout: 'horizontal',
                   alignItems: 'center',
