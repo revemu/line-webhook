@@ -4087,7 +4087,7 @@ function buildMvpListFlex(mvpData, theme) {
       }
       titleContents.push({
         type: 'text',
-        text: 'Best MVP of the Year!',
+        text: 'MVP of the Year!',
         weight: 'bold',
         size: 'xs',
         color: '#f59e0b',
