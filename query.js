@@ -1923,7 +1923,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         tableBodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
 
         const sortedPlayers = [...leaders.allPlayerRatings].sort((a, b) => (b.rawScore || 0) - (a.rawScore || 0));
-        const displayPlayers = sortedPlayers.slice(0, 16);
+        const displayPlayers = sortedPlayers;
 
         displayPlayers.forEach((p, i) => {
           const isTop1 = (i === 0) || (sortedPlayers[0] && p.rawScore === sortedPlayers[0].rawScore);
@@ -1932,51 +1932,6 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           const isTopAssist = leaders.topAssists && leaders.topAssists.some(ta => ta.id === p.id);
 
           const nameColContents = [];
-
-          // Avatar Picture (20px)
-          const picUrl = ensureSanitizedUrl(p.info ? (p.info.pictureUrl || p.picture_url || p.pictureUrl) : null);
-          if (picUrl) {
-            nameColContents.push({
-              type: 'box',
-              layout: 'vertical',
-              width: '20px',
-              height: '20px',
-              cornerRadius: '100px',
-              flex: 0,
-              contents: [
-                {
-                  type: 'image',
-                  url: picUrl,
-                  size: 'full',
-                  aspectRatio: '1:1',
-                  aspectMode: 'cover'
-                }
-              ]
-            });
-          }
-
-          // Rank Badge (reduced width 14px)
-          const rankBadgeUrl = ensureSanitizedUrl(p.info ? p.info.badgeUrl : null);
-          if (rankBadgeUrl) {
-            nameColContents.push({
-              type: 'box',
-              layout: 'vertical',
-              width: '14px',
-              height: '14px',
-              flex: 0,
-              margin: 'xs',
-              contents: [
-                {
-                  type: 'image',
-                  url: rankBadgeUrl,
-                  size: 'full',
-                  aspectRatio: '1:1',
-                  aspectMode: 'fit',
-                  animated: true
-                }
-              ]
-            });
-          }
 
           // HOF Badges for Weekly Winners (MVP 👑, Most Scorer ⚽, Most Assist 👟)
           const weekBadgeUrls = [];
@@ -2029,10 +1984,11 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             }
           });
 
-          // Member Name
+          // Member Name without leading @
+          const displayName = (p.name || '').replace(/^@+/, '');
           nameColContents.push({
             type: 'text',
-            text: p.name || '',
+            text: displayName,
             size: 'xs',
             color: (p.info && p.info.nameColor) ? p.info.nameColor : colors.textPrimary,
             weight: (isTop1 || isMvp || isTopScorer || isTopAssist) ? 'bold' : 'regular',
