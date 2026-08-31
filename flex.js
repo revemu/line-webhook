@@ -4149,6 +4149,7 @@ function buildMvpListFlex(mvpData, theme) {
             width: '14px',
             height: '14px',
             flex: 0,
+            margin: 'sm',
             contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
           });
         }
