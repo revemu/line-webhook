@@ -1827,6 +1827,24 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       } else {
         await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('max_mvp_score', ?)", [maxRawScore.toFixed(4)]);
       }
+
+      // Update normalized 1-10 rating for all records in mvp_week_tbl
+      if (year) {
+        await executeQuery(`
+          UPDATE mvp_week_tbl m
+          JOIN week_tbl w ON m.week_id = w.id
+          SET m.rating = LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2))
+          WHERE YEAR(w.date) = ? AND m.raw_score > 0
+        `, [maxRawScore, year]);
+        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all mvp_week_tbl records in year ${year}`);
+      } else {
+        await executeQuery(`
+          UPDATE mvp_week_tbl
+          SET rating = LEAST(10.00, ROUND((raw_score / ?) * 10, 2))
+          WHERE raw_score > 0
+        `, [maxRawScore]);
+        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all mvp_week_tbl records across all weeks`);
+      }
     }
 
     let topSql = `
