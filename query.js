@@ -1469,12 +1469,6 @@ async function ensureMvpWeekTable() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await executeQuery(createSql);
-    try {
-      await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN wins INT DEFAULT 0 AFTER conceded");
-    } catch (e) { }
-    try {
-      await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN own_goals INT DEFAULT 0 AFTER goals");
-    } catch (e) { }
     // Cleanup temporary reserve slot records (@team1+1, @team1+7, +team1+2, etc.)
     try {
       await executeQuery("DELETE FROM mvp_week_tbl WHERE member_name LIKE '@team%' OR member_name LIKE 'team%' OR member_name LIKE '+team%'");
@@ -1492,44 +1486,24 @@ async function saveWeekMvpRecords(week_id, mvpList) {
     const memId = item.id || item.member_id || 0;
     const name = item.name || '';
     const g = Number(item.goals) || 0;
-    const og = Number(item.own_goals !== undefined ? item.own_goals : (item.ownGoals || item.og || 0)) || 0;
     const a = Number(item.assists) || 0;
     const cs = Number(item.cleanSheets !== undefined ? item.cleanSheets : (item.clean_sheet || 0)) || 0;
     const ga = Number(item.goalsConceded !== undefined ? item.goalsConceded : (item.conceded || 0)) || 0;
-    const wins = Number(item.wins || 0);
     const raw = parseFloat(item.rawScore || item.score || 0);
     const rat = parseFloat(item.score || 0);
 
-    try {
-      await executeQuery(`
-        INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, own_goals, assists, clean_sheet, conceded, wins, raw_score, rating)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          member_name = VALUES(member_name),
-          goals = VALUES(goals),
-          own_goals = VALUES(own_goals),
-          assists = VALUES(assists),
-          clean_sheet = VALUES(clean_sheet),
-          conceded = VALUES(conceded),
-          wins = VALUES(wins),
-          raw_score = VALUES(raw_score),
-          rating = VALUES(rating)
-      `, [week_id, memId, name, g, og, a, cs, ga, wins, raw, rat]);
-    } catch (dbErr) {
-      // Fallback in case columns not altered yet
-      await executeQuery(`
-        INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, assists, clean_sheet, conceded, raw_score, rating)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          member_name = VALUES(member_name),
-          goals = VALUES(goals),
-          assists = VALUES(assists),
-          clean_sheet = VALUES(clean_sheet),
-          conceded = VALUES(conceded),
-          raw_score = VALUES(raw_score),
-          rating = VALUES(rating)
-      `, [week_id, memId, name, g, a, cs, ga, raw, rat]);
-    }
+    await executeQuery(`
+      INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, assists, clean_sheet, conceded, raw_score, rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        member_name = VALUES(member_name),
+        goals = VALUES(goals),
+        assists = VALUES(assists),
+        clean_sheet = VALUES(clean_sheet),
+        conceded = VALUES(conceded),
+        raw_score = VALUES(raw_score),
+        rating = VALUES(rating)
+    `, [week_id, memId, name, g, a, cs, ga, raw, rat]);
   }
 }
 
@@ -1794,10 +1768,8 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           member_id: p.member_id,
           name: p.member_name,
           goals: p.goals,
-          own_goals: p.own_goals || 0,
           assists: p.assists,
           cleanSheets: Number(p.clean_sheet) || 0,
-          wins: Number(p.wins) || 0,
           conceded: Number(p.conceded) || 0,
           rawScore: parseFloat(p.raw_score),
           score: parseFloat(p.rating),
@@ -1812,8 +1784,8 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     topPerformances.forEach((p, i) => {
       const rating = maxRawScore > 0 ? Math.min(10.0, (p.rawScore / maxRawScore) * 10).toFixed(1) : '0.0';
       console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
-      console.log(`   └─ Player Stats: Goals (G): ${p.goals}, OwnGoals (OG): ${p.own_goals}, Assists (A): ${p.assists}, CleanSheets (CS): ${p.cleanSheets}, Match Wins (W): ${p.wins}, Conceded (GA): ${p.conceded}`);
-      console.log(`   └─ Raw MVP Score: ${p.rawScore.toFixed(4)} (includes Match Wins * 1.5 and Own Goals deduction)`);
+      console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets (CS): ${p.cleanSheets}, Conceded (GA): ${p.conceded}`);
+      console.log(`   └─ Raw MVP Score: ${p.rawScore.toFixed(4)}`);
       console.log(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
     });
     console.log(`📌 Benchmark Max Raw Score Saved to DB (10.00 Ref): ${maxRawScore.toFixed(4)}`);
