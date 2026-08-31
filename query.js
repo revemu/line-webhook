@@ -2062,7 +2062,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
       const tableBubble = {
         type: 'bubble',
-        size: 'mega',
+        size: 'giga',
         body: {
           type: 'box',
           layout: 'vertical',
@@ -2159,7 +2159,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
         const chunkBubble = {
           type: 'bubble',
-          size: 'mega',
+          size: 'giga',
           body: {
             type: 'box',
             layout: 'vertical',
