@@ -4119,6 +4119,27 @@ function buildMvpListFlex(mvpData, theme) {
             contents: [{ type: 'image', url: mvp.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
           });
         }
+        if (mvp.info && mvp.info.hofBadges && mvp.info.hofBadges.length > 0) {
+          for (const hb of mvp.info.hofBadges) {
+            nameContents.push({
+              type: 'box',
+              layout: 'vertical',
+              width: '14px',
+              height: '14px',
+              flex: 0,
+              contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+            });
+          }
+        } else if (mvp.info && mvp.info.hofBadgeUrl) {
+          nameContents.push({
+            type: 'box',
+            layout: 'vertical',
+            width: '14px',
+            height: '14px',
+            flex: 0,
+            contents: [{ type: 'image', url: mvp.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+          });
+        }
         nameContents.push({
           type: 'text',
           text: `${w.dateStr} - ${mvp.name}`,

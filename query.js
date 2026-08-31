@@ -136,6 +136,9 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     const badgesWithId = [];
     for (const awardType of memberAwards) {
       let badge = hofBadge[awardType];
+      if (!badge && (awardType === 'best_mvp' || awardType === 'mvp')) {
+        badge = hofBadge['best_mvp'] || hofBadge['mvp'] || hofBadge['top_mvp'];
+      }
       if (!badge) {
         badge = hofBadge['default'] || Object.values(hofBadge)[0] || { id: 0, url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
       }
@@ -1953,6 +1956,40 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       }
     }
     console.log(`✅ [MVP Sync] Completed updating member_team_week_tbl ratings across ${weeks.length} weeks`);
+
+    // ── Sync best MVP winner(s) of each year into hof_tbl (Hall of Fame) ──
+    try {
+      const yearlyBestMvpRes = await executeQuery(`
+        SELECT YEAR(w.date) as yr, m.member_id, m.raw_score
+        FROM mvp_week_tbl m
+        JOIN week_tbl w ON m.week_id = w.id
+        WHERE m.raw_score > 0
+        ORDER BY m.raw_score DESC
+      `);
+
+      const yearlyBestMvpMap = {};
+      if (yearlyBestMvpRes && yearlyBestMvpRes.length > 0) {
+        for (const r of yearlyBestMvpRes) {
+          const yr = r.yr;
+          if (!yearlyBestMvpMap[yr]) {
+            yearlyBestMvpMap[yr] = { maxScore: parseFloat(r.raw_score), memberIds: [] };
+          }
+          if (parseFloat(r.raw_score) === yearlyBestMvpMap[yr].maxScore) {
+            if (!yearlyBestMvpMap[yr].memberIds.includes(r.member_id)) {
+              yearlyBestMvpMap[yr].memberIds.push(r.member_id);
+            }
+          }
+        }
+
+        for (const [yr, data] of Object.entries(yearlyBestMvpMap)) {
+          if (year && Number(yr) !== Number(year)) continue;
+          await syncHofRecords('best_mvp', Number(yr), data.memberIds);
+          console.log(`🏆 [HOF Sync] Updated best_mvp in hof_tbl for year ${yr}: Member IDs [${data.memberIds.join(', ')}] (Score: ${data.maxScore.toFixed(4)})`);
+        }
+      }
+    } catch (hofErr) {
+      console.error('⚠️ [HOF Sync] Error syncing best_mvp to hof_tbl:', hofErr.message);
+    }
 
     let topSql = `
       SELECT m.*, w.date 
@@ -3825,14 +3862,32 @@ async function updateHof() {
       }
     }
 
+    // Sync best MVP of current year into hof_tbl
+    const bestMvpRes = await executeQuery(`
+      SELECT m.member_id, m.raw_score
+      FROM mvp_week_tbl m
+      JOIN week_tbl w ON m.week_id = w.id
+      WHERE YEAR(w.date) = ? AND m.raw_score > 0
+      ORDER BY m.raw_score DESC
+    `, [currentYear]);
+
+    let topBestMvp = [];
+    if (bestMvpRes && bestMvpRes.length > 0) {
+      const maxMvpScore = parseFloat(bestMvpRes[0].raw_score);
+      if (maxMvpScore > 0) {
+        topBestMvp = bestMvpRes.filter(r => parseFloat(r.raw_score) === maxMvpScore).map(r => r.member_id);
+      }
+    }
+
     // Sync HOF records instead of deleting and recreating
     await syncHofRecords('scorer', currentYear, topScorers);
     await syncHofRecords('assist', currentYear, topAssists);
     await syncHofRecords('own_goal', currentYear, topOwnGoals);
     await syncHofRecords('avg_pts', currentYear, topPlayers);
     await syncHofRecords('bottom', currentYear, topBottom);
+    await syncHofRecords('best_mvp', currentYear, topBestMvp);
 
-    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Avg Pts): ${topPlayers.join(', ')}, Top Bottom: ${topBottom.join(', ')}`);
+    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Avg Pts): ${topPlayers.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
   } catch (err) {
     console.error('Error updating HOF records:', err.message);
   }
