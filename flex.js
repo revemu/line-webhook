@@ -4034,9 +4034,9 @@ function buildMvpListFlex(mvpData, theme) {
     };
   }
 
-  const page1ChunkSize = 4;
-  const pageNChunkSize = 5;
-  const maxBubbles = 5;
+  const page1ChunkSize = 6;
+  const pageNChunkSize = 7;
+  const maxBubbles = 6;
   const chunks = [];
   let currentIdx = 0;
   let pIdx = 0;
@@ -4082,21 +4082,13 @@ function buildMvpListFlex(mvpData, theme) {
       const titleContents = [];
       if (bestMvpBadgeUrl && bestMvpBadgeUrl.startsWith('https://')) {
         titleContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: '16px',
-          height: '16px',
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: bestMvpBadgeUrl,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              animated: true
-            }
-          ]
+          type: 'image',
+          url: bestMvpBadgeUrl,
+          size: '16px',
+          aspectRatio: '1:1',
+          aspectMode: 'cover',
+          animated: true,
+          flex: 0
         });
       }
       titleContents.push({
@@ -4129,77 +4121,22 @@ function buildMvpListFlex(mvpData, theme) {
 
       bestMvpPlayers.forEach(p => {
         const statsStr = `⚽ ${p.goals} 👟 ${p.assists}${p.cleanSheets > 0 ? ` 🧤 ${p.cleanSheets}` : ''} • Score: ${p.rawScore.toFixed(2)}`;
-        const avatarUrl = p.info ? p.info.pictureUrl : null;
+        const avatarUrl = (p.info && p.info.pictureUrl && p.info.pictureUrl.startsWith('https://')) ? p.info.pictureUrl : null;
         const nameColor = (p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff');
 
-        const pBadges = [];
-        if (p.info && p.info.badgeUrl && p.info.badgeUrl.startsWith('https://')) {
-          pBadges.push({
-            type: 'box',
-            layout: 'vertical',
-            width: '14px',
-            height: '14px',
-            flex: 0,
-            contents: [{ type: 'image', url: p.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
-          });
-        }
-        if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
-          for (const hb of p.info.hofBadges.slice(0, 2)) {
-            if (hb.url && hb.url.startsWith('https://')) {
-              pBadges.push({
-                type: 'box',
-                layout: 'vertical',
-                width: '14px',
-                height: '14px',
-                flex: 0,
-                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
-              });
-            }
-          }
-        } else if (p.info && p.info.hofBadgeUrl && p.info.hofBadgeUrl.startsWith('https://')) {
-          pBadges.push({
-            type: 'box',
-            layout: 'vertical',
-            width: '14px',
-            height: '14px',
-            flex: 0,
-            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
-          });
-        }
-        pBadges.push({
-          type: 'text',
-          text: p.name || '',
-          weight: 'bold',
-          size: 'xs',
-          color: nameColor,
-          flex: 1
-        });
-
-        const isPAvatarValid = avatarUrl && avatarUrl.startsWith('https://');
         topMvpContents.push({
           type: 'box',
           layout: 'horizontal',
           margin: 'sm',
           alignItems: 'center',
           contents: [
-            isPAvatarValid ? {
-              type: 'box',
-              layout: 'vertical',
-              width: '34px',
-              height: '34px',
-              cornerRadius: '100px',
-              borderWidth: 'normal',
-              borderColor: '#f59e0b',
-              flex: 0,
-              contents: [
-                {
-                  type: 'image',
-                  url: avatarUrl,
-                  size: 'full',
-                  aspectRatio: '1:1',
-                  aspectMode: 'cover'
-                }
-              ]
+            avatarUrl ? {
+              type: 'image',
+              url: avatarUrl,
+              size: '34px',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              flex: 0
             } : {
               type: 'box',
               layout: 'vertical',
@@ -4219,10 +4156,11 @@ function buildMvpListFlex(mvpData, theme) {
               margin: 'sm',
               contents: [
                 {
-                  type: 'box',
-                  layout: 'horizontal',
-                  alignItems: 'center',
-                  contents: pBadges
+                  type: 'text',
+                  text: p.name || '',
+                  weight: 'bold',
+                  size: 'xs',
+                  color: nameColor
                 },
                 {
                   type: 'text',
@@ -4265,75 +4203,22 @@ function buildMvpListFlex(mvpData, theme) {
 
       w.mvps.forEach(mvp => {
         const statsStr = `⚽ ${mvp.goals}, 👟 ${mvp.assists}${mvp.cleanSheets > 0 ? `, 🧤 ${mvp.cleanSheets}` : ''} (Score: ${mvp.rawScore.toFixed(2)})`;
-        const avatarUrl = mvp.info ? mvp.info.pictureUrl : null;
+        const avatarUrl = (mvp.info && mvp.info.pictureUrl && mvp.info.pictureUrl.startsWith('https://')) ? mvp.info.pictureUrl : null;
         const nameColor = (mvp.info && mvp.info.nameColor) || colors.textPrimary;
 
-        const nameContents = [];
-        if (mvp.info && mvp.info.badgeUrl && mvp.info.badgeUrl.startsWith('https://')) {
-          nameContents.push({
-            type: 'box',
-            layout: 'vertical',
-            width: '14px',
-            height: '14px',
-            flex: 0,
-            contents: [{ type: 'image', url: mvp.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
-          });
-        }
-        if (mvp.info && mvp.info.hofBadges && mvp.info.hofBadges.length > 0) {
-          for (const hb of mvp.info.hofBadges.slice(0, 2)) {
-            if (hb.url && hb.url.startsWith('https://')) {
-              nameContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: '14px',
-                height: '14px',
-                flex: 0,
-                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
-              });
-            }
-          }
-        } else if (mvp.info && mvp.info.hofBadgeUrl && mvp.info.hofBadgeUrl.startsWith('https://')) {
-          nameContents.push({
-            type: 'box',
-            layout: 'vertical',
-            width: '14px',
-            height: '14px',
-            flex: 0,
-            contents: [{ type: 'image', url: mvp.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
-          });
-        }
-        nameContents.push({
-          type: 'text',
-          text: `${w.dateStr || ''} - ${mvp.name || ''}`,
-          weight: 'bold',
-          size: 'xs',
-          color: nameColor,
-          flex: 1
-        });
-
-        const isMvpAvatarValid = avatarUrl && avatarUrl.startsWith('https://');
         const row = {
           type: 'box',
           layout: 'horizontal',
           paddingAll: 'xs',
           alignItems: 'center',
           contents: [
-            isMvpAvatarValid ? {
-              type: 'box',
-              layout: 'vertical',
-              width: '28px',
-              height: '28px',
-              cornerRadius: '100px',
-              flex: 0,
-              contents: [
-                {
-                  type: 'image',
-                  url: avatarUrl,
-                  size: 'full',
-                  aspectRatio: '1:1',
-                  aspectMode: 'cover'
-                }
-              ]
+            avatarUrl ? {
+              type: 'image',
+              url: avatarUrl,
+              size: '28px',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              flex: 0
             } : {
               type: 'box',
               layout: 'vertical',
@@ -4344,7 +4229,7 @@ function buildMvpListFlex(mvpData, theme) {
               alignItems: 'center',
               justifyContent: 'center',
               flex: 0,
-              contents: [{ type: 'text', text: '👤', size: 'sm', align: 'center', gravity: 'center' }]
+              contents: [{ type: 'text', text: '👑', size: 'xs', align: 'center' }]
             },
             {
               type: 'box',
@@ -4353,10 +4238,11 @@ function buildMvpListFlex(mvpData, theme) {
               margin: 'sm',
               contents: [
                 {
-                  type: 'box',
-                  layout: 'horizontal',
-                  alignItems: 'center',
-                  contents: nameContents
+                  type: 'text',
+                  text: `${w.dateStr || ''} - ${mvp.name || ''}`,
+                  weight: 'bold',
+                  size: 'xs',
+                  color: nameColor
                 },
                 {
                   type: 'text',
@@ -4368,7 +4254,7 @@ function buildMvpListFlex(mvpData, theme) {
             },
             {
               type: 'text',
-              text: `⭐ ${mvp.rating > 0 ? mvp.rating.toFixed(1) : '0.0'}`,
+              text: `⭐ ${mvp.rating ? mvp.rating.toFixed(1) : '0.0'}`,
               weight: 'bold',
               size: 'xs',
               color: '#d97706',
@@ -4382,6 +4268,7 @@ function buildMvpListFlex(mvpData, theme) {
           row.backgroundColor = bgCard;
           row.cornerRadius = 'sm';
         }
+
         bodyContents.push(row);
       });
     });
