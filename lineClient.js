@@ -157,6 +157,17 @@ function sanitizeFlexComponent(node, parentBox = null) {
     }
   }
 
+  // 4.5 Carousel Container
+  if (result.type === 'carousel') {
+    if (Array.isArray(result.contents)) {
+      result.contents = result.contents.map(child => sanitizeFlexComponent(child, parentBox)).filter(Boolean);
+      if (result.contents.length > 10) {
+        console.warn(`[sanitizeFlexComponent] Carousel contains ${result.contents.length} bubbles, truncating to max 10 allowed by LINE API!`);
+        result.contents = result.contents.slice(0, 10);
+      }
+    }
+  }
+
   // 5. Root Flex Message Object
   if (result.type === 'flex') {
     if (!result.altText || typeof result.altText !== 'string' || result.altText.trim() === '') {
