@@ -86,7 +86,7 @@ function ensureSanitizedUrl(url) {
   }
   try {
     clean = encodeURI(clean);
-  } catch (e) {}
+  } catch (e) { }
   return clean;
 }
 
@@ -1153,7 +1153,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       if (weekRes && weekRes.length > 0 && weekRes[0].date) {
         weekYear = new Date(weekRes[0].date).getFullYear();
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Retrieve benchmark reference max MVP score for current year from mvp_week_tbl
     await ensureMvpWeekTable();
@@ -1168,7 +1168,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       if (maxDbRes && maxDbRes[0] && maxDbRes[0].max_raw) {
         refMaxScore = parseFloat(maxDbRes[0].max_raw);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (maxRawMvpScore > refMaxScore) {
       refMaxScore = maxRawMvpScore;
@@ -1216,6 +1216,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         cleanSheets,
         wins,
         goalsConceded,
+        matches: teamDetails ? teamDetails.matches : 0,
         pos,
         teamName,
         ptsGoal,
@@ -1471,7 +1472,7 @@ async function ensureMvpWeekTable() {
     // Cleanup temporary reserve slot records (@team1+1, @team1+7, +team1+2, etc.)
     try {
       await executeQuery("DELETE FROM mvp_week_tbl WHERE member_name LIKE '@team%' OR member_name LIKE 'team%' OR member_name LIKE '+team%'");
-    } catch (e) {}
+    } catch (e) { }
   } catch (err) {
     console.error("Error creating mvp_week_tbl table:", err.message);
   }
@@ -1913,8 +1914,8 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           alignItems: 'center',
           contents: [
             { type: 'text', text: 'สมาชิก', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
-            { type: 'text', text: 'ทีม/ตำแหน่ง', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 3, align: 'center' },
-            { type: 'text', text: 'ผลงาน', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 3, align: 'center' },
+            { type: 'text', text: 'pos', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
+            { type: 'text', text: 'G/A (Rate)', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4, align: 'center' },
             { type: 'text', text: 'MVP Rating', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
           ]
         });
@@ -2038,11 +2039,16 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             flex: 1
           });
 
+          const teamMatches = p.matches || 1;
+          const gaTotal = (p.goals || 0) + (p.assists || 0);
+          const gaRate = teamMatches > 0 ? (gaTotal / teamMatches).toFixed(1) : gaTotal.toFixed(1);
+
           const statParts = [];
           if (p.goals > 0) statParts.push(`⚽${p.goals}`);
           if (p.assists > 0) statParts.push(`👟${p.assists}`);
           if (p.own_goals > 0) statParts.push(`🥅${p.own_goals}`);
-          const statStr = statParts.length > 0 ? statParts.join(' ') : '-';
+          const statIcons = statParts.length > 0 ? statParts.join(' ') : '-';
+          const statStr = gaTotal > 0 ? `${statIcons} (${gaRate}/m)` : (statParts.length > 0 ? `${statIcons}` : '-');
 
           const posIcon = p.pos ? (p.pos.icon || '') : '';
           const posCode = p.pos ? p.pos.code : '';
@@ -2068,10 +2074,10 @@ async function getMatchWeek(week_id = 0, groupId = null) {
               },
               {
                 type: 'text',
-                text: `${posIcon}${posCode} ${teamName}`,
+                text: `${posIcon}${posCode}`,
                 size: 'xs',
                 color: teamColorHex || colors.textMuted,
-                flex: 3,
+                flex: 2,
                 align: 'center'
               },
               {
@@ -2079,7 +2085,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
                 text: statStr,
                 size: 'xs',
                 color: colors.textMutedLight || colors.textMuted,
-                flex: 3,
+                flex: 4,
                 align: 'center'
               },
               {
@@ -2098,7 +2104,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
       const tableBubble = {
         type: 'bubble',
-        size: 'mega',
+        size: 'giga',
         body: {
           type: 'box',
           layout: 'vertical',
@@ -2195,7 +2201,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
         const chunkBubble = {
           type: 'bubble',
-          size: 'mega',
+          size: 'giga',
           body: {
             type: 'box',
             layout: 'vertical',
