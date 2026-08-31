@@ -1018,7 +1018,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         m.pos_id as member_pos_id,
         mtw.team_id,
         mtw.pos_id as week_pos_id,
-        COALESCE(SUM(CASE WHEN mgt.status = 1 THEN 1 ELSE 0 END), 0) as goals,
+        COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as goals,
         COALESCE(SUM(CASE WHEN mgt.status = 2 THEN 1 ELSE 0 END), 0) as own_goals,
         COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
       FROM member_team_week_tbl mtw
@@ -1515,7 +1515,7 @@ async function calculateWeekRawMvp(week_id) {
       m.pos_id as member_pos_id,
       mtw.team_id,
       mtw.pos_id as week_pos_id,
-      COALESCE(SUM(CASE WHEN mgt.status = 1 THEN 1 ELSE 0 END), 0) as goals,
+      COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as goals,
       COALESCE(SUM(CASE WHEN mgt.status = 2 THEN 1 ELSE 0 END), 0) as own_goals,
       COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
     FROM member_team_week_tbl mtw
