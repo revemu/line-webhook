@@ -1791,13 +1791,33 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     console.log(`\n======================================================`);
     console.log(`🏆 ALL-TIME TOP 5 RAW MVP SCORES (CHECKED ${weeks.length} WEEKS - NEW: ${newInsertedCount}, SKIPPED: ${skippedCount}, YEAR: ${year || 'ALL'})`);
     console.log(`======================================================`);
-    topPerformances.forEach((p, i) => {
+    for (let i = 0; i < topPerformances.length; i++) {
+      const p = topPerformances[i];
       const rating = maxRawScore > 0 ? Math.min(10.0, (p.rawScore / maxRawScore) * 10).toFixed(1) : '0.0';
-      console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
-      console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets (CS): ${p.cleanSheets}, Conceded (GA): ${p.conceded}`);
-      console.log(`   └─ Raw MVP Score: ${p.rawScore.toFixed(4)}`);
-      console.log(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
-    });
+
+      // Retrieve full player score details for this week
+      let detail = null;
+      try {
+        const weekScores = await calculateWeekRawMvp(p.week_id);
+        if (weekScores && weekScores.length > 0) {
+          detail = weekScores.find(item => item.member_id === p.member_id || item.name === p.name);
+        }
+      } catch (e) { }
+
+      if (detail) {
+        console.log(`#${i + 1} [Player ${detail.name}] (${p.dateStr}) [Week ID: ${p.week_id}] (Team: ${detail.teamName}) [Position: ${detail.posCode} ${detail.posIcon}]`);
+        console.log(`   └─ Position Category Points: Goal: +${detail.ptsGoal}, Assist: +${detail.ptsAssist}, Clean Sheet: +${detail.ptsCleanSheet}, Match Win: +${detail.ptsWins}, Goal Conceded Deduct: -${detail.ptsConceded}, Own Goal Deduct: -${detail.ptsOg}`);
+        console.log(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Goals Against (GA): ${detail.goalsConceded}`);
+        console.log(`   └─ Raw MVP Score: (${detail.goals} * ${detail.ptsGoal}) + (${detail.assists} * ${detail.ptsAssist}) + (${detail.cleanSheets} * ${detail.ptsCleanSheet}) + (${detail.wins} * ${detail.ptsWins}) - (${detail.goalsConceded} * ${detail.ptsConceded}) - (${detail.own_goals} * ${detail.ptsOg}) = ${detail.rawScore.toFixed(4)}`);
+        console.log(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Benchmark Ref ${maxRawScore.toFixed(4)}) * 10 = ${rating} / 10`);
+        console.log(`   => Final MVP Rating = ${rating} / 10\n`);
+      } else {
+        console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
+        console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets (CS): ${p.cleanSheets}, Conceded (GA): ${p.conceded}`);
+        console.log(`   └─ Raw MVP Score: ${p.rawScore.toFixed(4)}`);
+        console.log(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
+      }
+    }
     console.log(`📌 Benchmark Max Raw Score Saved to DB (10.00 Ref): ${maxRawScore.toFixed(4)}`);
     console.log(`======================================================\n`);
 
