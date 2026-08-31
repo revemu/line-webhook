@@ -1923,8 +1923,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         tableBodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
 
         const sortedPlayers = [...leaders.allPlayerRatings].sort((a, b) => (b.rawScore || 0) - (a.rawScore || 0));
+        const displayPlayers = sortedPlayers.slice(0, 16);
 
-        sortedPlayers.forEach((p, i) => {
+        displayPlayers.forEach((p, i) => {
           const isTop1 = (i === 0) || (sortedPlayers[0] && p.rawScore === sortedPlayers[0].rawScore);
           const isMvp = leaders.mvps && leaders.mvps.some(m => m.id === p.id);
           const isTopScorer = leaders.topScorers && leaders.topScorers.some(ts => ts.id === p.id);
