@@ -4742,18 +4742,161 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 contents: [gkNode]
               };
 
-              // Body contents: Tactical pitch container
+              // Body contents: Tactical pitch container with authentic soccer pitch markings & lawn stripes
               const bodyContents = [
                 {
                   type: 'box',
                   layout: 'vertical',
-                  height: '520px',
-                  borderWidth: '1px',
-                  borderColor: '#FFFFFF44',
+                  height: '530px',
+                  borderWidth: '2px',
+                  borderColor: '#FFFFFF66',
                   cornerRadius: 'md',
                   paddingAll: 'xs',
                   justifyContent: 'space-between',
+                  background: {
+                    type: 'linearGradient',
+                    angle: '180deg',
+                    startColor: '#166534',
+                    endColor: '#14532D'
+                  },
                   contents: [
+                    // --- Realistic Pitch Markings (Absolute Background Overlays) ---
+                    // 1. Top Halfway Line
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetTop: '0px',
+                      offsetStart: '0px',
+                      offsetEnd: '0px',
+                      height: '1px',
+                      backgroundColor: '#FFFFFF55'
+                    },
+                    // 2. Center Circle Arc (Top)
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetTop: '-28px',
+                      offsetStart: '120px',
+                      width: '60px',
+                      height: '60px',
+                      cornerRadius: '30px',
+                      borderWidth: '1px',
+                      borderColor: '#FFFFFF55'
+                    },
+                    // 3. Center Spot
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetTop: '-2px',
+                      offsetStart: '148px',
+                      width: '5px',
+                      height: '5px',
+                      cornerRadius: '3px',
+                      backgroundColor: '#FFFFFF88'
+                    },
+                    // 4. Penalty Area (18-Yard Box at Bottom)
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetBottom: '0px',
+                      offsetStart: '60px',
+                      offsetEnd: '60px',
+                      height: '84px',
+                      borderWidth: '1px',
+                      borderColor: '#FFFFFF55'
+                    },
+                    // 5. Goal Area (6-Yard Box at Bottom)
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetBottom: '0px',
+                      offsetStart: '105px',
+                      offsetEnd: '105px',
+                      height: '38px',
+                      borderWidth: '1px',
+                      borderColor: '#FFFFFF55'
+                    },
+                    // 6. Penalty Arc (D-Box above 18-Yard Box)
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetBottom: '74px',
+                      offsetStart: '126px',
+                      width: '48px',
+                      height: '24px',
+                      cornerRadius: '24px',
+                      borderWidth: '1px',
+                      borderColor: '#FFFFFF55'
+                    },
+                    // 7. Penalty Spot (12-Yard Spot)
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetBottom: '54px',
+                      offsetStart: '148px',
+                      width: '4px',
+                      height: '4px',
+                      cornerRadius: '2px',
+                      backgroundColor: '#FFFFFF99'
+                    },
+                    // 8. Corner Arcs
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetTop: '-6px',
+                      offsetStart: '-6px',
+                      width: '16px',
+                      height: '16px',
+                      cornerRadius: '8px',
+                      borderWidth: '1px',
+                      borderColor: '#FFFFFF44'
+                    },
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetTop: '-6px',
+                      offsetEnd: '-6px',
+                      width: '16px',
+                      height: '16px',
+                      cornerRadius: '8px',
+                      borderWidth: '1px',
+                      borderColor: '#FFFFFF44'
+                    },
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetBottom: '-6px',
+                      offsetStart: '-6px',
+                      width: '16px',
+                      height: '16px',
+                      cornerRadius: '8px',
+                      borderWidth: '1px',
+                      borderColor: '#FFFFFF44'
+                    },
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      position: 'absolute',
+                      offsetBottom: '-6px',
+                      offsetEnd: '-6px',
+                      width: '16px',
+                      height: '16px',
+                      cornerRadius: '8px',
+                      borderWidth: '1px',
+                      borderColor: '#FFFFFF44'
+                    },
+
+                    // --- Tactical Player Node Rows (Rendered On Pitch) ---
                     cfRow, // Attacking Line (CF)
                     mfRow, // Midfield Line (MF)
                     dwRow, // Defensive Wings Line (DW)
@@ -4764,72 +4907,75 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               ];
 
               // Bottom Bar: Man of the Match (MOM) Highlight
-              if (momPlayer) {
-                const momName = (momPlayer.name || momPlayer.alias || 'Player').replace(/^@/, '');
-                const momRatingStr = momPlayer.weekStats?.rating && momPlayer.weekStats.rating !== '-'
-                  ? `⭐${momPlayer.weekStats.rating}`
-                  : (momPlayer.rank ? `⭐Rank ${parseFloat(momPlayer.rank).toFixed(1)}` : '⭐-');
-                const momGoals = Number(momPlayer.weekStats?.goals || 0);
-                const momAssists = Number(momPlayer.weekStats?.assists || 0);
-                const momStatsDesc = `${momRatingStr} (⚽${momGoals} 👟${momAssists})`;
+              // Bottom Bar: Always present Man of the Match (MOM) Highlight with fixed height
+              const momName = momPlayer ? (momPlayer.name || momPlayer.alias || 'Player').replace(/^@/, '') : '-';
+              const momRatingStr = momPlayer && momPlayer.weekStats?.rating && momPlayer.weekStats.rating !== '-'
+                ? `⭐${momPlayer.weekStats.rating}`
+                : (momPlayer && momPlayer.rank ? `⭐Rank ${parseFloat(momPlayer.rank).toFixed(1)}` : '⭐-');
+              const momGoals = Number(momPlayer?.weekStats?.goals || 0);
+              const momAssists = Number(momPlayer?.weekStats?.assists || 0);
+              const momStatsDesc = momPlayer ? `${momRatingStr} (⚽${momGoals} 👟${momAssists})` : '⭐- (⚽0 👟0)';
 
-                bodyContents.push({
-                  type: 'box',
-                  layout: 'horizontal',
-                  backgroundColor: '#0F172ACC',
-                  borderColor: '#F59E0B88',
-                  borderWidth: '1px',
-                  cornerRadius: 'md',
-                  paddingAll: 'sm',
-                  margin: 'sm',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  contents: [
-                    {
-                      type: 'box',
-                      layout: 'horizontal',
-                      alignItems: 'center',
-                      flex: 1,
-                      contents: [
-                        {
-                          type: 'text',
-                          text: '👑',
-                          size: 'xs',
-                          flex: 0
-                        },
-                        {
-                          type: 'text',
-                          text: 'Man of the Match:',
-                          size: 'xxs',
-                          color: '#FCD34D',
-                          weight: 'bold',
-                          margin: 'xs',
-                          flex: 0
-                        },
-                        {
-                          type: 'text',
-                          text: momName,
-                          size: 'xxs',
-                          color: '#FFFFFF',
-                          weight: 'bold',
-                          margin: 'xs',
-                          wrap: false,
-                          flex: 1
-                        }
-                      ]
-                    },
-                    {
-                      type: 'text',
-                      text: momStatsDesc,
-                      size: 'xxs',
-                      color: '#FBBF24',
-                      weight: 'bold',
-                      flex: 0,
-                      align: 'end'
-                    }
-                  ]
-                });
-              }
+              bodyContents.push({
+                type: 'box',
+                layout: 'horizontal',
+                height: '36px',
+                backgroundColor: '#0F172ACC',
+                borderColor: momPlayer ? '#F59E0B88' : '#33415588',
+                borderWidth: '1px',
+                cornerRadius: 'md',
+                paddingStart: 'sm',
+                paddingEnd: 'sm',
+                paddingTop: 'xs',
+                paddingBottom: 'xs',
+                margin: 'sm',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                contents: [
+                  {
+                    type: 'box',
+                    layout: 'horizontal',
+                    alignItems: 'center',
+                    flex: 1,
+                    contents: [
+                      {
+                        type: 'text',
+                        text: '👑',
+                        size: 'xs',
+                        flex: 0
+                      },
+                      {
+                        type: 'text',
+                        text: 'Man of the Match:',
+                        size: 'xxs',
+                        color: '#FCD34D',
+                        weight: 'bold',
+                        margin: 'xs',
+                        flex: 0
+                      },
+                      {
+                        type: 'text',
+                        text: momName,
+                        size: 'xxs',
+                        color: '#FFFFFF',
+                        weight: 'bold',
+                        margin: 'xs',
+                        wrap: false,
+                        flex: 1
+                      }
+                    ]
+                  },
+                  {
+                    type: 'text',
+                    text: momStatsDesc,
+                    size: 'xxs',
+                    color: '#FBBF24',
+                    weight: 'bold',
+                    flex: 0,
+                    align: 'end'
+                  }
+                ]
+              });
 
               return {
                 type: 'bubble',
@@ -4838,7 +4984,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   type: 'box',
                   layout: 'vertical',
                   backgroundColor: headerTheme.bg,
-                  paddingAll: 'md',
+                  paddingStart: 'md',
+                  paddingEnd: 'md',
+                  paddingTop: 'sm',
+                  paddingBottom: 'sm',
+                  height: '62px',
+                  justifyContent: 'center',
                   contents: [
                     {
                       type: 'box',
@@ -4915,6 +5066,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   layout: 'vertical',
                   backgroundColor: '#0B0F19',
                   paddingAll: 'xs',
+                  height: '30px',
+                  justifyContent: 'center',
                   contents: [
                     {
                       type: 'box',
