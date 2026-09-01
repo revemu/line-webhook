@@ -80,6 +80,23 @@ function getShortDate(date) {
 }
 
 /**
+ * Formats a Date object to DD/MM/YY (Christian Era 2-digit YY e.g. 11/08/26)
+ * @param {Date|string} date 
+ * @returns {string}
+ */
+function getSlashDate(date) {
+  if (!date) return '';
+  const dObj = parseDateInput(date);
+  if (!dObj) return '';
+  const d = ('0' + dObj.getDate()).slice(-2);
+  const m = ('0' + (dObj.getMonth() + 1)).slice(-2);
+  const fullYear = dObj.getFullYear();
+  const y = fullYear >= 2400 ? fullYear - 543 : fullYear;
+  const yy = String(y).slice(-2);
+  return `${d}/${m}/${yy}`;
+}
+
+/**
  * Formats a Date object into Thai date string format
  * @param {Date|string} date 
  * @param {string} format 'short' | 'full'
@@ -146,6 +163,7 @@ module.exports = {
   parseDateInput,
   formatDate,
   getShortDate,
+  getSlashDate,
   getFormatDate,
   getNextSaturday
 };

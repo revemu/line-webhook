@@ -1,4 +1,4 @@
-const { getFormatDate } = require('./utils/date');
+const { getFormatDate, getSlashDate } = require('./utils/date');
 
 const report_template = {
   "type": "bubble",
@@ -4180,7 +4180,7 @@ function buildMvpListFlex(mvpData, theme) {
                       action: {
                         type: 'message',
                         label: 'ผังทีม',
-                        text: `/teamweek ${p.dateStr || p.week_id}`
+                        text: `/teamweek ${p.date ? getSlashDate(p.date) : p.week_id}`
                       },
                       contents: [
                         {
@@ -4341,7 +4341,7 @@ function buildMvpListFlex(mvpData, theme) {
         };
       });
 
-      const teamWeekCmd = `/teamweek ${w.dateStr || w.week_id}`;
+      const teamWeekCmd = `/teamweek ${w.date ? getSlashDate(w.date) : w.week_id}`;
 
       bodyContents.push({
         type: 'box',

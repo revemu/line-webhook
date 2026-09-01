@@ -4690,6 +4690,7 @@ async function getMvpList(targetYear = null, groupId = null) {
           member_id: row.member_id,
           name: row.member_name || (row.name || ''),
           week_id: row.week_id,
+          date: row.date,
           dateStr,
           info,
           goals: Number(row.goals) || 0,
