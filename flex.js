@@ -4304,7 +4304,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     const alternate = (slot && slot.alternate) ? slot.alternate : null;
 
     if (!primary) {
-      const emptyIcon = posIcons[defaultPosCode] || '';
+      const isGK = defaultPosCode === 'GK';
+      const emptyIcon = isGK ? '' : (posIcons[defaultPosCode] || '');
       return {
         type: 'box',
         layout: 'vertical',
@@ -4325,7 +4326,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             contents: [
               {
                 type: 'text',
-                text: defaultPosCode === 'GK' ? 'GK' : `${emptyIcon}${defaultPosCode}`,
+                text: isGK ? 'GK' : `${emptyIcon}${defaultPosCode}`,
                 color: '#FFFFFFCC',
                 size: 'xs',
                 weight: 'bold',
@@ -4343,41 +4344,22 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             cornerRadius: '5px',
             paddingStart: '5px',
             paddingEnd: '5px',
-            paddingTop: '2px',
-            paddingBottom: '3px',
+            paddingTop: '3px',
+            paddingBottom: '4px',
             offsetTop: '2px',
             alignItems: 'center',
             contents: [
               {
-                type: 'box',
-                layout: 'horizontal',
-                alignItems: 'center',
-                justifyContent: 'center',
-                contents: [
-                  {
-                    type: 'box',
-                    layout: 'vertical',
-                    backgroundColor: posBadgeColor[defaultPosCode] || '#64748B',
-                    cornerRadius: '2px',
-                    paddingStart: '3px',
-                    paddingEnd: '3px',
-                    flex: 0,
-                    contents: [
-                      {
-                        type: 'text',
-                        text: `${emptyIcon || (posIcons[defaultPosCode] || '')} ${defaultPosCode}`,
-                        color: '#FFFFFF',
-                        size: 'xxs',
-                        weight: 'bold',
-                        align: 'center'
-                      }
-                    ]
-                  }
-                ]
+                type: 'text',
+                text: isGK ? 'GK' : (defaultPosCode || '-'),
+                color: '#FFFFFF',
+                size: 'xxs',
+                weight: 'bold',
+                align: 'center'
               },
               {
                 type: 'text',
-                text: 'สลับกัน',
+                text: isGK ? 'สลับกัน' : '-',
                 size: 'xxs',
                 color: '#94A3B8',
                 align: 'center',
