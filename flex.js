@@ -4325,7 +4325,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             contents: [
               {
                 type: 'text',
-                text: defaultPosCode === 'GK' ? '🧤GK' : `${emptyIcon}${defaultPosCode}`,
+                text: defaultPosCode === 'GK' ? 'GK' : `${emptyIcon}${defaultPosCode}`,
                 color: '#FFFFFFCC',
                 size: 'xs',
                 weight: 'bold',
@@ -4372,24 +4372,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         align: 'center'
                       }
                     ]
-                  },
-                  {
-                    type: 'text',
-                    text: defaultPosCode === 'GK' ? 'สลับกัน' : '-',
-                    color: '#FFFFFFCC',
-                    size: 'xxs',
-                    weight: 'bold',
-                    wrap: true,
-                    maxLines: 2,
-                    margin: 'xs',
-                    align: 'center',
-                    flex: 1
                   }
                 ]
               },
               {
                 type: 'text',
-                text: defaultPosCode === 'GK' ? '🧤 สลับกันเล่น' : '⭐- (⚽0 👟0)',
+                text: defaultPosCode === 'GK' ? '🧤 สลับกัน' : '⭐- (⚽0 👟0)',
                 size: 'xxs',
                 color: '#94A3B8',
                 align: 'center',
@@ -4809,7 +4797,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
         type: 'box',
         layout: 'vertical',
         height: '560px',
-        width: '380px',
+        //width: '380px',
         borderWidth: '1px',
         borderColor: '#FFFFFF44',
         cornerRadius: 'md',
