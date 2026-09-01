@@ -279,7 +279,7 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม" }];
     },
-    'teamweek': async (context) => {
+    'teamweek1': async (context) => {
         const { param, groupId } = context;
         const week = await db.queryWeekID(param);
         if (week && week.length > 0) {
@@ -289,7 +289,7 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
     },
-    'formation': async (context) => {
+    'teamweek': async (context) => {
         const { param, groupId } = context;
         const bubbles = await db.getTeamFormation(param, groupId);
         if (bubbles) {
