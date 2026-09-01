@@ -4875,20 +4875,20 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
         offsetStart: '0px',
         offsetEnd: '0px',
         contents: [
-          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D' },
-          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#166534' },
-          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D' },
-          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#166534' },
-          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D' },
-          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#166534' },
-          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D' }
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D', contents: [] },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#166534', contents: [] },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D', contents: [] },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#166534', contents: [] },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D', contents: [] },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#166534', contents: [] },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D', contents: [] }
         ]
       },
       // Corner Arcs
-      { type: 'box', layout: 'vertical', position: 'absolute', offsetTop: '0px', offsetStart: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44' },
-      { type: 'box', layout: 'vertical', position: 'absolute', offsetTop: '0px', offsetEnd: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44' },
-      { type: 'box', layout: 'vertical', position: 'absolute', offsetBottom: '0px', offsetStart: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44' },
-      { type: 'box', layout: 'vertical', position: 'absolute', offsetBottom: '0px', offsetEnd: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44' },
+      { type: 'box', layout: 'vertical', position: 'absolute', offsetTop: '0px', offsetStart: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44', contents: [] },
+      { type: 'box', layout: 'vertical', position: 'absolute', offsetTop: '0px', offsetEnd: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44', contents: [] },
+      { type: 'box', layout: 'vertical', position: 'absolute', offsetBottom: '0px', offsetStart: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44', contents: [] },
+      { type: 'box', layout: 'vertical', position: 'absolute', offsetBottom: '0px', offsetEnd: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44', contents: [] },
       // Halfway Center Line
       {
         type: 'box',
@@ -4898,7 +4898,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
         offsetStart: '0px',
         offsetEnd: '0px',
         height: '2px',
-        backgroundColor: '#FFFFFF55'
+        backgroundColor: '#FFFFFF55',
+        contents: []
       },
       // Center Circle & Spot
       {
@@ -4928,7 +4929,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 width: '6px',
                 height: '6px',
                 cornerRadius: '3px',
-                backgroundColor: '#FFFFFF88'
+                backgroundColor: '#FFFFFF88',
+                contents: []
               }
             ]
           }
@@ -4959,7 +4961,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 width: '90px',
                 height: '28px',
                 borderWidth: '1px',
-                borderColor: '#FFFFFF44'
+                borderColor: '#FFFFFF44',
+                contents: []
               }
             ]
           }
@@ -4991,7 +4994,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 width: '90px',
                 height: '28px',
                 borderWidth: '1px',
-                borderColor: '#FFFFFF44'
+                borderColor: '#FFFFFF44',
+                contents: []
               }
             ]
           }
