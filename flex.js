@@ -4187,35 +4187,35 @@ function buildMvpListFlex(mvpData, theme) {
         const nameWithBadges = [];
         if (p.info && p.info.badgeUrl) {
           nameWithBadges.push({
-            type: 'box',
-            layout: 'vertical',
-            width: '14px',
-            height: '14px',
-            flex: 0,
-            contents: [{ type: 'image', url: p.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+            type: 'image',
+            url: p.info.badgeUrl,
+            size: '14px',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            flex: 0
           });
         }
         if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
           for (const hb of p.info.hofBadges) {
             if (hb.url) {
               nameWithBadges.push({
-                type: 'box',
-                layout: 'vertical',
-                width: '14px',
-                height: '14px',
-                flex: 0,
-                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+                type: 'image',
+                url: hb.url,
+                size: '14px',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                flex: 0
               });
             }
           }
         } else if (p.info && p.info.hofBadgeUrl) {
           nameWithBadges.push({
-            type: 'box',
-            layout: 'vertical',
-            width: '14px',
-            height: '14px',
-            flex: 0,
-            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+            type: 'image',
+            url: p.info.hofBadgeUrl,
+            size: '14px',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            flex: 0
           });
         }
         nameWithBadges.push({
