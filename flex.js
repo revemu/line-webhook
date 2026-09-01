@@ -4342,29 +4342,20 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             borderWidth: '1px',
             borderColor: '#FFFFFF22',
             cornerRadius: '5px',
-            paddingStart: '5px',
-            paddingEnd: '5px',
-            paddingTop: '3px',
-            paddingBottom: '4px',
+            paddingStart: '6px',
+            paddingEnd: '6px',
+            paddingTop: '2px',
+            paddingBottom: '3px',
             offsetTop: '2px',
             alignItems: 'center',
             contents: [
               {
                 type: 'text',
-                text: isGK ? 'GK' : (defaultPosCode || '-'),
-                color: '#FFFFFF',
+                text: isGK ? 'สลับกัน' : '-',
+                color: '#FFFFFFCC',
                 size: 'xxs',
                 weight: 'bold',
                 align: 'center'
-              },
-              {
-                type: 'text',
-                text: isGK ? 'สลับกัน' : '-',
-                size: 'xxs',
-                color: '#94A3B8',
-                align: 'center',
-                margin: 'xs',
-                wrap: true
               }
             ]
           }
