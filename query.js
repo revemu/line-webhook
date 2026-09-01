@@ -4827,31 +4827,46 @@ function allocateFormationSlots(members) {
 
   // 1. Assign GK
   if (hasGK && assigned.GK.length > 0) {
-    const gkPlayer = assigned.GK[0];
+    const gkPlayer = assigned.GK.shift();
     gkPlayer.effectivePos = 'GK';
     if (finalSlots.GK.length > 0) {
       finalSlots.GK[0].primary = gkPlayer;
     }
-    for (let i = 1; i < assigned.GK.length; i++) {
-      unassigned.push(assigned.GK[i]);
+    while (assigned.GK.length > 0) {
+      unassigned.push(assigned.GK.shift());
     }
   }
 
-  // 2. Fill outfield preferred positions (CF, MF, DW, DF) as primary starters
+  // 2. Position Match First: Fill primary starters with highest rated matching players
   const outfieldRoles = ['CF', 'MF', 'DW', 'DF'];
   for (const r of outfieldRoles) {
-    for (const p of assigned[r]) {
-      const emptySlot = finalSlots[r].find(s => s.primary === null);
-      if (emptySlot) {
-        p.effectivePos = r;
-        emptySlot.primary = p;
-      } else {
-        unassigned.push(p);
+    for (const slot of finalSlots[r]) {
+      if (slot.primary === null && assigned[r].length > 0) {
+        const starter = assigned[r].shift();
+        starter.effectivePos = r;
+        slot.primary = starter;
       }
     }
   }
 
-  // 3. Fill remaining unfilled primary slots from unassigned (highest to lowest score)
+  // 3. Position Match Alternates: If extra players match position 'r', pair them as alternate to that position first
+  for (const r of outfieldRoles) {
+    for (const slot of finalSlots[r]) {
+      if (slot.alternate === null && assigned[r].length > 0) {
+        const alt = assigned[r].shift();
+        alt.isAlternate = true;
+        alt.effectivePos = r;
+        slot.alternate = alt;
+        finalSlots.alternates.push(alt);
+      }
+    }
+    // Any remaining players from assigned[r] go to unassigned pool
+    while (assigned[r].length > 0) {
+      unassigned.push(assigned[r].shift());
+    }
+  }
+
+  // 4. Fill any remaining empty primary slots from unassigned pool (highest rating first)
   unassigned.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
   for (const r of outfieldRoles) {
     for (const slot of finalSlots[r]) {
@@ -4863,7 +4878,7 @@ function allocateFormationSlots(members) {
     }
   }
 
-  // 4. Pair ALL remaining unassigned outfield players (8th, 9th, explicit reserves) as alternates directly into pitch slots
+  // 5. Pair all remaining unassigned outfield players as alternates onto remaining open slots
   const allAlternates = [...unassigned, ...explicitReserves];
   allAlternates.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
 
@@ -4890,7 +4905,7 @@ function allocateFormationSlots(members) {
     if (targetSlot) {
       targetSlot.alternate = p;
     } else {
-      // If all slots have alternates, push to CF or first slot
+      // If all slots have alternates, pair to CF or first available slot
       p.effectivePos = preferredRole || 'CF';
       if (finalSlots[p.effectivePos] && finalSlots[p.effectivePos].length > 0) {
         finalSlots[p.effectivePos][0].alternate = p;
