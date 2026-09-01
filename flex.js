@@ -4408,7 +4408,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       return {
         type: 'box',
         layout: 'vertical',
-        width: '108px',
+        width: '130px',
         alignItems: 'center',
         contents: [
           {
@@ -4521,7 +4521,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     return {
       type: 'box',
       layout: 'vertical',
-      width: '120px',
+      width: '130px',
       alignItems: 'center',
       contents: [
         {
