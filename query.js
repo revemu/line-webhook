@@ -4650,6 +4650,11 @@ async function getMvpList(targetYear = null, groupId = null) {
       continue;
     }
 
+    const isYearBest = (bestRaw > 0 && rawScore >= bestRaw - 0.0001) || (bestRating > 0 && rating >= bestRating - 0.0001);
+    if (isYearBest) {
+      weekEntry.isBestMvp = true;
+    }
+
     const info = resolveMemberDisplayInfo(
       row.id ? row : { name: row.member_name, id: row.member_id, picture_url: null, rank: null, donate: null, line_user_id: null },
       assets.badges,
@@ -4668,6 +4673,7 @@ async function getMvpList(targetYear = null, groupId = null) {
       member_id: row.member_id,
       name: row.member_name || (row.name || ''),
       team_id: row.team_id || null,
+      isBestMvp: isYearBest,
       info,
       goals,
       assists,

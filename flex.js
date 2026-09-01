@@ -3990,28 +3990,12 @@ function buildMvpListFlex(mvpData, theme) {
     };
   }
 
-  const hasTopHighlight = Boolean(bestMvpPlayers && bestMvpPlayers.length > 0);
-  const defaultCapacity = 12;
-  const page1Capacity = weeks.length <= 11 ? weeks.length : (hasTopHighlight ? 9 : 12);
-
-  const chunks = [];
-  let remainingWeeks = [...weeks];
-
-  if (remainingWeeks.length > 0) {
-    chunks.push(remainingWeeks.slice(0, page1Capacity));
-    remainingWeeks = remainingWeeks.slice(page1Capacity);
-  }
-
-  while (remainingWeeks.length > 0) {
-    chunks.push(remainingWeeks.slice(0, defaultCapacity));
-    remainingWeeks = remainingWeeks.slice(defaultCapacity);
-  }
-
+  const chunkSize = 10;
   const bubbles = [];
-  const totalPages = chunks.length;
+  const totalPages = Math.ceil(weeks.length / chunkSize);
 
-  for (let page = 0; page < chunks.length; page++) {
-    const chunk = chunks[page];
+  for (let page = 0; page < totalPages; page++) {
+    const chunk = weeks.slice(page * chunkSize, (page + 1) * chunkSize);
     const bodyContents = [];
 
     // Header Title
@@ -4035,206 +4019,14 @@ function buildMvpListFlex(mvpData, theme) {
       });
     }
 
-    // 👑 Noticeable Best MVP Top Highlight Card (Only shown on Page 1)
-    if (page === 0 && bestMvpPlayers && bestMvpPlayers.length > 0) {
-      const topMvpContents = [
-        {
-          type: 'box',
-          layout: 'horizontal',
-          alignItems: 'center',
-          contents: [
-            {
-              type: 'text',
-              text: '👑 MVP of the Year!',
-              weight: 'bold',
-              size: 'xs',
-              color: '#f59e0b',
-              flex: 1
-            },
-            {
-              type: 'text',
-              text: `⭐ ${Number(bestRating || 0).toFixed(1)}`,
-              weight: 'bold',
-              size: 'xs',
-              color: '#d97706',
-              align: 'end'
-            }
-          ]
-        }
-      ];
-
-      bestMvpPlayers.forEach(p => {
-        const statsStr = `⚽ ${p.goals} 👟 ${p.assists}${p.cleanSheets > 0 ? ` 🧤 ${p.cleanSheets}` : ''} • Score: ${p.rawScore.toFixed(2)}`;
-        const avatarUrl = p.info ? p.info.pictureUrl : null;
-        const nameColor = (p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff');
-
-        const pBadges = [];
-        if (p.info && p.info.badgeUrl) {
-          pBadges.push({
-            type: 'image',
-            url: p.info.badgeUrl,
-            size: '14px',
-            aspectRatio: '1:1',
-            aspectMode: 'cover',
-            animated: true,
-            flex: 0
-          });
-        }
-        if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
-          for (const hb of p.info.hofBadges) {
-            if (hb.url) {
-              pBadges.push({
-                type: 'image',
-                url: hb.url,
-                size: '14px',
-                aspectRatio: '1:1',
-                aspectMode: 'cover',
-                animated: true,
-                flex: 0
-              });
-            }
-          }
-        } else if (p.info && p.info.hofBadgeUrl) {
-          pBadges.push({
-            type: 'image',
-            url: p.info.hofBadgeUrl,
-            size: '14px',
-            aspectRatio: '1:1',
-            aspectMode: 'cover',
-            animated: true,
-            flex: 0
-          });
-        }
-        pBadges.push({
-          type: 'text',
-          text: (p.name || '').replace(/^@/, ''),
-          weight: 'bold',
-          size: 'sm',
-          color: nameColor,
-          margin: 'xs',
-          flex: 1
-        });
-
-        topMvpContents.push({
-          type: 'box',
-          layout: 'horizontal',
-          margin: 'sm',
-          alignItems: 'center',
-          contents: [
-            avatarUrl ? {
-              type: 'box',
-              layout: 'vertical',
-              width: '40px',
-              height: '40px',
-              cornerRadius: '20px',
-              borderWidth: '1px',
-              borderColor: '#f59e0b',
-              flex: 0,
-              contents: [
-                {
-                  type: 'image',
-                  url: avatarUrl,
-                  size: 'full',
-                  aspectRatio: '1:1',
-                  aspectMode: 'cover'
-                }
-              ]
-            } : {
-              type: 'box',
-              layout: 'vertical',
-              width: '34px',
-              height: '34px',
-              cornerRadius: '17px',
-              backgroundColor: isWhite ? '#fef3c7' : '#3b2d10',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 0,
-              contents: [{ type: 'text', text: '👑', size: 'md', align: 'center', gravity: 'center' }]
-            },
-            {
-              type: 'box',
-              layout: 'vertical',
-              flex: 1,
-              margin: 'sm',
-              contents: [
-                {
-                  type: 'box',
-                  layout: 'horizontal',
-                  alignItems: 'center',
-                  contents: pBadges
-                },
-                {
-                  type: 'text',
-                  text: statsStr,
-                  size: 'xxs',
-                  color: isWhite ? '#475569' : '#e2e8f0',
-                  margin: 'xs'
-                },
-                {
-                  type: 'box',
-                  layout: 'horizontal',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  margin: 'xs',
-                  contents: [
-                    {
-                      type: 'text',
-                      text: `📅 ${p.dateStr || ''}`,
-                      size: 'xxs',
-                      color: colors.textMuted,
-                      flex: 1
-                    },
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      backgroundColor: isWhite ? '#d97706' : '#b45309',
-                      cornerRadius: 'sm',
-                      paddingStart: '8px',
-                      paddingEnd: '8px',
-                      paddingTop: '2px',
-                      paddingBottom: '2px',
-                      action: {
-                        type: 'message',
-                        label: 'ผังทีม',
-                        text: `/teamweek ${p.team_id && Number(p.team_id) > 0 ? `${p.team_id} ` : ''}${p.date ? getSlashDate(p.date) : p.week_id}`
-                      },
-                      contents: [
-                        {
-                          type: 'text',
-                          text: '⚽ ผังทีม',
-                          size: 'xxs',
-                          color: '#ffffff',
-                          weight: 'bold',
-                          align: 'center'
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        });
-      });
-
-      bodyContents.push({
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: isWhite ? '#fffbeb' : '#231d0a',
-        cornerRadius: 'md',
-        borderWidth: 'normal',
-        borderColor: '#d97706',
-        paddingAll: 'sm',
-        margin: 'sm',
-        contents: topMvpContents
-      });
-    }
-
     // Render weekly MVP list for this chunk/page
     for (const w of chunk) {
+      const isWeekBestMvp = Boolean(w.isBestMvp || (w.mvps || []).some(m => m.isBestMvp));
+
       const mvpNodes = (w.mvps || []).map(p => {
+        const isPlayerBest = Boolean(p.isBestMvp || isWeekBestMvp);
         const pName = (p.info && p.info.name ? p.info.name : (p.name || 'Player')).replace(/^@/, '');
-        const pNameColor = (p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff');
+        const pNameColor = isPlayerBest ? (isWhite ? '#b45309' : '#fde047') : ((p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff'));
         const pAvatar = (p.info && p.info.pictureUrl) || null;
         const pRatingStr = `⭐ ${Number(p.rating || 0).toFixed(1)}`;
 
@@ -4299,7 +4091,7 @@ function buildMvpListFlex(mvpData, theme) {
               width: '32px',
               height: '32px',
               cornerRadius: '16px',
-              borderWidth: '1px',
+              borderWidth: isPlayerBest ? '2px' : '1px',
               borderColor: '#f59e0b',
               flex: 0,
               contents: [{ type: 'image', url: pAvatar, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
@@ -4310,6 +4102,8 @@ function buildMvpListFlex(mvpData, theme) {
               height: '32px',
               cornerRadius: '16px',
               backgroundColor: isWhite ? '#fef3c7' : '#231d0a',
+              borderWidth: isPlayerBest ? '1.5px' : '0px',
+              borderColor: '#f59e0b',
               alignItems: 'center',
               justifyContent: 'center',
               flex: 0,
@@ -4348,7 +4142,7 @@ function buildMvpListFlex(mvpData, theme) {
                   text: pRatingStr,
                   weight: 'bold',
                   size: 'sm',
-                  color: isWhite ? '#d97706' : '#fbbf24',
+                  color: isPlayerBest ? '#d97706' : (isWhite ? '#d97706' : '#fbbf24'),
                   align: 'end'
                 }
               ]
@@ -4364,10 +4158,10 @@ function buildMvpListFlex(mvpData, theme) {
       bodyContents.push({
         type: 'box',
         layout: 'vertical',
-        backgroundColor: bgCard,
+        backgroundColor: isWeekBestMvp ? (isWhite ? '#fffbeb' : '#1f190a') : bgCard,
         cornerRadius: 'md',
-        borderWidth: '1px',
-        borderColor: separatorColor,
+        borderWidth: isWeekBestMvp ? '1.5px' : '1px',
+        borderColor: isWeekBestMvp ? '#f59e0b' : separatorColor,
         paddingAll: 'sm',
         margin: 'sm',
         contents: [
@@ -4378,17 +4172,34 @@ function buildMvpListFlex(mvpData, theme) {
             justifyContent: 'space-between',
             contents: [
               {
-                type: 'text',
-                text: `📅 ${w.dateStr || `สัปดาห์ ${w.week_id}`}`,
-                weight: 'bold',
-                size: 'xs',
-                color: colors.textPrimary,
-                flex: 1
+                type: 'box',
+                layout: 'horizontal',
+                alignItems: 'center',
+                flex: 1,
+                contents: [
+                  {
+                    type: 'text',
+                    text: `📅 ${w.dateStr || `สัปดาห์ ${w.week_id}`}`,
+                    weight: 'bold',
+                    size: 'xs',
+                    color: isWeekBestMvp ? (isWhite ? '#b45309' : '#fde047') : colors.textPrimary,
+                    flex: 0
+                  },
+                  ...(isWeekBestMvp ? [{
+                    type: 'text',
+                    text: '👑 BEST MVP',
+                    weight: 'bold',
+                    size: 'xxs',
+                    color: '#f59e0b',
+                    margin: 'sm',
+                    flex: 0
+                  }] : [])
+                ]
               },
               {
                 type: 'box',
                 layout: 'vertical',
-                backgroundColor: isWhite ? '#0284c7' : '#0369a1',
+                backgroundColor: isWeekBestMvp ? (isWhite ? '#d97706' : '#b45309') : (isWhite ? '#0284c7' : '#0369a1'),
                 cornerRadius: 'sm',
                 paddingStart: '8px',
                 paddingEnd: '8px',
