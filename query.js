@@ -1684,8 +1684,8 @@ async function updateYearStatCache(year = null) {
       GROUP BY m.member_id
     `, [targetYear, targetYear]);
 
-    // 4. Query member ranks from member_tbl
-    const memberRows = await executeQuery("SELECT id, rank FROM member_tbl");
+    // 4. Query member ranks from member_tbl (escape reserved keyword `rank`)
+    const memberRows = await executeQuery("SELECT id, `rank` FROM member_tbl");
     const memberRankMap = {};
     if (memberRows) {
       memberRows.forEach(r => { memberRankMap[r.id] = parseFloat(r.rank || 0) || 0; });
