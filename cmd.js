@@ -295,41 +295,27 @@ const COMMAND_REGISTRY = {
         if (bubbles) {
             const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
             if (bubblesList.length > 0) {
-                const chunkSize = 2;
                 const replyMessages = [];
-                for (let i = 0; i < bubblesList.length && replyMessages.length < 5; i += chunkSize) {
-                    const chunk = bubblesList.slice(i, i + chunkSize);
-                    const teamNames = chunk.map((b, idx) => {
-                        try {
-                            return b.header?.contents?.[0]?.contents?.[1]?.text || `ทีม ${i + idx + 1}`;
-                        } catch (e) {
-                            return `ทีม ${i + idx + 1}`;
-                        }
-                    });
+                for (let i = 0; i < bubblesList.length && replyMessages.length < 5; i++) {
+                    const bubble = bubblesList[i];
+                    let teamName = `ทีม ${i + 1}`;
+                    try {
+                        teamName = bubble.header?.contents?.[0]?.contents?.[1]?.text || teamName;
+                    } catch (e) { }
 
-                    if (chunk.length === 1) {
-                        replyMessages.push({
-                            type: 'flex',
-                            altText: `⚽ ผังการเล่น ${teamNames[0]}`,
-                            contents: chunk[0]
-                        });
-                    } else {
-                        replyMessages.push({
-                            type: 'flex',
-                            altText: `⚽ ผังการเล่น ${teamNames.join(' & ')}`,
-                            contents: {
-                                type: 'carousel',
-                                contents: chunk
-                            }
-                        });
-                    }
+                    replyMessages.push({
+                        type: 'flex',
+                        altText: `⚽ ผังการเล่น ${teamName}`,
+                        contents: bubble
+                    });
                 }
                 return replyMessages;
             }
         }
         return [{ type: 'text', text: 'ยังไม่มีข้อมูลการจัดตำแหน่งทีมในสัปดาห์นี้' }];
     },
-    'lineup': async (context) => COMMAND_REGISTRY['formation'](context),
+    'formation': async (context) => COMMAND_REGISTRY['teamweek'](context),
+    'lineup': async (context) => COMMAND_REGISTRY['teamweek'](context),
     'matchweek': async (context) => {
         const { param, groupId } = context;
         const week = await db.queryWeekID(param);
