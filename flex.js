@@ -4742,161 +4742,18 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 contents: [gkNode]
               };
 
-              // Body contents: Tactical pitch container with authentic soccer pitch markings & lawn stripes
+              // Body contents: Tactical pitch container
               const bodyContents = [
                 {
                   type: 'box',
                   layout: 'vertical',
-                  height: '530px',
-                  borderWidth: '2px',
-                  borderColor: '#FFFFFF66',
+                  height: '520px',
+                  borderWidth: '1px',
+                  borderColor: '#FFFFFF44',
                   cornerRadius: 'md',
                   paddingAll: 'xs',
                   justifyContent: 'space-between',
-                  background: {
-                    type: 'linearGradient',
-                    angle: '180deg',
-                    startColor: '#166534',
-                    endColor: '#14532D'
-                  },
                   contents: [
-                    // --- Realistic Pitch Markings (Absolute Background Overlays) ---
-                    // 1. Top Halfway Line
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetTop: '0px',
-                      offsetStart: '0px',
-                      offsetEnd: '0px',
-                      height: '1px',
-                      backgroundColor: '#FFFFFF55'
-                    },
-                    // 2. Center Circle Arc (Top)
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetTop: '-28px',
-                      offsetStart: '120px',
-                      width: '60px',
-                      height: '60px',
-                      cornerRadius: '30px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF55'
-                    },
-                    // 3. Center Spot
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetTop: '-2px',
-                      offsetStart: '148px',
-                      width: '5px',
-                      height: '5px',
-                      cornerRadius: '3px',
-                      backgroundColor: '#FFFFFF88'
-                    },
-                    // 4. Penalty Area (18-Yard Box at Bottom)
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '0px',
-                      offsetStart: '60px',
-                      offsetEnd: '60px',
-                      height: '84px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF55'
-                    },
-                    // 5. Goal Area (6-Yard Box at Bottom)
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '0px',
-                      offsetStart: '105px',
-                      offsetEnd: '105px',
-                      height: '38px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF55'
-                    },
-                    // 6. Penalty Arc (D-Box above 18-Yard Box)
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '74px',
-                      offsetStart: '126px',
-                      width: '48px',
-                      height: '24px',
-                      cornerRadius: '24px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF55'
-                    },
-                    // 7. Penalty Spot (12-Yard Spot)
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '54px',
-                      offsetStart: '148px',
-                      width: '4px',
-                      height: '4px',
-                      cornerRadius: '2px',
-                      backgroundColor: '#FFFFFF99'
-                    },
-                    // 8. Corner Arcs
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetTop: '-6px',
-                      offsetStart: '-6px',
-                      width: '16px',
-                      height: '16px',
-                      cornerRadius: '8px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF44'
-                    },
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetTop: '-6px',
-                      offsetEnd: '-6px',
-                      width: '16px',
-                      height: '16px',
-                      cornerRadius: '8px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF44'
-                    },
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '-6px',
-                      offsetStart: '-6px',
-                      width: '16px',
-                      height: '16px',
-                      cornerRadius: '8px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF44'
-                    },
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '-6px',
-                      offsetEnd: '-6px',
-                      width: '16px',
-                      height: '16px',
-                      cornerRadius: '8px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF44'
-                    },
-
-                    // --- Tactical Player Node Rows (Rendered On Pitch) ---
                     cfRow, // Attacking Line (CF)
                     mfRow, // Midfield Line (MF)
                     dwRow, // Defensive Wings Line (DW)
