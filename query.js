@@ -4617,9 +4617,6 @@ async function getMvpList(targetYear = null, groupId = null) {
     return { year, bestRating, bestRaw, yrBenchmark, totalWeeks: 0, weeks: [] };
   }
 
-  // Ensure member pictures
-  await Promise.all(mvpRows.map(r => r.id ? ensureMemberPicture(r, groupId) : Promise.resolve()));
-
   // Group by week_id preserving chronological order (newest to oldest)
   const weekMap = new Map();
   for (const row of mvpRows) {
