@@ -656,17 +656,47 @@ const COMMAND_REGISTRY = {
                 year = num;
             }
         }
+        if (!year) {
+            year = new Date().getFullYear();
+        }
         const theme = await db.getTheme();
         const mvpData = await db.getMvpList(year, groupId);
         if (!mvpData || mvpData.weeks.length === 0) {
-            return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูล MVP ประจำปี ${mvpData ? mvpData.year : (year || new Date().getFullYear())}` }];
+            return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูล MVP ประจำปี ${year}` }];
         }
-        const flexContents = flex.buildMvpListFlex(mvpData, theme);
-        return {
-            type: 'flex',
-            altText: `🌟 ทำเนียบ MVP ประจำปี ${mvpData.year}`,
-            contents: flexContents
-        };
+        const bubbles = flex.buildMvpListFlex(mvpData, theme);
+        const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
+
+        if (bubblesList.length > 0) {
+            const chunkSize = 2;
+            const replyMessages = [];
+            const totalBubbles = bubblesList.length;
+            for (let i = 0; i < totalBubbles && replyMessages.length < 5; i += chunkSize) {
+                const chunk = bubblesList.slice(i, i + chunkSize);
+                const pageStart = i + 1;
+                const pageEnd = i + chunk.length;
+                const pageInfo = totalBubbles > 1 ? ` (หน้า ${pageStart}${pageEnd > pageStart ? `-${pageEnd}` : ''}/${totalBubbles})` : '';
+
+                if (chunk.length === 1) {
+                    replyMessages.push({
+                        type: 'flex',
+                        altText: `🌟 ทำเนียบ MVP ประจำปี ${mvpData.year}${pageInfo}`,
+                        contents: chunk[0]
+                    });
+                } else {
+                    replyMessages.push({
+                        type: 'flex',
+                        altText: `🌟 ทำเนียบ MVP ประจำปี ${mvpData.year}${pageInfo}`,
+                        contents: {
+                            type: 'carousel',
+                            contents: chunk
+                        }
+                    });
+                }
+            }
+            return replyMessages;
+        }
+        return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูล MVP ประจำปี ${year}` }];
     },
     'slip': async (context) => {
         const { member, groupId } = context;

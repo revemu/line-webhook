@@ -3988,7 +3988,7 @@ function buildMvpListFlex(mvpData, theme) {
     };
   }
 
-  const chunkSize = 12;
+  const chunkSize = 6;
   const bubbles = [];
   const totalPages = Math.ceil(weeks.length / chunkSize);
 
@@ -4339,14 +4339,7 @@ function buildMvpListFlex(mvpData, theme) {
     });
   }
 
-  if (bubbles.length === 1) {
-    return bubbles[0];
-  }
-
-  return {
-    type: 'carousel',
-    contents: bubbles
-  };
+  return bubbles;
 }
 
 function formatTeamDisplayName(rawColor) {
