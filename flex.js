@@ -4458,42 +4458,35 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             contents: [
               {
                 type: 'box',
-                layout: 'horizontal',
-                alignItems: 'center',
-                justifyContent: 'center',
+                layout: 'vertical',
+                backgroundColor: posBadgeColor[posCode] || '#64748B',
+                cornerRadius: '2px',
+                paddingStart: '4px',
+                paddingEnd: '4px',
+                paddingTop: '1px',
+                paddingBottom: '1px',
+                flex: 0,
                 contents: [
                   {
-                    type: 'box',
-                    layout: 'vertical',
-                    backgroundColor: posBadgeColor[posCode] || '#64748B',
-                    cornerRadius: '2px',
-                    paddingStart: '3px',
-                    paddingEnd: '3px',
-                    flex: 0,
-                    contents: [
-                      {
-                        type: 'text',
-                        text: posBadgeText,
-                        color: '#FFFFFF',
-                        size: 'xxs',
-                        weight: 'bold',
-                        align: 'center'
-                      }
-                    ]
-                  },
-                  {
                     type: 'text',
-                    text: primaryName,
-                    color: isMom ? '#FDE047' : '#FFFFFF',
+                    text: posBadgeText,
+                    color: '#FFFFFF',
                     size: 'xxs',
                     weight: 'bold',
-                    wrap: true,
-                    maxLines: 2,
-                    margin: 'xs',
-                    align: 'center',
-                    flex: 1
+                    align: 'center'
                   }
                 ]
+              },
+              {
+                type: 'text',
+                text: primaryName,
+                color: isMom ? '#FDE047' : '#FFFFFF',
+                size: 'xxs',
+                weight: 'bold',
+                wrap: true,
+                maxLines: 2,
+                margin: 'xs',
+                align: 'center'
               },
               {
                 type: 'text',
@@ -4612,56 +4605,49 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           contents: [
             {
               type: 'box',
-              layout: 'horizontal',
-              alignItems: 'center',
-              justifyContent: 'center',
+              layout: 'vertical',
+              backgroundColor: posBadgeColor[posCode] || '#64748B',
+              cornerRadius: '2px',
+              paddingStart: '4px',
+              paddingEnd: '4px',
+              paddingTop: '1px',
+              paddingBottom: '1px',
+              flex: 0,
               contents: [
                 {
-                  type: 'box',
-                  layout: 'vertical',
-                  backgroundColor: posBadgeColor[posCode] || '#64748B',
-                  cornerRadius: '2px',
-                  paddingStart: '3px',
-                  paddingEnd: '3px',
-                  flex: 0,
-                  contents: [
-                    {
-                      type: 'text',
-                      text: pairBadgeText,
-                      color: '#FFFFFF',
-                      size: 'xxs',
-                      weight: 'bold',
-                      align: 'center'
-                    }
-                  ]
+                  type: 'text',
+                  text: pairBadgeText,
+                  color: '#FFFFFF',
+                  size: 'xxs',
+                  weight: 'bold',
+                  align: 'center'
+                }
+              ]
+            },
+            {
+              type: 'text',
+              size: 'xxs',
+              align: 'center',
+              wrap: true,
+              maxLines: 2,
+              margin: 'xs',
+              contents: [
+                {
+                  type: 'span',
+                  text: primaryName,
+                  color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
+                  weight: 'bold'
                 },
                 {
-                  type: 'text',
-                  size: 'xxs',
-                  align: 'center',
-                  wrap: true,
-                  maxLines: 2,
-                  margin: 'xs',
-                  flex: 1,
-                  contents: [
-                    {
-                      type: 'span',
-                      text: primaryName,
-                      color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
-                      weight: 'bold'
-                    },
-                    {
-                      type: 'span',
-                      text: ' / ',
-                      color: '#94A3B8'
-                    },
-                    {
-                      type: 'span',
-                      text: `(${altName})`,
-                      color: isAltMom ? '#FDE047' : '#38BDF8',
-                      weight: 'bold'
-                    }
-                  ]
+                  type: 'span',
+                  text: ' / ',
+                  color: '#94A3B8'
+                },
+                {
+                  type: 'span',
+                  text: `(${altName})`,
+                  color: isAltMom ? '#FDE047' : '#38BDF8',
+                  weight: 'bold'
                 }
               ]
             },
