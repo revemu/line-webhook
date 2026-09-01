@@ -3988,7 +3988,7 @@ function buildMvpListFlex(mvpData, theme) {
     };
   }
 
-  const chunkSize = 3;
+  const chunkSize = 10;
   const bubbles = [];
   const totalPages = Math.ceil(weeks.length / chunkSize);
 
