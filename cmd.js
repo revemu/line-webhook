@@ -295,19 +295,36 @@ const COMMAND_REGISTRY = {
         if (bubbles) {
             const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
             if (bubblesList.length > 0) {
-                return bubblesList.slice(0, 5).map((bubble, idx) => {
-                    let teamName = '';
-                    try {
-                        teamName = bubble.header?.contents?.[0]?.contents?.[1]?.text || `ทีม ${idx + 1}`;
-                    } catch (e) {
-                        teamName = `ทีม ${idx + 1}`;
+                const chunkSize = 2;
+                const replyMessages = [];
+                for (let i = 0; i < bubblesList.length && replyMessages.length < 5; i += chunkSize) {
+                    const chunk = bubblesList.slice(i, i + chunkSize);
+                    const teamNames = chunk.map((b, idx) => {
+                        try {
+                            return b.header?.contents?.[0]?.contents?.[1]?.text || `ทีม ${i + idx + 1}`;
+                        } catch (e) {
+                            return `ทีม ${i + idx + 1}`;
+                        }
+                    });
+
+                    if (chunk.length === 1) {
+                        replyMessages.push({
+                            type: 'flex',
+                            altText: `⚽ ผังการเล่น ${teamNames[0]}`,
+                            contents: chunk[0]
+                        });
+                    } else {
+                        replyMessages.push({
+                            type: 'flex',
+                            altText: `⚽ ผังการเล่น ${teamNames.join(' & ')}`,
+                            contents: {
+                                type: 'carousel',
+                                contents: chunk
+                            }
+                        });
                     }
-                    return {
-                        type: 'flex',
-                        altText: `⚽ ผังการเล่น ${teamName}`,
-                        contents: bubble
-                    };
-                });
+                }
+                return replyMessages;
             }
         }
         return [{ type: 'text', text: 'ยังไม่มีข้อมูลการจัดตำแหน่งทีมในสัปดาห์นี้' }];
