@@ -3990,12 +3990,28 @@ function buildMvpListFlex(mvpData, theme) {
     };
   }
 
-  const chunkSize = 10;
-  const bubbles = [];
-  const totalPages = Math.ceil(weeks.length / chunkSize);
+  const hasTopHighlight = Boolean(bestMvpPlayers && bestMvpPlayers.length > 0);
+  const defaultCapacity = 12;
+  const page1Capacity = weeks.length <= 11 ? weeks.length : (hasTopHighlight ? 9 : 12);
 
-  for (let page = 0; page < totalPages; page++) {
-    const chunk = weeks.slice(page * chunkSize, (page + 1) * chunkSize);
+  const chunks = [];
+  let remainingWeeks = [...weeks];
+
+  if (remainingWeeks.length > 0) {
+    chunks.push(remainingWeeks.slice(0, page1Capacity));
+    remainingWeeks = remainingWeeks.slice(page1Capacity);
+  }
+
+  while (remainingWeeks.length > 0) {
+    chunks.push(remainingWeeks.slice(0, defaultCapacity));
+    remainingWeeks = remainingWeeks.slice(defaultCapacity);
+  }
+
+  const bubbles = [];
+  const totalPages = chunks.length;
+
+  for (let page = 0; page < chunks.length; page++) {
+    const chunk = chunks[page];
     const bodyContents = [];
 
     // Header Title
