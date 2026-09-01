@@ -4854,15 +4854,15 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
       ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
       : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`;*/
     formationName = altCount > 0
-      ? `แผน (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
-      : `แผน (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`;
+      ? `แผน ${targetCF}-${targetMF}-${targetDW}-${targetDF}-1`
+      : `แผน ${targetCF}-${targetMF}-${targetDW}-${targetDF}-1`;
   } else {
     /*formationName = altCount > 0
       ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`
       : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`;*/
     formationName = altCount > 0
-      ? `แผน (${targetCF}-${targetMF}-${targetDW}-${targetDF})`
-      : `แผน (${targetCF}-${targetMF}-${targetDW}-${targetDF})`;
+      ? `แผน ${targetCF}-${targetMF}-${targetDW}-${targetDF}`
+      : `แผน ${targetCF}-${targetMF}-${targetDW}-${targetDF}`;
   }
 
   const getPlayerScore = (p) => {

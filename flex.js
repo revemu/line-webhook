@@ -5171,7 +5171,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             contents: [
               {
                 type: 'text',
-                text: `📋 (${team.totalPlayers || 0} คน) ${team.formationName || 'ผังการเล่น'} `,
+                text: `📋 ${team.totalPlayers || 0} คน ${team.formationName || 'ผังการเล่น'} `,
                 size: 'sm',
                 color: headerTheme.titleColor,
                 weight: 'bold',
