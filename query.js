@@ -4766,18 +4766,42 @@ function allocateFormationSlots(members) {
 
   const hasGK = assigned.GK.length > 0;
 
-  // Target slots on pitch (7 outfielders max without GK; 1 GK + 7 outfielders with GK)
+  // Dynamic outfield slots distribution based on member positions
+  let targetCF = 1;
+  let targetMF = 2;
+  let targetDW = 2;
+  let targetDF = 2;
+
+  // If squad has 2 or more preferred CFs, field 2 CFs and balance DF/MF
+  if (assigned.CF.length >= 2) {
+    targetCF = 2;
+    if (assigned.DF.length <= 1) {
+      targetDF = 1;
+    } else if (assigned.MF.length <= 1) {
+      targetMF = 1;
+    } else {
+      // Balance to 1 DF if both MF & DF have players to create 2-2-2-1
+      targetDF = 1;
+    }
+  } else if (assigned.DF.length >= 3 && assigned.MF.length <= 1) {
+    targetDF = 3;
+    targetMF = 1;
+  } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
+    targetMF = 3;
+    targetDF = 1;
+  }
+
   const target = {
-    CF: 1,
-    MF: 2,
-    DW: 2,
-    DF: 2,
+    CF: targetCF,
+    MF: targetMF,
+    DW: targetDW,
+    DF: targetDF,
     GK: hasGK ? 1 : 0
   };
 
   const formationName = hasGK
-    ? (regulars.length >= 8 ? "8-Player (1-2-2-2-1)" : "7-Player (1-2-2-1-1)")
-    : (regulars.length >= 8 ? "7+1 Player (1-2-2-2)" : "7-Player (1-2-2-2)");
+    ? `8-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
+    : (regulars.length >= 8 ? `7+1 Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})` : `7-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`);
 
   const getPlayerScore = (p) => {
     const yScore = parseFloat(p.yearStats?.rating || 0) || 0;

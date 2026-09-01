@@ -4592,20 +4592,22 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     const colorHex = tdc(team.teamColor) || '#3B82F6';
     const slots = team.slots || { CF: [], MF: [], DW: [], DF: [], GK: [], alternates: [] };
 
-    // Row 1: CF (Center Forward)
-    const cfNode = slots.CF.length > 0
-      ? renderPlayerNode(slots.CF[0], 'CF', colorHex)
-      : renderPlayerNode(null, 'CF', colorHex);
+    // Row 1: CF (Center Forward / Strikers) - Supports 1 or 2 CFs dynamically
+    const cfNodes = slots.CF.length > 0
+      ? slots.CF.map(p => renderPlayerNode(p, 'CF', colorHex))
+      : [renderPlayerNode(null, 'CF', colorHex)];
 
     const cfRow = {
       type: 'box',
       layout: 'horizontal',
-      justifyContent: 'center',
+      justifyContent: cfNodes.length > 1 ? 'space-around' : 'center',
+      paddingStart: cfNodes.length > 1 ? '12px' : '0px',
+      paddingEnd: cfNodes.length > 1 ? '12px' : '0px',
       alignItems: 'center',
-      contents: [cfNode]
+      contents: cfNodes
     };
 
-    // Row 2: MF (Midfielders)
+    // Row 2: MF (Midfielders) - Supports 1, 2, or 3 MFs dynamically
     const mfNodes = slots.MF.length > 0
       ? slots.MF.map(p => renderPlayerNode(p, 'MF', colorHex))
       : [renderPlayerNode(null, 'MF', colorHex)];
@@ -4613,9 +4615,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     const mfRow = {
       type: 'box',
       layout: 'horizontal',
-      justifyContent: 'space-around',
-      paddingStart: '12px',
-      paddingEnd: '12px',
+      justifyContent: mfNodes.length > 1 ? 'space-around' : 'center',
+      paddingStart: mfNodes.length > 1 ? (mfNodes.length >= 3 ? '4px' : '12px') : '0px',
+      paddingEnd: mfNodes.length > 1 ? (mfNodes.length >= 3 ? '4px' : '12px') : '0px',
       alignItems: 'center',
       contents: mfNodes
     };
@@ -4637,7 +4639,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       ]
     };
 
-    // Row 4: DF (Defenders / Centre Backs)
+    // Row 4: DF (Defenders / Centre Backs) - Supports 1, 2, or 3 DFs dynamically
     const dfNodes = slots.DF.length > 0
       ? slots.DF.map(p => renderPlayerNode(p, 'DF', colorHex))
       : [renderPlayerNode(null, 'DF', colorHex)];
@@ -4645,9 +4647,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     const dfRow = {
       type: 'box',
       layout: 'horizontal',
-      justifyContent: 'space-around',
-      paddingStart: '12px',
-      paddingEnd: '12px',
+      justifyContent: dfNodes.length > 1 ? 'space-around' : 'center',
+      paddingStart: dfNodes.length > 1 ? (dfNodes.length >= 3 ? '4px' : '12px') : '0px',
+      paddingEnd: dfNodes.length > 1 ? (dfNodes.length >= 3 ? '4px' : '12px') : '0px',
       alignItems: 'center',
       contents: dfNodes
     };
