@@ -2766,6 +2766,9 @@ async function getTeamWeek(week_id = 0, groupId = null) {
         team.teamColor = await getTeamColor(team.color);
         query = `select member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
         const team_members = await executeQuery(query);
+        if (team_members && team_members.length > 0) {
+          await Promise.all(team_members.map(member => ensureMemberPicture(member, groupId)));
+        }
         teamMembersMap[team.id] = team_members || [];
       }
 
@@ -5211,6 +5214,12 @@ async function getTeamFormation(param = '', groupId = null) {
     const members = await executeQuery(memberSql, [weekId, team.id]);
     totalMembersQueryDuration += (Date.now() - tMemSqlStart);
 
+    const tAvatarStart = Date.now();
+    if (members && members.length > 0) {
+      await Promise.all(members.map(m => ensureMemberPicture(m, groupId)));
+    }
+    totalLineAvatarDuration += (Date.now() - tAvatarStart);
+
     // Attach weekStats and yearStats to each member
     (members || []).forEach(m => {
       const wStat = weekStatsMap[m.id] || { rating: '-', goals: 0, assists: 0 };
@@ -5271,8 +5280,9 @@ async function getTeamFormation(param = '', groupId = null) {
   console.log(`  3. Current Week Stats (mvp_week_tbl)         : ${weekStatsDuration} ms`);
   console.log(`  4. Yearly Cumulative Stats (member_year_stat): ${yearStatsDuration} ms`);
   console.log(`  5. Team Members SQL (${teamsToRender.length} teams)           : ${totalMembersQueryDuration} ms`);
-  console.log(`  6. Tactical Slot Allocation (In-Memory)     : ${totalTacticsDuration} ms`);
-  console.log(`  7. LINE Flex JSON Builder                   : ${flexDuration} ms`);
+  console.log(`  6. LINE API Profile Avatars (if missing)    : ${totalLineAvatarDuration} ms`);
+  console.log(`  7. Tactical Slot Allocation (In-Memory)     : ${totalTacticsDuration} ms`);
+  console.log(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
   console.log(`------------------------------------------------------`);
   console.log(`  🚀 Total /formation Server Time             : ${totalDuration} ms`);
   console.log(`======================================================\n`);
