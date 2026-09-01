@@ -4299,15 +4299,15 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 return {
                   type: 'box',
                   layout: 'vertical',
-                  width: '88px',
+                  width: '96px',
                   alignItems: 'center',
                   contents: [
                     {
                       type: 'box',
                       layout: 'vertical',
-                      width: '28px',
-                      height: '28px',
-                      cornerRadius: '14px',
+                      width: '32px',
+                      height: '32px',
+                      cornerRadius: '16px',
                       borderWidth: '1px',
                       borderColor: '#FFFFFF44',
                       backgroundColor: '#00000040',
@@ -4328,12 +4328,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       type: 'box',
                       layout: 'vertical',
                       backgroundColor: '#00000066',
-                      cornerRadius: '3px',
+                      cornerRadius: '4px',
                       paddingStart: '4px',
                       paddingEnd: '4px',
                       paddingTop: '1px',
                       paddingBottom: '1px',
-                      offsetTop: '1px',
+                      offsetTop: '2px',
                       contents: [
                         {
                           type: 'text',
@@ -4362,7 +4362,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 return {
                   type: 'box',
                   layout: 'vertical',
-                  width: '98px',
+                  width: '108px',
                   alignItems: 'center',
                   action: primary.id ? {
                     type: 'postback',
@@ -4373,10 +4373,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                     {
                       type: 'box',
                       layout: 'vertical',
-                      width: '32px',
-                      height: '32px',
-                      cornerRadius: '16px',
-                      borderWidth: isPrimaryMom ? '2px' : '1px',
+                      width: '36px',
+                      height: '36px',
+                      cornerRadius: '18px',
+                      borderWidth: isPrimaryMom ? '3px' : '2px',
                       borderColor: isPrimaryMom ? '#F59E0B' : '#FFFFFF',
                       backgroundColor: teamColorHex || '#1E293B',
                       alignItems: 'center',
@@ -4407,12 +4407,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       backgroundColor: isPrimaryMom ? '#1A1608F4' : '#000000CC',
                       borderWidth: '1px',
                       borderColor: isPrimaryMom ? '#F59E0BCC' : '#FFFFFF22',
-                      cornerRadius: '4px',
-                      paddingStart: '4px',
-                      paddingEnd: '4px',
-                      paddingTop: '1px',
-                      paddingBottom: '2px',
-                      offsetTop: '1px',
+                      cornerRadius: '5px',
+                      paddingStart: '6px',
+                      paddingEnd: '6px',
+                      paddingTop: '2px',
+                      paddingBottom: '3px',
+                      offsetTop: '2px',
                       alignItems: 'center',
                       contents: [
                         {
@@ -4426,8 +4426,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                               layout: 'vertical',
                               backgroundColor: isPrimaryMom ? '#EAB308' : (posBadgeColor[posCode] || '#64748B'),
                               cornerRadius: '2px',
-                              paddingStart: '2px',
-                              paddingEnd: '2px',
+                              paddingStart: '3px',
+                              paddingEnd: '3px',
                               flex: 0,
                               contents: [
                                 {
@@ -4442,7 +4442,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                             },
                             {
                               type: 'text',
-                              text: isPrimaryMom ? `👑${primaryName}` : primaryName,
+                              text: isPrimaryMom ? `👑 ${primaryName}` : primaryName,
                               color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
                               size: 'xxs',
                               weight: 'bold',
@@ -4460,7 +4460,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                           size: 'xxs',
                           color: '#FACC15',
                           align: 'center',
-                          margin: 'none',
+                          margin: 'xs',
                           wrap: true
                         }
                       ]
@@ -4478,7 +4478,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               return {
                 type: 'box',
                 layout: 'vertical',
-                width: '108px',
+                width: '120px',
                 alignItems: 'center',
                 contents: [
                   {
@@ -4490,10 +4490,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       {
                         type: 'box',
                         layout: 'vertical',
-                        width: '28px',
-                        height: '28px',
-                        cornerRadius: '14px',
-                        borderWidth: isPrimaryMom ? '2px' : '1px',
+                        width: '32px',
+                        height: '32px',
+                        cornerRadius: '16px',
+                        borderWidth: isPrimaryMom ? '3px' : '2px',
                         borderColor: isPrimaryMom ? '#F59E0B' : '#FFFFFF',
                         backgroundColor: teamColorHex || '#1E293B',
                         alignItems: 'center',
@@ -4527,10 +4527,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       {
                         type: 'box',
                         layout: 'vertical',
-                        width: '28px',
-                        height: '28px',
-                        cornerRadius: '14px',
-                        borderWidth: isAltMom ? '2px' : '1px',
+                        width: '32px',
+                        height: '32px',
+                        cornerRadius: '16px',
+                        borderWidth: isAltMom ? '3px' : '2px',
                         borderColor: isAltMom ? '#F59E0B' : '#38BDF8',
                         backgroundColor: '#0C2A44',
                         alignItems: 'center',
@@ -4569,12 +4569,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                     backgroundColor: '#071828F4',
                     borderWidth: '1px',
                     borderColor: (isPrimaryMom || isAltMom) ? '#F59E0BCC' : '#38BDF888',
-                    cornerRadius: '4px',
-                    paddingStart: '4px',
-                    paddingEnd: '4px',
-                    paddingTop: '1px',
-                    paddingBottom: '2px',
-                    offsetTop: '1px',
+                    cornerRadius: '5px',
+                    paddingStart: '6px',
+                    paddingEnd: '6px',
+                    paddingTop: '2px',
+                    paddingBottom: '3px',
+                    offsetTop: '2px',
                     alignItems: 'center',
                     contents: [
                       {
@@ -4604,7 +4604,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                           },
                           {
                             type: 'text',
-                            text: `${isPrimaryMom ? '👑' : ''}${primaryName}/${isAltMom ? '👑' : ''}(${altName})`,
+                            text: `${isPrimaryMom ? '👑 ' : ''}${primaryName} / ${isAltMom ? '👑 ' : ''}(${altName})`,
                             color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
                             size: 'xxs',
                             weight: 'bold',
@@ -4622,7 +4622,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         size: 'xxs',
                         color: '#FACC15',
                         align: 'center',
-                        margin: 'none',
+                        margin: 'xs',
                         wrap: true
                       },
                       {
@@ -4678,8 +4678,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 type: 'box',
                 layout: 'horizontal',
                 justifyContent: cfNodes.length > 1 ? 'space-around' : 'center',
-                paddingStart: cfNodes.length > 1 ? '8px' : '0px',
-                paddingEnd: cfNodes.length > 1 ? '8px' : '0px',
+                paddingStart: cfNodes.length > 1 ? '12px' : '0px',
+                paddingEnd: cfNodes.length > 1 ? '12px' : '0px',
                 alignItems: 'center',
                 contents: cfNodes
               };
@@ -4693,8 +4693,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 type: 'box',
                 layout: 'horizontal',
                 justifyContent: mfNodes.length > 1 ? 'space-around' : 'center',
-                paddingStart: mfNodes.length > 1 ? (mfNodes.length >= 3 ? '2px' : '8px') : '0px',
-                paddingEnd: mfNodes.length > 1 ? (mfNodes.length >= 3 ? '2px' : '8px') : '0px',
+                paddingStart: mfNodes.length > 1 ? (mfNodes.length >= 3 ? '4px' : '12px') : '0px',
+                paddingEnd: mfNodes.length > 1 ? (mfNodes.length >= 3 ? '4px' : '12px') : '0px',
                 alignItems: 'center',
                 contents: mfNodes
               };
@@ -4708,8 +4708,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 type: 'box',
                 layout: 'horizontal',
                 justifyContent: 'space-between',
-                paddingStart: '2px',
-                paddingEnd: '2px',
+                paddingStart: '4px',
+                paddingEnd: '4px',
                 alignItems: 'center',
                 contents: dwNodes.length === 1 ? [dwNodes[0], renderPlayerNode(null, 'DW', colorHex, momPlayerId)] : dwNodes.slice(0, 2)
               };
@@ -4723,8 +4723,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 type: 'box',
                 layout: 'horizontal',
                 justifyContent: dfNodes.length > 1 ? 'space-around' : 'center',
-                paddingStart: dfNodes.length > 1 ? (dfNodes.length >= 3 ? '2px' : '8px') : '0px',
-                paddingEnd: dfNodes.length > 1 ? (dfNodes.length >= 3 ? '2px' : '8px') : '0px',
+                paddingStart: dfNodes.length > 1 ? (dfNodes.length >= 3 ? '4px' : '12px') : '0px',
+                paddingEnd: dfNodes.length > 1 ? (dfNodes.length >= 3 ? '4px' : '12px') : '0px',
                 alignItems: 'center',
                 contents: dfNodes
               };
@@ -4747,7 +4747,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 {
                   type: 'box',
                   layout: 'vertical',
-                  height: '380px',
+                  height: '460px',
                   borderWidth: '1px',
                   borderColor: '#FFFFFF44',
                   cornerRadius: 'md',
@@ -4780,8 +4780,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   borderColor: '#F59E0B88',
                   borderWidth: '1px',
                   cornerRadius: 'md',
-                  paddingAll: 'xs',
-                  margin: 'xs',
+                  paddingAll: 'sm',
+                  margin: 'sm',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   contents: [
@@ -4794,12 +4794,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         {
                           type: 'text',
                           text: '👑',
-                          size: 'xxs',
+                          size: 'xs',
                           flex: 0
                         },
                         {
                           type: 'text',
-                          text: 'MOM:',
+                          text: 'Man of the Match:',
                           size: 'xxs',
                           color: '#FCD34D',
                           weight: 'bold',
@@ -4833,12 +4833,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
               return {
                 type: 'bubble',
-                size: 'mega',
+                size: 'giga',
                 header: {
                   type: 'box',
                   layout: 'vertical',
                   backgroundColor: headerTheme.bg,
-                  paddingAll: 'sm',
+                  paddingAll: 'md',
                   contents: [
                     {
                       type: 'box',
@@ -4849,7 +4849,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                           type: 'text',
                           text: '●',
                           color: headerTheme.dot,
-                          size: 'xs',
+                          size: 'sm',
                           flex: 0,
                           gravity: 'center'
                         },
@@ -4857,10 +4857,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                           type: 'text',
                           text: teamNameFormatted,
                           weight: 'bold',
-                          size: 'xs',
+                          size: 'sm',
                           color: headerTheme.titleColor,
                           flex: 1,
-                          margin: 'xs'
+                          margin: 'sm'
                         },
                         ...(dateStr ? [{
                           type: 'text',
@@ -4881,7 +4881,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         {
                           type: 'text',
                           text: `📋 ${team.formationName || 'ผังการเล่น'} (${team.totalPlayers || 0} คน)`,
-                          size: 'xxs',
+                          size: 'xs',
                           color: headerTheme.titleColor,
                           weight: 'bold',
                           flex: 1
@@ -4901,7 +4901,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 body: {
                   type: 'box',
                   layout: 'vertical',
-                  paddingAll: 'xs',
+                  paddingAll: 'sm',
                   background: {
                     type: 'linearGradient',
                     angle: '180deg',
