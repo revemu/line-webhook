@@ -4409,24 +4409,24 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       return {
         type: 'box',
         layout: 'vertical',
-        width: '64px',
+        width: '74px',
         alignItems: 'center',
         contents: [
           {
             type: 'box',
             layout: 'vertical',
-            width: '34px',
-            height: '34px',
-            cornerRadius: '17px',
+            width: '32px',
+            height: '32px',
+            cornerRadius: '16px',
             borderWidth: '1px',
-            borderColor: '#FFFFFF66',
+            borderColor: '#FFFFFF44',
             backgroundColor: '#00000040',
             alignItems: 'center',
             justifyContent: 'center',
             contents: [
               {
                 type: 'text',
-                text: defaultPosCode,
+                text: defaultPosCode === 'GK' ? '🧤' : defaultPosCode,
                 color: '#FFFFFF88',
                 size: 'xxs',
                 weight: 'bold',
@@ -4447,7 +4447,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             contents: [
               {
                 type: 'text',
-                text: '-',
+                text: defaultPosCode === 'GK' ? 'หมุนเวียน' : '-',
                 color: '#FFFFFF88',
                 size: 'xxs',
                 align: 'center'
@@ -4460,12 +4460,26 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     const displayName = (p.name || p.alias || 'Player').replace(/^@/, '');
     const posCode = (p.effectivePos || p.pos_code || defaultPosCode || 'MF').toUpperCase();
-    const badgeColor = posBadgeColor[posCode] || '#64748B';
+    const badgeColor = posBadgeColor[posCode] || (posCode === 'SUB' ? '#0EA5E9' : '#64748B');
+
+    const wStat = p.weekStats || {};
+    const yStat = p.yearStats || {};
+
+    // Week and Year ratings (e.g. ⭐7.8 / ⭐6.5 (⚽2 👟1) or ⭐ n/a / ⭐6.5 (⚽0 👟0))
+    const hasWRating = wStat.rating && wStat.rating !== '-' && Number(wStat.rating) > 0;
+    const wRatingStr = hasWRating ? `⭐${wStat.rating}` : '⭐ n/a';
+
+    const hasYRating = yStat.rating && yStat.rating !== '-' && Number(yStat.rating) > 0;
+    const yRatingStr = hasYRating ? `⭐${yStat.rating}` : '⭐ n/a';
+
+    const wGoals = Number(wStat.goals) || 0;
+    const wAssists = Number(wStat.assists) || 0;
+    const statsLine = `${wRatingStr} / ${yRatingStr} (⚽${wGoals} 👟${wAssists})`;
 
     return {
       type: 'box',
       layout: 'vertical',
-      width: '66px',
+      width: '80px',
       alignItems: 'center',
       action: p.id ? {
         type: 'postback',
@@ -4473,7 +4487,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
         data: `action=player_info&id=${p.id}&name=${encodeURIComponent(displayName)}`
       } : undefined,
       contents: [
-        // Avatar / Jersey Circle
+        // Avatar / Jersey Circle with team border
         {
           type: 'box',
           layout: 'vertical',
@@ -4505,45 +4519,66 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             }
           ]
         },
-        // Position Chip & Name Plaque
+        // Multi-line Plaque: [Pos] Name, Combined ⭐week / ⭐year (⚽goals 👟assists)
         {
           type: 'box',
-          layout: 'horizontal',
+          layout: 'vertical',
           backgroundColor: '#000000CC',
-          cornerRadius: '4px',
+          cornerRadius: '5px',
           paddingStart: '3px',
-          paddingEnd: '4px',
+          paddingEnd: '3px',
           paddingTop: '2px',
-          paddingBottom: '2px',
+          paddingBottom: '3px',
           offsetTop: '2px',
           alignItems: 'center',
           contents: [
+            // Name Row with position chip (wrap: true, maxLines: 2)
             {
               type: 'box',
-              layout: 'vertical',
-              backgroundColor: badgeColor,
-              cornerRadius: '2px',
-              paddingStart: '2px',
-              paddingEnd: '2px',
+              layout: 'horizontal',
+              alignItems: 'center',
               contents: [
                 {
+                  type: 'box',
+                  layout: 'vertical',
+                  backgroundColor: badgeColor,
+                  cornerRadius: '2px',
+                  paddingStart: '2px',
+                  paddingEnd: '2px',
+                  flex: 0,
+                  contents: [
+                    {
+                      type: 'text',
+                      text: posCode,
+                      color: '#FFFFFF',
+                      size: 'xxs',
+                      weight: 'bold',
+                      align: 'center'
+                    }
+                  ]
+                },
+                {
                   type: 'text',
-                  text: posCode,
+                  text: displayName,
                   color: '#FFFFFF',
                   size: 'xxs',
                   weight: 'bold',
-                  align: 'center'
+                  wrap: true,
+                  maxLines: 2,
+                  margin: 'xs',
+                  flex: 1
                 }
               ]
             },
+            // Combined Rating & Week Goals/Assists: ⭐7.8 / ⭐6.5 (⚽2 👟1)
             {
               type: 'text',
-              text: displayName,
-              color: '#FFFFFF',
+              text: statsLine,
               size: 'xxs',
-              weight: 'bold',
-              maxLines: 1,
-              margin: 'xs'
+              color: '#FACC15',
+              align: 'center',
+              margin: 'xxs',
+              wrap: true
             }
           ]
         }
@@ -4553,7 +4588,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
   const bubbles = formationsData.map(team => {
     const colorHex = tdc(team.teamColor) || '#3B82F6';
-    const slots = team.slots || { CF: [], MF: [], DW: [], DF: [], GK: [] };
+    const slots = team.slots || { CF: [], MF: [], DW: [], DF: [], GK: [], alternates: [] };
 
     // Row 1: CF (Center Forward)
     const cfNode = slots.CF.length > 0
@@ -4577,8 +4612,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       type: 'box',
       layout: 'horizontal',
       justifyContent: 'space-around',
-      paddingStart: '16px',
-      paddingEnd: '16px',
+      paddingStart: '12px',
+      paddingEnd: '12px',
       alignItems: 'center',
       contents: mfNodes
     };
@@ -4609,13 +4644,13 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       type: 'box',
       layout: 'horizontal',
       justifyContent: 'space-around',
-      paddingStart: '16px',
-      paddingEnd: '16px',
+      paddingStart: '12px',
+      paddingEnd: '12px',
       alignItems: 'center',
       contents: dfNodes
     };
 
-    // Row 5: GK (Goalkeeper)
+    // Row 5: GK (Goalkeeper) - open/unassigned if team has no dedicated GK
     const gkNode = slots.GK.length > 0
       ? renderPlayerNode(slots.GK[0], 'GK', colorHex)
       : renderPlayerNode(null, 'GK', colorHex);
@@ -4627,6 +4662,55 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       alignItems: 'center',
       contents: [gkNode]
     };
+
+    // Body contents: Tactical pitch container
+    const bodyContents = [
+      {
+        type: 'box',
+        layout: 'vertical',
+        height: '520px',
+        borderWidth: '1px',
+        borderColor: '#FFFFFF44',
+        cornerRadius: 'md',
+        paddingAll: 'xs',
+        justifyContent: 'space-between',
+        contents: [
+          cfRow, // Attacking Line (CF)
+          mfRow, // Midfield Line (MF)
+          dwRow, // Defensive Wings Line (DW)
+          dfRow, // Defensive Line (DF)
+          gkRow  // Goalkeeper Line (GK)
+        ]
+      }
+    ];
+
+    // If alternates / reserve members exist, render a stylish bench box below pitch
+    if (slots.alternates && slots.alternates.length > 0) {
+      bodyContents.push({
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#0F172ACC',
+        cornerRadius: 'md',
+        paddingAll: 'sm',
+        margin: 'sm',
+        contents: [
+          {
+            type: 'text',
+            text: `⚡ ตัวสำรอง / Alternates (${slots.alternates.length} คน)`,
+            size: 'xxs',
+            color: '#38BDF8',
+            weight: 'bold'
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            justifyContent: 'space-around',
+            contents: slots.alternates.map(p => renderPlayerNode(p, 'SUB', colorHex))
+          }
+        ]
+      });
+    }
 
     return {
       type: 'bubble',
@@ -4705,26 +4789,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           startColor: '#15803D',
           endColor: '#14532D'
         },
-        contents: [
-          // Tactical Pitch Container with subtle white field boundary markings
-          {
-            type: 'box',
-            layout: 'vertical',
-            height: '420px',
-            borderWidth: '1px',
-            borderColor: '#FFFFFF44',
-            cornerRadius: 'md',
-            paddingAll: 'xs',
-            justifyContent: 'space-between',
-            contents: [
-              cfRow, // Attacking Line (CF)
-              mfRow, // Midfield Line (MF)
-              dwRow, // Defensive Wings Line (DW)
-              dfRow, // Defensive Line (DF)
-              gkRow  // Goalkeeper Line (GK)
-            ]
-          }
-        ]
+        contents: bodyContents
       },
       footer: {
         type: 'box',

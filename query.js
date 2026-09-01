@@ -4497,11 +4497,26 @@ async function getMvpList(targetYear = null, groupId = null) {
 /**
  * Distribute players into 5 tactical lines (CF, MF, DW, DF, GK)
  * Specifically configured for 7-player and 8-player teams (with fallback for any squad size).
+ * GK is ONLY assigned if player explicitly has pos_code === 'GK'.
+ * Reserve members (+1, +2, etc.) and overflow players are placed into alternates.
  */
 function allocateFormationSlots(members) {
   const count = members.length;
-  
-  // Group players by explicit pos_code from DB
+
+  // Separate reserve/sub members tagged with + / +(1) / +(2) / +1 / +2
+  const isReserve = (name) => /^\+\s*\(?\d+\)?/.test((name || '').trim());
+  const regulars = [];
+  const reserveMembers = [];
+
+  for (const m of members) {
+    if (isReserve(m.name) || isReserve(m.alias)) {
+      reserveMembers.push(m);
+    } else {
+      regulars.push(m);
+    }
+  }
+
+  // Group regular players by explicit pos_code from DB
   const assigned = {
     GK: [],
     DF: [],
@@ -4511,7 +4526,7 @@ function allocateFormationSlots(members) {
   };
   const unassigned = [];
 
-  for (const m of members) {
+  for (const m of regulars) {
     const code = (m.pos_code || '').toUpperCase();
     if (assigned[code]) {
       assigned[code].push(m);
@@ -4520,20 +4535,26 @@ function allocateFormationSlots(members) {
     }
   }
 
-  // Determine target slots & formation name
-  let target = { CF: 1, MF: 2, DW: 2, DF: 2, GK: 1 }; // Default 8-Player (1-2-2-2-1)
-  let formationName = "8-Player (1-2-2-2-1)";
+  const hasGK = assigned.GK.length > 0;
+  const outfieldCount = regulars.length - (hasGK ? 1 : 0);
 
-  if (count <= 7) {
+  // Target slots calculation
+  let target = { CF: 1, MF: 2, DW: 2, DF: 2, GK: hasGK ? 1 : 0 };
+  let formationName = hasGK ? "8-Player (1-2-2-2-1)" : "8-Player Outfield (2-2-3-1)";
+
+  if (outfieldCount <= 6) {
     if (assigned.MF.length > assigned.DF.length) {
-      target = { CF: 1, MF: 2, DW: 2, DF: 1, GK: 1 };
-      formationName = "7-Player (1-1-2-2-1)";
+      target = { CF: 1, MF: 2, DW: 2, DF: 1, GK: hasGK ? 1 : 0 };
+      formationName = hasGK ? "7-Player (1-1-2-2-1)" : "7-Player Outfield (1-2-2-1)";
     } else {
-      target = { CF: 1, MF: 1, DW: 2, DF: 2, GK: 1 };
-      formationName = "7-Player (1-2-2-1-1)";
+      target = { CF: 1, MF: 1, DW: 2, DF: 2, GK: hasGK ? 1 : 0 };
+      formationName = hasGK ? "7-Player (1-2-2-1-1)" : "7-Player Outfield (2-2-1-1)";
     }
-  } else if (count > 8) {
-    target = { CF: 1, MF: Math.max(2, count - 6), DW: 2, DF: 2, GK: 1 };
+  } else if (outfieldCount === 7) {
+    target = { CF: 1, MF: 2, DW: 2, DF: 2, GK: hasGK ? 1 : 0 };
+    formationName = hasGK ? "8-Player (1-2-2-2-1)" : "7-Player Outfield (2-2-2-1)";
+  } else if (outfieldCount >= 8) {
+    target = { CF: 1, MF: Math.max(2, outfieldCount - 5), DW: 2, DF: 2, GK: hasGK ? 1 : 0 };
     formationName = `${count}-Player Formation`;
   }
 
@@ -4542,12 +4563,23 @@ function allocateFormationSlots(members) {
     MF: [],
     DW: [],
     DF: [],
-    GK: []
+    GK: [],
+    alternates: [...reserveMembers]
   };
 
-  // Fill preferred positions up to target limit; overflow goes to unassigned
-  const roles = ['GK', 'DF', 'DW', 'MF', 'CF'];
-  for (const r of roles) {
+  // 1. Assign GK only if explicitly pos_code === 'GK'
+  if (hasGK) {
+    const gkPlayer = assigned.GK[0];
+    gkPlayer.effectivePos = 'GK';
+    finalSlots.GK.push(gkPlayer);
+    for (let i = 1; i < assigned.GK.length; i++) {
+      unassigned.push(assigned.GK[i]);
+    }
+  }
+
+  // 2. Fill outfield preferred positions (DF, DW, MF, CF) up to target limit
+  const outfieldRoles = ['DF', 'DW', 'MF', 'CF'];
+  for (const r of outfieldRoles) {
     for (const p of assigned[r]) {
       if (finalSlots[r].length < target[r]) {
         p.effectivePos = r;
@@ -4558,8 +4590,8 @@ function allocateFormationSlots(members) {
     }
   }
 
-  // Fill remaining unfilled target slots from unassigned
-  for (const r of roles) {
+  // 3. Fill remaining unfilled target outfield slots from unassigned
+  for (const r of outfieldRoles) {
     while (finalSlots[r].length < target[r] && unassigned.length > 0) {
       const p = unassigned.shift();
       p.effectivePos = r;
@@ -4567,11 +4599,10 @@ function allocateFormationSlots(members) {
     }
   }
 
-  // Any remaining unassigned players attach to MF or DF
+  // 4. Any remaining unassigned players become alternates / substitutes
   while (unassigned.length > 0) {
     const p = unassigned.shift();
-    p.effectivePos = 'MF';
-    finalSlots.MF.push(p);
+    finalSlots.alternates.push(p);
   }
 
   return {
@@ -4648,6 +4679,7 @@ async function getTeamFormation(param = '', groupId = null) {
   const weekId = week[0].id;
   const dateStr = week[0].date;
   const timeRange = week[0].time_range || '';
+  const matchYear = week[0].date ? new Date(week[0].date).getFullYear() : new Date().getFullYear();
 
   const teamColors = await getTeamColorWeek(weekId);
   if (!teamColors || teamColors.length === 0) return null;
@@ -4668,6 +4700,95 @@ async function getTeamFormation(param = '', groupId = null) {
       teamsToRender = matched;
     }
   }
+
+  // Pre-fetch week stats & ratings from getWeekLeaderStats & match_goal_tbl
+  const weekStatsMap = {};
+  try {
+    const leaderStats = await getWeekLeaderStats(weekId, groupId);
+    if (leaderStats && Array.isArray(leaderStats)) {
+      leaderStats.forEach(item => {
+        const mId = item.id || (item.member ? item.member.id : null);
+        if (mId) {
+          weekStatsMap[mId] = {
+            rating: item.score > 0 ? item.score.toFixed(1) : '-',
+            rawScore: item.rawScore || 0,
+            goals: Number(item.goals) || 0,
+            assists: Number(item.assists) || 0
+          };
+        }
+      });
+    }
+  } catch (e) { }
+
+  // Fallback / complement week goals & assists
+  try {
+    const weekGoalRows = await executeQuery(`
+      SELECT 
+        mgt.member_id,
+        COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as goals,
+        COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
+      FROM match_goal_tbl mgt
+      JOIN match_stat_tbl mst ON mgt.match_id = mst.id
+      WHERE mst.week_id = ?
+      GROUP BY mgt.member_id
+    `, [weekId]);
+    if (weekGoalRows) {
+      weekGoalRows.forEach(r => {
+        if (!weekStatsMap[r.member_id]) {
+          weekStatsMap[r.member_id] = { rating: '-', goals: Number(r.goals) || 0, assists: Number(r.assists) || 0 };
+        } else {
+          if (weekStatsMap[r.member_id].goals === 0) weekStatsMap[r.member_id].goals = Number(r.goals) || 0;
+          if (weekStatsMap[r.member_id].assists === 0) weekStatsMap[r.member_id].assists = Number(r.assists) || 0;
+        }
+      });
+    }
+  } catch (e) { }
+
+  // Pre-fetch yearly cumulative goals & assists
+  const yearGoalsMap = {};
+  try {
+    const yearGoalRows = await executeQuery(`
+      SELECT 
+        mgt.member_id,
+        COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as goals,
+        COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
+      FROM match_goal_tbl mgt
+      JOIN match_stat_tbl mst ON mgt.match_id = mst.id
+      JOIN week_tbl w ON mst.week_id = w.id
+      WHERE (w.year = ? OR YEAR(w.date) = ?)
+      GROUP BY mgt.member_id
+    `, [matchYear, matchYear]);
+    if (yearGoalRows) {
+      yearGoalRows.forEach(r => {
+        yearGoalsMap[r.member_id] = { goals: Number(r.goals) || 0, assists: Number(r.assists) || 0 };
+      });
+    }
+  } catch (e) { }
+
+  // Pre-fetch yearly cumulative MVP rating from mvp_week_tbl
+  const yearRatingMap = {};
+  try {
+    const yearRatingRows = await executeQuery(`
+      SELECT 
+        m.member_id,
+        AVG(m.rating) as avg_rating,
+        MAX(m.rating) as max_rating,
+        COUNT(DISTINCT m.week_id) as weeks_count
+      FROM mvp_week_tbl m
+      JOIN week_tbl w ON m.week_id = w.id
+      WHERE (w.year = ? OR YEAR(w.date) = ?)
+      GROUP BY m.member_id
+    `, [matchYear, matchYear]);
+    if (yearRatingRows) {
+      yearRatingRows.forEach(r => {
+        yearRatingMap[r.member_id] = {
+          avgRating: parseFloat(r.avg_rating || 0).toFixed(1),
+          maxRating: parseFloat(r.max_rating || 0).toFixed(1),
+          weeksCount: Number(r.weeks_count || 0)
+        };
+      });
+    }
+  } catch (e) { }
 
   const formationsData = [];
   for (const team of teamsToRender) {
@@ -4698,6 +4819,27 @@ async function getTeamFormation(param = '', groupId = null) {
     if (members && members.length > 0) {
       await Promise.all(members.map(m => ensureMemberPicture(m, groupId)));
     }
+
+    // Attach weekStats and yearStats to each member
+    (members || []).forEach(m => {
+      const wStat = weekStatsMap[m.id] || { rating: '-', goals: 0, assists: 0 };
+      const yGoal = yearGoalsMap[m.id] || { goals: 0, assists: 0 };
+      const yRating = yearRatingMap[m.id] || { avgRating: '-', maxRating: '-', weeksCount: 0 };
+
+      m.weekStats = {
+        rating: wStat.rating || '-',
+        goals: wStat.goals || 0,
+        assists: wStat.assists || 0
+      };
+      m.yearStats = {
+        rating: yRating.avgRating && yRating.avgRating !== '-' && Number(yRating.avgRating) > 0
+          ? yRating.avgRating
+          : (wStat.rating && wStat.rating !== '-' && Number(wStat.rating) > 0 ? wStat.rating : '-'),
+        goals: yGoal.goals || 0,
+        assists: yGoal.assists || 0,
+        weeksCount: yRating.weeksCount || 0
+      };
+    });
 
     const allocation = allocateFormationSlots(members || []);
     formationsData.push({
