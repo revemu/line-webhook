@@ -4185,7 +4185,6 @@ function buildMvpListFlex(mvpData, theme) {
         const pNameColor = (p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff');
         const pAvatar = (p.info && p.info.pictureUrl) || null;
         const pRatingStr = `⭐ ${Number(p.rating || 0).toFixed(1)}`;
-        const pStatsStr = `(⚽${p.goals || 0} 👟${p.assists || 0}${p.cleanSheets > 0 ? ` 🧤${p.cleanSheets}` : ''})`;
 
         const nameWithBadges = [];
         if (p.info && p.info.badgeUrl) {
@@ -4228,11 +4227,13 @@ function buildMvpListFlex(mvpData, theme) {
           type: 'text',
           text: pName,
           weight: 'bold',
-          size: 'xs',
+          size: 'sm',
           color: pNameColor,
           margin: 'xs',
           flex: 1
         });
+
+        const pStatsStr = `⚽ ${p.goals || 0}  👟 ${p.assists || 0}${p.cleanSheets > 0 ? `  🧤 ${p.cleanSheets}` : ''}`;
 
         return {
           type: 'box',
@@ -4243,9 +4244,9 @@ function buildMvpListFlex(mvpData, theme) {
             pAvatar ? {
               type: 'box',
               layout: 'vertical',
-              width: '28px',
-              height: '28px',
-              cornerRadius: '14px',
+              width: '32px',
+              height: '32px',
+              cornerRadius: '16px',
               borderWidth: '1px',
               borderColor: '#f59e0b',
               flex: 0,
@@ -4253,14 +4254,14 @@ function buildMvpListFlex(mvpData, theme) {
             } : {
               type: 'box',
               layout: 'vertical',
-              width: '28px',
-              height: '28px',
-              cornerRadius: '14px',
+              width: '32px',
+              height: '32px',
+              cornerRadius: '16px',
               backgroundColor: isWhite ? '#fef3c7' : '#231d0a',
               alignItems: 'center',
               justifyContent: 'center',
               flex: 0,
-              contents: [{ type: 'text', text: '👑', size: 'xs', align: 'center', gravity: 'center' }]
+              contents: [{ type: 'text', text: '👑', size: 'sm', align: 'center', gravity: 'center' }]
             },
             {
               type: 'box',
@@ -4276,10 +4277,27 @@ function buildMvpListFlex(mvpData, theme) {
                 },
                 {
                   type: 'text',
-                  text: `${pRatingStr} ${pStatsStr}`,
-                  size: 'xxs',
-                  color: isWhite ? '#b45309' : '#fbbf24',
+                  text: pStatsStr,
+                  size: 'xs',
+                  color: isWhite ? '#475569' : '#cbd5e1',
                   margin: 'none'
+                }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              flex: 0,
+              contents: [
+                {
+                  type: 'text',
+                  text: pRatingStr,
+                  weight: 'bold',
+                  size: 'sm',
+                  color: isWhite ? '#d97706' : '#fbbf24',
+                  align: 'end'
                 }
               ]
             }
