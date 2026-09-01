@@ -4743,11 +4743,9 @@ async function getMvpList(targetYear = null, groupId = null) {
 
 /**
  * Distribute players into 5 tactical lines (CF, MF, DW, DF, GK)
- * Specifically configured for 7-player and 8-player teams.
- * When team has 8 outfielders and no GK, 7 players start on the pitch and 1 player
- * with the lowest year/week rating is assigned as alternate/sub.
+ * Specifically configured for 7-player (6+1) and 8-player (7+1) teams.
  */
-function allocateFormationSlots(members) {
+function allocateFormationSlots(members, is8PlayerWeek = false) {
   const count = members.length;
   const isReserve = (name) => /^\+\s*\(?\d+\)?/.test((name || '').trim());
 
@@ -4783,28 +4781,60 @@ function allocateFormationSlots(members) {
 
   const hasGK = assigned.GK.length > 0;
 
-  // Dynamic 6 outfield starters on pitch (6 outfielders + alternates / rotation GK)
+  // Dynamic starters on pitch based on 8-player (7+1) vs 7-player (6+1) format
   let targetCF = 1;
   let targetMF = 2;
   let targetDW = 2;
   let targetDF = 1;
 
-  // Adjust distribution to best fit squad preferences while keeping exactly 6 outfield starters
-  if (assigned.CF.length >= 2) {
-    targetCF = 2;
-    targetMF = 1;
-    targetDW = 2;
-    targetDF = 1;
-  } else if (assigned.DF.length >= 2 && assigned.MF.length <= 1) {
-    targetCF = 1;
-    targetMF = 1;
-    targetDW = 2;
+  if (is8PlayerWeek) {
+    // 7 Outfield starters for 8-player team (7+1)
     targetDF = 2;
-  } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
-    targetCF = 1;
-    targetMF = 2;
-    targetDW = 2;
+    if (assigned.CF.length >= 2) {
+      targetCF = 2;
+      targetMF = 2;
+      targetDW = 2;
+      targetDF = 1; // 2-2-2-1
+    } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
+      targetCF = 1;
+      targetMF = 3;
+      targetDW = 2;
+      targetDF = 1; // 1-3-2-1
+    } else if (assigned.DF.length >= 3 && assigned.MF.length <= 1) {
+      targetCF = 1;
+      targetMF = 1;
+      targetDW = 2;
+      targetDF = 3; // 1-1-2-3
+    } else {
+      targetCF = 1;
+      targetMF = 2;
+      targetDW = 2;
+      targetDF = 2; // 1-2-2-2
+    }
+  } else {
+    // 6 Outfield starters for 7-player team (6+1)
     targetDF = 1;
+    if (assigned.CF.length >= 2) {
+      targetCF = 2;
+      targetMF = 1;
+      targetDW = 2;
+      targetDF = 1; // 2-1-2-1
+    } else if (assigned.DF.length >= 2 && assigned.MF.length <= 1) {
+      targetCF = 1;
+      targetMF = 1;
+      targetDW = 2;
+      targetDF = 2; // 1-1-2-2
+    } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
+      targetCF = 1;
+      targetMF = 2;
+      targetDW = 2;
+      targetDF = 1; // 1-2-2-1
+    } else {
+      targetCF = 1;
+      targetMF = 2;
+      targetDW = 2;
+      targetDF = 1; // 1-2-2-1
+    }
   }
 
   const target = {
@@ -5112,7 +5142,20 @@ async function getTeamFormation(param = '', groupId = null) {
       });
     }
   } catch (e) { }
-  const yearStatsDuration = Date.now() - tYearStatsStart;
+  // 4.5 Detect if this specific week has an 8-player team (max players in any team >= 8)
+  let is8PlayerWeek = false;
+  try {
+    const teamCountsRes = await executeQuery(
+      "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
+      [weekId]
+    );
+    if (teamCountsRes && teamCountsRes.length > 0) {
+      const maxCount = Math.max(...teamCountsRes.map(r => Number(r.cnt) || 0));
+      if (maxCount >= 8) {
+        is8PlayerWeek = true;
+      }
+    }
+  } catch (e) { }
 
   // 5. Team Members Query & Line Avatar Check
   let totalMembersQueryDuration = 0;
@@ -5185,7 +5228,7 @@ async function getTeamFormation(param = '', groupId = null) {
     });
 
     const tTacticsStart = Date.now();
-    const allocation = allocateFormationSlots(members || []);
+    const allocation = allocateFormationSlots(members || [], is8PlayerWeek);
     totalTacticsDuration += (Date.now() - tTacticsStart);
 
     formationsData.push({
