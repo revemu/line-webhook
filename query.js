@@ -1303,9 +1303,10 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const mvps = maxRawMvpScore > 0 ? formattedList.filter(item => item.rawScore === maxRawMvpScore) : [];
     const maxMvpScore = mvps.length > 0 ? mvps[0].score : 0;
 
-    // Save/update current week MVP winners into mvp_week_tbl
-    if (mvps && mvps.length > 0) {
-      await saveWeekMvpRecords(week_id, mvps);
+    // Save/update all player week records into mvp_week_tbl & update yearly cache
+    if (formattedList && formattedList.length > 0) {
+      await saveWeekMvpRecords(week_id, formattedList);
+      await updateYearStatCache(weekYear);
     }
 
     // Update player ratings into member_team_week_tbl for this week
@@ -1619,6 +1620,58 @@ async function saveWeekMvpRecords(week_id, mvpList) {
   }
 }
 
+async function ensureMemberYearStatTable() {
+  try {
+    const createSql = `
+      CREATE TABLE IF NOT EXISTS member_year_stat_tbl (
+        member_id INT NOT NULL,
+        year INT NOT NULL,
+        avg_rating DECIMAL(4,2) DEFAULT 0.00,
+        max_rating DECIMAL(4,2) DEFAULT 0.00,
+        total_goals INT DEFAULT 0,
+        total_assists INT DEFAULT 0,
+        weeks_played INT DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (member_id, year)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `;
+    await executeQuery(createSql);
+  } catch (err) {
+    console.error("Error creating member_year_stat_tbl table:", err.message);
+  }
+}
+
+async function updateYearStatCache(year = null) {
+  try {
+    await ensureMemberYearStatTable();
+    const whereClause = year ? `WHERE YEAR(w.date) = ${Number(year)} AND m.member_id > 0` : `WHERE m.member_id > 0`;
+    await executeQuery(`
+      INSERT INTO member_year_stat_tbl (member_id, year, avg_rating, max_rating, total_goals, total_assists, weeks_played)
+      SELECT 
+        m.member_id,
+        YEAR(w.date) as year,
+        ROUND(AVG(m.rating), 2) as avg_rating,
+        ROUND(MAX(m.rating), 2) as max_rating,
+        COALESCE(SUM(m.goals), 0) as total_goals,
+        COALESCE(SUM(m.assists), 0) as total_assists,
+        COUNT(DISTINCT m.week_id) as weeks_played
+      FROM mvp_week_tbl m
+      JOIN week_tbl w ON m.week_id = w.id
+      ${whereClause}
+      GROUP BY m.member_id, YEAR(w.date)
+      ON DUPLICATE KEY UPDATE
+        avg_rating = VALUES(avg_rating),
+        max_rating = VALUES(max_rating),
+        total_goals = VALUES(total_goals),
+        total_assists = VALUES(total_assists),
+        weeks_played = VALUES(weeks_played)
+    `);
+    console.log(`[Cache] Updated member_year_stat_tbl for ${year || 'all years'}`);
+  } catch (err) {
+    console.error("Error updating member_year_stat_tbl cache:", err.message);
+  }
+}
+
 async function calculateWeekRawMvp(week_id, verbose = false) {
   const goalsQuery = `
     SELECT 
@@ -1875,10 +1928,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       if (playerScores && playerScores.length > 0) {
         playerScores.sort((a, b) => b.rawScore - a.rawScore);
         const maxRawForWeek = playerScores[0].rawScore;
-        const weekWinners = playerScores.filter(p => p.rawScore === maxRawForWeek);
-        await saveWeekMvpRecords(w.id, weekWinners);
+        await saveWeekMvpRecords(w.id, playerScores);
         newInsertedCount++;
-        console.log(`    ✅ Synced ${weekWinners.length} MVP winner(s) for Week ID ${w.id} (Top Per-Match Raw Score: ${maxRawForWeek.toFixed(4)})`);
+        console.log(`    ✅ Synced ${playerScores.length} player(s) for Week ID ${w.id} (Top Per-Match Raw Score: ${maxRawForWeek.toFixed(4)})`);
       } else {
         console.log(`    ⚠️ No valid team members (team_id > 0) scored in Week ID ${w.id}`);
       }
@@ -1928,6 +1980,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all records based on each year's best benchmark`);
       }
     }
+
+    // Update member_year_stat_tbl cache
+    await updateYearStatCache(year);
 
     // Query yearly max scores and persist each year's benchmark into template_tpl ('max_mvp_score_YYYY')
     const yearlyMaxRes = await executeQuery(`
@@ -4496,21 +4551,20 @@ async function getMvpList(targetYear = null, groupId = null) {
 
 /**
  * Distribute players into 5 tactical lines (CF, MF, DW, DF, GK)
- * Specifically configured for 7-player and 8-player teams (with fallback for any squad size).
- * GK is ONLY assigned if player explicitly has pos_code === 'GK'.
- * Reserve members (+1, +2, etc.) and overflow players are placed into alternates.
+ * Specifically configured for 7-player and 8-player teams.
+ * When team has 8 outfielders and no GK, 7 players start on the pitch and 1 player
+ * with the lowest year/week rating is assigned as alternate/sub.
  */
 function allocateFormationSlots(members) {
   const count = members.length;
-
-  // Separate reserve/sub members tagged with + / +(1) / +(2) / +1 / +2
   const isReserve = (name) => /^\+\s*\(?\d+\)?/.test((name || '').trim());
+
+  const explicitReserves = [];
   const regulars = [];
-  const reserveMembers = [];
 
   for (const m of members) {
     if (isReserve(m.name) || isReserve(m.alias)) {
-      reserveMembers.push(m);
+      explicitReserves.push(m);
     } else {
       regulars.push(m);
     }
@@ -4536,27 +4590,32 @@ function allocateFormationSlots(members) {
   }
 
   const hasGK = assigned.GK.length > 0;
-  const outfieldCount = regulars.length - (hasGK ? 1 : 0);
 
-  // Target slots calculation
-  let target = { CF: 1, MF: 2, DW: 2, DF: 2, GK: hasGK ? 1 : 0 };
-  let formationName = hasGK ? "8-Player (1-2-2-2-1)" : "8-Player Outfield (2-2-3-1)";
+  // Target slots on pitch (7 outfielders max without GK; 1 GK + 7 outfielders with GK)
+  const target = {
+    CF: 1,
+    MF: 2,
+    DW: 2,
+    DF: 2,
+    GK: hasGK ? 1 : 0
+  };
 
-  if (outfieldCount <= 6) {
-    if (assigned.MF.length > assigned.DF.length) {
-      target = { CF: 1, MF: 2, DW: 2, DF: 1, GK: hasGK ? 1 : 0 };
-      formationName = hasGK ? "7-Player (1-1-2-2-1)" : "7-Player Outfield (1-2-2-1)";
-    } else {
-      target = { CF: 1, MF: 1, DW: 2, DF: 2, GK: hasGK ? 1 : 0 };
-      formationName = hasGK ? "7-Player (1-2-2-1-1)" : "7-Player Outfield (2-2-1-1)";
-    }
-  } else if (outfieldCount === 7) {
-    target = { CF: 1, MF: 2, DW: 2, DF: 2, GK: hasGK ? 1 : 0 };
-    formationName = hasGK ? "8-Player (1-2-2-2-1)" : "7-Player Outfield (2-2-2-1)";
-  } else if (outfieldCount >= 8) {
-    target = { CF: 1, MF: Math.max(2, outfieldCount - 5), DW: 2, DF: 2, GK: hasGK ? 1 : 0 };
-    formationName = `${count}-Player Formation`;
+  const formationName = hasGK
+    ? (regulars.length >= 8 ? "8-Player (1-2-2-2-1)" : "7-Player (1-2-2-1-1)")
+    : (regulars.length >= 8 ? "7+1 Player (1-2-2-2)" : "7-Player (1-2-2-2)");
+
+  const getPlayerScore = (p) => {
+    const yScore = parseFloat(p.yearStats?.rating || 0) || 0;
+    const wScore = parseFloat(p.weekStats?.rating || 0) || 0;
+    const rankScore = parseFloat(p.rank || 0) || 0;
+    return Math.max(yScore, wScore, rankScore);
+  };
+
+  // Sort assigned categories and unassigned from highest to lowest score
+  for (const r of ['GK', 'DF', 'DW', 'MF', 'CF']) {
+    assigned[r].sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
   }
+  unassigned.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
 
   const finalSlots = {
     CF: [],
@@ -4564,7 +4623,7 @@ function allocateFormationSlots(members) {
     DW: [],
     DF: [],
     GK: [],
-    alternates: [...reserveMembers]
+    alternates: [...explicitReserves]
   };
 
   // 1. Assign GK only if explicitly pos_code === 'GK'
@@ -4590,6 +4649,9 @@ function allocateFormationSlots(members) {
     }
   }
 
+  // Re-sort unassigned from highest to lowest score
+  unassigned.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
+
   // 3. Fill remaining unfilled target outfield slots from unassigned
   for (const r of outfieldRoles) {
     while (finalSlots[r].length < target[r] && unassigned.length > 0) {
@@ -4599,7 +4661,7 @@ function allocateFormationSlots(members) {
     }
   }
 
-  // 4. Any remaining unassigned players become alternates / substitutes
+  // 4. Any remaining unassigned outfield players (lowest score) become alternates
   while (unassigned.length > 0) {
     const p = unassigned.shift();
     finalSlots.alternates.push(p);
@@ -4701,90 +4763,48 @@ async function getTeamFormation(param = '', groupId = null) {
     }
   }
 
-  // Pre-fetch week stats & ratings from getWeekLeaderStats & match_goal_tbl
+  // 1. Query current week stats directly from mvp_week_tbl (fast, calculated by /matchweek)
   const weekStatsMap = {};
   try {
-    const leaderStats = await getWeekLeaderStats(weekId, groupId);
-    if (leaderStats && Array.isArray(leaderStats)) {
-      leaderStats.forEach(item => {
-        const mId = item.id || (item.member ? item.member.id : null);
-        if (mId) {
-          weekStatsMap[mId] = {
-            rating: item.score > 0 ? item.score.toFixed(1) : '-',
-            rawScore: item.rawScore || 0,
-            goals: Number(item.goals) || 0,
-            assists: Number(item.assists) || 0
-          };
-        }
+    const weekRows = await executeQuery(
+      "SELECT member_id, rating, goals, assists FROM mvp_week_tbl WHERE week_id = ?",
+      [weekId]
+    );
+    if (weekRows && weekRows.length > 0) {
+      weekRows.forEach(r => {
+        weekStatsMap[r.member_id] = {
+          rating: r.rating && Number(r.rating) > 0 ? parseFloat(r.rating).toFixed(1) : '-',
+          goals: Number(r.goals) || 0,
+          assists: Number(r.assists) || 0
+        };
       });
     }
   } catch (e) { }
 
-  // Fallback / complement week goals & assists
+  // 2. Query cached cumulative yearly stats from member_year_stat_tbl (fast, updated by /maxmvpscore & /matchweek)
+  const yearStatsMap = {};
   try {
-    const weekGoalRows = await executeQuery(`
-      SELECT 
-        mgt.member_id,
-        COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as goals,
-        COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
-      FROM match_goal_tbl mgt
-      JOIN match_stat_tbl mst ON mgt.match_id = mst.id
-      WHERE mst.week_id = ?
-      GROUP BY mgt.member_id
-    `, [weekId]);
-    if (weekGoalRows) {
-      weekGoalRows.forEach(r => {
-        if (!weekStatsMap[r.member_id]) {
-          weekStatsMap[r.member_id] = { rating: '-', goals: Number(r.goals) || 0, assists: Number(r.assists) || 0 };
-        } else {
-          if (weekStatsMap[r.member_id].goals === 0) weekStatsMap[r.member_id].goals = Number(r.goals) || 0;
-          if (weekStatsMap[r.member_id].assists === 0) weekStatsMap[r.member_id].assists = Number(r.assists) || 0;
-        }
-      });
+    await ensureMemberYearStatTable();
+    let yearRows = await executeQuery(
+      "SELECT member_id, avg_rating, max_rating, total_goals, total_assists, weeks_played FROM member_year_stat_tbl WHERE year = ?",
+      [matchYear]
+    );
+    if (!yearRows || yearRows.length === 0) {
+      // Seed cache on demand if not yet populated
+      await updateYearStatCache(matchYear);
+      yearRows = await executeQuery(
+        "SELECT member_id, avg_rating, max_rating, total_goals, total_assists, weeks_played FROM member_year_stat_tbl WHERE year = ?",
+        [matchYear]
+      );
     }
-  } catch (e) { }
-
-  // Pre-fetch yearly cumulative goals & assists
-  const yearGoalsMap = {};
-  try {
-    const yearGoalRows = await executeQuery(`
-      SELECT 
-        mgt.member_id,
-        COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as goals,
-        COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as assists
-      FROM match_goal_tbl mgt
-      JOIN match_stat_tbl mst ON mgt.match_id = mst.id
-      JOIN week_tbl w ON mst.week_id = w.id
-      WHERE (w.year = ? OR YEAR(w.date) = ?)
-      GROUP BY mgt.member_id
-    `, [matchYear, matchYear]);
-    if (yearGoalRows) {
-      yearGoalRows.forEach(r => {
-        yearGoalsMap[r.member_id] = { goals: Number(r.goals) || 0, assists: Number(r.assists) || 0 };
-      });
-    }
-  } catch (e) { }
-
-  // Pre-fetch yearly cumulative MVP rating from mvp_week_tbl
-  const yearRatingMap = {};
-  try {
-    const yearRatingRows = await executeQuery(`
-      SELECT 
-        m.member_id,
-        AVG(m.rating) as avg_rating,
-        MAX(m.rating) as max_rating,
-        COUNT(DISTINCT m.week_id) as weeks_count
-      FROM mvp_week_tbl m
-      JOIN week_tbl w ON m.week_id = w.id
-      WHERE (w.year = ? OR YEAR(w.date) = ?)
-      GROUP BY m.member_id
-    `, [matchYear, matchYear]);
-    if (yearRatingRows) {
-      yearRatingRows.forEach(r => {
-        yearRatingMap[r.member_id] = {
-          avgRating: parseFloat(r.avg_rating || 0).toFixed(1),
-          maxRating: parseFloat(r.max_rating || 0).toFixed(1),
-          weeksCount: Number(r.weeks_count || 0)
+    if (yearRows && yearRows.length > 0) {
+      yearRows.forEach(r => {
+        yearStatsMap[r.member_id] = {
+          avgRating: r.avg_rating && Number(r.avg_rating) > 0 ? parseFloat(r.avg_rating).toFixed(1) : '-',
+          maxRating: r.max_rating && Number(r.max_rating) > 0 ? parseFloat(r.max_rating).toFixed(1) : '-',
+          goals: Number(r.total_goals) || 0,
+          assists: Number(r.total_assists) || 0,
+          weeksCount: Number(r.weeks_played) || 0
         };
       });
     }
@@ -4823,21 +4843,29 @@ async function getTeamFormation(param = '', groupId = null) {
     // Attach weekStats and yearStats to each member
     (members || []).forEach(m => {
       const wStat = weekStatsMap[m.id] || { rating: '-', goals: 0, assists: 0 };
-      const yGoal = yearGoalsMap[m.id] || { goals: 0, assists: 0 };
-      const yRating = yearRatingMap[m.id] || { avgRating: '-', maxRating: '-', weeksCount: 0 };
+      const yStat = yearStatsMap[m.id] || { avgRating: '-', maxRating: '-', goals: 0, assists: 0, weeksCount: 0 };
 
       m.weekStats = {
         rating: wStat.rating || '-',
         goals: wStat.goals || 0,
         assists: wStat.assists || 0
       };
+
+      // Year rating fallback order: 1) member_year_stat_tbl avg_rating, 2) m.rank, 3) wStat.rating
+      let resolvedYearRating = '-';
+      if (yStat.avgRating && yStat.avgRating !== '-' && Number(yStat.avgRating) > 0) {
+        resolvedYearRating = yStat.avgRating;
+      } else if (m.rank && Number(m.rank) > 0) {
+        resolvedYearRating = parseFloat(m.rank).toFixed(1);
+      } else if (wStat.rating && wStat.rating !== '-' && Number(wStat.rating) > 0) {
+        resolvedYearRating = wStat.rating;
+      }
+
       m.yearStats = {
-        rating: yRating.avgRating && yRating.avgRating !== '-' && Number(yRating.avgRating) > 0
-          ? yRating.avgRating
-          : (wStat.rating && wStat.rating !== '-' && Number(wStat.rating) > 0 ? wStat.rating : '-'),
-        goals: yGoal.goals || 0,
-        assists: yGoal.assists || 0,
-        weeksCount: yRating.weeksCount || 0
+        rating: resolvedYearRating,
+        goals: yStat.goals || 0,
+        assists: yStat.assists || 0,
+        weeksCount: yStat.weeksCount || 0
       };
     });
 
@@ -4916,6 +4944,8 @@ module.exports = {
   calcAndSaveMaxMvpScore,
   ensureMvpWeekTable,
   saveWeekMvpRecords,
+  ensureMemberYearStatTable,
+  updateYearStatCache,
   ensurePosTables,
   getAllPositions,
   getMemberPositions,

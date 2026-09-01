@@ -4409,7 +4409,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       return {
         type: 'box',
         layout: 'vertical',
-        width: '74px',
+        width: '92px',
         alignItems: 'center',
         contents: [
           {
@@ -4467,10 +4467,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     // Week and Year ratings (e.g. ⭐7.8 / ⭐6.5 (⚽2 👟1) or ⭐ n/a / ⭐6.5 (⚽0 👟0))
     const hasWRating = wStat.rating && wStat.rating !== '-' && Number(wStat.rating) > 0;
-    const wRatingStr = hasWRating ? `⭐${wStat.rating}` : '⭐ n/a';
+    const wRatingStr = hasWRating ? `⭐${wStat.rating}` : '⭐n/a';
 
     const hasYRating = yStat.rating && yStat.rating !== '-' && Number(yStat.rating) > 0;
-    const yRatingStr = hasYRating ? `⭐${yStat.rating}` : '⭐ n/a';
+    const yRatingStr = hasYRating ? `⭐${yStat.rating}` : '⭐n/a';
 
     const wGoals = Number(wStat.goals) || 0;
     const wAssists = Number(wStat.assists) || 0;
@@ -4479,7 +4479,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     return {
       type: 'box',
       layout: 'vertical',
-      width: '80px',
+      width: '92px',
       alignItems: 'center',
       action: p.id ? {
         type: 'postback',
@@ -4525,26 +4525,27 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           layout: 'vertical',
           backgroundColor: '#000000CC',
           cornerRadius: '5px',
-          paddingStart: '3px',
-          paddingEnd: '3px',
+          paddingStart: '4px',
+          paddingEnd: '4px',
           paddingTop: '2px',
           paddingBottom: '3px',
           offsetTop: '2px',
           alignItems: 'center',
           contents: [
-            // Name Row with position chip (wrap: true, maxLines: 2)
+            // Name Row with position chip (wrap: true, maxLines: 2, center-aligned)
             {
               type: 'box',
               layout: 'horizontal',
               alignItems: 'center',
+              justifyContent: 'center',
               contents: [
                 {
                   type: 'box',
                   layout: 'vertical',
                   backgroundColor: badgeColor,
                   cornerRadius: '2px',
-                  paddingStart: '2px',
-                  paddingEnd: '2px',
+                  paddingStart: '3px',
+                  paddingEnd: '3px',
                   flex: 0,
                   contents: [
                     {
@@ -4566,6 +4567,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   wrap: true,
                   maxLines: 2,
                   margin: 'xs',
+                  align: 'center',
                   flex: 1
                 }
               ]
