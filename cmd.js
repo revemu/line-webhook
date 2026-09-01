@@ -293,13 +293,6 @@ const COMMAND_REGISTRY = {
         const { param, groupId } = context;
         const msg = await db.getTeamFormation(param, groupId);
         if (msg) {
-            if (Array.isArray(msg)) {
-                return msg.map((m, idx) => ({
-                    type: 'flex',
-                    altText: `⚽ ผังการเล่นทีม (Team Formation) ${idx + 1}`,
-                    contents: m
-                }));
-            }
             return {
                 type: 'flex',
                 altText: '⚽ ผังการเล่นทีม (Team Formation)',
