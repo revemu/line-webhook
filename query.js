@@ -4825,6 +4825,13 @@ function allocateFormationSlots(members) {
     alternates: []
   };
 
+  const tacticalFitPreference = {
+    DW: ['DW', 'DF', 'CF', 'MF'], // Vacant DW: Prefer DF (Fullback), CF (Winger/Attacker), MF (Midfield)
+    CF: ['CF', 'MF', 'DW', 'DF'], // Vacant CF: Prefer CF, MF, DW, DF
+    DF: ['DF', 'DW', 'MF', 'CF'], // Vacant DF: Prefer DF, DW (Fullback), MF (Defensive Mid), CF
+    MF: ['MF', 'DW', 'DF', 'CF']  // Vacant MF: Prefer MF, DW, DF, CF
+  };
+
   // 1. Assign GK
   if (hasGK && assigned.GK.length > 0) {
     const gkPlayer = assigned.GK.shift();
@@ -4837,7 +4844,7 @@ function allocateFormationSlots(members) {
     }
   }
 
-  // 2. Position Match First: Fill primary starters with highest rated matching players
+  // 2. Exact Natural Position Match for Primary Starters (highest rating first)
   const outfieldRoles = ['CF', 'MF', 'DW', 'DF'];
   for (const r of outfieldRoles) {
     for (const slot of finalSlots[r]) {
@@ -4849,52 +4856,55 @@ function allocateFormationSlots(members) {
     }
   }
 
-  // 3. Position Match Alternates: If extra players match position 'r', pair them as alternate to that position first
+  // 3. Fill Vacant Primary Slots using Tactical Versatility & Compatibility (BEFORE assigning alternates)
   for (const r of outfieldRoles) {
     for (const slot of finalSlots[r]) {
-      if (slot.alternate === null && assigned[r].length > 0) {
-        const alt = assigned[r].shift();
-        alt.isAlternate = true;
-        alt.effectivePos = r;
-        slot.alternate = alt;
-        finalSlots.alternates.push(alt);
-      }
-    }
-    // Any remaining players from assigned[r] go to unassigned pool
-    while (assigned[r].length > 0) {
-      unassigned.push(assigned[r].shift());
-    }
-  }
-
-  // 4. Fill any remaining empty primary slots from unassigned pool (highest rating first)
-  unassigned.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
-  for (const r of outfieldRoles) {
-    for (const slot of finalSlots[r]) {
-      if (slot.primary === null && unassigned.length > 0) {
-        const p = unassigned.shift();
-        p.effectivePos = r;
-        slot.primary = p;
+      if (slot.primary === null) {
+        // Search compatible roles for surplus players (e.g. DF/CF -> DW)
+        const candidates = tacticalFitPreference[r] || outfieldRoles;
+        for (const candRole of candidates) {
+          if (assigned[candRole] && assigned[candRole].length > 0) {
+            const p = assigned[candRole].shift();
+            p.effectivePos = r;
+            slot.primary = p;
+            break;
+          }
+        }
+        // If still empty, draw from unassigned pool
+        if (slot.primary === null && unassigned.length > 0) {
+          const p = unassigned.shift();
+          p.effectivePos = r;
+          slot.primary = p;
+        }
       }
     }
   }
 
-  // 5. Pair all remaining unassigned outfield players as alternates onto remaining open slots
-  const allAlternates = [...unassigned, ...explicitReserves];
+  // 4. Pair ALL remaining players as alternates directly onto pitch slots
+  const allAlternates = [
+    ...(assigned.CF || []),
+    ...(assigned.MF || []),
+    ...(assigned.DW || []),
+    ...(assigned.DF || []),
+    ...unassigned,
+    ...explicitReserves
+  ];
   allAlternates.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
 
   for (const p of allAlternates) {
     p.isAlternate = true;
     const preferredRole = (p.pos_code || '').toUpperCase();
     
-    // Find a slot in their preferred role without an alternate
-    let targetSlot = (finalSlots[preferredRole] && finalSlots[preferredRole].find(s => s.alternate === null));
+    // 1. Try to pair to a slot in their preferred natural role
+    let targetSlot = finalSlots[preferredRole] && finalSlots[preferredRole].find(s => s.alternate === null);
     
-    // If preferred role slot already has an alternate, find any outfield slot without an alternate
+    // 2. If already filled, try compatible roles
     if (!targetSlot) {
-      for (const r of outfieldRoles) {
-        targetSlot = finalSlots[r].find(s => s.alternate === null);
+      const prefRoles = tacticalFitPreference[preferredRole] || outfieldRoles;
+      for (const candRole of prefRoles) {
+        targetSlot = finalSlots[candRole] && finalSlots[candRole].find(s => s.alternate === null);
         if (targetSlot) {
-          p.effectivePos = r;
+          p.effectivePos = candRole;
           break;
         }
       }
