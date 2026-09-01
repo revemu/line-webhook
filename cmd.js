@@ -668,17 +668,31 @@ const COMMAND_REGISTRY = {
         const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
 
         if (bubblesList.length > 0) {
+            const chunkSize = 2;
             const replyMessages = [];
             const totalBubbles = bubblesList.length;
-            for (let i = 0; i < totalBubbles && replyMessages.length < 5; i++) {
-                const bubble = bubblesList[i];
-                const pageInfo = totalBubbles > 1 ? ` (หน้า ${i + 1}/${totalBubbles})` : '';
+            for (let i = 0; i < totalBubbles && replyMessages.length < 5; i += chunkSize) {
+                const chunk = bubblesList.slice(i, i + chunkSize);
+                const pageStart = i + 1;
+                const pageEnd = i + chunk.length;
+                const pageInfo = totalBubbles > 1 ? ` (หน้า ${pageStart}${pageEnd > pageStart ? `-${pageEnd}` : ''}/${totalBubbles})` : '';
 
-                replyMessages.push({
-                    type: 'flex',
-                    altText: `🌟 ทำเนียบ MVP ประจำปี ${mvpData.year}${pageInfo}`,
-                    contents: bubble
-                });
+                if (chunk.length === 1) {
+                    replyMessages.push({
+                        type: 'flex',
+                        altText: `🌟 ทำเนียบ MVP ประจำปี ${mvpData.year}${pageInfo}`,
+                        contents: chunk[0]
+                    });
+                } else {
+                    replyMessages.push({
+                        type: 'flex',
+                        altText: `🌟 ทำเนียบ MVP ประจำปี ${mvpData.year}${pageInfo}`,
+                        contents: {
+                            type: 'carousel',
+                            contents: chunk
+                        }
+                    });
+                }
             }
             try {
                 const tempDir = path.join(__dirname, 'temp');

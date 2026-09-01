@@ -4618,9 +4618,13 @@ async function getMvpList(targetYear = null, groupId = null) {
   }
 
   // Group by week_id preserving chronological order (newest to oldest)
+  // Only include the top MVP winner(s) of each week (highest rating/raw_score for that week)
   const weekMap = new Map();
   for (const row of mvpRows) {
     const wId = row.week_id;
+    const rawScore = parseFloat(row.raw_score || 0);
+    const rating = parseFloat(row.rating || 0);
+
     if (!weekMap.has(wId)) {
       const wDate = row.date ? new Date(row.date) : null;
       const dateStr = wDate ? await getFormatDate(wDate, 'short') : `สัปดาห์ ${wId}`;
@@ -4628,8 +4632,16 @@ async function getMvpList(targetYear = null, groupId = null) {
         week_id: wId,
         date: row.date,
         dateStr,
+        maxScore: rawScore,
+        maxRating: rating,
         mvps: []
       });
+    }
+
+    const weekEntry = weekMap.get(wId);
+    // Only accept players who tied for the highest score/rating of this week (must be MVP winner)
+    if (rawScore < weekEntry.maxScore - 0.001) {
+      continue;
     }
 
     const info = resolveMemberDisplayInfo(
@@ -4645,10 +4657,8 @@ async function getMvpList(targetYear = null, groupId = null) {
     const assists = Number(row.assists) || 0;
     const cleanSheets = Number(row.clean_sheet) || 0;
     const conceded = Number(row.conceded) || 0;
-    const rawScore = parseFloat(row.raw_score || 0);
-    const rating = parseFloat(row.rating || 0);
 
-    weekMap.get(wId).mvps.push({
+    weekEntry.mvps.push({
       member_id: row.member_id,
       name: row.member_name || (row.name || ''),
       info,
