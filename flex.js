@@ -3990,12 +3990,248 @@ function buildMvpListFlex(mvpData, theme) {
     };
   }
 
-  const chunkSize = 10;
-  const bubbles = [];
-  const totalPages = Math.ceil(weeks.length / chunkSize);
+  const bestWeekEntry = weeks.find(w => w.isBestMvp || (w.mvps || []).some(m => m.isBestMvp)) || (bestMvpPlayers && bestMvpPlayers.length > 0 && weeks.find(w => w.week_id === bestMvpPlayers[0].week_id)) || null;
 
-  for (let page = 0; page < totalPages; page++) {
-    const chunk = weeks.slice(page * chunkSize, (page + 1) * chunkSize);
+  const hasTopDuplicate = Boolean(bestWeekEntry);
+  const page1Capacity = hasTopDuplicate ? 9 : 10;
+  const defaultCapacity = 10;
+
+  const chunks = [];
+  let remainingWeeks = [...weeks];
+
+  if (remainingWeeks.length > 0) {
+    chunks.push(remainingWeeks.slice(0, page1Capacity));
+    remainingWeeks = remainingWeeks.slice(page1Capacity);
+  }
+
+  while (remainingWeeks.length > 0) {
+    chunks.push(remainingWeeks.slice(0, defaultCapacity));
+    remainingWeeks = remainingWeeks.slice(defaultCapacity);
+  }
+
+  const renderMvpWeekCard = (w, isDuplicateTop = false) => {
+    const isWeekBestMvp = Boolean(isDuplicateTop || w.isBestMvp || (w.mvps || []).some(m => m.isBestMvp));
+
+    const mvpNodes = (w.mvps || []).map(p => {
+      const isPlayerBest = Boolean(isDuplicateTop || p.isBestMvp || isWeekBestMvp);
+      const pName = (p.info && p.info.name ? p.info.name : (p.name || 'Player')).replace(/^@/, '');
+      const pNameColor = isPlayerBest ? (isWhite ? '#b45309' : '#fde047') : ((p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff'));
+      const pAvatar = (p.info && p.info.pictureUrl) || null;
+      const pRatingStr = `⭐ ${Number(p.rating || 0).toFixed(1)}`;
+
+      const nameWithBadges = [];
+      if (p.info && p.info.badgeUrl) {
+        nameWithBadges.push({
+          type: 'image',
+          url: p.info.badgeUrl,
+          size: '14px',
+          aspectRatio: '1:1',
+          aspectMode: 'cover',
+          animated: true,
+          flex: 0
+        });
+      }
+      if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
+        for (const hb of p.info.hofBadges) {
+          if (hb.url) {
+            nameWithBadges.push({
+              type: 'image',
+              url: hb.url,
+              size: '14px',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              animated: true,
+              flex: 0
+            });
+          }
+        }
+      } else if (p.info && p.info.hofBadgeUrl) {
+        nameWithBadges.push({
+          type: 'image',
+          url: p.info.hofBadgeUrl,
+          size: '14px',
+          aspectRatio: '1:1',
+          aspectMode: 'cover',
+          animated: true,
+          flex: 0
+        });
+      }
+      nameWithBadges.push({
+        type: 'text',
+        text: pName,
+        weight: 'bold',
+        size: 'sm',
+        color: pNameColor,
+        margin: 'xs',
+        flex: 1
+      });
+
+      const pStatsStr = `⚽ ${p.goals || 0}  👟 ${p.assists || 0}${p.cleanSheets > 0 ? `  🧤 ${p.cleanSheets}` : ''}`;
+
+      return {
+        type: 'box',
+        layout: 'horizontal',
+        alignItems: 'center',
+        margin: 'xs',
+        contents: [
+          pAvatar ? {
+            type: 'box',
+            layout: 'vertical',
+            width: '32px',
+            height: '32px',
+            cornerRadius: '16px',
+            borderWidth: isPlayerBest ? '2px' : '1px',
+            borderColor: '#f59e0b',
+            flex: 0,
+            contents: [{ type: 'image', url: pAvatar, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+          } : {
+            type: 'box',
+            layout: 'vertical',
+            width: '32px',
+            height: '32px',
+            cornerRadius: '16px',
+            backgroundColor: isWhite ? '#fef3c7' : '#231d0a',
+            borderWidth: isPlayerBest ? '1.5px' : '0px',
+            borderColor: '#f59e0b',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: 0,
+            contents: [{ type: 'text', text: '👑', size: 'sm', align: 'center', gravity: 'center' }]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            flex: 1,
+            margin: 'sm',
+            contents: [
+              {
+                type: 'box',
+                layout: 'horizontal',
+                alignItems: 'center',
+                contents: nameWithBadges
+              },
+              {
+                type: 'text',
+                text: pStatsStr,
+                size: 'xs',
+                color: isWhite ? '#475569' : '#cbd5e1',
+                margin: 'none'
+              }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            flex: 0,
+            contents: [
+              {
+                type: 'text',
+                text: pRatingStr,
+                weight: 'bold',
+                size: 'sm',
+                color: isPlayerBest ? '#d97706' : (isWhite ? '#d97706' : '#fbbf24'),
+                align: 'end'
+              }
+            ]
+          }
+        ]
+      };
+    });
+
+    const teamId = (w.team_id && Number(w.team_id) > 0) ? w.team_id : (w.mvps?.[0]?.team_id && Number(w.mvps[0].team_id) > 0 ? w.mvps[0].team_id : null);
+    const teamPrefix = teamId ? `${teamId} ` : '';
+    const teamWeekCmd = `/teamweek ${teamPrefix}${w.date ? getSlashDate(w.date) : w.week_id}`;
+
+    const headerActionContent = isDuplicateTop ? {
+      type: 'text',
+      text: '👑 อันดับ 1',
+      weight: 'bold',
+      size: 'xs',
+      color: '#f59e0b',
+      align: 'end',
+      flex: 0
+    } : {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: isWeekBestMvp ? (isWhite ? '#d97706' : '#b45309') : (isWhite ? '#0284c7' : '#0369a1'),
+      cornerRadius: 'sm',
+      paddingStart: '8px',
+      paddingEnd: '8px',
+      paddingTop: '2px',
+      paddingBottom: '2px',
+      action: {
+        type: 'message',
+        label: 'ผังทีม',
+        text: teamWeekCmd
+      },
+      contents: [
+        {
+          type: 'text',
+          text: '⚽ ผังทีม',
+          size: 'xxs',
+          color: '#ffffff',
+          weight: 'bold',
+          align: 'center'
+        }
+      ]
+    };
+
+    return {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: isWeekBestMvp ? (isWhite ? '#fffbeb' : '#1f190a') : bgCard,
+      cornerRadius: 'md',
+      borderWidth: isWeekBestMvp ? '1.5px' : '1px',
+      borderColor: isWeekBestMvp ? '#f59e0b' : separatorColor,
+      paddingAll: 'sm',
+      margin: 'sm',
+      contents: [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          contents: [
+            {
+              type: 'box',
+              layout: 'horizontal',
+              alignItems: 'center',
+              flex: 1,
+              contents: [
+                {
+                  type: 'text',
+                  text: `📅 ${w.dateStr || `สัปดาห์ ${w.week_id}`}`,
+                  weight: 'bold',
+                  size: 'xs',
+                  color: isWeekBestMvp ? (isWhite ? '#b45309' : '#fde047') : colors.textPrimary,
+                  flex: 0
+                },
+                ...(isWeekBestMvp ? [{
+                  type: 'text',
+                  text: isDuplicateTop ? '👑 MVP OF THE YEAR' : '👑 BEST MVP',
+                  weight: 'bold',
+                  size: 'xxs',
+                  color: '#f59e0b',
+                  margin: 'sm',
+                  flex: 0
+                }] : [])
+              ]
+            },
+            headerActionContent
+          ]
+        },
+        ...mvpNodes
+      ]
+    };
+  };
+
+  const bubbles = [];
+  const totalPages = chunks.length;
+
+  for (let page = 0; page < chunks.length; page++) {
+    const chunk = chunks[page];
     const bodyContents = [];
 
     // Header Title
@@ -4019,213 +4255,14 @@ function buildMvpListFlex(mvpData, theme) {
       });
     }
 
-    // Render weekly MVP list for this chunk/page
+    // 1. Duplicate Best MVP row at the 1st row of 1st bubble (no button)
+    if (page === 0 && bestWeekEntry) {
+      bodyContents.push(renderMvpWeekCard(bestWeekEntry, true));
+    }
+
+    // 2. Render weekly MVP list for this chunk (original weeks remain in place with buttons)
     for (const w of chunk) {
-      const isWeekBestMvp = Boolean(w.isBestMvp || (w.mvps || []).some(m => m.isBestMvp));
-
-      const mvpNodes = (w.mvps || []).map(p => {
-        const isPlayerBest = Boolean(p.isBestMvp || isWeekBestMvp);
-        const pName = (p.info && p.info.name ? p.info.name : (p.name || 'Player')).replace(/^@/, '');
-        const pNameColor = isPlayerBest ? (isWhite ? '#b45309' : '#fde047') : ((p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff'));
-        const pAvatar = (p.info && p.info.pictureUrl) || null;
-        const pRatingStr = `⭐ ${Number(p.rating || 0).toFixed(1)}`;
-
-        const nameWithBadges = [];
-        if (p.info && p.info.badgeUrl) {
-          nameWithBadges.push({
-            type: 'image',
-            url: p.info.badgeUrl,
-            size: '14px',
-            aspectRatio: '1:1',
-            aspectMode: 'cover',
-            animated: true,
-            flex: 0
-          });
-        }
-        if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
-          for (const hb of p.info.hofBadges) {
-            if (hb.url) {
-              nameWithBadges.push({
-                type: 'image',
-                url: hb.url,
-                size: '14px',
-                aspectRatio: '1:1',
-                aspectMode: 'cover',
-                animated: true,
-                flex: 0
-              });
-            }
-          }
-        } else if (p.info && p.info.hofBadgeUrl) {
-          nameWithBadges.push({
-            type: 'image',
-            url: p.info.hofBadgeUrl,
-            size: '14px',
-            aspectRatio: '1:1',
-            aspectMode: 'cover',
-            animated: true,
-            flex: 0
-          });
-        }
-        nameWithBadges.push({
-          type: 'text',
-          text: pName,
-          weight: 'bold',
-          size: 'sm',
-          color: pNameColor,
-          margin: 'xs',
-          flex: 1
-        });
-
-        const pStatsStr = `⚽ ${p.goals || 0}  👟 ${p.assists || 0}${p.cleanSheets > 0 ? `  🧤 ${p.cleanSheets}` : ''}`;
-
-        return {
-          type: 'box',
-          layout: 'horizontal',
-          alignItems: 'center',
-          margin: 'xs',
-          contents: [
-            pAvatar ? {
-              type: 'box',
-              layout: 'vertical',
-              width: '32px',
-              height: '32px',
-              cornerRadius: '16px',
-              borderWidth: isPlayerBest ? '2px' : '1px',
-              borderColor: '#f59e0b',
-              flex: 0,
-              contents: [{ type: 'image', url: pAvatar, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
-            } : {
-              type: 'box',
-              layout: 'vertical',
-              width: '32px',
-              height: '32px',
-              cornerRadius: '16px',
-              backgroundColor: isWhite ? '#fef3c7' : '#231d0a',
-              borderWidth: isPlayerBest ? '1.5px' : '0px',
-              borderColor: '#f59e0b',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 0,
-              contents: [{ type: 'text', text: '👑', size: 'sm', align: 'center', gravity: 'center' }]
-            },
-            {
-              type: 'box',
-              layout: 'vertical',
-              flex: 1,
-              margin: 'sm',
-              contents: [
-                {
-                  type: 'box',
-                  layout: 'horizontal',
-                  alignItems: 'center',
-                  contents: nameWithBadges
-                },
-                {
-                  type: 'text',
-                  text: pStatsStr,
-                  size: 'xs',
-                  color: isWhite ? '#475569' : '#cbd5e1',
-                  margin: 'none'
-                }
-              ]
-            },
-            {
-              type: 'box',
-              layout: 'vertical',
-              alignItems: 'flex-end',
-              justifyContent: 'center',
-              flex: 0,
-              contents: [
-                {
-                  type: 'text',
-                  text: pRatingStr,
-                  weight: 'bold',
-                  size: 'sm',
-                  color: isPlayerBest ? '#d97706' : (isWhite ? '#d97706' : '#fbbf24'),
-                  align: 'end'
-                }
-              ]
-            }
-          ]
-        };
-      });
-
-      const teamId = (w.team_id && Number(w.team_id) > 0) ? w.team_id : (w.mvps?.[0]?.team_id && Number(w.mvps[0].team_id) > 0 ? w.mvps[0].team_id : null);
-      const teamPrefix = teamId ? `${teamId} ` : '';
-      const teamWeekCmd = `/teamweek ${teamPrefix}${w.date ? getSlashDate(w.date) : w.week_id}`;
-
-      bodyContents.push({
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: isWeekBestMvp ? (isWhite ? '#fffbeb' : '#1f190a') : bgCard,
-        cornerRadius: 'md',
-        borderWidth: isWeekBestMvp ? '1.5px' : '1px',
-        borderColor: isWeekBestMvp ? '#f59e0b' : separatorColor,
-        paddingAll: 'sm',
-        margin: 'sm',
-        contents: [
-          {
-            type: 'box',
-            layout: 'horizontal',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            contents: [
-              {
-                type: 'box',
-                layout: 'horizontal',
-                alignItems: 'center',
-                flex: 1,
-                contents: [
-                  {
-                    type: 'text',
-                    text: `📅 ${w.dateStr || `สัปดาห์ ${w.week_id}`}`,
-                    weight: 'bold',
-                    size: 'xs',
-                    color: isWeekBestMvp ? (isWhite ? '#b45309' : '#fde047') : colors.textPrimary,
-                    flex: 0
-                  },
-                  ...(isWeekBestMvp ? [{
-                    type: 'text',
-                    text: '👑 BEST MVP',
-                    weight: 'bold',
-                    size: 'xxs',
-                    color: '#f59e0b',
-                    margin: 'sm',
-                    flex: 0
-                  }] : [])
-                ]
-              },
-              {
-                type: 'box',
-                layout: 'vertical',
-                backgroundColor: isWeekBestMvp ? (isWhite ? '#d97706' : '#b45309') : (isWhite ? '#0284c7' : '#0369a1'),
-                cornerRadius: 'sm',
-                paddingStart: '8px',
-                paddingEnd: '8px',
-                paddingTop: '2px',
-                paddingBottom: '2px',
-                action: {
-                  type: 'message',
-                  label: 'ผังทีม',
-                  text: teamWeekCmd
-                },
-                contents: [
-                  {
-                    type: 'text',
-                    text: '⚽ ผังทีม',
-                    size: 'xxs',
-                    color: '#ffffff',
-                    weight: 'bold',
-                    align: 'center'
-                  }
-                ]
-              }
-            ]
-          },
-          ...mvpNodes
-        ]
-      });
+      bodyContents.push(renderMvpWeekCard(w, false));
     }
 
     bubbles.push({
