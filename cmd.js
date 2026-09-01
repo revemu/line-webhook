@@ -694,6 +694,17 @@ const COMMAND_REGISTRY = {
                     });
                 }
             }
+            try {
+                const tempDir = path.join(__dirname, 'temp');
+                if (!fs.existsSync(tempDir)) {
+                    fs.mkdirSync(tempDir, { recursive: true });
+                }
+                fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
+                fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
+            } catch (saveErr) {
+                console.error('Error saving latest_flex.json in mvplist:', saveErr.message);
+            }
+
             return replyMessages;
         }
         return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูล MVP ประจำปี ${year}` }];
@@ -863,9 +874,11 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
         }
-        const logFile = path.join(tempDir, 'latest_cmd_flex.json');
-        fs.writeFileSync(logFile, JSON.stringify(result, null, 2), 'utf8');
-    } catch (e) { }
+        fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(result, null, 2), 'utf8');
+        fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(result, null, 2), 'utf8');
+    } catch (e) {
+        console.error('Error writing latest_flex.json:', e.message);
+    }
 
     return result;
 }

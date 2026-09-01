@@ -1,0 +1,1164 @@
+[
+  {
+    "type": "flex",
+    "altText": "🌟 ทำเนียบ MVP ประจำปี 2026 (หน้า 1-2/4)",
+    "contents": {
+      "type": "carousel",
+      "contents": [
+        {
+          "type": "bubble",
+          "size": "mega",
+          "body": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#0d0d1a",
+            "paddingAll": "sm",
+            "contents": [
+              {
+                "type": "text",
+                "text": "🌟 ทำเนียบ MVP ประจำปี 2026",
+                "weight": "bold",
+                "size": "md",
+                "color": "#ffffff",
+                "align": "center"
+              },
+              {
+                "type": "text",
+                "text": "หน้า 1/4 (12 สัปดาห์)",
+                "size": "xs",
+                "color": "#a0a8c0",
+                "align": "center",
+                "margin": "xs"
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#231d0a",
+                "cornerRadius": "md",
+                "borderWidth": "normal",
+                "borderColor": "#d97706",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "contents": [
+                      {
+                        "type": "text",
+                        "text": "👑 MVP of the Year!",
+                        "weight": "bold",
+                        "size": "xs",
+                        "color": "#f59e0b",
+                        "flex": 1
+                      },
+                      {
+                        "type": "text",
+                        "text": "⭐ 8.5",
+                        "weight": "bold",
+                        "size": "xs",
+                        "color": "#d97706",
+                        "align": "end"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "margin": "sm",
+                    "alignItems": "center",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "40px",
+                        "height": "40px",
+                        "cornerRadius": "20px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "image",
+                                "url": "https://bearbit.org/pic/crown.gif",
+                                "size": "14px",
+                                "aspectRatio": "1:1",
+                                "aspectMode": "cover",
+                                "flex": 0
+                              },
+                              {
+                                "type": "text",
+                                "text": "Benzema",
+                                "weight": "bold",
+                                "size": "sm",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⚽ 3 👟 1 • Score: 28.50",
+                            "size": "xxs",
+                            "color": "#e2e8f0",
+                            "margin": "xs"
+                          },
+                          {
+                            "type": "text",
+                            "text": "29 ส.ค. 2026",
+                            "size": "xxs",
+                            "color": "#a0a8c0",
+                            "margin": "xs"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 12 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 1",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 11 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 2",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 10 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 3",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "bubble",
+          "size": "mega",
+          "body": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#0d0d1a",
+            "paddingAll": "sm",
+            "contents": [
+              {
+                "type": "text",
+                "text": "🌟 ทำเนียบ MVP ประจำปี 2026",
+                "weight": "bold",
+                "size": "md",
+                "color": "#ffffff",
+                "align": "center"
+              },
+              {
+                "type": "text",
+                "text": "หน้า 2/4 (12 สัปดาห์)",
+                "size": "xs",
+                "color": "#a0a8c0",
+                "align": "center",
+                "margin": "xs"
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 9 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 4",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 8 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 5",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 7 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 6",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "flex",
+    "altText": "🌟 ทำเนียบ MVP ประจำปี 2026 (หน้า 3-4/4)",
+    "contents": {
+      "type": "carousel",
+      "contents": [
+        {
+          "type": "bubble",
+          "size": "mega",
+          "body": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#0d0d1a",
+            "paddingAll": "sm",
+            "contents": [
+              {
+                "type": "text",
+                "text": "🌟 ทำเนียบ MVP ประจำปี 2026",
+                "weight": "bold",
+                "size": "md",
+                "color": "#ffffff",
+                "align": "center"
+              },
+              {
+                "type": "text",
+                "text": "หน้า 3/4 (12 สัปดาห์)",
+                "size": "xs",
+                "color": "#a0a8c0",
+                "align": "center",
+                "margin": "xs"
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 6 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 7",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 5 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 8",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 4 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 9",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "bubble",
+          "size": "mega",
+          "body": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#0d0d1a",
+            "paddingAll": "sm",
+            "contents": [
+              {
+                "type": "text",
+                "text": "🌟 ทำเนียบ MVP ประจำปี 2026",
+                "weight": "bold",
+                "size": "md",
+                "color": "#ffffff",
+                "align": "center"
+              },
+              {
+                "type": "text",
+                "text": "หน้า 4/4 (12 สัปดาห์)",
+                "size": "xs",
+                "color": "#a0a8c0",
+                "align": "center",
+                "margin": "xs"
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 3 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 10",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 2 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 11",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#141428",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#2a2a4a",
+                "paddingAll": "sm",
+                "margin": "sm",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "📅 1 ส.ค. 2026",
+                    "weight": "bold",
+                    "size": "xs",
+                    "color": "#ffffff"
+                  },
+                  {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "alignItems": "center",
+                    "margin": "xs",
+                    "contents": [
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "width": "28px",
+                        "height": "28px",
+                        "cornerRadius": "14px",
+                        "borderWidth": "1px",
+                        "borderColor": "#f59e0b",
+                        "flex": 0,
+                        "contents": [
+                          {
+                            "type": "image",
+                            "url": "https://bearbit.org/pic/crown.gif",
+                            "size": "full",
+                            "aspectRatio": "1:1",
+                            "aspectMode": "cover"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "box",
+                        "layout": "vertical",
+                        "flex": 1,
+                        "margin": "sm",
+                        "contents": [
+                          {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "alignItems": "center",
+                            "contents": [
+                              {
+                                "type": "text",
+                                "text": "Player 12",
+                                "weight": "bold",
+                                "size": "xs",
+                                "color": "#ffffff",
+                                "margin": "xs",
+                                "flex": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "text": "⭐ 7.5 (⚽2 👟1)",
+                            "size": "xxs",
+                            "color": "#fbbf24",
+                            "margin": "none"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+]
