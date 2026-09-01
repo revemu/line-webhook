@@ -4643,13 +4643,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             alignItems: 'center',
             contents: [
               {
-                type: 'box',
-                layout: 'vertical',
-                width: '12px',
-                height: '12px',
-                cornerRadius: '6px',
-                backgroundColor: colorHex,
-                flex: 0
+                type: 'text',
+                text: '●',
+                color: colorHex,
+                size: 'sm',
+                flex: 0,
+                gravity: 'center'
               },
               {
                 type: 'text',
@@ -4660,14 +4659,14 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 flex: 1,
                 margin: 'sm'
               },
-              {
+              ...(dateStr ? [{
                 type: 'text',
-                text: dateStr ? `📅 ${dateStr}` : '',
+                text: `📅 ${dateStr}`,
                 size: 'xxs',
                 color: '#94A3B8',
                 align: 'end',
                 flex: 0
-              }
+              }] : [])
             ]
           },
           {
@@ -4684,16 +4683,14 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 weight: 'bold',
                 flex: 1
               },
-              timeRange ? {
+              ...(timeRange ? [{
                 type: 'text',
                 text: `⏰ ${timeRange}`,
                 size: 'xxs',
                 color: '#CBD5E1',
                 align: 'end',
                 flex: 0
-              } : {
-                type: 'filler'
-              }
+              }] : [])
             ]
           }
         ]
