@@ -3988,7 +3988,7 @@ function buildMvpListFlex(mvpData, theme) {
     };
   }
 
-  const chunkSize = 6;
+  const chunkSize = 3;
   const bubbles = [];
   const totalPages = Math.ceil(weeks.length / chunkSize);
 
@@ -4019,36 +4019,6 @@ function buildMvpListFlex(mvpData, theme) {
 
     // 👑 Noticeable Best MVP Top Highlight Card (Only shown on Page 1)
     if (page === 0 && bestMvpPlayers && bestMvpPlayers.length > 0) {
-      const titleContents = [];
-      if (bestMvpBadgeUrl) {
-        titleContents.push({
-          type: 'box',
-          layout: 'vertical',
-          width: '22px',
-          height: '22px',
-          flex: 0,
-          contents: [
-            {
-              type: 'image',
-              url: bestMvpBadgeUrl,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              animated: true
-            }
-          ]
-        });
-      }
-      titleContents.push({
-        type: 'text',
-        text: 'MVP of the Year!',
-        weight: 'bold',
-        size: 'xs',
-        color: '#f59e0b',
-        flex: 1,
-        margin: bestMvpBadgeUrl ? 'xs' : 'none'
-      });
-
       const topMvpContents = [
         {
           type: 'box',
@@ -4056,13 +4026,21 @@ function buildMvpListFlex(mvpData, theme) {
           alignItems: 'center',
           contents: [
             {
-              type: 'box',
-              layout: 'horizontal',
-              alignItems: 'center',
-              flex: 1,
-              contents: titleContents
+              type: 'text',
+              text: '👑 MVP of the Year!',
+              weight: 'bold',
+              size: 'xs',
+              color: '#f59e0b',
+              flex: 1
             },
-            { type: 'text', text: `⭐ ${Number(bestRating || 0).toFixed(1)}`, weight: 'bold', size: 'xs', color: '#d97706', align: 'end' }
+            {
+              type: 'text',
+              text: `⭐ ${Number(bestRating || 0).toFixed(1)}`,
+              weight: 'bold',
+              size: 'xs',
+              color: '#d97706',
+              align: 'end'
+            }
           ]
         }
       ];
@@ -4075,40 +4053,40 @@ function buildMvpListFlex(mvpData, theme) {
         const pBadges = [];
         if (p.info && p.info.badgeUrl) {
           pBadges.push({
-            type: 'box',
-            layout: 'vertical',
-            width: '14px',
-            height: '14px',
-            flex: 0,
-            contents: [{ type: 'image', url: p.info.badgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+            type: 'image',
+            url: p.info.badgeUrl,
+            size: '14px',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            flex: 0
           });
         }
         if (p.info && p.info.hofBadges && p.info.hofBadges.length > 0) {
           for (const hb of p.info.hofBadges) {
             if (hb.url) {
               pBadges.push({
-                type: 'box',
-                layout: 'vertical',
-                width: '14px',
-                height: '14px',
-                flex: 0,
-                contents: [{ type: 'image', url: hb.url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+                type: 'image',
+                url: hb.url,
+                size: '14px',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                flex: 0
               });
             }
           }
         } else if (p.info && p.info.hofBadgeUrl) {
           pBadges.push({
-            type: 'box',
-            layout: 'vertical',
-            width: '14px',
-            height: '14px',
-            flex: 0,
-            contents: [{ type: 'image', url: p.info.hofBadgeUrl, size: 'full', aspectRatio: '1:1', aspectMode: 'cover', animated: true }]
+            type: 'image',
+            url: p.info.hofBadgeUrl,
+            size: '14px',
+            aspectRatio: '1:1',
+            aspectMode: 'cover',
+            flex: 0
           });
         }
         pBadges.push({
           type: 'text',
-          text: (p.name || '').substring(1) || '',
+          text: (p.name || '').replace(/^@/, ''),
           weight: 'bold',
           size: 'sm',
           color: nameColor,
@@ -4125,10 +4103,10 @@ function buildMvpListFlex(mvpData, theme) {
             avatarUrl ? {
               type: 'box',
               layout: 'vertical',
-              width: '48px',
-              height: '48px',
-              cornerRadius: '100px',
-              borderWidth: 'normal',
+              width: '40px',
+              height: '40px',
+              cornerRadius: '20px',
+              borderWidth: '1px',
               borderColor: '#f59e0b',
               flex: 0,
               contents: [
@@ -4137,8 +4115,7 @@ function buildMvpListFlex(mvpData, theme) {
                   url: avatarUrl,
                   size: 'full',
                   aspectRatio: '1:1',
-                  aspectMode: 'cover',
-                  animated: true
+                  aspectMode: 'cover'
                 }
               ]
             } : {
@@ -4146,7 +4123,7 @@ function buildMvpListFlex(mvpData, theme) {
               layout: 'vertical',
               width: '34px',
               height: '34px',
-              cornerRadius: '100px',
+              cornerRadius: '17px',
               backgroundColor: isWhite ? '#fef3c7' : '#3b2d10',
               alignItems: 'center',
               justifyContent: 'center',

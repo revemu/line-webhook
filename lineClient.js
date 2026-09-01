@@ -56,6 +56,17 @@ async function fetchUserProfile(userId, groupId = null) {
 async function replyMessage(replyToken, messages) {
   const client = getLineClient();
   try {
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(messages, null, 2), 'utf8');
+    fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(messages, null, 2), 'utf8');
+  } catch (fsErr) {
+    console.error('Error saving latest flex json in replyMessage:', fsErr.message);
+  }
+
+  try {
     return await client.replyMessage(replyToken, messages);
   } catch (error) {
     let details = null;
