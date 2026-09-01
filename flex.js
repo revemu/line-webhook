@@ -1,3 +1,5 @@
+const { getFormatDate } = require('./utils/date');
+
 const report_template = {
   "type": "bubble",
   hero: {
@@ -4396,6 +4398,8 @@ function getTeamHeaderTheme(rawColor) {
 function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '') {
   if (!formationsData || formationsData.length === 0) return null;
 
+  const formattedDateStr = dateStr ? getFormatDate(dateStr, 'short') : '';
+
   const posBadgeColor = {
     'GK': '#EAB308',
     'DF': '#3B82F6',
@@ -5153,9 +5157,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 flex: 1,
                 margin: 'sm'
               },
-              ...(dateStr ? [{
+              ...(formattedDateStr ? [{
                 type: 'text',
-                text: `📅 ${dateStr}`,
+                text: `📅 ${formattedDateStr}`,
                 size: 'sm',
                 color: headerTheme.subColor,
                 align: 'end',

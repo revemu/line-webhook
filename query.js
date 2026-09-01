@@ -5069,7 +5069,7 @@ async function getTeamFormation(param = '', groupId = null) {
   if (!week || week.length === 0) return null;
 
   const weekId = week[0].id;
-  const dateStr = week[0].date;
+  const dateStr = week[0].date ? await getFormatDate(week[0].date, 'short') : '';
   const timeRange = week[0].time_range || '';
   const matchYear = week[0].date ? new Date(week[0].date).getFullYear() : new Date().getFullYear();
 

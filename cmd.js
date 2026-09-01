@@ -270,7 +270,8 @@ const COMMAND_REGISTRY = {
             if (team_res == 0) {
                 const week = await db.queryWeekID(0);
                 const msg = await db.getTeamWeek(week[0].id, context.groupId);
-                return { type: 'flex', altText: `Team Week - ${week[0].date}`, contents: msg };
+                const dateStr = week && week[0]?.date ? db.getFormatDate(week[0].date, 'short') : (week?.[0]?.date || '');
+                return { type: 'flex', altText: `Team Week - ${dateStr}`, contents: msg };
             } else if (team_res == 1) {
                 return [{ type: 'text', text: "ทำการสุ่มไปแล้วใช้ /teamweek เพื่อดูทีม" }];
             } else if (team_res == 2) {
@@ -284,8 +285,9 @@ const COMMAND_REGISTRY = {
         const week = await db.queryWeekID(param);
         if (week && week.length > 0) {
             const msg = await db.getTeamWeek(week[0].id, groupId);
-            if (msg) return { type: 'flex', altText: `Team Week - ${week[0].date}`, contents: msg };
-            return [{ type: 'text', text: `ยังไม่มีข้อมูลทีมในสัปดาห์ ${week[0].date}` }];
+            const dateStr = week[0].date ? db.getFormatDate(week[0].date, 'short') : '';
+            if (msg) return { type: 'flex', altText: `Team Week - ${dateStr}`, contents: msg };
+            return [{ type: 'text', text: `ยังไม่มีข้อมูลทีมในสัปดาห์ ${dateStr}` }];
         }
         return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
     },
