@@ -4058,6 +4058,7 @@ function buildMvpListFlex(mvpData, theme) {
             size: '14px',
             aspectRatio: '1:1',
             aspectMode: 'cover',
+            animated: true,
             flex: 0
           });
         }
@@ -4070,6 +4071,7 @@ function buildMvpListFlex(mvpData, theme) {
                 size: '14px',
                 aspectRatio: '1:1',
                 aspectMode: 'cover',
+                animated: true,
                 flex: 0
               });
             }
@@ -4081,6 +4083,7 @@ function buildMvpListFlex(mvpData, theme) {
             size: '14px',
             aspectRatio: '1:1',
             aspectMode: 'cover',
+            animated: true,
             flex: 0
           });
         }
@@ -4192,6 +4195,7 @@ function buildMvpListFlex(mvpData, theme) {
             size: '14px',
             aspectRatio: '1:1',
             aspectMode: 'cover',
+            animated: true,
             flex: 0
           });
         }
@@ -4204,6 +4208,7 @@ function buildMvpListFlex(mvpData, theme) {
                 size: '14px',
                 aspectRatio: '1:1',
                 aspectMode: 'cover',
+                animated: true,
                 flex: 0
               });
             }
@@ -4215,6 +4220,7 @@ function buildMvpListFlex(mvpData, theme) {
             size: '14px',
             aspectRatio: '1:1',
             aspectMode: 'cover',
+            animated: true,
             flex: 0
           });
         }
