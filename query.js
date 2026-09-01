@@ -1637,9 +1637,11 @@ async function ensureMemberYearStatTable() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await executeQuery(createSql);
-    try {
+
+    const cols = await executeQuery("SHOW COLUMNS FROM member_year_stat_tbl LIKE 'total_rating'");
+    if (!cols || cols.length === 0) {
       await executeQuery("ALTER TABLE member_year_stat_tbl ADD COLUMN total_rating DECIMAL(8,2) DEFAULT 0.00 AFTER year");
-    } catch (e) { }
+    }
   } catch (err) {
     console.error("Error creating member_year_stat_tbl table:", err.message);
   }
