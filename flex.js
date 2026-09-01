@@ -4010,10 +4010,10 @@ function buildMvpListFlex(mvpData, theme) {
   }
 
   const renderMvpWeekCard = (w, isDuplicateTop = false) => {
-    const isWeekBestMvp = Boolean(isDuplicateTop || w.isBestMvp || (w.mvps || []).some(m => m.isBestMvp));
+    const isWeekBestMvp = Boolean(isDuplicateTop);
 
     const mvpNodes = (w.mvps || []).map(p => {
-      const isPlayerBest = Boolean(isDuplicateTop || p.isBestMvp || isWeekBestMvp);
+      const isPlayerBest = Boolean(isDuplicateTop);
       const pName = (p.info && p.info.name ? p.info.name : (p.name || 'Player')).replace(/^@/, '');
       const pNameColor = isPlayerBest ? (isWhite ? '#b45309' : '#fde047') : ((p.info && p.info.nameColor) || (isWhite ? '#1e293b' : '#ffffff'));
       const pAvatar = (p.info && p.info.pictureUrl) || null;
@@ -4155,7 +4155,7 @@ function buildMvpListFlex(mvpData, theme) {
     } : {
       type: 'box',
       layout: 'vertical',
-      backgroundColor: isWeekBestMvp ? (isWhite ? '#d97706' : '#b45309') : (isWhite ? '#0284c7' : '#0369a1'),
+      backgroundColor: isWhite ? '#0284c7' : '#0369a1',
       cornerRadius: 'sm',
       paddingStart: '8px',
       paddingEnd: '8px',
@@ -4210,7 +4210,7 @@ function buildMvpListFlex(mvpData, theme) {
                 },
                 ...(isWeekBestMvp ? [{
                   type: 'text',
-                  text: isDuplicateTop ? '👑 MVP OF THE YEAR' : '👑 BEST MVP',
+                  text: '👑 MVP OF THE YEAR',
                   weight: 'bold',
                   size: 'xxs',
                   color: '#f59e0b',
