@@ -4370,19 +4370,19 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         size: 'xxs',
                         weight: 'bold',
                         align: 'center'
+                      },
+                      {
+                        type: 'text',
+                        text: 'สลับกัน',
+                        size: 'xxs',
+                        color: '#94A3B8',
+                        align: 'center',
+                        margin: 'xs',
+                        wrap: true
                       }
                     ]
                   }
                 ]
-              },
-              {
-                type: 'text',
-                text: defaultPosCode === 'GK' ? '🧤 สลับกัน' : '⭐- (⚽0 👟0)',
-                size: 'xxs',
-                color: '#94A3B8',
-                align: 'center',
-                margin: 'xs',
-                wrap: true
               }
             ]
           }
