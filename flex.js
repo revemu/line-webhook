@@ -4577,7 +4577,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               size: 'xxs',
               color: '#FACC15',
               align: 'center',
-              margin: 'xxs',
+              margin: 'xs',
               wrap: true
             }
           ]
