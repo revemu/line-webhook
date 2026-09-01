@@ -5156,7 +5156,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               ...(dateStr ? [{
                 type: 'text',
                 text: `📅 ${dateStr}`,
-                size: 'xxs',
+                size: 'sm',
                 color: headerTheme.subColor,
                 align: 'end',
                 flex: 0
@@ -5172,7 +5172,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               {
                 type: 'text',
                 text: `📋 ${team.formationName || 'ผังการเล่น'} (${team.totalPlayers || 0} คน)`,
-                size: 'xs',
+                size: 'sm',
                 color: headerTheme.titleColor,
                 weight: 'bold',
                 flex: 1
@@ -5180,7 +5180,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               ...(timeRange ? [{
                 type: 'text',
                 text: `⏰ ${timeRange}`,
-                size: 'xxs',
+                size: 'sm',
                 color: headerTheme.subColor,
                 align: 'end',
                 flex: 0
