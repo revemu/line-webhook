@@ -4567,7 +4567,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 type: 'text',
                 text: primaryName,
                 color: isMom ? '#FDE047' : '#FFFFFF',
-                size: 'xxs',
+                size: 'xs',
                 weight: 'bold',
                 wrap: true,
                 maxLines: 2,
@@ -4577,8 +4577,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               {
                 type: 'text',
                 text: pStatsLine,
-                size: 'xxs',
-                color: isMom ? '#FDE047' : '#FACC15',
+                size: 'xs',
+                weight: 'bold',
+                color: isMom ? '#FDE047' : '#FCD34D',
                 align: 'center',
                 margin: 'xs',
                 wrap: true
@@ -4712,7 +4713,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             },
             {
               type: 'text',
-              size: 'xxs',
+              size: 'xs',
               align: 'center',
               wrap: true,
               maxLines: 2,
@@ -4740,8 +4741,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             {
               type: 'text',
               text: pStatsLine,
-              size: 'xxs',
-              color: isPrimaryMom ? '#FDE047' : '#FACC15',
+              size: 'xs',
+              weight: 'bold',
+              color: isPrimaryMom ? '#FDE047' : '#FCD34D',
               align: 'center',
               margin: 'xs',
               wrap: true
@@ -4749,7 +4751,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             {
               type: 'text',
               text: `(${aStatsLine})`,
-              size: 'xxs',
+              size: 'xs',
+              weight: 'bold',
               color: isAltMom ? '#FDE047' : '#38BDF8',
               align: 'center',
               margin: 'none',
@@ -5025,69 +5028,95 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       }
     ];
 
-    // Bottom Bar: Man of the Match (MOM) Highlight
+    // Bottom Bar: Team MVP Highlight
     if (momPlayer) {
       const momName = (momPlayer.name || momPlayer.alias || 'Player').replace(/^@/, '');
-      const momRatingStr = momPlayer.weekStats?.rating && momPlayer.weekStats.rating !== '-'
-        ? `⭐${momPlayer.weekStats.rating}`
-        : (momPlayer.rank ? `⭐Rank ${parseFloat(momPlayer.rank).toFixed(1)}` : '⭐-');
+      const momRatingVal = momPlayer.weekStats?.rating && momPlayer.weekStats.rating !== '-'
+        ? Number(momPlayer.weekStats.rating).toFixed(1)
+        : (momPlayer.rank ? Number(momPlayer.rank).toFixed(1) : '-');
       const momGoals = Number(momPlayer.weekStats?.goals || 0);
       const momAssists = Number(momPlayer.weekStats?.assists || 0);
-      const momStatsDesc = `${momRatingStr} (⚽${momGoals} 👟${momAssists})`;
+      const statsParts = [];
+      if (momGoals > 0) statsParts.push(`⚽ ${momGoals} ประตู`);
+      if (momAssists > 0) statsParts.push(`👟 ${momAssists} แอสซิสต์`);
+      const momStatsDesc = statsParts.length > 0 ? statsParts.join('  ') : 'ลงสนามสัปดาห์นี้';
 
       bodyContents.push({
         type: 'box',
         layout: 'horizontal',
         backgroundColor: '#0F172ACC',
-        borderColor: '#F59E0B88',
-        borderWidth: '1px',
+        borderColor: '#F59E0B',
+        borderWidth: '1.5px',
         cornerRadius: 'md',
         paddingAll: 'sm',
         margin: 'sm',
         alignItems: 'center',
-        justifyContent: 'space-between',
         contents: [
+          momPlayer.picture_url ? {
+            type: 'box',
+            layout: 'vertical',
+            width: '36px',
+            height: '36px',
+            cornerRadius: '18px',
+            borderWidth: '2px',
+            borderColor: '#F59E0B',
+            flex: 0,
+            contents: [{ type: 'image', url: momPlayer.picture_url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }]
+          } : {
+            type: 'box',
+            layout: 'vertical',
+            width: '36px',
+            height: '36px',
+            cornerRadius: '18px',
+            backgroundColor: '#2A1802',
+            borderWidth: '1.5px',
+            borderColor: '#F59E0B',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: 0,
+            contents: [{ type: 'text', text: '👑', size: 'sm', align: 'center', gravity: 'center' }]
+          },
           {
             type: 'box',
-            layout: 'horizontal',
-            alignItems: 'center',
+            layout: 'vertical',
             flex: 1,
+            margin: 'md',
             contents: [
               {
-                type: 'text',
-                text: '👑',
-                size: 'xs',
-                flex: 0
+                type: 'box',
+                layout: 'horizontal',
+                alignItems: 'center',
+                contents: [
+                  { type: 'text', text: '👑 Team MVP', size: 'xxs', color: '#FCD34D', weight: 'bold', flex: 0 },
+                  { type: 'text', text: `• ${momName}`, size: 'xs', color: '#FFFFFF', weight: 'bold', margin: 'xs', flex: 1, wrap: false }
+                ]
               },
               {
                 type: 'text',
-                text: 'Team MVP:',
+                text: momStatsDesc,
                 size: 'xxs',
-                color: '#FCD34D',
-                weight: 'bold',
-                margin: 'xs',
-                flex: 0
-              },
-              {
-                type: 'text',
-                text: momName,
-                size: 'xxs',
-                color: '#FFFFFF',
-                weight: 'bold',
-                margin: 'xs',
-                wrap: false,
-                flex: 1
+                color: '#CBD5E1',
+                margin: 'none'
               }
             ]
           },
           {
-            type: 'text',
-            text: momStatsDesc,
-            size: 'xxs',
-            color: '#FBBF24',
-            weight: 'bold',
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#231602',
+            borderWidth: '1px',
+            borderColor: '#F59E0B',
+            cornerRadius: 'md',
+            paddingStart: '8px',
+            paddingEnd: '8px',
+            paddingTop: '2px',
+            paddingBottom: '3px',
+            alignItems: 'center',
+            justifyContent: 'center',
             flex: 0,
-            align: 'end'
+            contents: [
+              { type: 'text', text: `⭐ ${momRatingVal}`, size: 'sm', weight: 'bold', color: '#FDE047', align: 'center' }
+            ]
           }
         ]
       });
