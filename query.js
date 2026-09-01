@@ -4599,6 +4599,7 @@ async function getMvpList(targetYear = null, groupId = null) {
       m.raw_score,
       m.rating,
       w.date,
+      mtw.team_id,
       mem.id,
       mem.name,
       mem.alias,
@@ -4608,6 +4609,7 @@ async function getMvpList(targetYear = null, groupId = null) {
       mem.line_user_id
     FROM mvp_week_tbl m
     JOIN week_tbl w ON m.week_id = w.id
+    LEFT JOIN member_team_week_tbl mtw ON m.week_id = mtw.week_id AND m.member_id = mtw.member_id
     LEFT JOIN member_tbl mem ON m.member_id = mem.id
     WHERE YEAR(w.date) = ?
     ORDER BY w.date DESC, m.rating DESC, m.raw_score DESC
@@ -4632,6 +4634,7 @@ async function getMvpList(targetYear = null, groupId = null) {
         week_id: wId,
         date: row.date,
         dateStr,
+        team_id: row.team_id || null,
         maxScore: rawScore,
         maxRating: rating,
         mvps: []
@@ -4639,6 +4642,9 @@ async function getMvpList(targetYear = null, groupId = null) {
     }
 
     const weekEntry = weekMap.get(wId);
+    if (!weekEntry.team_id && row.team_id) {
+      weekEntry.team_id = row.team_id;
+    }
     // Only accept players who tied for the highest score/rating of this week (must be MVP winner)
     if (rawScore < weekEntry.maxScore - 0.001) {
       continue;
@@ -4661,6 +4667,7 @@ async function getMvpList(targetYear = null, groupId = null) {
     weekEntry.mvps.push({
       member_id: row.member_id,
       name: row.member_name || (row.name || ''),
+      team_id: row.team_id || null,
       info,
       goals,
       assists,
@@ -4692,6 +4699,7 @@ async function getMvpList(targetYear = null, groupId = null) {
           week_id: row.week_id,
           date: row.date,
           dateStr,
+          team_id: row.team_id || null,
           info,
           goals: Number(row.goals) || 0,
           assists: Number(row.assists) || 0,

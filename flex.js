@@ -4180,7 +4180,7 @@ function buildMvpListFlex(mvpData, theme) {
                       action: {
                         type: 'message',
                         label: 'ผังทีม',
-                        text: `/teamweek ${p.date ? getSlashDate(p.date) : p.week_id}`
+                        text: `/teamweek ${p.team_id && Number(p.team_id) > 0 ? `${p.team_id} ` : ''}${p.date ? getSlashDate(p.date) : p.week_id}`
                       },
                       contents: [
                         {
@@ -4341,7 +4341,9 @@ function buildMvpListFlex(mvpData, theme) {
         };
       });
 
-      const teamWeekCmd = `/teamweek ${w.date ? getSlashDate(w.date) : w.week_id}`;
+      const teamId = (w.team_id && Number(w.team_id) > 0) ? w.team_id : (w.mvps?.[0]?.team_id && Number(w.mvps[0].team_id) > 0 ? w.mvps[0].team_id : null);
+      const teamPrefix = teamId ? `${teamId} ` : '';
+      const teamWeekCmd = `/teamweek ${teamPrefix}${w.date ? getSlashDate(w.date) : w.week_id}`;
 
       bodyContents.push({
         type: 'box',
