@@ -4770,7 +4770,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       offsetStart: '0px',
                       offsetEnd: '0px',
                       height: '1px',
-                      backgroundColor: '#FFFFFF55'
+                      backgroundColor: '#FFFFFF55',
+                      contents: [{ type: 'filler' }]
                     },
                     // 2. Center Circle Arc (Top)
                     {
@@ -4783,7 +4784,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       height: '60px',
                       cornerRadius: '30px',
                       borderWidth: '1px',
-                      borderColor: '#FFFFFF55'
+                      borderColor: '#FFFFFF55',
+                      contents: [{ type: 'filler' }]
                     },
                     // 3. Center Spot
                     {
@@ -4795,7 +4797,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       width: '5px',
                       height: '5px',
                       cornerRadius: '3px',
-                      backgroundColor: '#FFFFFF88'
+                      backgroundColor: '#FFFFFF88',
+                      contents: [{ type: 'filler' }]
                     },
                     // 4. Penalty Area (18-Yard Box at Bottom)
                     {
@@ -4807,7 +4810,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       offsetEnd: '60px',
                       height: '84px',
                       borderWidth: '1px',
-                      borderColor: '#FFFFFF55'
+                      borderColor: '#FFFFFF55',
+                      contents: [{ type: 'filler' }]
                     },
                     // 5. Goal Area (6-Yard Box at Bottom)
                     {
@@ -4819,7 +4823,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       offsetEnd: '105px',
                       height: '38px',
                       borderWidth: '1px',
-                      borderColor: '#FFFFFF55'
+                      borderColor: '#FFFFFF55',
+                      contents: [{ type: 'filler' }]
                     },
                     // 6. Penalty Arc (D-Box above 18-Yard Box)
                     {
@@ -4832,7 +4837,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       height: '24px',
                       cornerRadius: '24px',
                       borderWidth: '1px',
-                      borderColor: '#FFFFFF55'
+                      borderColor: '#FFFFFF55',
+                      contents: [{ type: 'filler' }]
                     },
                     // 7. Penalty Spot (12-Yard Spot)
                     {
@@ -4844,7 +4850,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       width: '4px',
                       height: '4px',
                       cornerRadius: '2px',
-                      backgroundColor: '#FFFFFF99'
+                      backgroundColor: '#FFFFFF99',
+                      contents: [{ type: 'filler' }]
                     },
                     // 8. Corner Arcs
                     {
@@ -4857,7 +4864,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       height: '16px',
                       cornerRadius: '8px',
                       borderWidth: '1px',
-                      borderColor: '#FFFFFF44'
+                      borderColor: '#FFFFFF44',
+                      contents: [{ type: 'filler' }]
                     },
                     {
                       type: 'box',
@@ -4869,7 +4877,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       height: '16px',
                       cornerRadius: '8px',
                       borderWidth: '1px',
-                      borderColor: '#FFFFFF44'
+                      borderColor: '#FFFFFF44',
+                      contents: [{ type: 'filler' }]
                     },
                     {
                       type: 'box',
@@ -4881,7 +4890,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       height: '16px',
                       cornerRadius: '8px',
                       borderWidth: '1px',
-                      borderColor: '#FFFFFF44'
+                      borderColor: '#FFFFFF44',
+                      contents: [{ type: 'filler' }]
                     },
                     {
                       type: 'box',
@@ -4893,7 +4903,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       height: '16px',
                       cornerRadius: '8px',
                       borderWidth: '1px',
-                      borderColor: '#FFFFFF44'
+                      borderColor: '#FFFFFF44',
+                      contents: [{ type: 'filler' }]
                     },
 
                     // --- Tactical Player Node Rows (Rendered On Pitch) ---
