@@ -289,6 +289,19 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
     },
+    'formation': async (context) => {
+        const { param, groupId } = context;
+        const msg = await db.getTeamFormation(param, groupId);
+        if (msg) {
+            return {
+                type: 'flex',
+                altText: '⚽ ผังการเล่นทีม (Team Formation)',
+                contents: msg
+            };
+        }
+        return [{ type: 'text', text: 'ยังไม่มีข้อมูลการจัดตำแหน่งทีมในสัปดาห์นี้' }];
+    },
+    'lineup': async (context) => COMMAND_REGISTRY['formation'](context),
     'matchweek': async (context) => {
         const { param, groupId } = context;
         const week = await db.queryWeekID(param);

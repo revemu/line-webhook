@@ -4355,6 +4355,413 @@ function buildMvpListFlex(mvpData, theme) {
   };
 }
 
+/**
+ * Build LINE Flex Message for Team Formations (7-player and 8-player tactical layouts)
+ * Supports 5 tactical lines: CF, MF, DW, DF, GK with soccer field background and interactive players.
+ *
+ * @param {Array}  formationsData - Array of team formation objects from query.js
+ * @param {string} theme          - Current bot theme ('black' or 'white')
+ * @param {string} dateStr        - Match date string
+ * @param {string} timeRange      - Match time range string
+ */
+function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '') {
+  if (!formationsData || formationsData.length === 0) {
+    return {
+      type: 'bubble',
+      size: 'mega',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#0F172A',
+        paddingAll: 'xl',
+        contents: [
+          {
+            type: 'text',
+            text: '⚽ ผังการเล่นทีม (Team Formation)',
+            weight: 'bold',
+            size: 'md',
+            color: '#F8FAFC',
+            align: 'center'
+          },
+          {
+            type: 'text',
+            text: 'ยังไม่มีข้อมูลการจัดทีมสำหรับสัปดาห์นี้',
+            size: 'xs',
+            color: '#94A3B8',
+            align: 'center',
+            margin: 'md'
+          }
+        ]
+      }
+    };
+  }
+
+  const posBadgeColor = {
+    'GK': '#EAB308', // Gold/Amber
+    'DF': '#3B82F6', // Blue
+    'DW': '#06B6D4', // Cyan
+    'MF': '#8B5CF6', // Purple
+    'CF': '#EF4444'  // Red
+  };
+
+  const renderPlayerNode = (p, defaultPosCode, teamColorHex) => {
+    if (!p) {
+      return {
+        type: 'box',
+        layout: 'vertical',
+        width: '64px',
+        alignItems: 'center',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '34px',
+            height: '34px',
+            cornerRadius: '17px',
+            borderWidth: '1px',
+            borderColor: '#FFFFFF66',
+            backgroundColor: '#00000040',
+            alignItems: 'center',
+            justifyContent: 'center',
+            contents: [
+              {
+                type: 'text',
+                text: defaultPosCode,
+                color: '#FFFFFF88',
+                size: 'xxs',
+                weight: 'bold',
+                align: 'center'
+              }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#00000066',
+            cornerRadius: '4px',
+            paddingStart: '4px',
+            paddingEnd: '4px',
+            paddingTop: '1px',
+            paddingBottom: '1px',
+            offsetTop: '2px',
+            contents: [
+              {
+                type: 'text',
+                text: '-',
+                color: '#FFFFFF88',
+                size: 'xxs',
+                align: 'center'
+              }
+            ]
+          }
+        ]
+      };
+    }
+
+    const displayName = (p.name || p.alias || 'Player').replace(/^@/, '');
+    const posCode = (p.effectivePos || p.pos_code || defaultPosCode || 'MF').toUpperCase();
+    const badgeColor = posBadgeColor[posCode] || '#64748B';
+
+    return {
+      type: 'box',
+      layout: 'vertical',
+      width: '66px',
+      alignItems: 'center',
+      action: p.id ? {
+        type: 'postback',
+        label: displayName,
+        data: `action=player_info&id=${p.id}&name=${encodeURIComponent(displayName)}`
+      } : undefined,
+      contents: [
+        // Avatar / Jersey Circle
+        {
+          type: 'box',
+          layout: 'vertical',
+          width: '36px',
+          height: '36px',
+          cornerRadius: '18px',
+          borderWidth: '2px',
+          borderColor: '#FFFFFF',
+          backgroundColor: teamColorHex || '#1E293B',
+          alignItems: 'center',
+          justifyContent: 'center',
+          contents: p.picture_url ? [
+            {
+              type: 'image',
+              url: p.picture_url,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover'
+            }
+          ] : [
+            {
+              type: 'text',
+              text: posCode,
+              color: '#FFFFFF',
+              size: 'xs',
+              weight: 'bold',
+              align: 'center',
+              gravity: 'center'
+            }
+          ]
+        },
+        // Position Chip & Name Plaque
+        {
+          type: 'box',
+          layout: 'horizontal',
+          backgroundColor: '#000000CC',
+          cornerRadius: '4px',
+          paddingStart: '3px',
+          paddingEnd: '4px',
+          paddingTop: '2px',
+          paddingBottom: '2px',
+          offsetTop: '2px',
+          alignItems: 'center',
+          contents: [
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: badgeColor,
+              cornerRadius: '2px',
+              paddingStart: '2px',
+              paddingEnd: '2px',
+              contents: [
+                {
+                  type: 'text',
+                  text: posCode,
+                  color: '#FFFFFF',
+                  size: 'xxs',
+                  weight: 'bold',
+                  align: 'center'
+                }
+              ]
+            },
+            {
+              type: 'text',
+              text: displayName,
+              color: '#FFFFFF',
+              size: 'xxs',
+              weight: 'bold',
+              maxLines: 1,
+              margin: 'xs'
+            }
+          ]
+        }
+      ]
+    };
+  };
+
+  const bubbles = formationsData.map(team => {
+    const colorHex = tdc(team.teamColor) || '#3B82F6';
+    const slots = team.slots || { CF: [], MF: [], DW: [], DF: [], GK: [] };
+
+    // Row 1: CF (Center Forward)
+    const cfNode = slots.CF.length > 0
+      ? renderPlayerNode(slots.CF[0], 'CF', colorHex)
+      : renderPlayerNode(null, 'CF', colorHex);
+
+    const cfRow = {
+      type: 'box',
+      layout: 'horizontal',
+      justifyContent: 'center',
+      alignItems: 'center',
+      contents: [cfNode]
+    };
+
+    // Row 2: MF (Midfielders)
+    const mfNodes = slots.MF.length > 0
+      ? slots.MF.map(p => renderPlayerNode(p, 'MF', colorHex))
+      : [renderPlayerNode(null, 'MF', colorHex)];
+
+    const mfRow = {
+      type: 'box',
+      layout: 'horizontal',
+      justifyContent: 'space-around',
+      paddingStart: '16px',
+      paddingEnd: '16px',
+      alignItems: 'center',
+      contents: mfNodes
+    };
+
+    // Row 3: DW (Defensive Wings / Wingers)
+    const dwLeft = slots.DW.length > 0 ? slots.DW[0] : null;
+    const dwRight = slots.DW.length > 1 ? slots.DW[1] : null;
+
+    const dwRow = {
+      type: 'box',
+      layout: 'horizontal',
+      justifyContent: 'space-between',
+      paddingStart: '4px',
+      paddingEnd: '4px',
+      alignItems: 'center',
+      contents: [
+        renderPlayerNode(dwLeft, 'DW', colorHex),
+        renderPlayerNode(dwRight, 'DW', colorHex)
+      ]
+    };
+
+    // Row 4: DF (Defenders / Centre Backs)
+    const dfNodes = slots.DF.length > 0
+      ? slots.DF.map(p => renderPlayerNode(p, 'DF', colorHex))
+      : [renderPlayerNode(null, 'DF', colorHex)];
+
+    const dfRow = {
+      type: 'box',
+      layout: 'horizontal',
+      justifyContent: 'space-around',
+      paddingStart: '16px',
+      paddingEnd: '16px',
+      alignItems: 'center',
+      contents: dfNodes
+    };
+
+    // Row 5: GK (Goalkeeper)
+    const gkNode = slots.GK.length > 0
+      ? renderPlayerNode(slots.GK[0], 'GK', colorHex)
+      : renderPlayerNode(null, 'GK', colorHex);
+
+    const gkRow = {
+      type: 'box',
+      layout: 'horizontal',
+      justifyContent: 'center',
+      alignItems: 'center',
+      contents: [gkNode]
+    };
+
+    return {
+      type: 'bubble',
+      size: 'giga',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#0B0F19',
+        paddingAll: 'md',
+        contents: [
+          {
+            type: 'box',
+            layout: 'horizontal',
+            alignItems: 'center',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                width: '12px',
+                height: '12px',
+                cornerRadius: '6px',
+                backgroundColor: colorHex,
+                flex: 0
+              },
+              {
+                type: 'text',
+                text: `ทีมสี${team.teamColor || ''}`,
+                weight: 'bold',
+                size: 'sm',
+                color: '#FFFFFF',
+                flex: 1,
+                margin: 'sm'
+              },
+              {
+                type: 'text',
+                text: dateStr ? `📅 ${dateStr}` : '',
+                size: 'xxs',
+                color: '#94A3B8',
+                align: 'end',
+                flex: 0
+              }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            alignItems: 'center',
+            contents: [
+              {
+                type: 'text',
+                text: `📋 ${team.formationName || 'ผังการเล่น'} (${team.totalPlayers || 0} คน)`,
+                size: 'xs',
+                color: '#38BDF8',
+                weight: 'bold',
+                flex: 1
+              },
+              timeRange ? {
+                type: 'text',
+                text: `⏰ ${timeRange}`,
+                size: 'xxs',
+                color: '#CBD5E1',
+                align: 'end',
+                flex: 0
+              } : {
+                type: 'filler'
+              }
+            ]
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'sm',
+        background: {
+          type: 'linearGradient',
+          angle: '180deg',
+          startColor: '#15803D',
+          endColor: '#14532D'
+        },
+        contents: [
+          // Tactical Pitch Container with subtle white field boundary markings
+          {
+            type: 'box',
+            layout: 'vertical',
+            height: '420px',
+            borderWidth: '1px',
+            borderColor: '#FFFFFF44',
+            cornerRadius: 'md',
+            paddingAll: 'xs',
+            justifyContent: 'space-between',
+            contents: [
+              cfRow, // Attacking Line (CF)
+              mfRow, // Midfield Line (MF)
+              dwRow, // Defensive Wings Line (DW)
+              dfRow, // Defensive Line (DF)
+              gkRow  // Goalkeeper Line (GK)
+            ]
+          }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#0B0F19',
+        paddingAll: 'xs',
+        contents: [
+          {
+            type: 'box',
+            layout: 'horizontal',
+            justifyContent: 'space-around',
+            contents: [
+              { type: 'text', text: '⚡ CF', size: 'xxs', color: '#EF4444', weight: 'bold' },
+              { type: 'text', text: '⚙️ MF', size: 'xxs', color: '#8B5CF6', weight: 'bold' },
+              { type: 'text', text: '🏃 DW', size: 'xxs', color: '#06B6D4', weight: 'bold' },
+              { type: 'text', text: '🛡️ DF', size: 'xxs', color: '#3B82F6', weight: 'bold' },
+              { type: 'text', text: '🧤 GK', size: 'xxs', color: '#EAB308', weight: 'bold' }
+            ]
+          }
+        ]
+      }
+    };
+  });
+
+  if (bubbles.length === 1) {
+    return bubbles[0];
+  }
+
+  return {
+    type: 'carousel',
+    contents: bubbles
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -4380,5 +4787,7 @@ module.exports = {
   buildScorerRowFlex,
   buildTableWeekFlex,
   buildTopStatFlex,
-  buildTeamWeekFlex
+  buildTeamWeekFlex,
+  buildFormationFlex
 };
+

@@ -736,7 +736,19 @@ async function queryWeekID(week_param = 0) {
     if (res && res.length > 0) return res;
   }
 
-  // 2. Format DD/MM or DD-MM or DD.MM (e.g. 30/08, 30-8, 30.08)
+  // 2. Format ISO YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
+  const isoMatch = strParam.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+  if (isoMatch) {
+    let year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10);
+    const day = parseInt(isoMatch[3], 10);
+    if (year > 2500) year -= 543;
+    const query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE DAY(date) = ? AND MONTH(date) = ? AND YEAR(date) = ? ORDER BY id DESC LIMIT 1";
+    const res = await executeQuery(query, [day, month, year]);
+    if (res && res.length > 0) return res;
+  }
+
+  // 3. Format DD/MM or DD-MM or DD.MM (e.g. 30/08, 30-8, 30.08)
   const slashMatch = strParam.match(/^(\d{1,2})[\/\-\.](\d{1,2})(?:[\/\-\.](\d{2,4}))?$/);
   if (slashMatch) {
     const day = parseInt(slashMatch[1], 10);
@@ -759,7 +771,7 @@ async function queryWeekID(week_param = 0) {
     if (res && res.length > 0) return res;
   }
 
-  // 3. Format Thai Date (e.g. 30ส.ค., 30 ส.ค., 30สิงหาคม)
+  // 4. Format Thai Date (e.g. 30ส.ค., 30 ส.ค., 30สิงหาคม)
   const thaiMonths = {
     'ม.ค.': 1, 'มกรา': 1, 'มกราคม': 1,
     'ก.พ.': 2, 'กุมภา': 2, 'กุมภาพันธ์': 2,
@@ -1379,16 +1391,23 @@ async function ensurePosTables() {
         INSERT INTO pos_tbl (code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded) VALUES
         ('GK', 'Goalkeeper', '🧤', 10.00, 6.00, 5.00, 1.00),
         ('DF', 'Defender', '🛡️', 6.00, 4.00, 4.00, 0.50),
+        ('DW', 'Defensive Wing', '🏃', 5.00, 3.50, 2.00, 0.25),
         ('MF', 'Midfielder', '⚙️', 5.00, 3.00, 1.00, 0.00),
         ('CF', 'Center Forward', '⚡', 4.00, 3.00, 0.00, 0.00)
       `);
-      console.log("🌱 [Seed DB] Default positions (GK, DF, MF, CF) with category points inserted into pos_tbl!");
+      console.log("🌱 [Seed DB] Default positions (GK, DF, DW, MF, CF) with category points inserted into pos_tbl!");
     } else {
       // Set default points if unpopulated
       await executeQuery("UPDATE pos_tbl SET pts_goal = 10.00, pts_assist = 6.00, pts_clean_sheet = 5.00, pts_conceded = 1.00 WHERE UPPER(code) = 'GK' AND pts_goal = 0");
       await executeQuery("UPDATE pos_tbl SET pts_goal = 6.00, pts_assist = 4.00, pts_clean_sheet = 4.00, pts_conceded = 0.50 WHERE UPPER(code) = 'DF' AND pts_goal = 0");
       await executeQuery("UPDATE pos_tbl SET pts_goal = 5.00, pts_assist = 3.00, pts_clean_sheet = 1.00, pts_conceded = 0.00 WHERE UPPER(code) = 'MF' AND pts_goal = 0");
       await executeQuery("UPDATE pos_tbl SET pts_goal = 4.00, pts_assist = 3.00, pts_clean_sheet = 0.00, pts_conceded = 0.00 WHERE UPPER(code) = 'CF' AND pts_goal = 0");
+
+      // Ensure DW is inserted if table already existed without it
+      const dwCheck = await executeQuery("SELECT id FROM pos_tbl WHERE UPPER(code) = 'DW'");
+      if (!dwCheck || dwCheck.length === 0) {
+        await executeQuery("INSERT INTO pos_tbl (code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded) VALUES ('DW', 'Defensive Wing', '🏃', 5.00, 3.50, 2.00, 0.25)");
+      }
     }
   } catch (err) {
     console.error("Error creating position tables:", err.message);
@@ -4475,6 +4494,227 @@ async function getMvpList(targetYear = null, groupId = null) {
   };
 }
 
+/**
+ * Distribute players into 5 tactical lines (CF, MF, DW, DF, GK)
+ * Specifically configured for 7-player and 8-player teams (with fallback for any squad size).
+ */
+function allocateFormationSlots(members) {
+  const count = members.length;
+  
+  // Group players by explicit pos_code from DB
+  const assigned = {
+    GK: [],
+    DF: [],
+    DW: [],
+    MF: [],
+    CF: []
+  };
+  const unassigned = [];
+
+  for (const m of members) {
+    const code = (m.pos_code || '').toUpperCase();
+    if (assigned[code]) {
+      assigned[code].push(m);
+    } else {
+      unassigned.push(m);
+    }
+  }
+
+  // Determine target slots & formation name
+  let target = { CF: 1, MF: 2, DW: 2, DF: 2, GK: 1 }; // Default 8-Player (1-2-2-2-1)
+  let formationName = "8-Player (1-2-2-2-1)";
+
+  if (count <= 7) {
+    if (assigned.MF.length > assigned.DF.length) {
+      target = { CF: 1, MF: 2, DW: 2, DF: 1, GK: 1 };
+      formationName = "7-Player (1-1-2-2-1)";
+    } else {
+      target = { CF: 1, MF: 1, DW: 2, DF: 2, GK: 1 };
+      formationName = "7-Player (1-2-2-1-1)";
+    }
+  } else if (count > 8) {
+    target = { CF: 1, MF: Math.max(2, count - 6), DW: 2, DF: 2, GK: 1 };
+    formationName = `${count}-Player Formation`;
+  }
+
+  const finalSlots = {
+    CF: [],
+    MF: [],
+    DW: [],
+    DF: [],
+    GK: []
+  };
+
+  // Fill preferred positions up to target limit; overflow goes to unassigned
+  const roles = ['GK', 'DF', 'DW', 'MF', 'CF'];
+  for (const r of roles) {
+    for (const p of assigned[r]) {
+      if (finalSlots[r].length < target[r]) {
+        p.effectivePos = r;
+        finalSlots[r].push(p);
+      } else {
+        unassigned.push(p);
+      }
+    }
+  }
+
+  // Fill remaining unfilled target slots from unassigned
+  for (const r of roles) {
+    while (finalSlots[r].length < target[r] && unassigned.length > 0) {
+      const p = unassigned.shift();
+      p.effectivePos = r;
+      finalSlots[r].push(p);
+    }
+  }
+
+  // Any remaining unassigned players attach to MF or DF
+  while (unassigned.length > 0) {
+    const p = unassigned.shift();
+    p.effectivePos = 'MF';
+    finalSlots.MF.push(p);
+  }
+
+  return {
+    formationName,
+    slots: finalSlots,
+    totalPlayers: count
+  };
+}
+
+function isLikelyDateStr(str) {
+  if (!str) return false;
+  const s = String(str).trim();
+  // 1. DD/MM, DD-MM, DD.MM, YYYY-MM-DD, YYYY/MM/DD
+  if (/^(\d{1,2}[\/\-\.]\d{1,2}(?:[\/\-\.]\d{2,4})?|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})$/.test(s)) {
+    return true;
+  }
+  // 2. Thai date e.g. 30ส.ค., 7 ก.ย., 7ก.ย.2026, 7 กันยายน
+  if (/^\d{1,2}\s*[ก-๙a-zA-Z\.]+(?:\s*\d{2,4})?$/.test(s)) {
+    return true;
+  }
+  // 3. Numeric week number > 4 (since team numbers are 1-4)
+  if (/^\d+$/.test(s) && Number(s) > 4) {
+    return true;
+  }
+  return false;
+}
+
+async function getTeamFormation(param = '', groupId = null) {
+  await ensurePosTables();
+  const theme = await getTheme();
+  const trimmed = (param || '').trim();
+  let teamArg = null;
+  let weekArg = 0;
+
+  if (trimmed) {
+    if (isLikelyDateStr(trimmed)) {
+      weekArg = trimmed;
+    } else {
+      const parts = trimmed.split(/\s+/).filter(Boolean);
+      const isKnownTeam = (t) => /^(team\d+|[1-4]|yellow|red|green|blue|black|white|orange|pink|purple|เหลือง|แดง|เขียว|น้ำเงิน|ฟ้า|ส้ม|ชมพู|ม่วง|ดำ|ขาว|all)$/i.test(t);
+
+      if (parts.length === 1) {
+        if (isLikelyDateStr(parts[0])) {
+          weekArg = parts[0];
+        } else {
+          teamArg = parts[0];
+        }
+      } else {
+        const firstToken = parts[0];
+        const lastToken = parts[parts.length - 1];
+        if (isKnownTeam(firstToken)) {
+          teamArg = firstToken;
+          weekArg = parts.slice(1).join(' ').trim();
+        } else if (isKnownTeam(lastToken)) {
+          teamArg = lastToken;
+          weekArg = parts.slice(0, -1).join(' ').trim();
+        } else if (isLikelyDateStr(parts.slice(1).join(' '))) {
+          teamArg = firstToken;
+          weekArg = parts.slice(1).join(' ').trim();
+        } else if (isLikelyDateStr(parts.slice(0, -1).join(' '))) {
+          teamArg = lastToken;
+          weekArg = parts.slice(0, -1).join(' ').trim();
+        } else {
+          teamArg = firstToken;
+          weekArg = parts.slice(1).join(' ').trim();
+        }
+      }
+    }
+  }
+
+  const week = await queryWeekID(weekArg || 0);
+  if (!week || week.length === 0) return null;
+
+  const weekId = week[0].id;
+  const dateStr = week[0].date;
+  const timeRange = week[0].time_range || '';
+
+  const teamColors = await getTeamColorWeek(weekId);
+  if (!teamColors || teamColors.length === 0) return null;
+
+  let teamsToRender = teamColors;
+  if (teamArg && teamArg.toLowerCase() !== 'all') {
+    const lowerArg = teamArg.toLowerCase();
+    const matched = teamColors.filter(t => {
+      if (String(t.id) === teamArg) return true;
+      if (String(t.color || '').toLowerCase().includes(lowerArg)) return true;
+      const num = parseInt(teamArg, 10);
+      if (!isNaN(num) && num >= 1 && num <= teamColors.length) {
+        return teamColors[num - 1].id === t.id;
+      }
+      return false;
+    });
+    if (matched.length > 0) {
+      teamsToRender = matched;
+    }
+  }
+
+  const formationsData = [];
+  for (const team of teamsToRender) {
+    const memberSql = `
+      SELECT 
+        mtw.member_id,
+        mtw.team_id,
+        mtw.pos_id as week_pos_id,
+        m.id,
+        m.name,
+        m.alias,
+        m.rank,
+        m.donate,
+        m.picture_url,
+        m.line_user_id,
+        m.pos_id as member_pos_id,
+        COALESCE(p_week.code, p_mem.code, '') as pos_code,
+        COALESCE(p_week.name, p_mem.name, '') as pos_name,
+        COALESCE(p_week.icon, p_mem.icon, '') as pos_icon
+      FROM member_team_week_tbl mtw
+      LEFT JOIN member_tbl m ON mtw.member_id = m.id
+      LEFT JOIN pos_tbl p_week ON mtw.pos_id = p_week.id
+      LEFT JOIN pos_tbl p_mem ON m.pos_id = p_mem.id
+      WHERE mtw.week_id = ? AND mtw.team_id = ?
+      ORDER BY mtw.id ASC
+    `;
+    const members = await executeQuery(memberSql, [weekId, team.id]);
+    if (members && members.length > 0) {
+      await Promise.all(members.map(m => ensureMemberPicture(m, groupId)));
+    }
+
+    const allocation = allocateFormationSlots(members || []);
+    formationsData.push({
+      teamId: team.id,
+      teamColor: team.color,
+      colorCode: team.code,
+      url: team.url,
+      formationName: allocation.formationName,
+      slots: allocation.slots,
+      totalPlayers: allocation.totalPlayers,
+      members: members || []
+    });
+  }
+
+  return flex.buildFormationFlex(formationsData, theme, dateStr, timeRange);
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -4540,5 +4780,7 @@ module.exports = {
   setMemberPosition,
   updatePositionPoints,
   setMemberWeekPosition,
-  getEffectiveMemberPosition
+  getEffectiveMemberPosition,
+  allocateFormationSlots,
+  getTeamFormation
 };
