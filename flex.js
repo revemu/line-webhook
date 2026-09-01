@@ -4460,21 +4460,20 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     const displayName = (p.name || p.alias || 'Player').replace(/^@/, '');
     const posCode = (p.effectivePos || p.pos_code || defaultPosCode || 'MF').toUpperCase();
-    const badgeColor = posBadgeColor[posCode] || (posCode === 'SUB' ? '#0EA5E9' : '#64748B');
+    const isAlt = p.isAlternate || (p.effectivePos && p.effectivePos.includes('ALT')) || false;
+    const badgeText = isAlt ? `(${posCode})` : posCode;
+    const badgeColor = isAlt ? '#0284C7' : (posBadgeColor[posCode] || '#64748B');
+    const plaqueBgColor = isAlt ? '#0C2A44F0' : '#000000CC';
+    const plaqueBorderColor = isAlt ? '#38BDF8AA' : '#FFFFFF22';
 
     const wStat = p.weekStats || {};
-    const yStat = p.yearStats || {};
 
-    // Week and Year ratings (e.g. ⭐7.8 / ⭐6.5 (⚽2 👟1) or ⭐ n/a / ⭐6.5 (⚽0 👟0))
+    // Week rating & goals/assists (e.g. ⭐7.8 (⚽2 👟1) or ⭐n/a (⚽0 👟0))
     const hasWRating = wStat.rating && wStat.rating !== '-' && Number(wStat.rating) > 0;
     const wRatingStr = hasWRating ? `⭐${wStat.rating}` : '⭐n/a';
-
-    const hasYRating = yStat.rating && yStat.rating !== '-' && Number(yStat.rating) > 0;
-    const yRatingStr = hasYRating ? `⭐${yStat.rating}` : '⭐n/a';
-
     const wGoals = Number(wStat.goals) || 0;
     const wAssists = Number(wStat.assists) || 0;
-    const statsLine = `${wRatingStr} / ${yRatingStr} (⚽${wGoals} 👟${wAssists})`;
+    const statsLine = `${wRatingStr} (⚽${wGoals} 👟${wAssists})`;
 
     return {
       type: 'box',
@@ -4495,7 +4494,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           height: '36px',
           cornerRadius: '18px',
           borderWidth: '2px',
-          borderColor: '#FFFFFF',
+          borderColor: isAlt ? '#38BDF8' : '#FFFFFF',
           backgroundColor: teamColorHex || '#1E293B',
           alignItems: 'center',
           justifyContent: 'center',
@@ -4510,20 +4509,22 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           ] : [
             {
               type: 'text',
-              text: posCode,
+              text: badgeText,
               color: '#FFFFFF',
-              size: 'xs',
+              size: 'xxs',
               weight: 'bold',
               align: 'center',
               gravity: 'center'
             }
           ]
         },
-        // Multi-line Plaque: [Pos] Name, Combined ⭐week / ⭐year (⚽goals 👟assists)
+        // Multi-line Plaque
         {
           type: 'box',
           layout: 'vertical',
-          backgroundColor: '#000000CC',
+          backgroundColor: plaqueBgColor,
+          borderWidth: '1px',
+          borderColor: plaqueBorderColor,
           cornerRadius: '5px',
           paddingStart: '4px',
           paddingEnd: '4px',
@@ -4532,7 +4533,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           offsetTop: '2px',
           alignItems: 'center',
           contents: [
-            // Name Row with position chip (wrap: true, maxLines: 2, center-aligned)
+            // Name Row with position chip
             {
               type: 'box',
               layout: 'horizontal',
@@ -4550,7 +4551,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   contents: [
                     {
                       type: 'text',
-                      text: posCode,
+                      text: badgeText,
                       color: '#FFFFFF',
                       size: 'xxs',
                       weight: 'bold',
@@ -4560,8 +4561,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 },
                 {
                   type: 'text',
-                  text: displayName,
-                  color: '#FFFFFF',
+                  text: isAlt ? `(${displayName})` : displayName,
+                  color: isAlt ? '#E0F2FE' : '#FFFFFF',
                   size: 'xxs',
                   weight: 'bold',
                   wrap: true,
@@ -4572,12 +4573,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 }
               ]
             },
-            // Combined Rating & Week Goals/Assists: ⭐7.8 / ⭐6.5 (⚽2 👟1)
+            // Rating & Week Goals/Assists: ⭐7.8 (⚽2 👟1)
             {
               type: 'text',
               text: statsLine,
               size: 'xxs',
-              color: '#FACC15',
+              color: isAlt ? '#38BDF8' : '#FACC15',
               align: 'center',
               margin: 'xs',
               wrap: true
@@ -4688,29 +4689,90 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       }
     ];
 
-    // If alternates / reserve members exist, render a stylish bench box below pitch
-    if (slots.alternates && slots.alternates.length > 0) {
+    // Bottom Bar: Top MVP Player of this team (Top MVP Rating)
+    const allTeamMembers = team.members || [];
+    let topMvpPlayer = null;
+    let topScore = -1;
+    for (const m of allTeamMembers) {
+      const wRating = parseFloat(m.weekStats?.rating || 0) || 0;
+      const wGoals = Number(m.weekStats?.goals || 0) || 0;
+      const wAssists = Number(m.weekStats?.assists || 0) || 0;
+      const totalPoints = wRating * 10 + (wGoals * 4) + (wAssists * 3);
+      if (totalPoints > topScore && wRating > 0) {
+        topScore = totalPoints;
+        topMvpPlayer = m;
+      }
+    }
+    if (!topMvpPlayer && allTeamMembers.length > 0) {
+      topMvpPlayer = allTeamMembers.reduce((best, m) => {
+        const bRating = parseFloat(best.yearStats?.rating || best.rank || 0) || 0;
+        const mRating = parseFloat(m.yearStats?.rating || m.rank || 0) || 0;
+        return mRating > bRating ? m : best;
+      }, allTeamMembers[0]);
+    }
+
+    if (topMvpPlayer) {
+      const topName = (topMvpPlayer.name || topMvpPlayer.alias || 'Player').replace(/^@/, '');
+      const topRatingStr = topMvpPlayer.weekStats?.rating && topMvpPlayer.weekStats.rating !== '-'
+        ? `⭐${topMvpPlayer.weekStats.rating}`
+        : (topMvpPlayer.rank ? `⭐Rank ${parseFloat(topMvpPlayer.rank).toFixed(1)}` : '⭐-');
+      const topGoals = Number(topMvpPlayer.weekStats?.goals || 0);
+      const topAssists = Number(topMvpPlayer.weekStats?.assists || 0);
+      const topStatsDesc = `${topRatingStr} (⚽${topGoals} 👟${topAssists})`;
+
       bodyContents.push({
         type: 'box',
-        layout: 'vertical',
+        layout: 'horizontal',
         backgroundColor: '#0F172ACC',
+        borderColor: '#F59E0B66',
+        borderWidth: '1px',
         cornerRadius: 'md',
         paddingAll: 'sm',
         margin: 'sm',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         contents: [
-          {
-            type: 'text',
-            text: `⚡ ตัวสำรอง / Alternates (${slots.alternates.length} คน)`,
-            size: 'xxs',
-            color: '#38BDF8',
-            weight: 'bold'
-          },
           {
             type: 'box',
             layout: 'horizontal',
-            margin: 'xs',
-            justifyContent: 'space-around',
-            contents: slots.alternates.map(p => renderPlayerNode(p, 'SUB', colorHex))
+            alignItems: 'center',
+            flex: 1,
+            contents: [
+              {
+                type: 'text',
+                text: '🏆',
+                size: 'xs',
+                flex: 0
+              },
+              {
+                type: 'text',
+                text: 'Top MVP:',
+                size: 'xxs',
+                color: '#FCD34D',
+                weight: 'bold',
+                margin: 'xs',
+                flex: 0
+              },
+              {
+                type: 'text',
+                text: topName,
+                size: 'xxs',
+                color: '#FFFFFF',
+                weight: 'bold',
+                margin: 'xs',
+                wrap: false,
+                flex: 1
+              }
+            ]
+          },
+          {
+            type: 'text',
+            text: topStatsDesc,
+            size: 'xxs',
+            color: '#FBBF24',
+            weight: 'bold',
+            flex: 0,
+            align: 'end'
           }
         ]
       });

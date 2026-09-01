@@ -4860,10 +4860,15 @@ function allocateFormationSlots(members) {
     }
   }
 
-  // 4. Any remaining unassigned outfield players (lowest score) become alternates
+  // 4. Any remaining outfield players are placed directly in their natural line on the pitch as alternates
   while (unassigned.length > 0) {
     const p = unassigned.shift();
-    finalSlots.alternates.push(p);
+    p.isAlternate = true;
+    const targetLine = (p.pos_code && finalSlots[p.pos_code.toUpperCase()]) 
+      ? p.pos_code.toUpperCase() 
+      : (finalSlots.CF.length <= finalSlots.DF.length ? 'CF' : 'DF');
+    p.effectivePos = targetLine;
+    finalSlots[targetLine].push(p);
   }
 
   return {
