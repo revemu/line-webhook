@@ -4369,6 +4369,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               const pStatsLine = `${pWRatingStr} (⚽${pWStat.goals || 0} 👟${pWStat.assists || 0})`;
 
               if (!alternate) {
+                const isMom = isPrimaryMom;
+                const posBadgeText = isMom ? `👑 ${posCode}` : `${icon} ${posCode}`;
+
                 return {
                   type: 'box',
                   layout: 'vertical',
@@ -4386,8 +4389,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       width: '36px',
                       height: '36px',
                       cornerRadius: '18px',
-                      borderWidth: isPrimaryMom ? '3px' : '2px',
-                      borderColor: isPrimaryMom ? '#F59E0B' : '#FFFFFF',
+                      borderWidth: isMom ? '3px' : '2px',
+                      borderColor: isMom ? '#F59E0B' : '#FFFFFF',
                       backgroundColor: teamColorHex || '#1E293B',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -4402,7 +4405,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       ] : [
                         {
                           type: 'text',
-                          text: `${icon}${posCode}`,
+                          text: isMom ? `👑${posCode}` : `${icon}${posCode}`,
                           color: '#FFFFFF',
                           size: 'xxs',
                           weight: 'bold',
@@ -4414,9 +4417,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                     {
                       type: 'box',
                       layout: 'vertical',
-                      backgroundColor: isPrimaryMom ? '#1A1608F4' : '#000000CC',
+                      backgroundColor: isMom ? '#1A1608F4' : '#000000CC',
                       borderWidth: '1px',
-                      borderColor: isPrimaryMom ? '#F59E0BCC' : '#FFFFFF22',
+                      borderColor: isMom ? '#F59E0BCC' : '#FFFFFF22',
                       cornerRadius: '5px',
                       paddingStart: '5px',
                       paddingEnd: '5px',
@@ -4431,26 +4434,6 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                           alignItems: 'center',
                           justifyContent: 'center',
                           contents: [
-                            ...(isPrimaryMom ? [{
-                              type: 'box',
-                              layout: 'vertical',
-                              backgroundColor: '#F59E0B',
-                              cornerRadius: '2px',
-                              paddingStart: '2px',
-                              paddingEnd: '2px',
-                              margin: 'none',
-                              flex: 0,
-                              contents: [
-                                {
-                                  type: 'text',
-                                  text: '👑 MOM',
-                                  color: '#000000',
-                                  size: 'xxs',
-                                  weight: 'bold',
-                                  align: 'center'
-                                }
-                              ]
-                            }] : []),
                             {
                               type: 'box',
                               layout: 'vertical',
@@ -4458,12 +4441,11 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                               cornerRadius: '2px',
                               paddingStart: '3px',
                               paddingEnd: '3px',
-                              margin: isPrimaryMom ? 'xs' : 'none',
                               flex: 0,
                               contents: [
                                 {
                                   type: 'text',
-                                  text: `${icon} ${posCode}`,
+                                  text: posBadgeText,
                                   color: '#FFFFFF',
                                   size: 'xxs',
                                   weight: 'bold',
@@ -4474,7 +4456,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                             {
                               type: 'text',
                               text: primaryName,
-                              color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
+                              color: isMom ? '#FDE047' : '#FFFFFF',
                               size: 'xxs',
                               weight: 'bold',
                               wrap: true,
@@ -4489,7 +4471,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                           type: 'text',
                           text: pStatsLine,
                           size: 'xxs',
-                          color: '#FACC15',
+                          color: isMom ? '#FDE047' : '#FACC15',
                           align: 'center',
                           margin: 'xs',
                           wrap: true
@@ -4501,6 +4483,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               }
 
               const altName = (alternate.name || alternate.alias || 'Alt').replace(/^@/, '');
+              const isPairMom = isPrimaryMom || isAltMom;
+              const pairBadgeText = isPairMom ? `👑 ${posCode}` : `${icon} ${posCode}`;
               const aWStat = alternate.weekStats || {};
               const aHasWRating = aWStat.rating && aWStat.rating !== '-' && Number(aWStat.rating) > 0;
               const aWRatingStr = aHasWRating ? `⭐${aWStat.rating}` : '⭐-';
@@ -4545,7 +4529,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         ] : [
                           {
                             type: 'text',
-                            text: `${icon}${posCode}`,
+                            text: isPrimaryMom ? `👑${posCode}` : `${icon}${posCode}`,
                             color: '#FFFFFF',
                             size: 'xxs',
                             weight: 'bold',
@@ -4583,7 +4567,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         ] : [
                           {
                             type: 'text',
-                            text: `(${icon}${posCode})`,
+                            text: isAltMom ? `👑(${posCode})` : `(${icon}${posCode})`,
                             color: '#38BDF8',
                             size: 'xxs',
                             weight: 'bold',
@@ -4599,7 +4583,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                     layout: 'vertical',
                     backgroundColor: '#071828F4',
                     borderWidth: '1px',
-                    borderColor: (isPrimaryMom || isAltMom) ? '#F59E0BCC' : '#38BDF888',
+                    borderColor: isPairMom ? '#F59E0BCC' : '#38BDF888',
                     cornerRadius: '5px',
                     paddingStart: '5px',
                     paddingEnd: '5px',
@@ -4614,26 +4598,6 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         alignItems: 'center',
                         justifyContent: 'center',
                         contents: [
-                          ...((isPrimaryMom || isAltMom) ? [{
-                            type: 'box',
-                            layout: 'vertical',
-                            backgroundColor: '#F59E0B',
-                            cornerRadius: '2px',
-                            paddingStart: '2px',
-                            paddingEnd: '2px',
-                            margin: 'none',
-                            flex: 0,
-                            contents: [
-                              {
-                                type: 'text',
-                                text: '👑 MOM',
-                                color: '#000000',
-                                size: 'xxs',
-                                weight: 'bold',
-                                align: 'center'
-                              }
-                            ]
-                          }] : []),
                           {
                             type: 'box',
                             layout: 'vertical',
@@ -4641,12 +4605,11 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                             cornerRadius: '2px',
                             paddingStart: '3px',
                             paddingEnd: '3px',
-                            margin: (isPrimaryMom || isAltMom) ? 'xs' : 'none',
                             flex: 0,
                             contents: [
                               {
                                 type: 'text',
-                                text: `${icon} ${posCode}`,
+                                text: pairBadgeText,
                                 color: '#FFFFFF',
                                 size: 'xxs',
                                 weight: 'bold',
