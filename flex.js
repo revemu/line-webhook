@@ -4532,20 +4532,15 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             {
               type: 'box',
               layout: 'vertical',
-              width: '32px',
-              height: '32px',
-              cornerRadius: '16px',
+              width: '48px',
+              height: '48px',
+              cornerRadius: '24px',
               borderWidth: isAltMom ? '3px' : '2px',
               borderColor: isAltMom ? '#F59E0B' : '#38BDF8',
               backgroundColor: '#0C2A44',
               alignItems: 'center',
               justifyContent: 'center',
               margin: 'xs',
-              action: alternate.id ? {
-                type: 'postback',
-                label: altName,
-                data: `action=player_info&id=${alternate.id}&name=${encodeURIComponent(altName)}`
-              } : undefined,
               contents: alternate.picture_url ? [
                 {
                   type: 'image',
