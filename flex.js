@@ -4362,7 +4362,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 return {
                   type: 'box',
                   layout: 'vertical',
-                  width: '92px',
+                  width: '108px',
                   alignItems: 'center',
                   action: primary.id ? {
                     type: 'postback',
@@ -4408,8 +4408,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       borderWidth: '1px',
                       borderColor: isPrimaryMom ? '#F59E0BCC' : '#FFFFFF22',
                       cornerRadius: '5px',
-                      paddingStart: '4px',
-                      paddingEnd: '4px',
+                      paddingStart: '6px',
+                      paddingEnd: '6px',
                       paddingTop: '2px',
                       paddingBottom: '3px',
                       offsetTop: '2px',
@@ -4478,7 +4478,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               return {
                 type: 'box',
                 layout: 'vertical',
-                width: '104px',
+                width: '118px',
                 alignItems: 'center',
                 contents: [
                   {
@@ -4570,8 +4570,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                     borderWidth: '1px',
                     borderColor: (isPrimaryMom || isAltMom) ? '#F59E0BCC' : '#38BDF888',
                     cornerRadius: '5px',
-                    paddingStart: '4px',
-                    paddingEnd: '4px',
+                    paddingStart: '6px',
+                    paddingEnd: '6px',
                     paddingTop: '2px',
                     paddingBottom: '3px',
                     offsetTop: '2px',
