@@ -1303,10 +1303,11 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const mvps = maxRawMvpScore > 0 ? formattedList.filter(item => item.rawScore === maxRawMvpScore) : [];
     const maxMvpScore = mvps.length > 0 ? mvps[0].score : 0;
 
-    // Save/update all player week records into mvp_week_tbl & update yearly cache
+    // Save/update all player week records into mvp_week_tbl & update yearly cache incrementally
     if (formattedList && formattedList.length > 0) {
       await saveWeekMvpRecords(week_id, formattedList);
-      await updateYearStatCache(weekYear);
+      const weekMemberIds = formattedList.map(item => item.member_id || item.id).filter(Boolean);
+      await updateYearStatCache(weekYear, weekMemberIds);
     }
 
     // Update player ratings into member_team_week_tbl for this week
@@ -1647,7 +1648,7 @@ async function ensureMemberYearStatTable() {
   }
 }
 
-async function updateYearStatCache(year = null) {
+async function updateYearStatCache(year = null, memberIds = null) {
   try {
     await ensureMemberYearStatTable();
     
@@ -1668,7 +1669,22 @@ async function updateYearStatCache(year = null) {
       }
     }
 
-    // 4. Query member ranks and names from member_tbl (escape reserved keyword `rank`)
+    // Build optional member filter clause for incremental updates
+    let memFilterMtw = "";
+    let memFilterMgt = "";
+    let memFilterMvp = "";
+    const cleanMemberIds = Array.isArray(memberIds) && memberIds.length > 0 
+      ? memberIds.map(Number).filter(id => id > 0)
+      : null;
+
+    if (cleanMemberIds && cleanMemberIds.length > 0) {
+      const idList = cleanMemberIds.join(',');
+      memFilterMtw = ` AND mtw.member_id IN (${idList})`;
+      memFilterMgt = ` AND mgt.member_id IN (${idList})`;
+      memFilterMvp = ` AND m.member_id IN (${idList})`;
+    }
+
+    // Query member ranks and names from member_tbl (escape reserved keyword `rank`)
     const memberRows = await executeQuery("SELECT id, `rank`, name FROM member_tbl");
     const memberRankMap = {};
     const memberNameMap = {};
@@ -1681,20 +1697,23 @@ async function updateYearStatCache(year = null) {
 
     // Sync ratings from mvp_week_tbl into member_team_week_tbl for consistency
     try {
+      const memSyncClause = cleanMemberIds && cleanMemberIds.length > 0 
+        ? ` AND m.member_id IN (${cleanMemberIds.join(',')})` 
+        : '';
       await executeQuery(`
         UPDATE member_team_week_tbl mtw
         JOIN mvp_week_tbl m ON mtw.week_id = m.week_id AND mtw.member_id = m.member_id
         SET mtw.rating = m.rating
-        WHERE m.rating > 0
+        WHERE m.rating > 0${memSyncClause}
       `);
-      console.log(`[Cache] Synchronized ratings from mvp_week_tbl into member_team_week_tbl`);
+      console.log(`[Cache] Synchronized ratings from mvp_week_tbl into member_team_week_tbl (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
     } catch (e) { }
 
-    console.log(`[Cache] Starting member_year_stat_tbl sync for years: [${yearsToSync.join(', ')}]`);
+    console.log(`[Cache] Starting member_year_stat_tbl sync for years: [${yearsToSync.join(', ')}] (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
 
     for (const targetYear of yearsToSync) {
       console.log(`\n======================================================`);
-      console.log(`📊 [Cache Sync] Updating member_year_stat_tbl for Year: ${targetYear}`);
+      console.log(`📊 [Cache Sync] Updating member_year_stat_tbl for Year: ${targetYear} ${cleanMemberIds ? `(Incremental ${cleanMemberIds.length} members)` : ''}`);
       console.log(`======================================================`);
 
       // 1. Query actual weeks played & ratings from member_team_week_tbl (ground truth for participation)
@@ -1706,7 +1725,7 @@ async function updateYearStatCache(year = null) {
           MAX(CASE WHEN mtw.rating > 0 THEN mtw.rating ELSE 0 END) as mtw_max_rating
         FROM member_team_week_tbl mtw
         JOIN week_tbl w ON mtw.week_id = w.id
-        WHERE (w.year = ? OR YEAR(w.date) = ?) AND mtw.member_id > 0 AND mtw.team_id > 0
+        WHERE (w.year = ? OR YEAR(w.date) = ?) AND mtw.member_id > 0 AND mtw.team_id > 0${memFilterMtw}
         GROUP BY mtw.member_id
       `, [targetYear, targetYear]);
 
@@ -1719,7 +1738,7 @@ async function updateYearStatCache(year = null) {
         FROM match_goal_tbl mgt
         JOIN match_stat_tbl mst ON mgt.match_id = mst.id
         JOIN week_tbl w ON mst.week_id = w.id
-        WHERE (w.year = ? OR YEAR(w.date) = ?) AND mgt.member_id > 0
+        WHERE (w.year = ? OR YEAR(w.date) = ?) AND mgt.member_id > 0${memFilterMgt}
         GROUP BY mgt.member_id
       `, [targetYear, targetYear]);
 
@@ -1732,7 +1751,7 @@ async function updateYearStatCache(year = null) {
           COUNT(DISTINCT CASE WHEN m.rating > 0 THEN m.week_id ELSE NULL END) as rated_weeks
         FROM mvp_week_tbl m
         JOIN week_tbl w ON m.week_id = w.id
-        WHERE (w.year = ? OR YEAR(w.date) = ?) AND m.member_id > 0
+        WHERE (w.year = ? OR YEAR(w.date) = ?) AND m.member_id > 0${memFilterMvp}
         GROUP BY m.member_id
       `, [targetYear, targetYear]);
 
@@ -2054,10 +2073,14 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     let newInsertedCount = 0;
     let currIdx = 0;
     const weekScoresCache = {};
+    const affectedYears = new Set();
+    if (year) affectedYears.add(Number(year));
 
     for (const w of weeks) {
       currIdx++;
       const dateStr = await getFormatDate(new Date(w.date), 'short');
+      const wDate = w.date ? new Date(w.date) : new Date();
+      const wYear = wDate.getFullYear();
 
       if (!reset && fullySyncedWeekIds.has(w.id)) {
         skippedCount++;
@@ -2065,6 +2088,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         continue;
       }
 
+      affectedYears.add(wYear);
       console.log(` ⚙️ [${currIdx}/${weeks.length}] Processing Week ID ${w.id} (${dateStr})...`);
       const playerScores = await calculateWeekRawMvp(w.id);
       weekScoresCache[w.id] = playerScores;
@@ -2124,8 +2148,16 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       }
     }
 
-    // Update member_year_stat_tbl cache
-    await updateYearStatCache(year);
+    // Update member_year_stat_tbl cache incrementally (only affected years)
+    if (year) {
+      await updateYearStatCache(year);
+    } else if (affectedYears.size > 0) {
+      for (const aYr of affectedYears) {
+        await updateYearStatCache(aYr);
+      }
+    } else {
+      await updateYearStatCache();
+    }
 
     // Query yearly max scores and persist each year's benchmark into template_tpl ('max_mvp_score_YYYY')
     const yearlyMaxRes = await executeQuery(`
