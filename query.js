@@ -4817,58 +4817,86 @@ function allocateFormationSlots(members) {
   unassigned.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
 
   const finalSlots = {
-    CF: [],
-    MF: [],
-    DW: [],
-    DF: [],
-    GK: [],
-    alternates: [...explicitReserves]
+    CF: Array.from({ length: target.CF }, () => ({ primary: null, alternate: null })),
+    MF: Array.from({ length: target.MF }, () => ({ primary: null, alternate: null })),
+    DW: Array.from({ length: target.DW }, () => ({ primary: null, alternate: null })),
+    DF: Array.from({ length: target.DF }, () => ({ primary: null, alternate: null })),
+    GK: Array.from({ length: target.GK }, () => ({ primary: null, alternate: null })),
+    alternates: []
   };
 
-  // 1. Assign GK only if explicitly pos_code === 'GK'
-  if (hasGK) {
+  // 1. Assign GK
+  if (hasGK && assigned.GK.length > 0) {
     const gkPlayer = assigned.GK[0];
     gkPlayer.effectivePos = 'GK';
-    finalSlots.GK.push(gkPlayer);
+    if (finalSlots.GK.length > 0) {
+      finalSlots.GK[0].primary = gkPlayer;
+    }
     for (let i = 1; i < assigned.GK.length; i++) {
       unassigned.push(assigned.GK[i]);
     }
   }
 
-  // 2. Fill outfield preferred positions (DF, DW, MF, CF) up to target limit
-  const outfieldRoles = ['DF', 'DW', 'MF', 'CF'];
+  // 2. Fill outfield preferred positions (CF, MF, DW, DF) as primary starters
+  const outfieldRoles = ['CF', 'MF', 'DW', 'DF'];
   for (const r of outfieldRoles) {
     for (const p of assigned[r]) {
-      if (finalSlots[r].length < target[r]) {
+      const emptySlot = finalSlots[r].find(s => s.primary === null);
+      if (emptySlot) {
         p.effectivePos = r;
-        finalSlots[r].push(p);
+        emptySlot.primary = p;
       } else {
         unassigned.push(p);
       }
     }
   }
 
-  // Re-sort unassigned from highest to lowest score
+  // 3. Fill remaining unfilled primary slots from unassigned (highest to lowest score)
   unassigned.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
-
-  // 3. Fill remaining unfilled target outfield slots from unassigned
   for (const r of outfieldRoles) {
-    while (finalSlots[r].length < target[r] && unassigned.length > 0) {
-      const p = unassigned.shift();
-      p.effectivePos = r;
-      finalSlots[r].push(p);
+    for (const slot of finalSlots[r]) {
+      if (slot.primary === null && unassigned.length > 0) {
+        const p = unassigned.shift();
+        p.effectivePos = r;
+        slot.primary = p;
+      }
     }
   }
 
-  // 4. Any remaining outfield players are placed directly in their natural line on the pitch as alternates
-  while (unassigned.length > 0) {
-    const p = unassigned.shift();
+  // 4. Pair ALL remaining unassigned outfield players (8th, 9th, explicit reserves) as alternates directly into pitch slots
+  const allAlternates = [...unassigned, ...explicitReserves];
+  allAlternates.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
+
+  for (const p of allAlternates) {
     p.isAlternate = true;
-    const targetLine = (p.pos_code && finalSlots[p.pos_code.toUpperCase()]) 
-      ? p.pos_code.toUpperCase() 
-      : (finalSlots.CF.length <= finalSlots.DF.length ? 'CF' : 'DF');
-    p.effectivePos = targetLine;
-    finalSlots[targetLine].push(p);
+    const preferredRole = (p.pos_code || '').toUpperCase();
+    
+    // Find a slot in their preferred role without an alternate
+    let targetSlot = (finalSlots[preferredRole] && finalSlots[preferredRole].find(s => s.alternate === null));
+    
+    // If preferred role slot already has an alternate, find any outfield slot without an alternate
+    if (!targetSlot) {
+      for (const r of outfieldRoles) {
+        targetSlot = finalSlots[r].find(s => s.alternate === null);
+        if (targetSlot) {
+          p.effectivePos = r;
+          break;
+        }
+      }
+    } else {
+      p.effectivePos = preferredRole;
+    }
+
+    if (targetSlot) {
+      targetSlot.alternate = p;
+    } else {
+      // If all slots have alternates, push to CF or first slot
+      p.effectivePos = preferredRole || 'CF';
+      if (finalSlots[p.effectivePos] && finalSlots[p.effectivePos].length > 0) {
+        finalSlots[p.effectivePos][0].alternate = p;
+      }
+    }
+    finalSlots.alternates.push(p);
   }
 
   return {

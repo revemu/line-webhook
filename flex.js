@@ -4404,8 +4404,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     'CF': '#EF4444'  // Red
   };
 
-  const renderPlayerNode = (p, defaultPosCode, teamColorHex) => {
-    if (!p) {
+  const renderPlayerNode = (slot, defaultPosCode, teamColorHex) => {
+    // Check if slot is an object { primary, alternate } or standalone player
+    const primary = (slot && slot.primary !== undefined) ? slot.primary : slot;
+    const alternate = (slot && slot.alternate) ? slot.alternate : null;
+
+    if (!primary) {
       return {
         type: 'box',
         layout: 'vertical',
@@ -4458,73 +4462,247 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       };
     }
 
-    const displayName = (p.name || p.alias || 'Player').replace(/^@/, '');
-    const posCode = (p.effectivePos || p.pos_code || defaultPosCode || 'MF').toUpperCase();
-    const isAlt = p.isAlternate || (p.effectivePos && p.effectivePos.includes('ALT')) || false;
-    const badgeText = isAlt ? `(${posCode})` : posCode;
-    const badgeColor = isAlt ? '#0284C7' : (posBadgeColor[posCode] || '#64748B');
-    const plaqueBgColor = isAlt ? '#0C2A44F0' : '#000000CC';
-    const plaqueBorderColor = isAlt ? '#38BDF8AA' : '#FFFFFF22';
+    const posCode = (primary.effectivePos || primary.pos_code || defaultPosCode || 'MF').toUpperCase();
+    const primaryName = (primary.name || primary.alias || 'Player').replace(/^@/, '');
+    const badgeColor = posBadgeColor[posCode] || '#64748B';
 
-    const wStat = p.weekStats || {};
+    const pWStat = primary.weekStats || {};
+    const pHasWRating = pWStat.rating && pWStat.rating !== '-' && Number(pWStat.rating) > 0;
+    const pWRatingStr = pHasWRating ? `⭐${pWStat.rating}` : '⭐n/a';
+    const pStatsLine = `${pWRatingStr} (⚽${pWStat.goals || 0} 👟${pWStat.assists || 0})`;
 
-    // Week rating & goals/assists (e.g. ⭐7.8 (⚽2 👟1) or ⭐n/a (⚽0 👟0))
-    const hasWRating = wStat.rating && wStat.rating !== '-' && Number(wStat.rating) > 0;
-    const wRatingStr = hasWRating ? `⭐${wStat.rating}` : '⭐n/a';
-    const wGoals = Number(wStat.goals) || 0;
-    const wAssists = Number(wStat.assists) || 0;
-    const statsLine = `${wRatingStr} (⚽${wGoals} 👟${wAssists})`;
+    // ==========================================
+    // CASE A: Single Starter Slot (No Alternate)
+    // ==========================================
+    if (!alternate) {
+      return {
+        type: 'box',
+        layout: 'vertical',
+        width: '92px',
+        alignItems: 'center',
+        action: primary.id ? {
+          type: 'postback',
+          label: primaryName,
+          data: `action=player_info&id=${primary.id}&name=${encodeURIComponent(primaryName)}`
+        } : undefined,
+        contents: [
+          // Avatar
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '36px',
+            height: '36px',
+            cornerRadius: '18px',
+            borderWidth: '2px',
+            borderColor: '#FFFFFF',
+            backgroundColor: teamColorHex || '#1E293B',
+            alignItems: 'center',
+            justifyContent: 'center',
+            contents: primary.picture_url ? [
+              {
+                type: 'image',
+                url: primary.picture_url,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover'
+              }
+            ] : [
+              {
+                type: 'text',
+                text: posCode,
+                color: '#FFFFFF',
+                size: 'xxs',
+                weight: 'bold',
+                align: 'center',
+                gravity: 'center'
+              }
+            ]
+          },
+          // Plaque
+          {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#000000CC',
+            borderWidth: '1px',
+            borderColor: '#FFFFFF22',
+            cornerRadius: '5px',
+            paddingStart: '4px',
+            paddingEnd: '4px',
+            paddingTop: '2px',
+            paddingBottom: '3px',
+            offsetTop: '2px',
+            alignItems: 'center',
+            contents: [
+              {
+                type: 'box',
+                layout: 'horizontal',
+                alignItems: 'center',
+                justifyContent: 'center',
+                contents: [
+                  {
+                    type: 'box',
+                    layout: 'vertical',
+                    backgroundColor: badgeColor,
+                    cornerRadius: '2px',
+                    paddingStart: '3px',
+                    paddingEnd: '3px',
+                    flex: 0,
+                    contents: [
+                      {
+                        type: 'text',
+                        text: posCode,
+                        color: '#FFFFFF',
+                        size: 'xxs',
+                        weight: 'bold',
+                        align: 'center'
+                      }
+                    ]
+                  },
+                  {
+                    type: 'text',
+                    text: primaryName,
+                    color: '#FFFFFF',
+                    size: 'xxs',
+                    weight: 'bold',
+                    wrap: true,
+                    maxLines: 2,
+                    margin: 'xs',
+                    align: 'center',
+                    flex: 1
+                  }
+                ]
+              },
+              {
+                type: 'text',
+                text: pStatsLine,
+                size: 'xxs',
+                color: '#FACC15',
+                align: 'center',
+                margin: 'xs',
+                wrap: true
+              }
+            ]
+          }
+        ]
+      };
+    }
+
+    // ==========================================
+    // CASE B: Shared / Alternate Pair Slot (Primary + Alternate)
+    // ==========================================
+    const altName = (alternate.name || alternate.alias || 'Alt').replace(/^@/, '');
+    const aWStat = alternate.weekStats || {};
+    const aHasWRating = aWStat.rating && aWStat.rating !== '-' && Number(aWStat.rating) > 0;
+    const aWRatingStr = aHasWRating ? `⭐${aWStat.rating}` : '⭐n/a';
+    const aStatsLine = `${aWRatingStr} (⚽${aWStat.goals || 0} 👟${aWStat.assists || 0})`;
 
     return {
       type: 'box',
       layout: 'vertical',
-      width: '92px',
+      width: '104px',
       alignItems: 'center',
-      action: p.id ? {
-        type: 'postback',
-        label: displayName,
-        data: `action=player_info&id=${p.id}&name=${encodeURIComponent(displayName)}`
-      } : undefined,
       contents: [
-        // Avatar / Jersey Circle with team border
+        // Dual Avatars Row: Primary + Alternate
         {
           type: 'box',
-          layout: 'vertical',
-          width: '36px',
-          height: '36px',
-          cornerRadius: '18px',
-          borderWidth: '2px',
-          borderColor: isAlt ? '#38BDF8' : '#FFFFFF',
-          backgroundColor: teamColorHex || '#1E293B',
+          layout: 'horizontal',
           alignItems: 'center',
           justifyContent: 'center',
-          contents: p.picture_url ? [
+          contents: [
+            // Primary Avatar
             {
-              type: 'image',
-              url: p.picture_url,
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover'
-            }
-          ] : [
+              type: 'box',
+              layout: 'vertical',
+              width: '32px',
+              height: '32px',
+              cornerRadius: '16px',
+              borderWidth: '2px',
+              borderColor: '#FFFFFF',
+              backgroundColor: teamColorHex || '#1E293B',
+              alignItems: 'center',
+              justifyContent: 'center',
+              action: primary.id ? {
+                type: 'postback',
+                label: primaryName,
+                data: `action=player_info&id=${primary.id}&name=${encodeURIComponent(primaryName)}`
+              } : undefined,
+              contents: primary.picture_url ? [
+                {
+                  type: 'image',
+                  url: primary.picture_url,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'cover'
+                }
+              ] : [
+                {
+                  type: 'text',
+                  text: posCode,
+                  color: '#FFFFFF',
+                  size: 'xxs',
+                  weight: 'bold',
+                  align: 'center',
+                  gravity: 'center'
+                }
+              ]
+            },
+            // Slash divider
             {
               type: 'text',
-              text: badgeText,
-              color: '#FFFFFF',
+              text: '/',
+              color: '#38BDF8',
               size: 'xxs',
               weight: 'bold',
-              align: 'center',
-              gravity: 'center'
+              margin: 'xs',
+              flex: 0
+            },
+            // Alternate Avatar
+            {
+              type: 'box',
+              layout: 'vertical',
+              width: '32px',
+              height: '32px',
+              cornerRadius: '16px',
+              borderWidth: '2px',
+              borderColor: '#38BDF8',
+              backgroundColor: '#0C2A44',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: 'xs',
+              action: alternate.id ? {
+                type: 'postback',
+                label: altName,
+                data: `action=player_info&id=${alternate.id}&name=${encodeURIComponent(altName)}`
+              } : undefined,
+              contents: alternate.picture_url ? [
+                {
+                  type: 'image',
+                  url: alternate.picture_url,
+                  size: 'full',
+                  aspectRatio: '1:1',
+                  aspectMode: 'cover'
+                }
+              ] : [
+                {
+                  type: 'text',
+                  text: `(${posCode})`,
+                  color: '#38BDF8',
+                  size: 'xxs',
+                  weight: 'bold',
+                  align: 'center',
+                  gravity: 'center'
+                }
+              ]
             }
           ]
         },
-        // Multi-line Plaque
+        // Shared Plaque Box with Alternate styling
         {
           type: 'box',
           layout: 'vertical',
-          backgroundColor: plaqueBgColor,
+          backgroundColor: '#071828F4',
           borderWidth: '1px',
-          borderColor: plaqueBorderColor,
+          borderColor: '#38BDF888',
           cornerRadius: '5px',
           paddingStart: '4px',
           paddingEnd: '4px',
@@ -4533,7 +4711,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           offsetTop: '2px',
           alignItems: 'center',
           contents: [
-            // Name Row with position chip
+            // Header Row: [Pos] & Primary / (Alt)
             {
               type: 'box',
               layout: 'horizontal',
@@ -4545,13 +4723,13 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   layout: 'vertical',
                   backgroundColor: badgeColor,
                   cornerRadius: '2px',
-                  paddingStart: '3px',
-                  paddingEnd: '3px',
+                  paddingStart: '2px',
+                  paddingEnd: '2px',
                   flex: 0,
                   contents: [
                     {
                       type: 'text',
-                      text: badgeText,
+                      text: posCode,
                       color: '#FFFFFF',
                       size: 'xxs',
                       weight: 'bold',
@@ -4561,8 +4739,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 },
                 {
                   type: 'text',
-                  text: isAlt ? `(${displayName})` : displayName,
-                  color: isAlt ? '#E0F2FE' : '#FFFFFF',
+                  text: `${primaryName} / (${altName})`,
+                  color: '#FFFFFF',
                   size: 'xxs',
                   weight: 'bold',
                   wrap: true,
@@ -4573,14 +4751,24 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 }
               ]
             },
-            // Rating & Week Goals/Assists: ⭐7.8 (⚽2 👟1)
+            // Primary Stat
             {
               type: 'text',
-              text: statsLine,
+              text: pStatsLine,
               size: 'xxs',
-              color: isAlt ? '#38BDF8' : '#FACC15',
+              color: '#FACC15',
               align: 'center',
               margin: 'xs',
+              wrap: true
+            },
+            // Alternate Stat (Sky Blue)
+            {
+              type: 'text',
+              text: `(${aStatsLine})`,
+              size: 'xxs',
+              color: '#38BDF8',
+              align: 'center',
+              margin: 'none',
               wrap: true
             }
           ]
@@ -4624,8 +4812,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     };
 
     // Row 3: DW (Defensive Wings / Wingers)
-    const dwLeft = slots.DW.length > 0 ? slots.DW[0] : null;
-    const dwRight = slots.DW.length > 1 ? slots.DW[1] : null;
+    const dwNodes = (slots.DW && slots.DW.length > 0)
+      ? slots.DW.map(s => renderPlayerNode(s, 'DW', colorHex))
+      : [renderPlayerNode(null, 'DW', colorHex), renderPlayerNode(null, 'DW', colorHex)];
 
     const dwRow = {
       type: 'box',
@@ -4634,10 +4823,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       paddingStart: '4px',
       paddingEnd: '4px',
       alignItems: 'center',
-      contents: [
-        renderPlayerNode(dwLeft, 'DW', colorHex),
-        renderPlayerNode(dwRight, 'DW', colorHex)
-      ]
+      contents: dwNodes.length === 1 ? [dwNodes[0], renderPlayerNode(null, 'DW', colorHex)] : dwNodes.slice(0, 2)
     };
 
     // Row 4: DF (Defenders / Centre Backs) - Supports 1, 2, or 3 DFs dynamically
