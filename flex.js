@@ -5061,7 +5061,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               },
               {
                 type: 'text',
-                text: 'Man of the Match:',
+                text: 'Team MVP:',
                 size: 'xxs',
                 color: '#FCD34D',
                 weight: 'bold',
