@@ -4868,7 +4868,15 @@ function isLikelyDateStr(str) {
 }
 
 async function getTeamFormation(param = '', groupId = null) {
+  const tTotalStart = Date.now();
+  
+  // 1. DDL Checks
+  const tDdlStart = Date.now();
   await ensurePosTables();
+  const ddlDuration = Date.now() - tDdlStart;
+
+  // 2. Metadata (Theme, Week, Colors)
+  const tMetaStart = Date.now();
   const theme = await getTheme();
   const trimmed = (param || '').trim();
   let teamArg = null;
@@ -4937,8 +4945,10 @@ async function getTeamFormation(param = '', groupId = null) {
       teamsToRender = matched;
     }
   }
+  const metaDuration = Date.now() - tMetaStart;
 
-  // 1. Query current week stats directly from mvp_week_tbl (fast, calculated by /matchweek)
+  // 3. Current week stats directly from mvp_week_tbl
+  const tWeekStatsStart = Date.now();
   const weekStatsMap = {};
   try {
     const weekRows = await executeQuery(
@@ -4955,8 +4965,10 @@ async function getTeamFormation(param = '', groupId = null) {
       });
     }
   } catch (e) { }
+  const weekStatsDuration = Date.now() - tWeekStatsStart;
 
-  // 2. Query cached cumulative yearly stats from member_year_stat_tbl (fast, updated by /maxmvpscore & /matchweek)
+  // 4. Cached cumulative yearly stats from member_year_stat_tbl
+  const tYearStatsStart = Date.now();
   const yearStatsMap = {};
   try {
     await ensureMemberYearStatTable();
@@ -4989,9 +5001,16 @@ async function getTeamFormation(param = '', groupId = null) {
       });
     }
   } catch (e) { }
+  const yearStatsDuration = Date.now() - tYearStatsStart;
+
+  // 5. Team Members Query & Line Avatar Check
+  let totalMembersQueryDuration = 0;
+  let totalLineAvatarDuration = 0;
+  let totalTacticsDuration = 0;
 
   const formationsData = [];
   for (const team of teamsToRender) {
+    const tMemSqlStart = Date.now();
     const memberSql = `
       SELECT 
         mtw.member_id,
@@ -5016,9 +5035,13 @@ async function getTeamFormation(param = '', groupId = null) {
       ORDER BY mtw.id ASC
     `;
     const members = await executeQuery(memberSql, [weekId, team.id]);
+    totalMembersQueryDuration += (Date.now() - tMemSqlStart);
+
+    const tAvatarStart = Date.now();
     if (members && members.length > 0) {
       await Promise.all(members.map(m => ensureMemberPicture(m, groupId)));
     }
+    totalLineAvatarDuration += (Date.now() - tAvatarStart);
 
     // Attach weekStats and yearStats to each member
     (members || []).forEach(m => {
@@ -5049,7 +5072,10 @@ async function getTeamFormation(param = '', groupId = null) {
       };
     });
 
+    const tTacticsStart = Date.now();
     const allocation = allocateFormationSlots(members || []);
+    totalTacticsDuration += (Date.now() - tTacticsStart);
+
     formationsData.push({
       teamId: team.id,
       teamColor: team.color,
@@ -5062,7 +5088,29 @@ async function getTeamFormation(param = '', groupId = null) {
     });
   }
 
-  return flex.buildFormationFlex(formationsData, theme, dateStr, timeRange);
+  // 6. Build Flex Message JSON
+  const tFlexStart = Date.now();
+  const flexMsg = flex.buildFormationFlex(formationsData, theme, dateStr, timeRange);
+  const flexDuration = Date.now() - tFlexStart;
+
+  const totalDuration = Date.now() - tTotalStart;
+
+  console.log(`\n======================================================`);
+  console.log(`⏱️ [/formation Performance Breakdown]`);
+  console.log(`======================================================`);
+  console.log(`  1. Schema / DDL Check (ensurePosTables)      : ${ddlDuration} ms`);
+  console.log(`  2. Week & Theme Metadata Queries            : ${metaDuration} ms`);
+  console.log(`  3. Current Week Stats (mvp_week_tbl)         : ${weekStatsDuration} ms`);
+  console.log(`  4. Yearly Cumulative Stats (member_year_stat): ${yearStatsDuration} ms`);
+  console.log(`  5. Team Members SQL (${teamsToRender.length} teams)           : ${totalMembersQueryDuration} ms`);
+  console.log(`  6. LINE API Profile Avatars (if missing)    : ${totalLineAvatarDuration} ms`);
+  console.log(`  7. Tactical Slot Allocation (In-Memory)     : ${totalTacticsDuration} ms`);
+  console.log(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
+  console.log(`------------------------------------------------------`);
+  console.log(`  🚀 Total /formation Server Time             : ${totalDuration} ms`);
+  console.log(`======================================================\n`);
+
+  return flexMsg;
 }
 
 module.exports = {
