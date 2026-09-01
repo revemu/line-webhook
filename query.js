@@ -4747,7 +4747,7 @@ async function getMvpList(targetYear = null, groupId = null) {
  * When team has 8 outfielders and no GK, 7 players start on the pitch and 1 player
  * with the lowest year/week rating is assigned as alternate/sub.
  */
-function allocateFormationSlots(members) {
+function allocateFormationSlots(members, maxWeekTeamSize = null) {
   const count = members.length;
   const isReserve = (name) => /^\+\s*\(?\d+\)?/.test((name || '').trim());
 
@@ -4783,28 +4783,70 @@ function allocateFormationSlots(members) {
 
   const hasGK = assigned.GK.length > 0;
 
-  // Dynamic 6 outfield starters on pitch (6 outfielders + alternates / rotation GK)
-  let targetCF = 1;
-  let targetMF = 2;
-  let targetDW = 2;
-  let targetDF = 1;
+  // Determine if this week format is 8-player team (7+1) or 7-player team (6+1)
+  const is8PlayerWeek = maxWeekTeamSize ? (maxWeekTeamSize >= 8) : (count >= 8);
+  const targetOutfielders = is8PlayerWeek ? 7 : 6;
 
-  // Adjust distribution to best fit squad preferences while keeping exactly 6 outfield starters
-  if (assigned.CF.length >= 2) {
-    targetCF = 2;
-    targetMF = 1;
-    targetDW = 2;
-    targetDF = 1;
-  } else if (assigned.DF.length >= 2 && assigned.MF.length <= 1) {
+  let targetCF, targetMF, targetDW, targetDF;
+
+  if (targetOutfielders === 7) {
+    // 7 Outfielders on pitch (8-player team format: 7 Outfielders + 1 GK)
     targetCF = 1;
-    targetMF = 1;
+    targetMF = 2;
     targetDW = 2;
     targetDF = 2;
-  } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
+
+    if (assigned.CF.length >= 2 && assigned.DF.length <= 1) {
+      // 2 Strikers: 2-2-2-1
+      targetCF = 2;
+      targetMF = 2;
+      targetDW = 2;
+      targetDF = 1;
+    } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
+      // 3 Midfielders: 1-3-2-1
+      targetCF = 1;
+      targetMF = 3;
+      targetDW = 2;
+      targetDF = 1;
+    } else if (assigned.CF.length >= 2 && assigned.MF.length <= 1) {
+      // 2 Strikers, 1 Mid: 2-1-2-2
+      targetCF = 2;
+      targetMF = 1;
+      targetDW = 2;
+      targetDF = 2;
+    } else if (assigned.DF.length >= 3) {
+      // 3 Defenders: 1-1-2-3
+      targetCF = 1;
+      targetMF = 1;
+      targetDW = 2;
+      targetDF = 3;
+    }
+  } else {
+    // 6 Outfielders on pitch (7-player team format: 6 Outfielders + 1 GK)
     targetCF = 1;
     targetMF = 2;
     targetDW = 2;
     targetDF = 1;
+
+    if (assigned.CF.length >= 2) {
+      // 2 Strikers: 2-1-2-1
+      targetCF = 2;
+      targetMF = 1;
+      targetDW = 2;
+      targetDF = 1;
+    } else if (assigned.DF.length >= 2 && assigned.MF.length <= 1) {
+      // 2 Defenders: 1-1-2-2
+      targetCF = 1;
+      targetMF = 1;
+      targetDW = 2;
+      targetDF = 2;
+    } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
+      // 3 Midfielders: 1-2-2-1
+      targetCF = 1;
+      targetMF = 2;
+      targetDW = 2;
+      targetDF = 1;
+    }
   }
 
   const target = {
@@ -4815,18 +4857,22 @@ function allocateFormationSlots(members) {
     GK: hasGK ? 1 : 0
   };
 
-  const totalStarters = targetCF + targetMF + targetDW + targetDF + (hasGK ? 1 : 0);
-  const altCount = Math.max(0, count - totalStarters);
+  const maxStarters = targetOutfielders + 1;
+  const altCount = Math.max(0, count - maxStarters);
   
+  const formationDesc = hasGK
+    ? `(${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
+    : `(${targetCF}-${targetMF}-${targetDW}-${targetDF})`;
+
   let formationName = '';
-  if (hasGK) {
+  if (targetOutfielders === 7) {
     formationName = altCount > 0
-      ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
-      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`;
+      ? `7+1+${altCount} Player ${formationDesc}`
+      : `7+1 Player ${formationDesc}`;
   } else {
     formationName = altCount > 0
-      ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`
-      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`;
+      ? `6+1+${altCount} Player ${formationDesc}`
+      : `6+1 Player ${formationDesc}`;
   }
 
   const getPlayerScore = (p) => {
@@ -5119,6 +5165,18 @@ async function getTeamFormation(param = '', groupId = null) {
   let totalLineAvatarDuration = 0;
   let totalTacticsDuration = 0;
 
+  // Query max team size in the week to dynamically detect 7-player (6+1) vs 8-player (7+1) format
+  let maxWeekTeamSize = 7;
+  try {
+    const weekTeamCounts = await executeQuery(
+      "SELECT team_id, COUNT(*) as count FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
+      [weekId]
+    );
+    if (weekTeamCounts && weekTeamCounts.length > 0) {
+      maxWeekTeamSize = Math.max(...weekTeamCounts.map(r => Number(r.count) || 0));
+    }
+  } catch (e) { }
+
   const formationsData = [];
   for (const team of teamsToRender) {
     const tMemSqlStart = Date.now();
@@ -5185,7 +5243,7 @@ async function getTeamFormation(param = '', groupId = null) {
     });
 
     const tTacticsStart = Date.now();
-    const allocation = allocateFormationSlots(members || []);
+    const allocation = allocateFormationSlots(members || [], maxWeekTeamSize);
     totalTacticsDuration += (Date.now() - tTacticsStart);
 
     formationsData.push({
