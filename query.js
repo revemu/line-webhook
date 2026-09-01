@@ -10,26 +10,58 @@ const { getFormatDate, getShortDate, thaiMonthsShort } = require('./utils/date')
 let lastGroupId = null;
 
 async function ensureMemberPicture(member, groupId = null) {
-  const pic = member ? (member.picture_url || member.pictureUrl) : null;
-  const isInvalid = !pic || String(pic).trim() === '' || String(pic).toLowerCase() === 'none' || String(pic).toLowerCase() === 'null';
-  if (member && isInvalid && member.line_user_id) {
-    if (groupId) {
-      lastGroupId = groupId;
-    }
-    const effectiveGroupId = groupId || lastGroupId;
+  if (!member || !member.line_user_id) return;
 
+  if (groupId) {
+    lastGroupId = groupId;
+  }
+  const effectiveGroupId = groupId || lastGroupId;
+  const client = lineClient.getLineClient();
+
+  if (effectiveGroupId) {
     try {
-      console.log(`[ensureMemberPicture] picture_url is empty for member ${member.name} (${member.id}), fetching from LINE API...`);
-      const profile = await lineClient.fetchUserProfile(member.line_user_id, effectiveGroupId);
+      const profile = await client.getGroupMemberProfile(effectiveGroupId, member.line_user_id);
+      if (profile) {
+        member.inGroup = true;
+        const newPic = profile.pictureUrl || null;
+        if (newPic && newPic !== member.picture_url) {
+          console.log(`[ensureMemberPicture] Syncing updated avatar for group member ${member.name} (${member.id}): ${newPic}`);
+          await executeQuery("UPDATE member_tbl SET picture_url = ? WHERE id = ?", [newPic, member.id]);
+          member.picture_url = newPic;
+          member.pictureUrl = newPic;
+        } else if (newPic) {
+          member.picture_url = newPic;
+          member.pictureUrl = newPic;
+        }
+      }
+    } catch (groupErr) {
+      const isNotFound = groupErr.statusCode === 404 ||
+        groupErr.status === 404 ||
+        groupErr.originalError?.response?.status === 404 ||
+        (groupErr.message && groupErr.message.includes('404'));
+      if (isNotFound) {
+        member.inGroup = false;
+        console.log(`[ensureMemberPicture] Member ${member.name} (${member.id}) is no longer in group ${effectiveGroupId}`);
+      } else {
+        console.warn(`[ensureMemberPicture] Failed to check group profile for ${member.name}:`, groupErr.message);
+      }
+    }
+    return;
+  }
 
+  // Fallback if no group context and picture is missing
+  const pic = member.picture_url || member.pictureUrl;
+  const isInvalid = !pic || String(pic).trim() === '' || String(pic).toLowerCase() === 'none' || String(pic).toLowerCase() === 'null';
+  if (isInvalid) {
+    try {
+      const profile = await client.getProfile(member.line_user_id);
       if (profile && profile.pictureUrl) {
-        console.log(`[ensureMemberPicture] Successfully fetched profile from LINE: pictureUrl=${profile.pictureUrl}`);
         await executeQuery("UPDATE member_tbl SET picture_url = ? WHERE id = ?", [profile.pictureUrl, member.id]);
         member.picture_url = profile.pictureUrl;
         member.pictureUrl = profile.pictureUrl;
       }
     } catch (err) {
-      console.error(`[ensureMemberPicture] failed to fetch profile for user ${member.line_user_id}:`, err.message);
+      console.error(`[ensureMemberPicture] failed to fetch direct profile for user ${member.line_user_id}:`, err.message);
     }
   }
 }

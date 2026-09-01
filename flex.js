@@ -4379,7 +4379,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             contents: [
               {
                 type: 'text',
-                text: isGK ? 'GK' : `${emptyIcon}${defaultPosCode}`,
+                text: defaultPosCode,
                 color: '#FFFFFFCC',
                 size: 'xs',
                 weight: 'bold',
@@ -4459,9 +4459,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             ] : [
               {
                 type: 'text',
-                text: isMom ? `👑${posCode}` : `${icon}${posCode}`,
-                color: '#FFFFFF',
-                size: 'xxs',
+                text: isMom ? `👑${posCode}` : posCode,
+                color: isMom ? '#FDE047' : '#FFFFFF',
+                size: 'xs',
                 weight: 'bold',
                 align: 'center',
                 gravity: 'center'
@@ -4572,9 +4572,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               ] : [
                 {
                   type: 'text',
-                  text: isPrimaryMom ? `👑${posCode}` : `${icon}${posCode}`,
-                  color: '#FFFFFF',
-                  size: 'xxs',
+                  text: isPrimaryMom ? `👑${posCode}` : posCode,
+                  color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
+                  size: 'xs',
                   weight: 'bold',
                   align: 'center',
                   gravity: 'center'
@@ -4605,9 +4605,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               ] : [
                 {
                   type: 'text',
-                  text: isAltMom ? `👑(${posCode})` : `(${icon}${posCode})`,
-                  color: '#38BDF8',
-                  size: 'xxs',
+                  text: isAltMom ? `👑${posCode}` : posCode,
+                  color: isAltMom ? '#FDE047' : '#38BDF8',
+                  size: 'xs',
                   weight: 'bold',
                   align: 'center',
                   gravity: 'center'
