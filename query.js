@@ -1932,9 +1932,8 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
       ptsWins,
       rawScoreTotal,
       rawScore,
-      teamName: td.teamName
     };
-  }).filter(p => p !== null && p.rawScore > 0);
+  }).filter(p => p !== null && p.member_id > 0);
 }
 
 async function calcAndSaveMaxMvpScore(options = {}) {
@@ -1979,9 +1978,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       return { maxRawScore: 0, topPerformances: [], weeksChecked: 0, newInserted: 0, skipped: 0, year };
     }
 
-    // Query list of week_ids already in mvp_week_tbl to skip existing
-    const existingWeeksRes = await executeQuery("SELECT DISTINCT week_id FROM mvp_week_tbl");
-    const existingWeekIds = new Set((existingWeeksRes || []).map(r => r.week_id));
+    // Query list of week_ids already fully synced in mvp_week_tbl (more than 1 player)
+    const weekCountRes = await executeQuery("SELECT week_id, COUNT(*) as cnt FROM mvp_week_tbl GROUP BY week_id");
+    const fullySyncedWeekIds = new Set((weekCountRes || []).filter(r => r.cnt >= 4).map(r => r.week_id));
 
     console.log(`\n======================================================`);
     console.log(`🚀 [MVP Sync Started] Total Weeks: ${weeks.length} | Year Filter: ${year || 'ALL'} | Reset Mode: ${reset}`);
@@ -1996,9 +1995,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       currIdx++;
       const dateStr = await getFormatDate(new Date(w.date), 'short');
 
-      if (!reset && existingWeekIds.has(w.id)) {
+      if (!reset && fullySyncedWeekIds.has(w.id)) {
         skippedCount++;
-        console.log(` ⏩ [${currIdx}/${weeks.length}] Week ID ${w.id} (${dateStr}) -> Already synced in mvp_week_tbl (Skipped)`);
+        console.log(` ⏩ [${currIdx}/${weeks.length}] Week ID ${w.id} (${dateStr}) -> Already fully synced in mvp_week_tbl (Skipped)`);
         continue;
       }
 
