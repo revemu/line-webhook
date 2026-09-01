@@ -4766,28 +4766,27 @@ function allocateFormationSlots(members) {
 
   const hasGK = assigned.GK.length > 0;
 
-  // Dynamic outfield slots distribution based on member positions
+  // Dynamic 6 outfield starters on pitch (6 outfielders + alternates / rotation GK)
   let targetCF = 1;
   let targetMF = 2;
   let targetDW = 2;
-  let targetDF = 2;
+  let targetDF = 1;
 
-  // If squad has 2 or more preferred CFs, field 2 CFs and balance DF/MF
+  // Adjust distribution to best fit squad preferences while keeping exactly 6 outfield starters
   if (assigned.CF.length >= 2) {
     targetCF = 2;
-    if (assigned.DF.length <= 1) {
-      targetDF = 1;
-    } else if (assigned.MF.length <= 1) {
-      targetMF = 1;
-    } else {
-      // Balance to 1 DF if both MF & DF have players to create 2-2-2-1
-      targetDF = 1;
-    }
-  } else if (assigned.DF.length >= 3 && assigned.MF.length <= 1) {
-    targetDF = 3;
     targetMF = 1;
+    targetDW = 2;
+    targetDF = 1;
+  } else if (assigned.DF.length >= 2 && assigned.MF.length <= 1) {
+    targetCF = 1;
+    targetMF = 1;
+    targetDW = 2;
+    targetDF = 2;
   } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
-    targetMF = 3;
+    targetCF = 1;
+    targetMF = 2;
+    targetDW = 2;
     targetDF = 1;
   }
 
@@ -4799,9 +4798,19 @@ function allocateFormationSlots(members) {
     GK: hasGK ? 1 : 0
   };
 
-  const formationName = hasGK
-    ? `8-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
-    : (regulars.length >= 8 ? `7+1 Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})` : `7-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`);
+  const totalStarters = targetCF + targetMF + targetDW + targetDF + (hasGK ? 1 : 0);
+  const altCount = Math.max(0, count - totalStarters);
+  
+  let formationName = '';
+  if (hasGK) {
+    formationName = altCount > 0
+      ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
+      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`;
+  } else {
+    formationName = altCount > 0
+      ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`
+      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`;
+  }
 
   const getPlayerScore = (p) => {
     const yScore = parseFloat(p.yearStats?.rating || 0) || 0;
