@@ -215,7 +215,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
   };
 }
 
-async function fetchDisplayAssets() {
+async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
   const badges = {};
   try {
     const badgeResults = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'rank_badge'");
@@ -243,8 +243,18 @@ async function fetchDisplayAssets() {
   const hofCounts = {};
   const hofAwards = {};
   try {
-    const hofResults = await executeQuery("SELECT member_id, type FROM hof_tbl");
-    hofResults.forEach(h => {
+    const currentYear = targetYear || new Date().getFullYear();
+    const hofResults = await executeQuery("SELECT member_id, type, year FROM hof_tbl");
+    (hofResults || []).forEach(h => {
+      const typeLower = String(h.type || '').toLowerCase().trim();
+      const isBestMvp = typeLower === 'best_mvp' || typeLower === 'mvp' || typeLower === 'top_mvp';
+      const recordYear = Number(h.year) || 0;
+
+      // Best MVP HOF badge is displayed for only the current year
+      if (isBestMvp && recordYear > 0 && recordYear !== currentYear) {
+        return;
+      }
+
       hofCounts[h.member_id] = (hofCounts[h.member_id] || 0) + 1;
       if (!hofAwards[h.member_id]) {
         hofAwards[h.member_id] = [];
