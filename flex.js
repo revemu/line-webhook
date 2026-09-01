@@ -4308,48 +4308,93 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       return {
         type: 'box',
         layout: 'vertical',
-        width: '96px',
+        width: '108px',
         alignItems: 'center',
         contents: [
           {
             type: 'box',
             layout: 'vertical',
-            width: '32px',
-            height: '32px',
-            cornerRadius: '16px',
-            borderWidth: '1px',
+            width: '48px',
+            height: '48px',
+            cornerRadius: '24px',
+            borderWidth: '2px',
             borderColor: '#FFFFFF44',
-            backgroundColor: '#00000040',
+            backgroundColor: '#00000055',
             alignItems: 'center',
             justifyContent: 'center',
             contents: [
               {
                 type: 'text',
                 text: defaultPosCode === 'GK' ? '🧤GK' : `${emptyIcon}${defaultPosCode}`,
-                color: '#FFFFFF88',
-                size: 'xxs',
+                color: '#FFFFFFCC',
+                size: 'xs',
                 weight: 'bold',
-                align: 'center'
+                align: 'center',
+                gravity: 'center'
               }
             ]
           },
           {
             type: 'box',
             layout: 'vertical',
-            backgroundColor: '#00000066',
-            cornerRadius: '4px',
-            paddingStart: '4px',
-            paddingEnd: '4px',
-            paddingTop: '1px',
-            paddingBottom: '1px',
+            backgroundColor: '#000000CC',
+            borderWidth: '1px',
+            borderColor: '#FFFFFF22',
+            cornerRadius: '5px',
+            paddingStart: '5px',
+            paddingEnd: '5px',
+            paddingTop: '2px',
+            paddingBottom: '3px',
             offsetTop: '2px',
+            alignItems: 'center',
             contents: [
               {
+                type: 'box',
+                layout: 'horizontal',
+                alignItems: 'center',
+                justifyContent: 'center',
+                contents: [
+                  {
+                    type: 'box',
+                    layout: 'vertical',
+                    backgroundColor: posBadgeColor[defaultPosCode] || '#64748B',
+                    cornerRadius: '2px',
+                    paddingStart: '3px',
+                    paddingEnd: '3px',
+                    flex: 0,
+                    contents: [
+                      {
+                        type: 'text',
+                        text: `${emptyIcon || (posIcons[defaultPosCode] || '')} ${defaultPosCode}`,
+                        color: '#FFFFFF',
+                        size: 'xxs',
+                        weight: 'bold',
+                        align: 'center'
+                      }
+                    ]
+                  },
+                  {
+                    type: 'text',
+                    text: defaultPosCode === 'GK' ? 'สลับกัน' : '-',
+                    color: '#FFFFFFCC',
+                    size: 'xxs',
+                    weight: 'bold',
+                    wrap: true,
+                    maxLines: 2,
+                    margin: 'xs',
+                    align: 'center',
+                    flex: 1
+                  }
+                ]
+              },
+              {
                 type: 'text',
-                text: defaultPosCode === 'GK' ? 'หมุนเวียน' : '-',
-                color: '#FFFFFF88',
+                text: defaultPosCode === 'GK' ? '🧤 สลับกันเล่น' : '⭐- (⚽0 👟0)',
                 size: 'xxs',
-                align: 'center'
+                color: '#94A3B8',
+                align: 'center',
+                margin: 'xs',
+                wrap: true
               }
             ]
           }
