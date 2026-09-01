@@ -4813,10 +4813,13 @@ function allocateFormationSlots(members) {
   }
 
   const getPlayerScore = (p) => {
+    const isFixed = Number(p.member_team_id) === 1;
     const yScore = parseFloat(p.yearStats?.rating || 0) || 0;
     const wScore = parseFloat(p.weekStats?.rating || 0) || 0;
     const rankScore = parseFloat(p.rank || 0) || 0;
-    return Math.max(yScore, wScore, rankScore);
+    const baseScore = Math.max(yScore, wScore, rankScore);
+    // If member_tbl.team_id = 1, fixed at preferred position first with top priority
+    return (isFixed ? 10000 : 0) + baseScore;
   };
 
   // Sort assigned categories and unassigned from highest to lowest score
@@ -5114,6 +5117,7 @@ async function getTeamFormation(param = '', groupId = null) {
         m.donate,
         m.picture_url,
         m.line_user_id,
+        m.team_id as member_team_id,
         m.pos_id as member_pos_id,
         COALESCE(p_week.code, p_mem.code, '') as pos_code,
         COALESCE(p_week.name, p_mem.name, '') as pos_name,
