@@ -4863,19 +4863,155 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       contents: [gkNode]
     };
 
+    // Soccer field pitch background markings
+    const pitchBgMarkings = [
+      // Alternating lawn mowed stripes
+      {
+        type: 'box',
+        layout: 'vertical',
+        position: 'absolute',
+        offsetTop: '0px',
+        offsetBottom: '0px',
+        offsetStart: '0px',
+        offsetEnd: '0px',
+        contents: [
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D' },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#166534' },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D' },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#166534' },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D' },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#166534' },
+          { type: 'box', layout: 'vertical', flex: 1, backgroundColor: '#15803D' }
+        ]
+      },
+      // Corner Arcs
+      { type: 'box', layout: 'vertical', position: 'absolute', offsetTop: '0px', offsetStart: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44' },
+      { type: 'box', layout: 'vertical', position: 'absolute', offsetTop: '0px', offsetEnd: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44' },
+      { type: 'box', layout: 'vertical', position: 'absolute', offsetBottom: '0px', offsetStart: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44' },
+      { type: 'box', layout: 'vertical', position: 'absolute', offsetBottom: '0px', offsetEnd: '0px', width: '24px', height: '24px', cornerRadius: '12px', borderWidth: '2px', borderColor: '#FFFFFF44' },
+      // Halfway Center Line
+      {
+        type: 'box',
+        layout: 'vertical',
+        position: 'absolute',
+        offsetTop: '49%',
+        offsetStart: '0px',
+        offsetEnd: '0px',
+        height: '2px',
+        backgroundColor: '#FFFFFF55'
+      },
+      // Center Circle & Spot
+      {
+        type: 'box',
+        layout: 'horizontal',
+        position: 'absolute',
+        offsetTop: '40%',
+        offsetStart: '0px',
+        offsetEnd: '0px',
+        justifyContent: 'center',
+        alignItems: 'center',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '90px',
+            height: '90px',
+            cornerRadius: '45px',
+            borderWidth: '2px',
+            borderColor: '#FFFFFF55',
+            justifyContent: 'center',
+            alignItems: 'center',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                width: '6px',
+                height: '6px',
+                cornerRadius: '3px',
+                backgroundColor: '#FFFFFF88'
+              }
+            ]
+          }
+        ]
+      },
+      // Top Penalty Area & Goal Area
+      {
+        type: 'box',
+        layout: 'horizontal',
+        position: 'absolute',
+        offsetTop: '0px',
+        offsetStart: '0px',
+        offsetEnd: '0px',
+        justifyContent: 'center',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '180px',
+            height: '75px',
+            borderWidth: '2px',
+            borderColor: '#FFFFFF55',
+            alignItems: 'center',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                width: '90px',
+                height: '28px',
+                borderWidth: '1px',
+                borderColor: '#FFFFFF44'
+              }
+            ]
+          }
+        ]
+      },
+      // Bottom Penalty Area & Goal Area
+      {
+        type: 'box',
+        layout: 'horizontal',
+        position: 'absolute',
+        offsetBottom: '0px',
+        offsetStart: '0px',
+        offsetEnd: '0px',
+        justifyContent: 'center',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '180px',
+            height: '75px',
+            borderWidth: '2px',
+            borderColor: '#FFFFFF55',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                width: '90px',
+                height: '28px',
+                borderWidth: '1px',
+                borderColor: '#FFFFFF44'
+              }
+            ]
+          }
+        ]
+      }
+    ];
+
     // Body contents: Tactical pitch container
     const bodyContents = [
       {
         type: 'box',
         layout: 'vertical',
         height: '560px',
-        //width: '380px',
-        borderWidth: '1px',
-        borderColor: '#FFFFFF44',
+        borderWidth: '2px',
+        borderColor: '#FFFFFF77',
         cornerRadius: 'md',
         paddingAll: 'xs',
         justifyContent: 'space-between',
         contents: [
+          ...pitchBgMarkings,
           cfRow, // Attacking Line (CF)
           mfRow, // Midfield Line (MF)
           dwRow, // Defensive Wings Line (DW)
