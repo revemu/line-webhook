@@ -4155,11 +4155,45 @@ function buildMvpListFlex(mvpData, theme) {
                   margin: 'xs'
                 },
                 {
-                  type: 'text',
-                  text: `${p.dateStr || ''}`,
-                  size: 'xxs',
-                  color: colors.textMuted,
-                  margin: 'xs'
+                  type: 'box',
+                  layout: 'horizontal',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  margin: 'xs',
+                  contents: [
+                    {
+                      type: 'text',
+                      text: `📅 ${p.dateStr || ''}`,
+                      size: 'xxs',
+                      color: colors.textMuted,
+                      flex: 1
+                    },
+                    {
+                      type: 'box',
+                      layout: 'vertical',
+                      backgroundColor: isWhite ? '#d97706' : '#b45309',
+                      cornerRadius: 'sm',
+                      paddingStart: '8px',
+                      paddingEnd: '8px',
+                      paddingTop: '2px',
+                      paddingBottom: '2px',
+                      action: {
+                        type: 'message',
+                        label: 'ผังทีม',
+                        text: `/teamweek ${p.dateStr || p.week_id}`
+                      },
+                      contents: [
+                        {
+                          type: 'text',
+                          text: '⚽ ผังทีม',
+                          size: 'xxs',
+                          color: '#ffffff',
+                          weight: 'bold',
+                          align: 'center'
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -4307,6 +4341,8 @@ function buildMvpListFlex(mvpData, theme) {
         };
       });
 
+      const teamWeekCmd = `/teamweek ${w.dateStr || w.week_id}`;
+
       bodyContents.push({
         type: 'box',
         layout: 'vertical',
@@ -4318,11 +4354,45 @@ function buildMvpListFlex(mvpData, theme) {
         margin: 'sm',
         contents: [
           {
-            type: 'text',
-            text: `📅 ${w.dateStr || `สัปดาห์ ${w.week_id}`}`,
-            weight: 'bold',
-            size: 'xs',
-            color: colors.textPrimary
+            type: 'box',
+            layout: 'horizontal',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            contents: [
+              {
+                type: 'text',
+                text: `📅 ${w.dateStr || `สัปดาห์ ${w.week_id}`}`,
+                weight: 'bold',
+                size: 'xs',
+                color: colors.textPrimary,
+                flex: 1
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: isWhite ? '#0284c7' : '#0369a1',
+                cornerRadius: 'sm',
+                paddingStart: '8px',
+                paddingEnd: '8px',
+                paddingTop: '2px',
+                paddingBottom: '2px',
+                action: {
+                  type: 'message',
+                  label: 'ผังทีม',
+                  text: teamWeekCmd
+                },
+                contents: [
+                  {
+                    type: 'text',
+                    text: '⚽ ผังทีม',
+                    size: 'xxs',
+                    color: '#ffffff',
+                    weight: 'bold',
+                    align: 'center'
+                  }
+                ]
+              }
+            ]
           },
           ...mvpNodes
         ]
