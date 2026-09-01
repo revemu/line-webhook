@@ -4367,7 +4367,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   action: primary.id ? {
                     type: 'postback',
                     label: primaryName,
-                    data: `action=player_info&id=${primary.id}&name=${encodeURIComponent(primaryName)}`
+                    data: `action=player_info&id=${primary.id}`
                   } : undefined,
                   contents: [
                     {
@@ -4416,43 +4416,14 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       alignItems: 'center',
                       contents: [
                         {
-                          type: 'box',
-                          layout: 'horizontal',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          contents: [
-                            {
-                              type: 'box',
-                              layout: 'vertical',
-                              backgroundColor: isPrimaryMom ? '#EAB308' : (posBadgeColor[posCode] || '#64748B'),
-                              cornerRadius: '2px',
-                              paddingStart: '3px',
-                              paddingEnd: '3px',
-                              flex: 0,
-                              contents: [
-                                {
-                                  type: 'text',
-                                  text: isPrimaryMom ? `👑${posCode}` : posCode,
-                                  color: isPrimaryMom ? '#000000' : '#FFFFFF',
-                                  size: 'xxs',
-                                  weight: 'bold',
-                                  align: 'center'
-                                }
-                              ]
-                            },
-                            {
-                              type: 'text',
-                              text: isPrimaryMom ? `👑 ${primaryName}` : primaryName,
-                              color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
-                              size: 'xxs',
-                              weight: 'bold',
-                              wrap: true,
-                              maxLines: 2,
-                              margin: 'xs',
-                              align: 'center',
-                              flex: 1
-                            }
-                          ]
+                          type: 'text',
+                          text: isPrimaryMom ? `👑[${posCode}] ${primaryName}` : `[${posCode}] ${primaryName}`,
+                          color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
+                          size: 'xxs',
+                          weight: 'bold',
+                          wrap: true,
+                          maxLines: 2,
+                          align: 'center'
                         },
                         {
                           type: 'text',
@@ -4460,7 +4431,6 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                           size: 'xxs',
                           color: '#FACC15',
                           align: 'center',
-                          margin: 'xs',
                           wrap: true
                         }
                       ]
@@ -4501,7 +4471,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         action: primary.id ? {
                           type: 'postback',
                           label: primaryName,
-                          data: `action=player_info&id=${primary.id}&name=${encodeURIComponent(primaryName)}`
+                          data: `action=player_info&id=${primary.id}`
                         } : undefined,
                         contents: primary.picture_url ? [
                           {
@@ -4539,7 +4509,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         action: alternate.id ? {
                           type: 'postback',
                           label: altName,
-                          data: `action=player_info&id=${alternate.id}&name=${encodeURIComponent(altName)}`
+                          data: `action=player_info&id=${alternate.id}`
                         } : undefined,
                         contents: alternate.picture_url ? [
                           {
@@ -4578,43 +4548,14 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                     alignItems: 'center',
                     contents: [
                       {
-                        type: 'box',
-                        layout: 'horizontal',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        contents: [
-                          {
-                            type: 'box',
-                            layout: 'vertical',
-                            backgroundColor: isPrimaryMom ? '#EAB308' : (posBadgeColor[posCode] || '#64748B'),
-                            cornerRadius: '2px',
-                            paddingStart: '2px',
-                            paddingEnd: '2px',
-                            flex: 0,
-                            contents: [
-                              {
-                                type: 'text',
-                                text: isPrimaryMom ? `👑${posCode}` : posCode,
-                                color: isPrimaryMom ? '#000000' : '#FFFFFF',
-                                size: 'xxs',
-                                weight: 'bold',
-                                align: 'center'
-                              }
-                            ]
-                          },
-                          {
-                            type: 'text',
-                            text: `${isPrimaryMom ? '👑 ' : ''}${primaryName} / ${isAltMom ? '👑 ' : ''}(${altName})`,
-                            color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
-                            size: 'xxs',
-                            weight: 'bold',
-                            wrap: true,
-                            maxLines: 2,
-                            margin: 'xs',
-                            align: 'center',
-                            flex: 1
-                          }
-                        ]
+                        type: 'text',
+                        text: `[${posCode}] ${isPrimaryMom ? '👑' : ''}${primaryName} / ${isAltMom ? '👑' : ''}(${altName})`,
+                        color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
+                        size: 'xxs',
+                        weight: 'bold',
+                        wrap: true,
+                        maxLines: 2,
+                        align: 'center'
                       },
                       {
                         type: 'text',
@@ -4622,7 +4563,6 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         size: 'xxs',
                         color: '#FACC15',
                         align: 'center',
-                        margin: 'xs',
                         wrap: true
                       },
                       {
@@ -4631,7 +4571,6 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                         size: 'xxs',
                         color: isAltMom ? '#FDE047' : '#38BDF8',
                         align: 'center',
-                        margin: 'none',
                         wrap: true
                       }
                     ]
@@ -4742,7 +4681,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 contents: [gkNode]
               };
 
-              // Body contents: Tactical pitch container with authentic soccer pitch markings & lawn stripes
+              // Body contents: Tactical pitch container with authentic soccer pitch markings
               const bodyContents = [
                 {
                   type: 'box',
@@ -4760,8 +4699,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                     endColor: '#14532D'
                   },
                   contents: [
-                    // --- Realistic Pitch Markings (Absolute Background Overlays) ---
-                    // 1. Top Halfway Line
+                    // Top Halfway Line
                     {
                       type: 'box',
                       layout: 'vertical',
@@ -4773,34 +4711,21 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       backgroundColor: '#FFFFFF55',
                       contents: [{ type: 'filler' }]
                     },
-                    // 2. Center Circle Arc (Top)
+                    // Center Circle Arc (Top)
                     {
                       type: 'box',
                       layout: 'vertical',
                       position: 'absolute',
-                      offsetTop: '-28px',
-                      offsetStart: '120px',
-                      width: '60px',
-                      height: '60px',
-                      cornerRadius: '30px',
+                      offsetTop: '-24px',
+                      offsetStart: '122px',
+                      width: '48px',
+                      height: '48px',
+                      cornerRadius: '24px',
                       borderWidth: '1px',
                       borderColor: '#FFFFFF55',
                       contents: [{ type: 'filler' }]
                     },
-                    // 3. Center Spot
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetTop: '-2px',
-                      offsetStart: '148px',
-                      width: '5px',
-                      height: '5px',
-                      cornerRadius: '3px',
-                      backgroundColor: '#FFFFFF88',
-                      contents: [{ type: 'filler' }]
-                    },
-                    // 4. Penalty Area (18-Yard Box at Bottom)
+                    // Penalty Area (18-Yard Box at Bottom)
                     {
                       type: 'box',
                       layout: 'vertical',
@@ -4808,111 +4733,18 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                       offsetBottom: '0px',
                       offsetStart: '60px',
                       offsetEnd: '60px',
-                      height: '84px',
+                      height: '80px',
                       borderWidth: '1px',
                       borderColor: '#FFFFFF55',
-                      contents: [{ type: 'filler' }]
-                    },
-                    // 5. Goal Area (6-Yard Box at Bottom)
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '0px',
-                      offsetStart: '105px',
-                      offsetEnd: '105px',
-                      height: '38px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF55',
-                      contents: [{ type: 'filler' }]
-                    },
-                    // 6. Penalty Arc (D-Box above 18-Yard Box)
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '74px',
-                      offsetStart: '126px',
-                      width: '48px',
-                      height: '24px',
-                      cornerRadius: '24px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF55',
-                      contents: [{ type: 'filler' }]
-                    },
-                    // 7. Penalty Spot (12-Yard Spot)
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '54px',
-                      offsetStart: '148px',
-                      width: '4px',
-                      height: '4px',
-                      cornerRadius: '2px',
-                      backgroundColor: '#FFFFFF99',
-                      contents: [{ type: 'filler' }]
-                    },
-                    // 8. Corner Arcs
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetTop: '-6px',
-                      offsetStart: '-6px',
-                      width: '16px',
-                      height: '16px',
-                      cornerRadius: '8px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF44',
-                      contents: [{ type: 'filler' }]
-                    },
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetTop: '-6px',
-                      offsetEnd: '-6px',
-                      width: '16px',
-                      height: '16px',
-                      cornerRadius: '8px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF44',
-                      contents: [{ type: 'filler' }]
-                    },
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '-6px',
-                      offsetStart: '-6px',
-                      width: '16px',
-                      height: '16px',
-                      cornerRadius: '8px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF44',
-                      contents: [{ type: 'filler' }]
-                    },
-                    {
-                      type: 'box',
-                      layout: 'vertical',
-                      position: 'absolute',
-                      offsetBottom: '-6px',
-                      offsetEnd: '-6px',
-                      width: '16px',
-                      height: '16px',
-                      cornerRadius: '8px',
-                      borderWidth: '1px',
-                      borderColor: '#FFFFFF44',
                       contents: [{ type: 'filler' }]
                     },
 
-                    // --- Tactical Player Node Rows (Rendered On Pitch) ---
-                    cfRow, // Attacking Line (CF)
-                    mfRow, // Midfield Line (MF)
-                    dwRow, // Defensive Wings Line (DW)
-                    dfRow, // Defensive Line (DF)
-                    gkRow  // Goalkeeper Line (GK)
+                    // Tactical Player Rows
+                    cfRow,
+                    mfRow,
+                    dwRow,
+                    dfRow,
+                    gkRow
                   ]
                 }
               ];
@@ -4930,51 +4762,24 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               bodyContents.push({
                 type: 'box',
                 layout: 'horizontal',
-                height: '36px',
+                height: '34px',
                 backgroundColor: '#0F172ACC',
                 borderColor: momPlayer ? '#F59E0B88' : '#33415588',
                 borderWidth: '1px',
                 cornerRadius: 'md',
                 paddingStart: 'sm',
                 paddingEnd: 'sm',
-                paddingTop: 'xs',
-                paddingBottom: 'xs',
                 margin: 'sm',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 contents: [
                   {
-                    type: 'box',
-                    layout: 'horizontal',
-                    alignItems: 'center',
-                    flex: 1,
-                    contents: [
-                      {
-                        type: 'text',
-                        text: '👑',
-                        size: 'xs',
-                        flex: 0
-                      },
-                      {
-                        type: 'text',
-                        text: 'Man of the Match:',
-                        size: 'xxs',
-                        color: '#FCD34D',
-                        weight: 'bold',
-                        margin: 'xs',
-                        flex: 0
-                      },
-                      {
-                        type: 'text',
-                        text: momName,
-                        size: 'xxs',
-                        color: '#FFFFFF',
-                        weight: 'bold',
-                        margin: 'xs',
-                        wrap: false,
-                        flex: 1
-                      }
-                    ]
+                    type: 'text',
+                    text: `👑 MOM: ${momName}`,
+                    size: 'xxs',
+                    color: '#FCD34D',
+                    weight: 'bold',
+                    flex: 1
                   },
                   {
                     type: 'text',
@@ -4999,7 +4804,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   paddingEnd: 'md',
                   paddingTop: 'sm',
                   paddingBottom: 'sm',
-                  height: '62px',
+                  height: '60px',
                   justifyContent: 'center',
                   contents: [
                     {
@@ -5012,8 +4817,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                           text: '●',
                           color: headerTheme.dot,
                           size: 'sm',
-                          flex: 0,
-                          gravity: 'center'
+                          flex: 0
                         },
                         {
                           type: 'text',
@@ -5077,7 +4881,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   layout: 'vertical',
                   backgroundColor: '#0B0F19',
                   paddingAll: 'xs',
-                  height: '30px',
+                  height: '28px',
                   justifyContent: 'center',
                   contents: [
                     {
@@ -5101,10 +4905,32 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               return bubbles[0];
             }
 
-            return {
+            const fullCarousel = {
               type: 'carousel',
               contents: bubbles
             };
+
+            // If entire carousel payload is under LINE's 45KB safe threshold, send as single carousel
+            if (JSON.stringify(fullCarousel).length < 45000) {
+              return fullCarousel;
+            }
+
+            // If carousel exceeds 45KB (e.g. 5-6 teams), chunk into multiple carousels (3 teams each) so LINE API accepts cleanly
+            const chunked = [];
+            const chunkSize = 3;
+            for (let i = 0; i < bubbles.length; i += chunkSize) {
+              const slice = bubbles.slice(i, i + chunkSize);
+              if (slice.length === 1) {
+                chunked.push(slice[0]);
+              } else {
+                chunked.push({
+                  type: 'carousel',
+                  contents: slice
+                });
+              }
+            }
+
+            return chunked;
           }
 
 module.exports = {
