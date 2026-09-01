@@ -1626,6 +1626,7 @@ async function ensureMemberYearStatTable() {
       CREATE TABLE IF NOT EXISTS member_year_stat_tbl (
         member_id INT NOT NULL,
         year INT NOT NULL,
+        total_rating DECIMAL(8,2) DEFAULT 0.00,
         avg_rating DECIMAL(4,2) DEFAULT 0.00,
         max_rating DECIMAL(4,2) DEFAULT 0.00,
         total_goals INT DEFAULT 0,
@@ -1636,6 +1637,9 @@ async function ensureMemberYearStatTable() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await executeQuery(createSql);
+    try {
+      await executeQuery("ALTER TABLE member_year_stat_tbl ADD COLUMN total_rating DECIMAL(8,2) DEFAULT 0.00 AFTER year");
+    } catch (e) { }
   } catch (err) {
     console.error("Error creating member_year_stat_tbl table:", err.message);
   }
@@ -1646,12 +1650,12 @@ async function updateYearStatCache(year = null) {
     await ensureMemberYearStatTable();
     const targetYear = year ? Number(year) : new Date().getFullYear();
 
-    // 1. Query actual weeks played & matches played from member_team_week_tbl (ground truth for participation)
+    // 1. Query actual weeks played & ratings from member_team_week_tbl (ground truth for participation)
     const weeksRes = await executeQuery(`
       SELECT 
         mtw.member_id,
         COUNT(DISTINCT mtw.week_id) as weeks_played,
-        AVG(CASE WHEN mtw.rating > 0 THEN mtw.rating ELSE NULL END) as mtw_avg_rating,
+        COALESCE(SUM(CASE WHEN mtw.rating > 0 THEN mtw.rating ELSE 0 END), 0) as mtw_total_rating,
         MAX(CASE WHEN mtw.rating > 0 THEN mtw.rating ELSE 0 END) as mtw_max_rating
       FROM member_team_week_tbl mtw
       JOIN week_tbl w ON mtw.week_id = w.id
@@ -1672,12 +1676,13 @@ async function updateYearStatCache(year = null) {
       GROUP BY mgt.member_id
     `, [targetYear, targetYear]);
 
-    // 3. Query MVP ratings from mvp_week_tbl
+    // 3. Query MVP accumulated ratings from mvp_week_tbl
     const mvpRes = await executeQuery(`
       SELECT 
         m.member_id,
-        AVG(CASE WHEN m.rating > 0 THEN m.rating ELSE NULL END) as mvp_avg_rating,
-        MAX(CASE WHEN m.rating > 0 THEN m.rating ELSE 0 END) as mvp_max_rating
+        COALESCE(SUM(CASE WHEN m.rating > 0 THEN m.rating ELSE 0 END), 0) as mvp_total_rating,
+        MAX(CASE WHEN m.rating > 0 THEN m.rating ELSE 0 END) as mvp_max_rating,
+        COUNT(DISTINCT CASE WHEN m.rating > 0 THEN m.week_id ELSE NULL END) as rated_weeks
       FROM mvp_week_tbl m
       JOIN week_tbl w ON m.week_id = w.id
       WHERE (w.year = ? OR YEAR(w.date) = ?) AND m.member_id > 0
@@ -1705,8 +1710,9 @@ async function updateYearStatCache(year = null) {
     if (mvpRes) {
       mvpRes.forEach(r => {
         mvpMap[r.member_id] = {
-          avgRating: parseFloat(r.mvp_avg_rating || 0),
-          maxRating: parseFloat(r.mvp_max_rating || 0)
+          totalRating: parseFloat(r.mvp_total_rating || 0),
+          maxRating: parseFloat(r.mvp_max_rating || 0),
+          ratedWeeks: Number(r.rated_weeks || 0)
         };
       });
     }
@@ -1717,19 +1723,27 @@ async function updateYearStatCache(year = null) {
         const mId = row.member_id;
         const weeksPlayed = Number(row.weeks_played) || 0;
         const gStat = goalsMap[mId] || { goals: 0, assists: 0 };
-        const mStat = mvpMap[mId] || { avgRating: 0, maxRating: 0 };
-        const mtwAvg = parseFloat(row.mtw_avg_rating || 0);
+        const mStat = mvpMap[mId] || { totalRating: 0, maxRating: 0, ratedWeeks: 0 };
+        const mtwTotal = parseFloat(row.mtw_total_rating || 0);
         const mtwMax = parseFloat(row.mtw_max_rating || 0);
         const mRank = memberRankMap[mId] || 0;
 
-        // Best rating resolution: mvp_week_tbl -> mtw.rating -> m.rank
-        let avgRating = mStat.avgRating > 0 ? mStat.avgRating : (mtwAvg > 0 ? mtwAvg : mRank);
-        let maxRating = mStat.maxRating > 0 ? mStat.maxRating : (mtwMax > 0 ? mtwMax : mRank);
+        // Accumulated MVP rating: sum from mvp_week_tbl or mtw_total or (mRank * weeksPlayed)
+        let totalRating = mStat.totalRating > 0 
+          ? mStat.totalRating 
+          : (mtwTotal > 0 ? mtwTotal : (mRank * weeksPlayed));
+        
+        let maxRating = mStat.maxRating > 0 
+          ? mStat.maxRating 
+          : (mtwMax > 0 ? mtwMax : mRank);
+
+        let avgRating = weeksPlayed > 0 ? (totalRating / weeksPlayed) : 0.0;
 
         await executeQuery(`
-          INSERT INTO member_year_stat_tbl (member_id, year, avg_rating, max_rating, total_goals, total_assists, weeks_played)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO member_year_stat_tbl (member_id, year, total_rating, avg_rating, max_rating, total_goals, total_assists, weeks_played)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
+            total_rating = VALUES(total_rating),
             avg_rating = VALUES(avg_rating),
             max_rating = VALUES(max_rating),
             total_goals = VALUES(total_goals),
@@ -1738,6 +1752,7 @@ async function updateYearStatCache(year = null) {
         `, [
           mId,
           targetYear,
+          totalRating.toFixed(2),
           avgRating.toFixed(2),
           maxRating.toFixed(2),
           gStat.goals,
@@ -4865,25 +4880,30 @@ async function getTeamFormation(param = '', groupId = null) {
   try {
     await ensureMemberYearStatTable();
     let yearRows = await executeQuery(
-      "SELECT member_id, avg_rating, max_rating, total_goals, total_assists, weeks_played FROM member_year_stat_tbl WHERE year = ?",
+      "SELECT member_id, total_rating, avg_rating, max_rating, total_goals, total_assists, weeks_played FROM member_year_stat_tbl WHERE year = ?",
       [matchYear]
     );
     if (!yearRows || yearRows.length === 0) {
       // Seed cache on demand if not yet populated
       await updateYearStatCache(matchYear);
       yearRows = await executeQuery(
-        "SELECT member_id, avg_rating, max_rating, total_goals, total_assists, weeks_played FROM member_year_stat_tbl WHERE year = ?",
+        "SELECT member_id, total_rating, avg_rating, max_rating, total_goals, total_assists, weeks_played FROM member_year_stat_tbl WHERE year = ?",
         [matchYear]
       );
     }
     if (yearRows && yearRows.length > 0) {
       yearRows.forEach(r => {
+        const totalRating = parseFloat(r.total_rating || 0);
+        const weeksPlayed = Number(r.weeks_played) || 0;
+        const avg = weeksPlayed > 0 ? (totalRating / weeksPlayed).toFixed(1) : (r.avg_rating && Number(r.avg_rating) > 0 ? parseFloat(r.avg_rating).toFixed(1) : '-');
+
         yearStatsMap[r.member_id] = {
-          avgRating: r.avg_rating && Number(r.avg_rating) > 0 ? parseFloat(r.avg_rating).toFixed(1) : '-',
+          totalRating: totalRating.toFixed(1),
+          avgRating: avg !== '0.0' ? avg : '-',
           maxRating: r.max_rating && Number(r.max_rating) > 0 ? parseFloat(r.max_rating).toFixed(1) : '-',
           goals: Number(r.total_goals) || 0,
           assists: Number(r.total_assists) || 0,
-          weeksCount: Number(r.weeks_played) || 0
+          weeksCount: weeksPlayed
         };
       });
     }
