@@ -90,7 +90,7 @@ async function handleEvent(event) {
             console.log('Received unhandled event type:', event.type, event);
         }
     } catch (error) {
-        console.error('Error processing event:', error);
+        console.error('Error processing event:', error.message || error);
     }
 }
 

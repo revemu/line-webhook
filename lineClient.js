@@ -69,9 +69,9 @@ async function replyMessage(replyToken, messages) {
     if (details) {
       console.error('LINE API Error Details:', JSON.stringify(details, null, 2));
     } else {
-      console.error('LINE API Error:', error.message || error);
+      console.error('LINE API Error Details:', JSON.stringify({ message: error.message || String(error) }, null, 2));
     }
-    throw error;
+    return null;
   }
 }
 
