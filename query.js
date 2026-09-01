@@ -1184,8 +1184,8 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       if (memberPlayedMatchIdsMap[memKey]) {
         memberPlayedMatchIdsMap[memKey].forEach(mId => allPlayerMatchIds.add(mId));
       }
-      const matches = allPlayerMatchIds.size > 0 
-        ? allPlayerMatchIds.size 
+      const matches = allPlayerMatchIds.size > 0
+        ? allPlayerMatchIds.size
         : ((teamDetails && teamDetails.matches > 0) ? teamDetails.matches : 1);
 
       // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
@@ -1661,7 +1661,7 @@ async function ensureMemberYearStatTable() {
 async function updateYearStatCache(year = null, memberIds = null) {
   try {
     await ensureMemberYearStatTable();
-    
+
     // Determine list of years to sync
     let yearsToSync = [];
     if (year) {
@@ -1683,7 +1683,7 @@ async function updateYearStatCache(year = null, memberIds = null) {
     let memFilterMtw = "";
     let memFilterMgt = "";
     let memFilterMvp = "";
-    const cleanMemberIds = Array.isArray(memberIds) && memberIds.length > 0 
+    const cleanMemberIds = Array.isArray(memberIds) && memberIds.length > 0
       ? memberIds.map(Number).filter(id => id > 0)
       : null;
 
@@ -1707,8 +1707,8 @@ async function updateYearStatCache(year = null, memberIds = null) {
 
     // Sync ratings from mvp_week_tbl into member_team_week_tbl for consistency
     try {
-      const memSyncClause = cleanMemberIds && cleanMemberIds.length > 0 
-        ? ` AND m.member_id IN (${cleanMemberIds.join(',')})` 
+      const memSyncClause = cleanMemberIds && cleanMemberIds.length > 0
+        ? ` AND m.member_id IN (${cleanMemberIds.join(',')})`
         : '';
       await executeQuery(`
         UPDATE member_team_week_tbl mtw
@@ -1799,12 +1799,12 @@ async function updateYearStatCache(year = null, memberIds = null) {
           const mRank = memberRankMap[mId] || 0;
 
           // Accumulated MVP rating: sum from mvp_week_tbl or mtw_total or (mRank * weeksPlayed)
-          let totalRating = mStat.totalRating > 0 
-            ? mStat.totalRating 
+          let totalRating = mStat.totalRating > 0
+            ? mStat.totalRating
             : (mtwTotal > 0 ? mtwTotal : (mRank > 0 ? (mRank * weeksPlayed) : 0));
-          
-          let maxRating = mStat.maxRating > 0 
-            ? mStat.maxRating 
+
+          let maxRating = mStat.maxRating > 0
+            ? mStat.maxRating
             : (mtwMax > 0 ? mtwMax : mRank);
 
           let avgRating = weeksPlayed > 0 ? (totalRating / weeksPlayed) : 0.0;
@@ -1987,8 +1987,8 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
     if (memberPlayedMatchIdsMap[memKey]) {
       memberPlayedMatchIdsMap[memKey].forEach(mId => allPlayerMatchIds.add(mId));
     }
-    const matches = allPlayerMatchIds.size > 0 
-      ? allPlayerMatchIds.size 
+    const matches = allPlayerMatchIds.size > 0
+      ? allPlayerMatchIds.size
       : ((td && td.matches > 0) ? td.matches : 1);
 
     // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
@@ -4847,16 +4847,22 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
 
   const totalStarters = targetCF + targetMF + targetDW + targetDF + (hasGK ? 1 : 0);
   const altCount = Math.max(0, count - totalStarters);
-  
+
   let formationName = '';
   if (hasGK) {
-    formationName = altCount > 0
+    /*formationName = altCount > 0
       ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
-      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`;
-  } else {
+      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`;*/
     formationName = altCount > 0
+      ? `แผน (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
+      : `แผน (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`;
+  } else {
+    /*formationName = altCount > 0
       ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`
-      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`;
+      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`;*/
+    formationName = altCount > 0
+      ? `แผน (${targetCF}-${targetMF}-${targetDW}-${targetDF})`
+      : `แผน (${targetCF}-${targetMF}-${targetDW}-${targetDF})`;
   }
 
   const getPlayerScore = (p) => {
@@ -4953,10 +4959,10 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
   for (const p of allAlternates) {
     p.isAlternate = true;
     const preferredRole = (p.pos_code || '').toUpperCase();
-    
+
     // 1. Try to pair to a slot in their preferred natural role
     let targetSlot = finalSlots[preferredRole] && finalSlots[preferredRole].find(s => s.alternate === null);
-    
+
     // 2. If already filled, try compatible roles
     if (!targetSlot) {
       const prefRoles = tacticalFitPreference[preferredRole] || outfieldRoles;
@@ -5010,7 +5016,7 @@ function isLikelyDateStr(str) {
 
 async function getTeamFormation(param = '', groupId = null) {
   const tTotalStart = Date.now();
-  
+
   // 1. DDL Checks
   const tDdlStart = Date.now();
   await ensurePosTables();
