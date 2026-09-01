@@ -4809,7 +4809,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
         type: 'box',
         layout: 'vertical',
         height: '680px',
-        width: '680px',
+        width: '480px',
         borderWidth: '1px',
         borderColor: '#FFFFFF44',
         cornerRadius: 'md',
