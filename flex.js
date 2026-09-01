@@ -4933,14 +4933,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               };
             });
 
-            if (bubbles.length === 1) {
-              return bubbles[0];
-            }
-
-            return {
-              type: 'carousel',
-              contents: bubbles
-            };
+            return bubbles;
           }
 
 module.exports = {

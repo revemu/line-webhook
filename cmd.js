@@ -291,13 +291,24 @@ const COMMAND_REGISTRY = {
     },
     'formation': async (context) => {
         const { param, groupId } = context;
-        const msg = await db.getTeamFormation(param, groupId);
-        if (msg) {
-            return {
-                type: 'flex',
-                altText: '⚽ ผังการเล่นทีม (Team Formation)',
-                contents: msg
-            };
+        const bubbles = await db.getTeamFormation(param, groupId);
+        if (bubbles) {
+            const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
+            if (bubblesList.length > 0) {
+                return bubblesList.slice(0, 5).map((bubble, idx) => {
+                    let teamName = '';
+                    try {
+                        teamName = bubble.header?.contents?.[0]?.contents?.[1]?.text || `ทีม ${idx + 1}`;
+                    } catch (e) {
+                        teamName = `ทีม ${idx + 1}`;
+                    }
+                    return {
+                        type: 'flex',
+                        altText: `⚽ ผังการเล่น ${teamName}`,
+                        contents: bubble
+                    };
+                });
+            }
         }
         return [{ type: 'text', text: 'ยังไม่มีข้อมูลการจัดตำแหน่งทีมในสัปดาห์นี้' }];
     },
