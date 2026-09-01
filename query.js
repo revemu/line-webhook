@@ -5142,6 +5142,8 @@ async function getTeamFormation(param = '', groupId = null) {
       });
     }
   } catch (e) { }
+  const yearStatsDuration = Date.now() - tYearStatsStart;
+
   // 4.5 Detect if this specific week has an 8-player team (max players in any team >= 8)
   let is8PlayerWeek = false;
   try {
