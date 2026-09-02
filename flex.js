@@ -4564,7 +4564,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       type: 'box',
       layout: 'horizontal',
       alignItems: 'flex-start',
-      justifyContent: isRightSide ? 'flex-end' : 'flex-start',
+      justifyContent: 'center',
       spacing: 'xs',
       contents: pairContents
     };
