@@ -4340,7 +4340,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     'GK': '#EAB308',
     'DF': '#3B82F6',
     'DW': '#06B6D4',
+    'DM': '#10B981',
     'MF': '#8B5CF6',
+    'AM': '#EC4899',
     'CF': '#EF4444'
   };
 
@@ -4348,7 +4350,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     'GK': '🧤',
     'DF': '🛡️',
     'DW': '🏃',
+    'DM': '⚓',
     'MF': '⚙️',
+    'AM': '🎯',
     'CF': '⚡'
   };
 
@@ -4706,7 +4710,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
   const bubbles = formationsData.map(team => {
     const colorHex = tdc(team.teamColor) || '#3B82F6';
-    const slots = team.slots || { CF: [], MF: [], DW: [], DF: [], GK: [], alternates: [] };
+    const slots = team.slots || { CF: [], AM: [], MF: [], DM: [], DW: [], DF: [], GK: [], alternates: [] };
     const teamNameFormatted = formatTeamDisplayName(team.teamColor);
     const headerTheme = getTeamHeaderTheme(team.teamColor);
 
@@ -4733,12 +4737,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     }
     const momPlayerId = momPlayer ? momPlayer.id : null;
 
-    // Row 1: CF (Center Forward / Strikers) - Supports 1 or 2 CFs dynamically
-    const cfNodes = slots.CF.length > 0
+    // Row 1: CF (Center Forward / Striker) - Max 1 Min 0
+    const cfNodes = (slots.CF && slots.CF.length > 0)
       ? slots.CF.map(p => renderPlayerNode(p, 'CF', colorHex, momPlayerId))
-      : [renderPlayerNode(null, 'CF', colorHex, momPlayerId)];
+      : [];
 
-    const cfRow = {
+    const cfRow = cfNodes.length > 0 ? {
       type: 'box',
       layout: 'horizontal',
       justifyContent: cfNodes.length > 1 ? 'space-around' : 'center',
@@ -4746,10 +4750,34 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       paddingEnd: cfNodes.length > 1 ? '12px' : '0px',
       alignItems: 'center',
       contents: cfNodes
+    } : null;
+
+    // Row 2: AM (Attacking Midfielder) - Max 1 Min 0
+    const amNodes = (slots.AM && slots.AM.length > 0)
+      ? slots.AM.map(p => renderPlayerNode(p, 'AM', colorHex, momPlayerId))
+      : [];
+
+    const amRow = amNodes.length > 0 ? {
+      type: 'box',
+      layout: 'horizontal',
+      justifyContent: amNodes.length > 1 ? 'space-around' : 'center',
+      paddingStart: amNodes.length > 1 ? '12px' : '0px',
+      paddingEnd: amNodes.length > 1 ? '12px' : '0px',
+      alignItems: 'center',
+      contents: amNodes
+    } : null;
+
+    // Fallback if both CF and AM have 0 starters: show empty CF placeholder
+    const attackingRow = cfRow || amRow || {
+      type: 'box',
+      layout: 'horizontal',
+      justifyContent: 'center',
+      alignItems: 'center',
+      contents: [renderPlayerNode(null, 'CF', colorHex, momPlayerId)]
     };
 
-    // Row 2: MF (Midfielders) - Supports 1, 2, or 3 MFs dynamically
-    const mfNodes = slots.MF.length > 0
+    // Row 3: MF (Midfielders) - Max 2 Min 1
+    const mfNodes = (slots.MF && slots.MF.length > 0)
       ? slots.MF.map(p => renderPlayerNode(p, 'MF', colorHex, momPlayerId))
       : [renderPlayerNode(null, 'MF', colorHex, momPlayerId)];
 
@@ -4763,7 +4791,22 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       contents: mfNodes
     };
 
-    // Row 3: DW (Defensive Wings / Wingers)
+    // Row 4: DM (Defensive Midfielder) - Max 1 Min 0
+    const dmNodes = (slots.DM && slots.DM.length > 0)
+      ? slots.DM.map(p => renderPlayerNode(p, 'DM', colorHex, momPlayerId))
+      : [];
+
+    const dmRow = dmNodes.length > 0 ? {
+      type: 'box',
+      layout: 'horizontal',
+      justifyContent: dmNodes.length > 1 ? 'space-around' : 'center',
+      paddingStart: dmNodes.length > 1 ? '12px' : '0px',
+      paddingEnd: dmNodes.length > 1 ? '12px' : '0px',
+      alignItems: 'center',
+      contents: dmNodes
+    } : null;
+
+    // Row 5: DW (Defensive Wings / Wingers) - Max 2 Min 2
     const dwNodes = (slots.DW && slots.DW.length > 0)
       ? slots.DW.map(s => renderPlayerNode(s, 'DW', colorHex, momPlayerId))
       : [renderPlayerNode(null, 'DW', colorHex, momPlayerId), renderPlayerNode(null, 'DW', colorHex, momPlayerId)];
@@ -4778,8 +4821,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       contents: dwNodes.length === 1 ? [dwNodes[0], renderPlayerNode(null, 'DW', colorHex, momPlayerId)] : dwNodes.slice(0, 2)
     };
 
-    // Row 4: DF (Defenders / Centre Backs) - Supports 1, 2, or 3 DFs dynamically
-    const dfNodes = slots.DF.length > 0
+    // Row 6: DF (Defenders / Centre Backs) - Max 2 Min 1
+    const dfNodes = (slots.DF && slots.DF.length > 0)
       ? slots.DF.map(p => renderPlayerNode(p, 'DF', colorHex, momPlayerId))
       : [renderPlayerNode(null, 'DF', colorHex, momPlayerId)];
 
@@ -4793,8 +4836,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       contents: dfNodes
     };
 
-    // Row 5: GK (Goalkeeper) - open/unassigned if team has no dedicated GK
-    const gkNode = slots.GK.length > 0
+    // Row 7: GK (Goalkeeper) - Max 1 Min 0
+    const gkNode = (slots.GK && slots.GK.length > 0)
       ? renderPlayerNode(slots.GK[0], 'GK', colorHex, momPlayerId)
       : renderPlayerNode(null, 'GK', colorHex, momPlayerId);
 
@@ -4805,6 +4848,23 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       alignItems: 'center',
       contents: [gkNode]
     };
+
+    const pitchRows = [];
+    if (cfRow && amRow) {
+      pitchRows.push(cfRow);
+      pitchRows.push(amRow);
+    } else {
+      pitchRows.push(attackingRow);
+    }
+    pitchRows.push(mfRow);
+    if (dmRow) {
+      pitchRows.push(dmRow);
+    }
+    pitchRows.push(dwRow);
+    pitchRows.push(dfRow);
+    pitchRows.push(gkRow);
+
+    const pitchHeight = pitchRows.length >= 6 ? '640px' : (pitchRows.length >= 5 ? '580px' : '520px');
 
     // Soccer field pitch background markings
     const pitchBgMarkings = [
@@ -4951,7 +5011,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       {
         type: 'box',
         layout: 'vertical',
-        height: '560px',
+        height: pitchHeight,
         borderWidth: '2px',
         borderColor: '#FFFFFF77',
         cornerRadius: 'md',
@@ -4959,11 +5019,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
         justifyContent: 'space-between',
         contents: [
           ...pitchBgMarkings,
-          cfRow, // Attacking Line (CF)
-          mfRow, // Midfield Line (MF)
-          dwRow, // Defensive Wings Line (DW)
-          dfRow, // Defensive Line (DF)
-          gkRow  // Goalkeeper Line (GK)
+          ...pitchRows
         ]
       }
     ];

@@ -4811,7 +4811,9 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
     GK: [],
     DF: [],
     DW: [],
+    DM: [],
     MF: [],
+    AM: [],
     CF: []
   };
   const unassigned = [];
@@ -4827,89 +4829,92 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
 
   const hasGK = assigned.GK.length > 0;
 
-  // Dynamic starters on pitch based on 8-player (7+1) vs 7-player (6+1) format
-  let targetCF = 1;
-  let targetMF = 2;
-  let targetDW = 2;
+  // Dynamic starters on pitch based on role constraints:
+  // DF: Min 1, Max 2
+  // DW: Min 2, Max 2
+  // DM: Min 0, Max 1
+  // MF: Min 1, Max 2
+  // AM: Min 0, Max 1
+  // CF: Min 0, Max 1
   let targetDF = 1;
+  let targetDW = 2;
+  let targetDM = 0;
+  let targetMF = 1;
+  let targetAM = 0;
+  let targetCF = 0;
 
-  if (is8PlayerWeek) {
-    // 7 Outfield starters for 8-player team (7+1)
+  let needed = (is8PlayerWeek ? 7 : 6) - 4; // Base: 1 DF + 2 DW + 1 MF = 4 outfielders
+
+  // 1. Allocate based on natural player positions registered in team
+  if (assigned.CF.length >= 1 && targetCF < 1 && needed > 0) {
+    targetCF = 1;
+    needed--;
+  }
+  if (assigned.AM.length >= 1 && targetAM < 1 && needed > 0) {
+    targetAM = 1;
+    needed--;
+  }
+  if (assigned.DM.length >= 1 && targetDM < 1 && needed > 0) {
+    targetDM = 1;
+    needed--;
+  }
+  if (assigned.MF.length >= 2 && targetMF < 2 && needed > 0) {
+    targetMF = 2;
+    needed--;
+  }
+  if (assigned.DF.length >= 2 && targetDF < 2 && needed > 0) {
     targetDF = 2;
-    if (assigned.CF.length >= 2) {
-      targetCF = 2;
-      targetMF = 2;
-      targetDW = 2;
-      targetDF = 1; // 2-2-2-1
-    } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
-      targetCF = 1;
-      targetMF = 3;
-      targetDW = 2;
-      targetDF = 1; // 1-3-2-1
-    } else if (assigned.DF.length >= 3 && assigned.MF.length <= 1) {
-      targetCF = 1;
-      targetMF = 1;
-      targetDW = 2;
-      targetDF = 3; // 1-1-2-3
-    } else {
-      targetCF = 1;
-      targetMF = 2;
-      targetDW = 2;
-      targetDF = 2; // 1-2-2-2
-    }
-  } else {
-    // 6 Outfield starters for 7-player team (6+1)
-    targetDF = 1;
-    if (assigned.CF.length >= 2) {
-      targetCF = 2;
-      targetMF = 1;
-      targetDW = 2;
-      targetDF = 1; // 2-1-2-1
-    } else if (assigned.DF.length >= 2 && assigned.MF.length <= 1) {
-      targetCF = 1;
-      targetMF = 1;
-      targetDW = 2;
-      targetDF = 2; // 1-1-2-2
-    } else if (assigned.MF.length >= 3 && assigned.DF.length <= 1) {
-      targetCF = 1;
-      targetMF = 2;
-      targetDW = 2;
-      targetDF = 1; // 1-2-2-1
-    } else {
-      targetCF = 1;
-      targetMF = 2;
-      targetDW = 2;
-      targetDF = 1; // 1-2-2-1
-    }
+    needed--;
+  }
+
+  // 2. Fill remaining needed starter slots using tactical default balance up to max limits
+  if (targetCF === 0 && needed > 0) {
+    targetCF = 1;
+    needed--;
+  }
+  if (targetMF < 2 && needed > 0) {
+    targetMF = 2;
+    needed--;
+  }
+  if (is8PlayerWeek && targetDF < 2 && needed > 0) {
+    targetDF = 2;
+    needed--;
+  }
+  if (targetDF < 2 && needed > 0) {
+    targetDF = 2;
+    needed--;
+  }
+  if (targetAM < 1 && needed > 0) {
+    targetAM = 1;
+    needed--;
+  }
+  if (targetDM < 1 && needed > 0) {
+    targetDM = 1;
+    needed--;
   }
 
   const target = {
     CF: targetCF,
+    AM: targetAM,
     MF: targetMF,
+    DM: targetDM,
     DW: targetDW,
     DF: targetDF,
     GK: hasGK ? 1 : 0
   };
 
-  const totalStarters = targetCF + targetMF + targetDW + targetDF + (hasGK ? 1 : 0);
+  const totalStarters = targetCF + targetAM + targetMF + targetDM + targetDW + targetDF + (hasGK ? 1 : 0);
   const altCount = Math.max(0, count - totalStarters);
 
-  let formationName = '';
-  if (hasGK) {
-    /*formationName = altCount > 0
-      ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`
-      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF}-1)`;*/
-    formationName = altCount > 0
-      ? `แผน ${targetCF}-${targetMF}-${targetDW}-${targetDF}-1`
-      : `แผน ${targetCF}-${targetMF}-${targetDW}-${targetDF}-1`;
-  } else {
-    /*formationName = altCount > 0
-      ? `${totalStarters}+${altCount} Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`
-      : `${totalStarters}-Player (${targetCF}-${targetMF}-${targetDW}-${targetDF})`;*/
-    formationName = altCount > 0
-      ? `แผน ${targetCF}-${targetMF}-${targetDW}-${targetDF}`
-      : `แผน ${targetCF}-${targetMF}-${targetDW}-${targetDF}`;
-  }
+  const formationParts = [];
+  if (targetCF > 0) formationParts.push(targetCF);
+  if (targetAM > 0) formationParts.push(targetAM);
+  if (targetMF > 0) formationParts.push(targetMF);
+  if (targetDM > 0) formationParts.push(targetDM);
+  if (targetDW > 0) formationParts.push(targetDW);
+  if (targetDF > 0) formationParts.push(targetDF);
+  if (hasGK) formationParts.push(1);
+  const formationName = `แผน ${formationParts.join('-')}`;
 
   const getPlayerScore = (p) => {
     const isFixed = Number(p.member_team_id) === 1;
@@ -4922,14 +4927,16 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
   };
 
   // Sort assigned categories and unassigned from highest to lowest score
-  for (const r of ['GK', 'DF', 'DW', 'MF', 'CF']) {
+  for (const r of ['GK', 'DF', 'DW', 'DM', 'MF', 'AM', 'CF']) {
     assigned[r].sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
   }
   unassigned.sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
 
   const finalSlots = {
     CF: Array.from({ length: target.CF }, () => ({ primary: null, alternate: null })),
+    AM: Array.from({ length: target.AM }, () => ({ primary: null, alternate: null })),
     MF: Array.from({ length: target.MF }, () => ({ primary: null, alternate: null })),
+    DM: Array.from({ length: target.DM }, () => ({ primary: null, alternate: null })),
     DW: Array.from({ length: target.DW }, () => ({ primary: null, alternate: null })),
     DF: Array.from({ length: target.DF }, () => ({ primary: null, alternate: null })),
     GK: Array.from({ length: target.GK }, () => ({ primary: null, alternate: null })),
@@ -4937,10 +4944,12 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
   };
 
   const tacticalFitPreference = {
-    DW: ['DW', 'DF', 'CF', 'MF'], // Vacant DW: Prefer DF (Fullback), CF (Winger/Attacker), MF (Midfield)
-    CF: ['CF', 'MF', 'DW', 'DF'], // Vacant CF: Prefer CF, MF, DW, DF
-    DF: ['DF', 'DW', 'MF', 'CF'], // Vacant DF: Prefer DF, DW (Fullback), MF (Defensive Mid), CF
-    MF: ['MF', 'DW', 'DF', 'CF']  // Vacant MF: Prefer MF, DW, DF, CF
+    CF: ['CF', 'AM', 'MF', 'DW', 'DF'],
+    AM: ['AM', 'CF', 'MF', 'DW', 'DF'],
+    MF: ['MF', 'AM', 'DM', 'DW', 'CF', 'DF'],
+    DM: ['DM', 'DF', 'MF', 'DW', 'AM', 'CF'],
+    DW: ['DW', 'DF', 'AM', 'MF', 'CF'],
+    DF: ['DF', 'DM', 'DW', 'MF', 'AM', 'CF']
   };
 
   // 1. Assign GK
@@ -4956,7 +4965,7 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
   }
 
   // 2. Exact Natural Position Match for Primary Starters (highest rating first)
-  const outfieldRoles = ['CF', 'MF', 'DW', 'DF'];
+  const outfieldRoles = ['CF', 'AM', 'MF', 'DM', 'DW', 'DF'];
   for (const r of outfieldRoles) {
     for (const slot of finalSlots[r]) {
       if (slot.primary === null && assigned[r].length > 0) {
@@ -4994,7 +5003,9 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
   // 4. Pair ALL remaining players as alternates directly onto pitch slots
   const allAlternates = [
     ...(assigned.CF || []),
+    ...(assigned.AM || []),
     ...(assigned.MF || []),
+    ...(assigned.DM || []),
     ...(assigned.DW || []),
     ...(assigned.DF || []),
     ...unassigned,
