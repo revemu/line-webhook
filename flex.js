@@ -4356,285 +4356,77 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     'CF': '⚡'
   };
 
-  const renderPlayerNode = (slot, defaultPosCode, teamColorHex, momPlayerId = null) => {
-    const primary = (slot && slot.primary !== undefined) ? slot.primary : slot;
-    const alternate = (slot && slot.alternate) ? slot.alternate : null;
-
-    if (!primary) {
-      const isGK = defaultPosCode === 'GK';
-      const emptyIcon = isGK ? '' : (posIcons[defaultPosCode] || '');
-      return {
-        type: 'box',
-        layout: 'vertical',
-        width: '108px',
-        alignItems: 'center',
-        contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            width: '48px',
-            height: '48px',
-            cornerRadius: '24px',
-            borderWidth: '2px',
-            borderColor: '#FFFFFF44',
-            backgroundColor: '#00000055',
-            alignItems: 'center',
-            justifyContent: 'center',
-            contents: [
-              {
-                type: 'text',
-                text: defaultPosCode,
-                color: '#FFFFFFCC',
-                size: 'xs',
-                weight: 'bold',
-                align: 'center',
-                gravity: 'center'
-              }
-            ]
-          },
-          {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: '#000000CC',
-            borderWidth: '1px',
-            borderColor: '#FFFFFF22',
-            cornerRadius: '5px',
-            paddingStart: '6px',
-            paddingEnd: '6px',
-            paddingTop: '2px',
-            paddingBottom: '3px',
-            offsetTop: '2px',
-            alignItems: 'center',
-            contents: [
-              {
-                type: 'text',
-                text: isGK ? 'สลับกัน' : '-',
-                color: '#FFFFFFCC',
-                size: 'xxs',
-                weight: 'bold',
-                align: 'center'
-              }
-            ]
-          }
-        ]
-      };
-    }
-
-    const isPrimaryMom = momPlayerId && primary.id === momPlayerId;
-    const isAltMom = momPlayerId && alternate && alternate.id === momPlayerId;
-    const posCode = (primary.effectivePos || primary.pos_code || defaultPosCode || 'MF').toUpperCase();
-    const primaryName = (primary.name || primary.alias || 'Player').replace(/^@/, '');
+  const renderSinglePlayerCard = (player, posCode, isAlternate, teamColorHex, momPlayerId = null) => {
+    const isMom = momPlayerId && player.id === momPlayerId;
+    const playerName = (player.name || player.alias || (isAlternate ? 'Alt' : 'Player')).replace(/^@/, '');
     const icon = posIcons[posCode] || '';
 
-    const pWStat = primary.weekStats || {};
+    const pWStat = player.weekStats || {};
     const pHasWRating = pWStat.rating && pWStat.rating !== '-' && Number(pWStat.rating) > 0;
-    const pYearRating = (primary.yearStats?.rating && primary.yearStats.rating !== '-' && Number(primary.yearStats.rating) > 0)
-      ? primary.yearStats.rating
-      : (primary.rank && Number(primary.rank) > 0 ? parseFloat(primary.rank).toFixed(1) : (pHasWRating ? pWStat.rating : '-'));
+    const pYearRating = (player.yearStats?.rating && player.yearStats.rating !== '-' && Number(player.yearStats.rating) > 0)
+      ? player.yearStats.rating
+      : (player.rank && Number(player.rank) > 0 ? parseFloat(player.rank).toFixed(1) : (pHasWRating ? pWStat.rating : '-'));
     const pRatingStr = pYearRating !== '-' ? `⭐${pYearRating}` : '⭐-';
     const pStatsLine = `${pRatingStr} (⚽${pWStat.goals || 0} 👟${pWStat.assists || 0})`;
 
-    if (!alternate) {
-      const isMom = isPrimaryMom;
-      const posBadgeText = isMom ? `👑 ${posCode}` : `${icon} ${posCode}`;
+    const posBadgeText = isAlternate
+      ? `${icon} (${posCode})`
+      : (isMom ? `👑 ${posCode}` : `${icon} ${posCode}`);
 
-      return {
-        type: 'box',
-        layout: 'vertical',
-        width: '130px',
-        alignItems: 'center',
-        contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            width: '48px',
-            height: '48px',
-            cornerRadius: '24px',
-            borderWidth: isMom ? '3px' : '2px',
-            borderColor: isMom ? '#F59E0B' : '#FFFFFF',
-            backgroundColor: teamColorHex || '#1E293B',
-            alignItems: 'center',
-            justifyContent: 'center',
-            contents: primary.picture_url ? [
-              {
-                type: 'image',
-                url: primary.picture_url,
-                size: 'full',
-                aspectRatio: '1:1',
-                aspectMode: 'cover'
-              }
-            ] : [
-              {
-                type: 'text',
-                text: isMom ? `👑${posCode}` : posCode,
-                color: isMom ? '#FDE047' : '#FFFFFF',
-                size: 'xs',
-                weight: 'bold',
-                align: 'center',
-                gravity: 'center'
-              }
-            ]
-          },
-          {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: isMom ? '#1A1608F4' : '#000000CC',
-            borderWidth: '1px',
-            borderColor: isMom ? '#F59E0BCC' : '#FFFFFF22',
-            cornerRadius: '5px',
-            paddingStart: '5px',
-            paddingEnd: '5px',
-            paddingTop: '2px',
-            paddingBottom: '3px',
-            offsetTop: '2px',
-            alignItems: 'center',
-            contents: [
-              {
-                type: 'box',
-                layout: 'vertical',
-                backgroundColor: posBadgeColor[posCode] || '#64748B',
-                cornerRadius: '2px',
-                paddingStart: '4px',
-                paddingEnd: '4px',
-                paddingTop: '1px',
-                paddingBottom: '1px',
-                flex: 0,
-                contents: [
-                  {
-                    type: 'text',
-                    text: posBadgeText,
-                    color: '#FFFFFF',
-                    size: 'xxs',
-                    weight: 'bold',
-                    align: 'center'
-                  }
-                ]
-              },
-              {
-                type: 'text',
-                text: primaryName,
-                color: isMom ? '#FDE047' : '#FFFFFF',
-                size: 'xs',
-                weight: 'bold',
-                wrap: true,
-                maxLines: 2,
-                margin: 'xs',
-                align: 'center'
-              },
-              {
-                type: 'text',
-                text: pStatsLine,
-                size: 'xs',
-                weight: 'bold',
-                color: isMom ? '#FDE047' : '#FCD34D',
-                align: 'center',
-                margin: 'xs',
-                wrap: true
-              }
-            ]
-          }
-        ]
-      };
-    }
-
-    const altName = (alternate.name || alternate.alias || 'Alt').replace(/^@/, '');
-    const isPairMom = isPrimaryMom || isAltMom;
-    const pairBadgeText = isPairMom ? `👑 ${posCode}` : `${icon} ${posCode}`;
-    const aWStat = alternate.weekStats || {};
-    const aHasWRating = aWStat.rating && aWStat.rating !== '-' && Number(aWStat.rating) > 0;
-    const aYearRating = (alternate.yearStats?.rating && alternate.yearStats.rating !== '-' && Number(alternate.yearStats.rating) > 0)
-      ? alternate.yearStats.rating
-      : (alternate.rank && Number(alternate.rank) > 0 ? parseFloat(alternate.rank).toFixed(1) : (aHasWRating ? aWStat.rating : '-'));
-    const aRatingStr = aYearRating !== '-' ? `⭐${aYearRating}` : '⭐-';
-    const aStatsLine = `${aRatingStr} (⚽${aWStat.goals || 0} 👟${aWStat.assists || 0})`;
+    const cardBorderColor = isMom ? '#F59E0B' : (isAlternate ? '#38BDF8' : '#FFFFFF');
+    const cardBgColor = isAlternate ? '#0C2A44' : (teamColorHex || '#1E293B');
+    const badgeBgColor = isAlternate ? '#0284C7' : (posBadgeColor[posCode] || '#64748B');
+    const boxBgColor = isAlternate ? '#071828EE' : (isMom ? '#1A1608F4' : '#000000CC');
+    const boxBorderColor = isMom ? '#F59E0BCC' : (isAlternate ? '#38BDF888' : '#FFFFFF22');
+    const textColor = isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF');
+    const statsColor = isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FCD34D');
 
     return {
       type: 'box',
       layout: 'vertical',
-      width: '130px',
+      width: '92px',
       alignItems: 'center',
       contents: [
         {
           type: 'box',
-          layout: 'horizontal',
+          layout: 'vertical',
+          width: '42px',
+          height: '42px',
+          cornerRadius: '21px',
+          borderWidth: isMom ? '3px' : '2px',
+          borderColor: cardBorderColor,
+          backgroundColor: cardBgColor,
           alignItems: 'center',
           justifyContent: 'center',
-          contents: [
+          contents: player.picture_url ? [
             {
-              type: 'box',
-              layout: 'vertical',
-              width: '48px',
-              height: '48px',
-              cornerRadius: '24px',
-              borderWidth: isPrimaryMom ? '3px' : '2px',
-              borderColor: isPrimaryMom ? '#F59E0B' : '#FFFFFF',
-              backgroundColor: teamColorHex || '#1E293B',
-              alignItems: 'center',
-              justifyContent: 'center',
-              contents: primary.picture_url ? [
-                {
-                  type: 'image',
-                  url: primary.picture_url,
-                  size: 'full',
-                  aspectRatio: '1:1',
-                  aspectMode: 'cover'
-                }
-              ] : [
-                {
-                  type: 'text',
-                  text: isPrimaryMom ? `👑${posCode}` : posCode,
-                  color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
-                  size: 'xs',
-                  weight: 'bold',
-                  align: 'center',
-                  gravity: 'center'
-                }
-              ]
-            },
-            { type: 'text', text: '/', color: '#38BDF8', size: 'xxs', weight: 'bold', margin: 'xs', flex: 0 },
+              type: 'image',
+              url: player.picture_url,
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover'
+            }
+          ] : [
             {
-              type: 'box',
-              layout: 'vertical',
-              width: '48px',
-              height: '48px',
-              cornerRadius: '24px',
-              borderWidth: isAltMom ? '3px' : '2px',
-              borderColor: isAltMom ? '#F59E0B' : '#38BDF8',
-              backgroundColor: '#0C2A44',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: 'xs',
-              contents: alternate.picture_url ? [
-                {
-                  type: 'image',
-                  url: alternate.picture_url,
-                  size: 'full',
-                  aspectRatio: '1:1',
-                  aspectMode: 'cover'
-                }
-              ] : [
-                {
-                  type: 'text',
-                  text: isAltMom ? `👑${posCode}` : posCode,
-                  color: isAltMom ? '#FDE047' : '#38BDF8',
-                  size: 'xs',
-                  weight: 'bold',
-                  align: 'center',
-                  gravity: 'center'
-                }
-              ]
+              type: 'text',
+              text: isMom ? `👑${posCode}` : posCode,
+              color: isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF'),
+              size: 'xs',
+              weight: 'bold',
+              align: 'center',
+              gravity: 'center'
             }
           ]
         },
         {
           type: 'box',
           layout: 'vertical',
-          backgroundColor: '#071828F4',
+          backgroundColor: boxBgColor,
           borderWidth: '1px',
-          borderColor: isPairMom ? '#F59E0BCC' : '#38BDF888',
+          borderColor: boxBorderColor,
           cornerRadius: '5px',
-          paddingStart: '5px',
-          paddingEnd: '5px',
+          paddingStart: '4px',
+          paddingEnd: '4px',
           paddingTop: '2px',
           paddingBottom: '3px',
           offsetTop: '2px',
@@ -4643,7 +4435,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             {
               type: 'box',
               layout: 'vertical',
-              backgroundColor: posBadgeColor[posCode] || '#64748B',
+              backgroundColor: badgeBgColor,
               cornerRadius: '2px',
               paddingStart: '4px',
               paddingEnd: '4px',
@@ -4653,7 +4445,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               contents: [
                 {
                   type: 'text',
-                  text: pairBadgeText,
+                  text: posBadgeText,
                   color: '#FFFFFF',
                   size: 'xxs',
                   weight: 'bold',
@@ -4663,53 +4455,116 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             },
             {
               type: 'text',
+              text: isAlternate ? `(${playerName})` : playerName,
+              color: textColor,
               size: 'xs',
-              align: 'center',
+              weight: 'bold',
               wrap: true,
               maxLines: 2,
               margin: 'xs',
-              contents: [
-                {
-                  type: 'span',
-                  text: primaryName,
-                  color: isPrimaryMom ? '#FDE047' : '#FFFFFF',
-                  weight: 'bold'
-                },
-                {
-                  type: 'span',
-                  text: ' / ',
-                  color: '#94A3B8'
-                },
-                {
-                  type: 'span',
-                  text: `(${altName})`,
-                  color: isAltMom ? '#FDE047' : '#38BDF8',
-                  weight: 'bold'
-                }
-              ]
+              align: 'center'
             },
             {
               type: 'text',
               text: pStatsLine,
-              size: 'xs',
+              size: 'xxs',
               weight: 'bold',
-              color: isPrimaryMom ? '#FDE047' : '#FCD34D',
+              color: statsColor,
               align: 'center',
               margin: 'xs',
-              wrap: true
-            },
-            {
-              type: 'text',
-              text: `(${aStatsLine})`,
-              size: 'xs',
-              weight: 'bold',
-              color: isAltMom ? '#FDE047' : '#38BDF8',
-              align: 'center',
-              margin: 'none',
               wrap: true
             }
           ]
         }
+      ]
+    };
+  };
+
+  const renderEmptyCard = (posCode, isGK = false) => {
+    return {
+      type: 'box',
+      layout: 'vertical',
+      width: '92px',
+      alignItems: 'center',
+      contents: [
+        {
+          type: 'box',
+          layout: 'vertical',
+          width: '42px',
+          height: '42px',
+          cornerRadius: '21px',
+          borderWidth: '2px',
+          borderColor: '#FFFFFF44',
+          backgroundColor: '#00000055',
+          alignItems: 'center',
+          justifyContent: 'center',
+          contents: [
+            {
+              type: 'text',
+              text: posCode,
+              color: '#FFFFFFCC',
+              size: 'xs',
+              weight: 'bold',
+              align: 'center',
+              gravity: 'center'
+            }
+          ]
+        },
+        {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#000000CC',
+          borderWidth: '1px',
+          borderColor: '#FFFFFF22',
+          cornerRadius: '5px',
+          paddingStart: '6px',
+          paddingEnd: '6px',
+          paddingTop: '2px',
+          paddingBottom: '3px',
+          offsetTop: '2px',
+          alignItems: 'center',
+          contents: [
+            {
+              type: 'text',
+              text: isGK ? 'สลับกัน' : '-',
+              color: '#FFFFFFCC',
+              size: 'xxs',
+              weight: 'bold',
+              align: 'center'
+            }
+          ]
+        }
+      ]
+    };
+  };
+
+  const renderPlayerNode = (slot, defaultPosCode, teamColorHex, momPlayerId = null) => {
+    const primary = (slot && slot.primary !== undefined) ? slot.primary : slot;
+    const alternate = (slot && slot.alternate) ? slot.alternate : null;
+
+    if (!primary) {
+      return renderEmptyCard(defaultPosCode, defaultPosCode === 'GK');
+    }
+
+    const posCode = (primary.effectivePos || primary.pos_code || defaultPosCode || 'MF').toUpperCase();
+    const primaryCard = renderSinglePlayerCard(primary, posCode, false, teamColorHex, momPlayerId);
+
+    if (!alternate) {
+      return primaryCard;
+    }
+
+    const altPosCode = (alternate.effectivePos || alternate.pos_code || posCode).toUpperCase();
+    const alternateCard = renderSinglePlayerCard(alternate, altPosCode, true, teamColorHex, momPlayerId);
+
+    return {
+      type: 'box',
+      layout: 'horizontal',
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+      spacing: 'xs',
+      contents: [
+        primaryCard,
+        alternateCard
       ]
     };
   };
