@@ -12,6 +12,16 @@ let lastGroupId = null;
 async function ensureMemberPicture(member, groupId = null) {
   if (!member || !member.line_user_id) return;
 
+  const pic = member.picture_url || member.pictureUrl;
+  const hasPic = pic && String(pic).trim() !== '' && String(pic).toLowerCase() !== 'none' && String(pic).toLowerCase() !== 'null';
+
+  // If member already has a profile picture in DB, do not fetch from LINE API
+  if (hasPic) {
+    member.picture_url = pic;
+    member.pictureUrl = pic;
+    return;
+  }
+
   if (groupId) {
     lastGroupId = groupId;
   }
@@ -21,18 +31,12 @@ async function ensureMemberPicture(member, groupId = null) {
   if (effectiveGroupId) {
     try {
       const profile = await client.getGroupMemberProfile(effectiveGroupId, member.line_user_id);
-      if (profile) {
+      if (profile && profile.pictureUrl) {
         member.inGroup = true;
-        const newPic = profile.pictureUrl || null;
-        if (newPic && newPic !== member.picture_url) {
-          console.log(`[ensureMemberPicture] Syncing updated avatar for group member ${member.name} (${member.id}): ${newPic}`);
-          await executeQuery("UPDATE member_tbl SET picture_url = ? WHERE id = ?", [newPic, member.id]);
-          member.picture_url = newPic;
-          member.pictureUrl = newPic;
-        } else if (newPic) {
-          member.picture_url = newPic;
-          member.pictureUrl = newPic;
-        }
+        await executeQuery("UPDATE member_tbl SET picture_url = ? WHERE id = ?", [profile.pictureUrl, member.id]);
+        member.picture_url = profile.pictureUrl;
+        member.pictureUrl = profile.pictureUrl;
+        return;
       }
     } catch (groupErr) {
       const isNotFound = groupErr.statusCode === 404 ||
@@ -46,23 +50,18 @@ async function ensureMemberPicture(member, groupId = null) {
         console.warn(`[ensureMemberPicture] Failed to check group profile for ${member.name}:`, groupErr.message);
       }
     }
-    return;
   }
 
-  // Fallback if no group context and picture is missing
-  const pic = member.picture_url || member.pictureUrl;
-  const isInvalid = !pic || String(pic).trim() === '' || String(pic).toLowerCase() === 'none' || String(pic).toLowerCase() === 'null';
-  if (isInvalid) {
-    try {
-      const profile = await client.getProfile(member.line_user_id);
-      if (profile && profile.pictureUrl) {
-        await executeQuery("UPDATE member_tbl SET picture_url = ? WHERE id = ?", [profile.pictureUrl, member.id]);
-        member.picture_url = profile.pictureUrl;
-        member.pictureUrl = profile.pictureUrl;
-      }
-    } catch (err) {
-      console.error(`[ensureMemberPicture] failed to fetch direct profile for user ${member.line_user_id}:`, err.message);
+  // Fallback direct profile fetch if missing in DB and group check did not populate
+  try {
+    const profile = await client.getProfile(member.line_user_id);
+    if (profile && profile.pictureUrl) {
+      await executeQuery("UPDATE member_tbl SET picture_url = ? WHERE id = ?", [profile.pictureUrl, member.id]);
+      member.picture_url = profile.pictureUrl;
+      member.pictureUrl = profile.pictureUrl;
     }
+  } catch (err) {
+    console.error(`[ensureMemberPicture] failed to fetch direct profile for user ${member.line_user_id}:`, err.message);
   }
 }
 
@@ -4791,7 +4790,7 @@ async function getMvpList(targetYear = null, groupId = null) {
  * Distribute players into 5 tactical lines (CF, MF, DW, DF, GK)
  * Specifically configured for 7-player (6+1) and 8-player (7+1) teams.
  */
-function allocateFormationSlots(members, is8PlayerWeek = false) {
+function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {}) {
   const count = members.length;
   const isReserve = (name) => /^\+\s*\(?\d+\)?/.test((name || '').trim());
 
@@ -4829,68 +4828,82 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
 
   const hasGK = assigned.GK.length > 0;
 
-  // Dynamic starters on pitch based on role constraints:
-  // DF: Min 1, Max 2
-  // DW: Min 2, Max 2
-  // DM: Min 0, Max 1
-  // MF: Min 1, Max 2
-  // AM: Min 0, Max 1
-  // CF: Min 0, Max 1
-  let targetDF = 1;
-  let targetDW = 2;
-  let targetDM = 0;
-  let targetMF = 1;
-  let targetAM = 0;
-  let targetCF = 0;
+  // Dynamic starters on pitch based on role constraints (from pos_tbl.min and pos_tbl.max):
+  const defaultLimits = {
+    DF: { min: 1, max: 2 },
+    DW: { min: 2, max: 2 },
+    DM: { min: 0, max: 1 },
+    MF: { min: 1, max: 2 },
+    AM: { min: 0, max: 1 },
+    CF: { min: 0, max: 1 },
+    GK: { min: 0, max: 1 }
+  };
 
-  let needed = (is8PlayerWeek ? 7 : 6) - 4; // Base: 1 DF + 2 DW + 1 MF = 4 outfielders
+  const getLimit = (pos) => {
+    const lim = posLimitsMap[pos] || {};
+    const def = defaultLimits[pos] || { min: 0, max: 2 };
+    return {
+      min: lim.min !== undefined && !isNaN(lim.min) ? Number(lim.min) : def.min,
+      max: lim.max !== undefined && !isNaN(lim.max) ? Number(lim.max) : def.max
+    };
+  };
 
-  // 1. Allocate based on natural player positions registered in team
-  if (assigned.CF.length >= 1 && targetCF < 1 && needed > 0) {
-    targetCF = 1;
-    needed--;
-  }
-  if (assigned.AM.length >= 1 && targetAM < 1 && needed > 0) {
-    targetAM = 1;
-    needed--;
-  }
-  if (assigned.DM.length >= 1 && targetDM < 1 && needed > 0) {
-    targetDM = 1;
-    needed--;
-  }
-  if (assigned.MF.length >= 2 && targetMF < 2 && needed > 0) {
-    targetMF = 2;
-    needed--;
-  }
-  if (assigned.DF.length >= 2 && targetDF < 2 && needed > 0) {
-    targetDF = 2;
-    needed--;
+  const limDF = getLimit('DF');
+  const limDW = getLimit('DW');
+  const limDM = getLimit('DM');
+  const limMF = getLimit('MF');
+  const limAM = getLimit('AM');
+  const limCF = getLimit('CF');
+  const limGK = getLimit('GK');
+
+  let targetDF = limDF.min;
+  let targetDW = limDW.min;
+  let targetDM = limDM.min;
+  let targetMF = limMF.min;
+  let targetAM = limAM.min;
+  let targetCF = limCF.min;
+  let targetGK = hasGK ? Math.min(1, limGK.max) : (limGK.min || 0);
+
+  const baseOutfield = targetDF + targetDW + targetDM + targetMF + targetAM + targetCF;
+  const targetOutfieldTotal = is8PlayerWeek ? 7 : 6;
+  let needed = Math.max(0, targetOutfieldTotal - baseOutfield);
+
+  // 1. Allocate based on natural player positions registered in team first (up to max)
+  const naturalRoles = ['CF', 'AM', 'DM', 'DW', 'MF', 'DF'];
+  for (const pos of naturalRoles) {
+    const lim = getLimit(pos);
+    let curTarget = pos === 'CF' ? targetCF : (pos === 'AM' ? targetAM : (pos === 'DM' ? targetDM : (pos === 'DW' ? targetDW : (pos === 'MF' ? targetMF : targetDF))));
+    while (assigned[pos].length > curTarget && curTarget < lim.max && needed > 0) {
+      curTarget++;
+      needed--;
+      if (pos === 'CF') targetCF = curTarget;
+      else if (pos === 'AM') targetAM = curTarget;
+      else if (pos === 'DM') targetDM = curTarget;
+      else if (pos === 'DW') targetDW = curTarget;
+      else if (pos === 'MF') targetMF = curTarget;
+      else if (pos === 'DF') targetDF = curTarget;
+    }
   }
 
   // 2. Fill remaining needed starter slots using tactical default balance up to max limits
-  if (targetCF === 0 && needed > 0) {
-    targetCF = 1;
-    needed--;
-  }
-  if (targetMF < 2 && needed > 0) {
-    targetMF = 2;
-    needed--;
-  }
-  if (is8PlayerWeek && targetDF < 2 && needed > 0) {
-    targetDF = 2;
-    needed--;
-  }
-  if (targetDF < 2 && needed > 0) {
-    targetDF = 2;
-    needed--;
-  }
-  if (targetAM < 1 && needed > 0) {
-    targetAM = 1;
-    needed--;
-  }
-  if (targetDM < 1 && needed > 0) {
-    targetDM = 1;
-    needed--;
+  const tacticalFillOrder = is8PlayerWeek
+    ? ['CF', 'MF', 'DF', 'DW', 'AM', 'DM']
+    : ['CF', 'MF', 'DW', 'DF', 'AM', 'DM'];
+
+  for (const pos of tacticalFillOrder) {
+    if (needed <= 0) break;
+    const lim = getLimit(pos);
+    let curTarget = pos === 'CF' ? targetCF : (pos === 'AM' ? targetAM : (pos === 'DM' ? targetDM : (pos === 'DW' ? targetDW : (pos === 'MF' ? targetMF : targetDF))));
+    while (curTarget < lim.max && needed > 0) {
+      curTarget++;
+      needed--;
+      if (pos === 'CF') targetCF = curTarget;
+      else if (pos === 'AM') targetAM = curTarget;
+      else if (pos === 'DM') targetDM = curTarget;
+      else if (pos === 'DW') targetDW = curTarget;
+      else if (pos === 'MF') targetMF = curTarget;
+      else if (pos === 'DF') targetDF = curTarget;
+    }
   }
 
   const target = {
@@ -4900,10 +4913,10 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
     DM: targetDM,
     DW: targetDW,
     DF: targetDF,
-    GK: hasGK ? 1 : 0
+    GK: targetGK
   };
 
-  const totalStarters = targetCF + targetAM + targetMF + targetDM + targetDW + targetDF + (hasGK ? 1 : 0);
+  const totalStarters = targetCF + targetAM + targetMF + targetDM + targetDW + targetDF + targetGK;
   const altCount = Math.max(0, count - totalStarters);
 
   const formationParts = [];
@@ -4913,15 +4926,16 @@ function allocateFormationSlots(members, is8PlayerWeek = false) {
   if (targetDM > 0) formationParts.push(targetDM);
   if (targetDW > 0) formationParts.push(targetDW);
   if (targetDF > 0) formationParts.push(targetDF);
-  if (hasGK) formationParts.push(1);
+  if (targetGK > 0) formationParts.push(targetGK);
   const formationName = `แผน ${formationParts.join('-')}`;
 
   const getPlayerScore = (p) => {
     const isFixed = Number(p.member_team_id) === 1;
-    const yScore = parseFloat(p.yearStats?.rating || 0) || 0;
-    const wScore = parseFloat(p.weekStats?.rating || 0) || 0;
+    // Primary score by yearly avg rating -> rank -> week rating
+    const yAvg = parseFloat(p.yearStats?.avgRating || p.yearStats?.rating || 0) || 0;
     const rankScore = parseFloat(p.rank || 0) || 0;
-    const baseScore = Math.max(yScore, wScore, rankScore);
+    const wScore = parseFloat(p.weekStats?.rating || 0) || 0;
+    const baseScore = yAvg > 0 ? yAvg : (rankScore > 0 ? rankScore : wScore);
     // If member_tbl.team_id = 1, fixed at preferred position first with top priority
     return (isFixed ? 10000 : 0) + baseScore;
   };
@@ -5222,6 +5236,34 @@ async function getTeamFormation(param = '', groupId = null) {
     }
   } catch (e) { }
 
+  // 4.6 Position Min/Max Limits from pos_tbl
+  const posLimitsMap = {};
+  try {
+    const posRows = await executeQuery("SELECT code, min, max FROM pos_tbl");
+    if (posRows && posRows.length > 0) {
+      posRows.forEach(r => {
+        const code = (r.code || '').toUpperCase();
+        posLimitsMap[code] = {
+          min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
+          max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined
+        };
+      });
+    }
+  } catch (e) {
+    try {
+      const posRows = await executeQuery("SELECT * FROM pos_tbl");
+      if (posRows && posRows.length > 0) {
+        posRows.forEach(r => {
+          const code = (r.code || '').toUpperCase();
+          posLimitsMap[code] = {
+            min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
+            max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined
+          };
+        });
+      }
+    } catch (e2) { }
+  }
+
   // 5. Team Members Query & Line Avatar Check
   let totalMembersQueryDuration = 0;
   let totalLineAvatarDuration = 0;
@@ -5293,7 +5335,7 @@ async function getTeamFormation(param = '', groupId = null) {
     });
 
     const tTacticsStart = Date.now();
-    const allocation = allocateFormationSlots(members || [], is8PlayerWeek);
+    const allocation = allocateFormationSlots(members || [], is8PlayerWeek, posLimitsMap);
     totalTacticsDuration += (Date.now() - tTacticsStart);
 
     formationsData.push({
