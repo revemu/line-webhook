@@ -3713,12 +3713,12 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       });
     } else {
       const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
-      valText = `${member.goal}`;
-      /*if (type == 4) {
-        valText = `${member.goal} ครั้ง`;
+      if (type == 4) {
+        const num = parseFloat(member.goal || 0);
+        valText = Number.isInteger(num) ? `${num}` : `${num.toFixed(1)}`;
       } else {
         valText = `${member.goal}`;
-      }*/
+      }
 
       if (i < 3) {
         // TOP 3: Render rank medal, avatar picture, rank badge, HOF crowns, and donator colored name
