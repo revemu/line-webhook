@@ -4428,8 +4428,11 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     const pWStat = primary.weekStats || {};
     const pHasWRating = pWStat.rating && pWStat.rating !== '-' && Number(pWStat.rating) > 0;
-    const pWRatingStr = pHasWRating ? `⭐${pWStat.rating}` : '⭐-';
-    const pStatsLine = `${pWRatingStr} (⚽${pWStat.goals || 0} 👟${pWStat.assists || 0})`;
+    const pYearRating = (primary.yearStats?.rating && primary.yearStats.rating !== '-' && Number(primary.yearStats.rating) > 0)
+      ? primary.yearStats.rating
+      : (primary.rank && Number(primary.rank) > 0 ? parseFloat(primary.rank).toFixed(1) : (pHasWRating ? pWStat.rating : '-'));
+    const pRatingStr = pYearRating !== '-' ? `⭐${pYearRating}` : '⭐-';
+    const pStatsLine = `${pRatingStr} (⚽${primary.yearStats?.goals || pWStat.goals || 0} 👟${primary.yearStats?.assists || pWStat.assists || 0})`;
 
     if (!alternate) {
       const isMom = isPrimaryMom;
@@ -4539,8 +4542,11 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     const pairBadgeText = isPairMom ? `👑 ${posCode}` : `${icon} ${posCode}`;
     const aWStat = alternate.weekStats || {};
     const aHasWRating = aWStat.rating && aWStat.rating !== '-' && Number(aWStat.rating) > 0;
-    const aWRatingStr = aHasWRating ? `⭐${aWStat.rating}` : '⭐-';
-    const aStatsLine = `${aWRatingStr} (⚽${aWStat.goals || 0} 👟${aWStat.assists || 0})`;
+    const aYearRating = (alternate.yearStats?.rating && alternate.yearStats.rating !== '-' && Number(alternate.yearStats.rating) > 0)
+      ? alternate.yearStats.rating
+      : (alternate.rank && Number(alternate.rank) > 0 ? parseFloat(alternate.rank).toFixed(1) : (aHasWRating ? aWStat.rating : '-'));
+    const aRatingStr = aYearRating !== '-' ? `⭐${aYearRating}` : '⭐-';
+    const aStatsLine = `${aRatingStr} (⚽${alternate.yearStats?.goals || aWStat.goals || 0} 👟${alternate.yearStats?.assists || aWStat.assists || 0})`;
 
     return {
       type: 'box',

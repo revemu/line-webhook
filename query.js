@@ -4930,14 +4930,17 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
   const formationName = `แผน ${formationParts.join('-')}`;
 
   const getPlayerScore = (p) => {
-    const isFixed = Number(p.member_team_id) === 1;
-    // Primary score by yearly avg rating -> rank -> week rating
-    const yAvg = parseFloat(p.yearStats?.avgRating || p.yearStats?.rating || 0) || 0;
+    if (!p) return 0;
+    // Primary score strictly by yearly avg rating -> rank -> week rating
+    const yAvg = parseFloat(p.yearStats?.avgRating || 0) || 0;
+    const yRating = parseFloat(p.yearStats?.rating || 0) || 0;
     const rankScore = parseFloat(p.rank || 0) || 0;
     const wScore = parseFloat(p.weekStats?.rating || 0) || 0;
-    const baseScore = yAvg > 0 ? yAvg : (rankScore > 0 ? rankScore : wScore);
-    // If member_tbl.team_id = 1, fixed at preferred position first with top priority
-    return (isFixed ? 10000 : 0) + baseScore;
+    if (yAvg > 0) return yAvg;
+    if (yRating > 0) return yRating;
+    if (rankScore > 0) return rankScore;
+    if (wScore > 0) return wScore;
+    return 0;
   };
 
   // Sort assigned categories and unassigned from highest to lowest score
@@ -5347,6 +5350,7 @@ async function getTeamFormation(param = '', groupId = null) {
 
       m.yearStats = {
         rating: resolvedYearRating,
+        avgRating: (yStat.avgRating && yStat.avgRating !== '-' && Number(yStat.avgRating) > 0) ? yStat.avgRating : resolvedYearRating,
         goals: yStat.goals || 0,
         assists: yStat.assists || 0,
         weeksCount: yStat.weeksCount || 0
