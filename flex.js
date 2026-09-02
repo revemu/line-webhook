@@ -1771,10 +1771,12 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     margin: 'md',
     contents: [
       makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
-      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor)
+      makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor),
+      makeBoxButton('📱 QR', '/qr', '#088181ff'),
+      makeBoxButton('📋 เมนู', '/menu', '#9b9807ff')
     ]
   });
-  bodyContents.push({
+  /*bodyContents.push({
     type: 'box',
     layout: 'horizontal',
     spacing: 'md',
@@ -1783,7 +1785,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       makeBoxButton('📱 QR ค่าสนาม', '/qr', '#088181ff'),
       makeBoxButton('📋 เมนูอื่นๆ', '/menu', '#9b9807ff')
     ]
-  });
+  });*/
 
   const topStatsColor = isWhite ? '#e7d015ff' : '#dbb104ff';
   const bottomStatsColor = isWhite ? '#ef4444' : '#b91c1c';
