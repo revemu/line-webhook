@@ -4943,16 +4943,15 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
 
   const getPlayerScore = (p) => {
     if (!p) return 0;
+    const isFixed = Number(p.member_team_id) === 1;
     // Primary score strictly by yearly avg rating -> rank -> week rating
     const yAvg = parseFloat(p.yearStats?.avgRating || 0) || 0;
     const yRating = parseFloat(p.yearStats?.rating || 0) || 0;
     const rankScore = parseFloat(p.rank || 0) || 0;
     const wScore = parseFloat(p.weekStats?.rating || 0) || 0;
-    if (yAvg > 0) return yAvg;
-    if (yRating > 0) return yRating;
-    if (rankScore > 0) return rankScore;
-    if (wScore > 0) return wScore;
-    return 0;
+    const baseScore = yAvg > 0 ? yAvg : (yRating > 0 ? yRating : (rankScore > 0 ? rankScore : wScore));
+    // If member_tbl.team_id = 1, locked priority in natural registered position first
+    return (isFixed ? 10000 : 0) + baseScore;
   };
 
   // Sort assigned categories and unassigned from highest to lowest score
@@ -5031,13 +5030,14 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
 
   // 3.5. Tactical Re-allocation for Mandatory Defence (DF):
   // If DF is still vacant because no natural DF/DM/DW were surplus, but CF/AM are available:
-  // Move lowest-rated DW (or MF) starter back to DF, and use the spare CF/AM to fill that vacated DW/MF slot!
+  // Move lowest-rated non-fixed DW (or MF) starter back to DF, and use the spare CF/AM to fill that vacated DW/MF slot!
   for (const slot of finalSlots.DF) {
     if (slot.primary === null) {
       const borrowRoles = ['DW', 'DM', 'MF'];
       for (const bRole of borrowRoles) {
         if (finalSlots[bRole] && finalSlots[bRole].length > 0) {
-          const filledSlots = finalSlots[bRole].filter(s => s.primary !== null);
+          // Only borrow from non-fixed players (member_team_id !== 1)
+          const filledSlots = finalSlots[bRole].filter(s => s.primary !== null && Number(s.primary.member_team_id) !== 1);
           if (filledSlots.length > 0) {
             filledSlots.sort((a, b) => getPlayerScore(a.primary) - getPlayerScore(b.primary));
             const donorSlot = filledSlots[0];
