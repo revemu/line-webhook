@@ -4432,7 +4432,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       ? primary.yearStats.rating
       : (primary.rank && Number(primary.rank) > 0 ? parseFloat(primary.rank).toFixed(1) : (pHasWRating ? pWStat.rating : '-'));
     const pRatingStr = pYearRating !== '-' ? `⭐${pYearRating}` : '⭐-';
-    const pStatsLine = `${pRatingStr} (⚽${primary.yearStats?.goals || pWStat.goals || 0} 👟${primary.yearStats?.assists || pWStat.assists || 0})`;
+    const pStatsLine = `${pRatingStr} (⚽${pWStat.goals || 0} 👟${pWStat.assists || 0})`;
 
     if (!alternate) {
       const isMom = isPrimaryMom;
@@ -4546,7 +4546,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       ? alternate.yearStats.rating
       : (alternate.rank && Number(alternate.rank) > 0 ? parseFloat(alternate.rank).toFixed(1) : (aHasWRating ? aWStat.rating : '-'));
     const aRatingStr = aYearRating !== '-' ? `⭐${aYearRating}` : '⭐-';
-    const aStatsLine = `${aRatingStr} (⚽${alternate.yearStats?.goals || aWStat.goals || 0} 👟${alternate.yearStats?.assists || aWStat.assists || 0})`;
+    const aStatsLine = `${aRatingStr} (⚽${aWStat.goals || 0} 👟${aWStat.assists || 0})`;
 
     return {
       type: 'box',
