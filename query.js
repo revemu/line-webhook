@@ -5060,6 +5060,25 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
     finalSlots.alternates.push(p);
   }
 
+  // 5. Ensure for each paired slot, the player with the higher avg rating is primary starter and the lower rating is alternate
+  for (const r of ['GK', 'CF', 'AM', 'MF', 'DM', 'DW', 'DF']) {
+    if (finalSlots[r]) {
+      for (const slot of finalSlots[r]) {
+        if (slot.primary && slot.alternate) {
+          if (getPlayerScore(slot.alternate) > getPlayerScore(slot.primary)) {
+            const temp = slot.primary;
+            slot.primary = slot.alternate;
+            slot.alternate = temp;
+            slot.primary.isAlternate = false;
+            slot.alternate.isAlternate = true;
+            slot.primary.effectivePos = r;
+            slot.alternate.effectivePos = r;
+          }
+        }
+      }
+    }
+  }
+
   return {
     formationName,
     slots: finalSlots,
