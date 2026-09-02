@@ -4978,7 +4978,7 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
     MF: ['MF', 'AM', 'DM', 'DW', 'CF', 'DF'],
     DM: ['DM', 'DF', 'MF', 'DW', 'AM', 'CF'],
     DW: ['DW', 'DF', 'AM', 'MF', 'CF'],
-    DF: ['DF', 'DM', 'DW', 'MF', 'AM', 'CF']
+    DF: ['DF', 'DM', 'DW', 'MF', 'CF', 'AM']
   };
 
   // 1. Assign GK
