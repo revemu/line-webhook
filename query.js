@@ -5546,11 +5546,12 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     m.posCode = (m.pos_code || 'MF').toUpperCase();
   }
 
-  // 4. Calculate team capacities
+  // 4. Calculate team capacities & shuffle team color assignment for variety
   const baseCap = Math.floor(N / K);
   const extraCount = N % K;
 
-  const teams = activeTeams.map((tc, idx) => ({
+  const shuffledTeamColors = shuffleArray([...activeTeams]);
+  const teams = shuffledTeamColors.map((tc, idx) => ({
     teamColorObj: tc,
     teamId: tc.id,
     teamIndex: tc.index || (idx + 1),
@@ -5568,7 +5569,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     team.ratingSum += player.rating;
   };
 
-  // 5. Separate Priority Players (member_team_id === 1)
+  // 5. Separate Priority Players (member_team_id === 1) with Shuffled Distribution
   const priorityPlayers = registeredMembers.filter(m => Number(m.member_team_id) === 1);
   const regularPlayers = registeredMembers.filter(m => Number(m.member_team_id) !== 1);
 
@@ -5579,10 +5580,10 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     priorityByPos[p.posCode].push(p);
   }
 
-  // Distribute priority players position-by-position across distinct teams
+  // Distribute priority players position-by-position randomly across distinct teams
   for (const pos of Object.keys(priorityByPos)) {
-    const pList = priorityByPos[pos];
-    pList.sort((a, b) => b.rating - a.rating);
+    const pList = shuffleArray([...priorityByPos[pos]]);
+    // Get candidate teams that do not have a priority player of this position yet, shuffled
     for (const player of pList) {
       const candidateTeams = teams.filter(t => t.members.length < t.maxCapacity);
       if (candidateTeams.length > 0) {
@@ -5592,18 +5593,22 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
         );
         const pool = teamsWithoutSamePosPriority.length > 0 ? teamsWithoutSamePosPriority : candidateTeams;
         
-        pool.sort((a, b) => {
+        // Shuffle pool to ensure different team assignments each run, then pick the most balanced
+        const shuffledPool = shuffleArray([...pool]);
+        shuffledPool.sort((a, b) => {
           const posDiff = (a.positionCounts[player.posCode] || 0) - (b.positionCounts[player.posCode] || 0);
           if (posDiff !== 0) return posDiff;
-          return a.ratingSum - b.ratingSum;
+          const ratingDiff = a.ratingSum - b.ratingSum;
+          if (Math.abs(ratingDiff) > 1.0) return ratingDiff;
+          return 0;
         });
 
-        addPlayerToTeam(player, pool[0]);
+        addPlayerToTeam(player, shuffledPool[0]);
       }
     }
   }
 
-  // 6. Balanced Draft for Regular Players by Position
+  // 6. Balanced Draft for Regular Players by Position with Randomization
   const regularByPos = {};
   const posOrder = ['GK', 'DF', 'DW', 'MF', 'CF', 'DM', 'AM'];
   for (const p of regularPlayers) {
@@ -5617,19 +5622,26 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     const playersInPos = regularByPos[pos] || [];
     if (playersInPos.length === 0) continue;
 
-    // Sort by rating descending
-    playersInPos.sort((a, b) => b.rating - a.rating);
+    // Sort players by rating with slight jitter for equal/close ratings
+    playersInPos.sort((a, b) => {
+      const diff = b.rating - a.rating;
+      if (Math.abs(diff) < 0.2) return Math.random() - 0.5;
+      return diff;
+    });
 
     for (const player of playersInPos) {
       const availableTeams = teams.filter(t => t.members.length < t.maxCapacity);
       if (availableTeams.length > 0) {
-        availableTeams.sort((a, b) => {
+        const shuffledTeams = shuffleArray([...availableTeams]);
+        shuffledTeams.sort((a, b) => {
           const posCountDiff = (a.positionCounts[pos] || 0) - (b.positionCounts[pos] || 0);
           if (posCountDiff !== 0) return posCountDiff;
-          return a.ratingSum - b.ratingSum;
+          const ratingDiff = a.ratingSum - b.ratingSum;
+          if (Math.abs(ratingDiff) > 1.2) return ratingDiff;
+          return 0; // Keep random shuffle order for close ratings
         });
 
-        addPlayerToTeam(player, availableTeams[0]);
+        addPlayerToTeam(player, shuffledTeams[0]);
       }
     }
   }
