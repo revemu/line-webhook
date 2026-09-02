@@ -4588,7 +4588,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     const teamNameFormatted = formatTeamDisplayName(team.teamColor);
     const headerTheme = getTeamHeaderTheme(team.teamColor);
 
-    // Identify Man of the Match (MOM) for this team
+    // Identify Man of the Match (MOM) for this team strictly based on this week's performance
     const allTeamMembers = team.members || [];
     let momPlayer = null;
     let topScore = -1;
@@ -4601,13 +4601,6 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
         topScore = totalPoints;
         momPlayer = m;
       }
-    }
-    if (!momPlayer && allTeamMembers.length > 0) {
-      momPlayer = allTeamMembers.reduce((best, m) => {
-        const bRating = parseFloat(best.yearStats?.rating || best.rank || 0) || 0;
-        const mRating = parseFloat(m.yearStats?.rating || m.rank || 0) || 0;
-        return mRating > bRating ? m : best;
-      }, allTeamMembers[0]);
     }
     const momPlayerId = momPlayer ? momPlayer.id : null;
 
@@ -4984,6 +4977,77 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
             flex: 0,
             contents: [
               { type: 'text', text: `⭐ ${momRatingVal}`, size: 'sm', weight: 'bold', color: '#FDE047', align: 'center' }
+            ]
+          }
+        ]
+      });
+    } else {
+      // Week has not been played yet -> Team MVP shows n/a
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        backgroundColor: '#0F172ACC',
+        borderColor: '#475569',
+        borderWidth: '1px',
+        cornerRadius: 'md',
+        paddingAll: 'sm',
+        margin: 'sm',
+        alignItems: 'center',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '36px',
+            height: '36px',
+            cornerRadius: '18px',
+            backgroundColor: '#1E293B',
+            borderWidth: '1px',
+            borderColor: '#475569',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: 0,
+            contents: [{ type: 'text', text: '👑', size: 'sm', align: 'center', gravity: 'center' }]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            flex: 1,
+            margin: 'md',
+            contents: [
+              {
+                type: 'box',
+                layout: 'horizontal',
+                alignItems: 'center',
+                contents: [
+                  { type: 'text', text: '👑 Team MVP', size: 'xxs', color: '#94A3B8', weight: 'bold', flex: 0 },
+                  { type: 'text', text: '• n/a', size: 'xs', color: '#94A3B8', weight: 'bold', margin: 'xs', flex: 1, wrap: false }
+                ]
+              },
+              {
+                type: 'text',
+                text: 'ยังไม่มีการแข่งขันสัปดาห์นี้',
+                size: 'xxs',
+                color: '#64748B',
+                margin: 'none'
+              }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#1E293B',
+            borderWidth: '1px',
+            borderColor: '#475569',
+            cornerRadius: 'md',
+            paddingStart: '8px',
+            paddingEnd: '8px',
+            paddingTop: '2px',
+            paddingBottom: '3px',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: 0,
+            contents: [
+              { type: 'text', text: '⭐ n/a', size: 'sm', weight: 'bold', color: '#94A3B8', align: 'center' }
             ]
           }
         ]
