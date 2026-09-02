@@ -4868,27 +4868,39 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
   const targetOutfieldTotal = is8PlayerWeek ? 7 : 6;
   let needed = Math.max(0, targetOutfieldTotal - baseOutfield);
 
-  // 1. Allocate based on natural player positions registered in team first (up to max)
-  const naturalRoles = ['CF', 'AM', 'DM', 'DW', 'MF', 'DF'];
-  for (const pos of naturalRoles) {
+  // 1. Allocate based on natural player positions registered in team:
+  // Prioritize mandatory positions (min >= 1) first
+  const mandatoryRoles = ['DW', 'MF', 'DF'];
+  for (const pos of mandatoryRoles) {
     const lim = getLimit(pos);
-    let curTarget = pos === 'CF' ? targetCF : (pos === 'AM' ? targetAM : (pos === 'DM' ? targetDM : (pos === 'DW' ? targetDW : (pos === 'MF' ? targetMF : targetDF))));
+    let curTarget = pos === 'DW' ? targetDW : (pos === 'MF' ? targetMF : targetDF);
+    while (assigned[pos].length > curTarget && curTarget < lim.max && needed > 0) {
+      curTarget++;
+      needed--;
+      if (pos === 'DW') targetDW = curTarget;
+      else if (pos === 'MF') targetMF = curTarget;
+      else if (pos === 'DF') targetDF = curTarget;
+    }
+  }
+
+  // Next, allocate natural players for optional positions (min == 0)
+  const optionalRoles = ['CF', 'AM', 'DM'];
+  for (const pos of optionalRoles) {
+    const lim = getLimit(pos);
+    let curTarget = pos === 'CF' ? targetCF : (pos === 'AM' ? targetAM : targetDM);
     while (assigned[pos].length > curTarget && curTarget < lim.max && needed > 0) {
       curTarget++;
       needed--;
       if (pos === 'CF') targetCF = curTarget;
       else if (pos === 'AM') targetAM = curTarget;
       else if (pos === 'DM') targetDM = curTarget;
-      else if (pos === 'DW') targetDW = curTarget;
-      else if (pos === 'MF') targetMF = curTarget;
-      else if (pos === 'DF') targetDF = curTarget;
     }
   }
 
-  // 2. Fill remaining needed starter slots using tactical default balance up to max limits
+  // 2. Fill remaining needed starter slots using tactical default balance (mandatory min >= 1 roles first)
   const tacticalFillOrder = is8PlayerWeek
-    ? ['CF', 'MF', 'DF', 'DW', 'AM', 'DM']
-    : ['CF', 'MF', 'DW', 'DF', 'AM', 'DM'];
+    ? ['MF', 'DF', 'DW', 'CF', 'AM', 'DM']
+    : ['MF', 'DW', 'DF', 'CF', 'AM', 'DM'];
 
   for (const pos of tacticalFillOrder) {
     if (needed <= 0) break;
@@ -4981,8 +4993,8 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
     }
   }
 
-  // 2. Exact Natural Position Match for Primary Starters (highest rating first)
-  const outfieldRoles = ['CF', 'AM', 'MF', 'DM', 'DW', 'DF'];
+  // 2. Exact Natural Position Match for Primary Starters (Mandatory roles first, then optional)
+  const outfieldRoles = ['DW', 'MF', 'DF', 'CF', 'AM', 'DM'];
   for (const r of outfieldRoles) {
     for (const slot of finalSlots[r]) {
       if (slot.primary === null && assigned[r].length > 0) {
