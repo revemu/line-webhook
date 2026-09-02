@@ -4538,7 +4538,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     };
   };
 
-  const renderPlayerNode = (slot, defaultPosCode, teamColorHex, momPlayerId = null, isRightSide = false) => {
+  const renderPlayerNode = (slot, defaultPosCode, teamColorHex, momPlayerId = null, alignMode = 'center') => {
     const primary = (slot && slot.primary !== undefined) ? slot.primary : slot;
     const alternate = (slot && slot.alternate) ? slot.alternate : null;
 
@@ -4556,15 +4556,25 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     const altPosCode = (alternate.effectivePos || alternate.pos_code || posCode).toUpperCase();
     const alternateCard = renderSinglePlayerCard(alternate, altPosCode, true, teamColorHex, momPlayerId, '100px');
 
-    const pairContents = isRightSide
-      ? [alternateCard, primaryCard]
-      : [primaryCard, alternateCard];
+    let pairContents;
+    let justify;
+
+    if (alignMode === 'left') {
+      pairContents = [primaryCard, alternateCard];
+      justify = 'flex-start';
+    } else if (alignMode === 'right') {
+      pairContents = [alternateCard, primaryCard];
+      justify = 'flex-end';
+    } else {
+      pairContents = [primaryCard, alternateCard];
+      justify = 'center';
+    }
 
     return {
       type: 'box',
       layout: 'horizontal',
       alignItems: 'flex-start',
-      justifyContent: 'center',
+      justifyContent: justify,
       spacing: 'xs',
       contents: pairContents
     };
@@ -4601,7 +4611,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     // Row 1: CF (Center Forward / Striker) - Max 1 Min 0
     const cfNodes = (slots.CF && slots.CF.length > 0)
-      ? slots.CF.map((p) => renderPlayerNode(p, 'CF', colorHex, momPlayerId, false))
+      ? slots.CF.map((p) => renderPlayerNode(p, 'CF', colorHex, momPlayerId, 'center'))
       : [];
 
     const cfRow = cfNodes.length > 0 ? {
@@ -4615,7 +4625,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     // Row 2: AM (Attacking Midfielder) - Max 1 Min 0
     const amNodes = (slots.AM && slots.AM.length > 0)
-      ? slots.AM.map((p) => renderPlayerNode(p, 'AM', colorHex, momPlayerId, false))
+      ? slots.AM.map((p) => renderPlayerNode(p, 'AM', colorHex, momPlayerId, 'center'))
       : [];
 
     const amRow = amNodes.length > 0 ? {
@@ -4633,13 +4643,13 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       layout: 'horizontal',
       justifyContent: 'center',
       alignItems: 'center',
-      contents: [renderPlayerNode(null, 'CF', colorHex, momPlayerId)]
+      contents: [renderPlayerNode(null, 'CF', colorHex, momPlayerId, 'center')]
     };
 
     // Row 3: MF (Midfielders) - Max 2 Min 1 (Always Center)
     const mfNodes = (slots.MF && slots.MF.length > 0)
-      ? slots.MF.map((p) => renderPlayerNode(p, 'MF', colorHex, momPlayerId, false))
-      : [renderPlayerNode(null, 'MF', colorHex, momPlayerId)];
+      ? slots.MF.map((p) => renderPlayerNode(p, 'MF', colorHex, momPlayerId, 'center'))
+      : [renderPlayerNode(null, 'MF', colorHex, momPlayerId, 'center')];
 
     const mfRow = {
       type: 'box',
@@ -4652,7 +4662,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     // Row 4: DM (Defensive Midfielder) - Max 1 Min 0 (Always Center)
     const dmNodes = (slots.DM && slots.DM.length > 0)
-      ? slots.DM.map((p) => renderPlayerNode(p, 'DM', colorHex, momPlayerId, false))
+      ? slots.DM.map((p) => renderPlayerNode(p, 'DM', colorHex, momPlayerId, 'center'))
       : [];
 
     const dmRow = dmNodes.length > 0 ? {
@@ -4667,10 +4677,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     // Row 5: DW (Defensive Wings / Wingers) - Max 2 Min 2 (Flanks: Left on left, Right on right)
     const dwNodes = (slots.DW && slots.DW.length > 0)
       ? [
-          renderPlayerNode(slots.DW[0], 'DW', colorHex, momPlayerId, false),
-          renderPlayerNode(slots.DW[1] || null, 'DW', colorHex, momPlayerId, true)
+          renderPlayerNode(slots.DW[0], 'DW', colorHex, momPlayerId, 'left'),
+          renderPlayerNode(slots.DW[1] || null, 'DW', colorHex, momPlayerId, 'right')
         ]
-      : [renderPlayerNode(null, 'DW', colorHex, momPlayerId, false), renderPlayerNode(null, 'DW', colorHex, momPlayerId, true)];
+      : [renderPlayerNode(null, 'DW', colorHex, momPlayerId, 'left'), renderPlayerNode(null, 'DW', colorHex, momPlayerId, 'right')];
 
     const dwRow = {
       type: 'box',
@@ -4684,13 +4694,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     // Row 6: DF (Defenders / Centre Backs) - Max 2 Min 1 (Center Pairing)
     const dfNodes = (slots.DF && slots.DF.length > 0)
-      ? (slots.DF.length > 1
-          ? [
-              renderPlayerNode(slots.DF[0], 'DF', colorHex, momPlayerId, false),
-              renderPlayerNode(slots.DF[1], 'DF', colorHex, momPlayerId, false)
-            ]
-          : [renderPlayerNode(slots.DF[0], 'DF', colorHex, momPlayerId, false)])
-      : [renderPlayerNode(null, 'DF', colorHex, momPlayerId)];
+      ? slots.DF.map((p) => renderPlayerNode(p, 'DF', colorHex, momPlayerId, 'center'))
+      : [renderPlayerNode(null, 'DF', colorHex, momPlayerId, 'center')];
 
     const dfRow = {
       type: 'box',
@@ -4703,8 +4708,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     // Row 7: GK (Goalkeeper) - Max 1 Min 0
     const gkNode = (slots.GK && slots.GK.length > 0)
-      ? renderPlayerNode(slots.GK[0], 'GK', colorHex, momPlayerId)
-      : renderPlayerNode(null, 'GK', colorHex, momPlayerId);
+      ? renderPlayerNode(slots.GK[0], 'GK', colorHex, momPlayerId, 'center')
+      : renderPlayerNode(null, 'GK', colorHex, momPlayerId, 'center');
 
     const gkRow = {
       type: 'box',
