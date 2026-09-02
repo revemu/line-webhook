@@ -4943,15 +4943,15 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
 
   const getPlayerScore = (p) => {
     if (!p) return 0;
-    const isFixed = Number(p.member_team_id) === 1;
+    const tid = Number(p.member_team_id);
+    const priorityBonus = tid === 1 ? 10000 : (tid === 2 ? 5000 : 0);
     // Primary score strictly by yearly avg rating -> rank -> week rating
     const yAvg = parseFloat(p.yearStats?.avgRating || 0) || 0;
     const yRating = parseFloat(p.yearStats?.rating || 0) || 0;
     const rankScore = parseFloat(p.rank || 0) || 0;
     const wScore = parseFloat(p.weekStats?.rating || 0) || 0;
     const baseScore = yAvg > 0 ? yAvg : (yRating > 0 ? yRating : (rankScore > 0 ? rankScore : wScore));
-    // If member_tbl.team_id = 1, locked priority in natural registered position first
-    return (isFixed ? 10000 : 0) + baseScore;
+    return priorityBonus + baseScore;
   };
 
   // Sort assigned categories and unassigned from highest to lowest score
@@ -5036,8 +5036,8 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
       const borrowRoles = ['DW', 'DM', 'MF'];
       for (const bRole of borrowRoles) {
         if (finalSlots[bRole] && finalSlots[bRole].length > 0) {
-          // Only borrow from non-fixed players (member_team_id !== 1)
-          const filledSlots = finalSlots[bRole].filter(s => s.primary !== null && Number(s.primary.member_team_id) !== 1);
+          // Only borrow from non-fixed players (member_team_id not 1 and not 2)
+          const filledSlots = finalSlots[bRole].filter(s => s.primary !== null && Number(s.primary.member_team_id) !== 1 && Number(s.primary.member_team_id) !== 2);
           if (filledSlots.length > 0) {
             filledSlots.sort((a, b) => getPlayerScore(a.primary) - getPlayerScore(b.primary));
             const donorSlot = filledSlots[0];
@@ -5569,46 +5569,47 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     team.ratingSum += player.rating;
   };
 
-  // 5. Separate Priority Players (member_team_id === 1) with Shuffled Distribution
-  const priorityPlayers = registeredMembers.filter(m => Number(m.member_team_id) === 1);
-  const regularPlayers = registeredMembers.filter(m => Number(m.member_team_id) !== 1);
+  // 5. Separate Priority Players: Tier 1 (member_team_id === 1) and Tier 2 (member_team_id === 2)
+  const distributePriorityTier = (tierNum) => {
+    const tierPlayers = registeredMembers.filter(m => Number(m.member_team_id) === tierNum);
+    const byPos = {};
+    for (const p of tierPlayers) {
+      if (!byPos[p.posCode]) byPos[p.posCode] = [];
+      byPos[p.posCode].push(p);
+    }
 
-  // Group priority players by position
-  const priorityByPos = {};
-  for (const p of priorityPlayers) {
-    if (!priorityByPos[p.posCode]) priorityByPos[p.posCode] = [];
-    priorityByPos[p.posCode].push(p);
-  }
+    for (const pos of Object.keys(byPos)) {
+      const pList = shuffleArray([...byPos[pos]]);
+      for (const player of pList) {
+        const candidateTeams = teams.filter(t => t.members.length < t.maxCapacity);
+        if (candidateTeams.length > 0) {
+          // Exclude teams that already have a priority player of this SAME tier and SAME position
+          const teamsWithoutSameTierAndPos = candidateTeams.filter(t => 
+            !t.members.some(m => Number(m.member_team_id) === tierNum && m.posCode === player.posCode)
+          );
+          const pool = teamsWithoutSameTierAndPos.length > 0 ? teamsWithoutSameTierAndPos : candidateTeams;
+          
+          const shuffledPool = shuffleArray([...pool]);
+          shuffledPool.sort((a, b) => {
+            const posDiff = (a.positionCounts[player.posCode] || 0) - (b.positionCounts[player.posCode] || 0);
+            if (posDiff !== 0) return posDiff;
+            const ratingDiff = a.ratingSum - b.ratingSum;
+            if (Math.abs(ratingDiff) > 1.0) return ratingDiff;
+            return 0;
+          });
 
-  // Distribute priority players position-by-position randomly across distinct teams
-  for (const pos of Object.keys(priorityByPos)) {
-    const pList = shuffleArray([...priorityByPos[pos]]);
-    // Get candidate teams that do not have a priority player of this position yet, shuffled
-    for (const player of pList) {
-      const candidateTeams = teams.filter(t => t.members.length < t.maxCapacity);
-      if (candidateTeams.length > 0) {
-        // Exclude teams that already have a priority player of the same position
-        const teamsWithoutSamePosPriority = candidateTeams.filter(t => 
-          !t.members.some(m => Number(m.member_team_id) === 1 && m.posCode === player.posCode)
-        );
-        const pool = teamsWithoutSamePosPriority.length > 0 ? teamsWithoutSamePosPriority : candidateTeams;
-        
-        // Shuffle pool to ensure different team assignments each run, then pick the most balanced
-        const shuffledPool = shuffleArray([...pool]);
-        shuffledPool.sort((a, b) => {
-          const posDiff = (a.positionCounts[player.posCode] || 0) - (b.positionCounts[player.posCode] || 0);
-          if (posDiff !== 0) return posDiff;
-          const ratingDiff = a.ratingSum - b.ratingSum;
-          if (Math.abs(ratingDiff) > 1.0) return ratingDiff;
-          return 0;
-        });
-
-        addPlayerToTeam(player, shuffledPool[0]);
+          addPlayerToTeam(player, shuffledPool[0]);
+        }
       }
     }
-  }
+  };
+
+  // Distribute Tier 1 priority players first, then Tier 2 priority players
+  distributePriorityTier(1);
+  distributePriorityTier(2);
 
   // 6. Balanced Draft for Regular Players by Position with Randomization
+  const regularPlayers = registeredMembers.filter(m => Number(m.member_team_id) !== 1 && Number(m.member_team_id) !== 2);
   const regularByPos = {};
   const posOrder = ['GK', 'DF', 'DW', 'MF', 'CF', 'DM', 'AM'];
   for (const p of regularPlayers) {
