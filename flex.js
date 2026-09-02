@@ -4208,7 +4208,7 @@ function buildMvpListFlex(mvpData, theme) {
                   color: isWeekBestMvp ? (isWhite ? '#b45309' : '#fde047') : colors.textPrimary,
                   flex: 0
                 },
-                ...(isWeekBestMvp ? [{
+                /*...(isWeekBestMvp ? [{
                   type: 'text',
                   text: '👑 MVP OF THE YEAR',
                   weight: 'bold',
@@ -4216,7 +4216,8 @@ function buildMvpListFlex(mvpData, theme) {
                   color: '#f59e0b',
                   margin: 'sm',
                   flex: 0
-                }] : [])
+                }] : [])*/
+                []
               ]
             },
             headerActionContent
@@ -4680,9 +4681,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     // Row 5: DW (Defensive Wings / Wingers) - Max 2 Min 2 (Flanks: Left on left, Right on right)
     const dwNodes = (slots.DW && slots.DW.length > 0)
       ? [
-          renderPlayerNode(slots.DW[0], 'DW', colorHex, momPlayerId, 'left'),
-          renderPlayerNode(slots.DW[1] || null, 'DW', colorHex, momPlayerId, 'right')
-        ]
+        renderPlayerNode(slots.DW[0], 'DW', colorHex, momPlayerId, 'left'),
+        renderPlayerNode(slots.DW[1] || null, 'DW', colorHex, momPlayerId, 'right')
+      ]
       : [renderPlayerNode(null, 'DW', colorHex, momPlayerId, 'left'), renderPlayerNode(null, 'DW', colorHex, momPlayerId, 'right')];
 
     const dwRow = {
