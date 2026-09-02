@@ -4356,7 +4356,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     'CF': '⚡'
   };
 
-  const renderSinglePlayerCard = (player, posCode, isAlternate, teamColorHex, momPlayerId = null) => {
+  const renderSinglePlayerCard = (player, posCode, isAlternate, teamColorHex, momPlayerId = null, cardWidth = '100px') => {
     const isMom = momPlayerId && player.id === momPlayerId;
     const playerName = (player.name || player.alias || (isAlternate ? 'Alt' : 'Player')).replace(/^@/, '');
     const icon = posIcons[posCode] || '';
@@ -4384,7 +4384,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     return {
       type: 'box',
       layout: 'vertical',
-      width: '92px',
+      width: cardWidth,
       alignItems: 'center',
       contents: [
         {
@@ -4424,10 +4424,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           backgroundColor: boxBgColor,
           borderWidth: '1px',
           borderColor: boxBorderColor,
-          cornerRadius: '5px',
+          cornerRadius: '6px',
           paddingStart: '4px',
           paddingEnd: '4px',
-          paddingTop: '2px',
+          paddingTop: '3px',
           paddingBottom: '3px',
           offsetTop: '2px',
           alignItems: 'center',
@@ -4472,7 +4472,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
               color: statsColor,
               align: 'center',
               margin: 'xs',
-              wrap: true
+              wrap: false
             }
           ]
         }
@@ -4480,11 +4480,11 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     };
   };
 
-  const renderEmptyCard = (posCode, isGK = false) => {
+  const renderEmptyCard = (posCode, isGK = false, cardWidth = '100px') => {
     return {
       type: 'box',
       layout: 'vertical',
-      width: '92px',
+      width: cardWidth,
       alignItems: 'center',
       contents: [
         {
@@ -4516,10 +4516,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           backgroundColor: '#000000CC',
           borderWidth: '1px',
           borderColor: '#FFFFFF22',
-          cornerRadius: '5px',
+          cornerRadius: '6px',
           paddingStart: '6px',
           paddingEnd: '6px',
-          paddingTop: '2px',
+          paddingTop: '3px',
           paddingBottom: '3px',
           offsetTop: '2px',
           alignItems: 'center',
@@ -4538,7 +4538,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     };
   };
 
-  const renderPlayerNode = (slot, defaultPosCode, teamColorHex, momPlayerId = null) => {
+  const renderPlayerNode = (slot, defaultPosCode, teamColorHex, momPlayerId = null, isRightSide = false) => {
     const primary = (slot && slot.primary !== undefined) ? slot.primary : slot;
     const alternate = (slot && slot.alternate) ? slot.alternate : null;
 
@@ -4547,25 +4547,26 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     }
 
     const posCode = (primary.effectivePos || primary.pos_code || defaultPosCode || 'MF').toUpperCase();
-    const primaryCard = renderSinglePlayerCard(primary, posCode, false, teamColorHex, momPlayerId);
+    const primaryCard = renderSinglePlayerCard(primary, posCode, false, teamColorHex, momPlayerId, '100px');
 
     if (!alternate) {
       return primaryCard;
     }
 
     const altPosCode = (alternate.effectivePos || alternate.pos_code || posCode).toUpperCase();
-    const alternateCard = renderSinglePlayerCard(alternate, altPosCode, true, teamColorHex, momPlayerId);
+    const alternateCard = renderSinglePlayerCard(alternate, altPosCode, true, teamColorHex, momPlayerId, '100px');
+
+    const pairContents = isRightSide
+      ? [alternateCard, primaryCard]
+      : [primaryCard, alternateCard];
 
     return {
       type: 'box',
       layout: 'horizontal',
       alignItems: 'flex-start',
-      justifyContent: 'center',
+      justifyContent: isRightSide ? 'flex-end' : 'flex-start',
       spacing: 'xs',
-      contents: [
-        primaryCard,
-        alternateCard
-      ]
+      contents: pairContents
     };
   };
 
@@ -4600,30 +4601,28 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     // Row 1: CF (Center Forward / Striker) - Max 1 Min 0
     const cfNodes = (slots.CF && slots.CF.length > 0)
-      ? slots.CF.map(p => renderPlayerNode(p, 'CF', colorHex, momPlayerId))
+      ? slots.CF.map((p) => renderPlayerNode(p, 'CF', colorHex, momPlayerId, false))
       : [];
 
     const cfRow = cfNodes.length > 0 ? {
       type: 'box',
       layout: 'horizontal',
-      justifyContent: cfNodes.length > 1 ? 'space-around' : 'center',
-      paddingStart: cfNodes.length > 1 ? '12px' : '0px',
-      paddingEnd: cfNodes.length > 1 ? '12px' : '0px',
+      justifyContent: 'center',
+      spacing: 'sm',
       alignItems: 'center',
       contents: cfNodes
     } : null;
 
     // Row 2: AM (Attacking Midfielder) - Max 1 Min 0
     const amNodes = (slots.AM && slots.AM.length > 0)
-      ? slots.AM.map(p => renderPlayerNode(p, 'AM', colorHex, momPlayerId))
+      ? slots.AM.map((p) => renderPlayerNode(p, 'AM', colorHex, momPlayerId, false))
       : [];
 
     const amRow = amNodes.length > 0 ? {
       type: 'box',
       layout: 'horizontal',
-      justifyContent: amNodes.length > 1 ? 'space-around' : 'center',
-      paddingStart: amNodes.length > 1 ? '12px' : '0px',
-      paddingEnd: amNodes.length > 1 ? '12px' : '0px',
+      justifyContent: 'center',
+      spacing: 'sm',
       alignItems: 'center',
       contents: amNodes
     } : null;
@@ -4637,40 +4636,41 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       contents: [renderPlayerNode(null, 'CF', colorHex, momPlayerId)]
     };
 
-    // Row 3: MF (Midfielders) - Max 2 Min 1
+    // Row 3: MF (Midfielders) - Max 2 Min 1 (Always Center)
     const mfNodes = (slots.MF && slots.MF.length > 0)
-      ? slots.MF.map(p => renderPlayerNode(p, 'MF', colorHex, momPlayerId))
+      ? slots.MF.map((p) => renderPlayerNode(p, 'MF', colorHex, momPlayerId, false))
       : [renderPlayerNode(null, 'MF', colorHex, momPlayerId)];
 
     const mfRow = {
       type: 'box',
       layout: 'horizontal',
-      justifyContent: mfNodes.length > 1 ? 'space-around' : 'center',
-      paddingStart: mfNodes.length > 1 ? (mfNodes.length >= 3 ? '4px' : '12px') : '0px',
-      paddingEnd: mfNodes.length > 1 ? (mfNodes.length >= 3 ? '4px' : '12px') : '0px',
+      justifyContent: 'center',
+      spacing: 'sm',
       alignItems: 'center',
       contents: mfNodes
     };
 
-    // Row 4: DM (Defensive Midfielder) - Max 1 Min 0
+    // Row 4: DM (Defensive Midfielder) - Max 1 Min 0 (Always Center)
     const dmNodes = (slots.DM && slots.DM.length > 0)
-      ? slots.DM.map(p => renderPlayerNode(p, 'DM', colorHex, momPlayerId))
+      ? slots.DM.map((p) => renderPlayerNode(p, 'DM', colorHex, momPlayerId, false))
       : [];
 
     const dmRow = dmNodes.length > 0 ? {
       type: 'box',
       layout: 'horizontal',
-      justifyContent: dmNodes.length > 1 ? 'space-around' : 'center',
-      paddingStart: dmNodes.length > 1 ? '12px' : '0px',
-      paddingEnd: dmNodes.length > 1 ? '12px' : '0px',
+      justifyContent: 'center',
+      spacing: 'sm',
       alignItems: 'center',
       contents: dmNodes
     } : null;
 
-    // Row 5: DW (Defensive Wings / Wingers) - Max 2 Min 2
+    // Row 5: DW (Defensive Wings / Wingers) - Max 2 Min 2 (Flanks: Left on left, Right on right)
     const dwNodes = (slots.DW && slots.DW.length > 0)
-      ? slots.DW.map(s => renderPlayerNode(s, 'DW', colorHex, momPlayerId))
-      : [renderPlayerNode(null, 'DW', colorHex, momPlayerId), renderPlayerNode(null, 'DW', colorHex, momPlayerId)];
+      ? [
+          renderPlayerNode(slots.DW[0], 'DW', colorHex, momPlayerId, false),
+          renderPlayerNode(slots.DW[1] || null, 'DW', colorHex, momPlayerId, true)
+        ]
+      : [renderPlayerNode(null, 'DW', colorHex, momPlayerId, false), renderPlayerNode(null, 'DW', colorHex, momPlayerId, true)];
 
     const dwRow = {
       type: 'box',
@@ -4679,20 +4679,24 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       paddingStart: '4px',
       paddingEnd: '4px',
       alignItems: 'center',
-      contents: dwNodes.length === 1 ? [dwNodes[0], renderPlayerNode(null, 'DW', colorHex, momPlayerId)] : dwNodes.slice(0, 2)
+      contents: dwNodes
     };
 
-    // Row 6: DF (Defenders / Centre Backs) - Max 2 Min 1
+    // Row 6: DF (Defenders / Centre Backs) - Max 2 Min 1 (Center Pairing)
     const dfNodes = (slots.DF && slots.DF.length > 0)
-      ? slots.DF.map(p => renderPlayerNode(p, 'DF', colorHex, momPlayerId))
+      ? (slots.DF.length > 1
+          ? [
+              renderPlayerNode(slots.DF[0], 'DF', colorHex, momPlayerId, false),
+              renderPlayerNode(slots.DF[1], 'DF', colorHex, momPlayerId, false)
+            ]
+          : [renderPlayerNode(slots.DF[0], 'DF', colorHex, momPlayerId, false)])
       : [renderPlayerNode(null, 'DF', colorHex, momPlayerId)];
 
     const dfRow = {
       type: 'box',
       layout: 'horizontal',
-      justifyContent: dfNodes.length > 1 ? 'space-around' : 'center',
-      paddingStart: dfNodes.length > 1 ? (dfNodes.length >= 3 ? '4px' : '12px') : '0px',
-      paddingEnd: dfNodes.length > 1 ? (dfNodes.length >= 3 ? '4px' : '12px') : '0px',
+      justifyContent: 'center',
+      spacing: 'sm',
       alignItems: 'center',
       contents: dfNodes
     };
