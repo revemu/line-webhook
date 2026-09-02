@@ -1806,7 +1806,7 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     contents: [
       makeBoxButton('🏆 ผู้นำ', '/top', topStatsColor),
       makeBoxButton('📉 ซึมเศร้า', '/bottom', bottomStatsColor),
-      //makeBoxButton('👑 MVP', '/mvplist', '#dbb104ff'),
+      makeBoxButton('👑 MVP', '/mvplist', '#dbb104ff'),
       makeBoxButton('📊 ส่วนตัว', '/stat', personalStatsColor)
     ]
   });
@@ -3241,7 +3241,7 @@ function buildMenuFlex(dateStr, theme, title = null, autoRegCount = 0) {
     contents: [
       makeBoxButton('🏆 ผู้นำ', '/top', topStatsColor),
       makeBoxButton('📉 ซึมเศร้า', '/bottom', bottomStatsColor),
-      //makeBoxButton('👑 MVP', '/mvplist', '#dbb104ff'),
+      makeBoxButton('👑 MVP', '/mvplist', '#dbb104ff'),
       makeBoxButton('📊 สถิติส่วนตัว', '/stat', personalStatsColor)
     ]
   });
