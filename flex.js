@@ -4207,8 +4207,9 @@ function buildMvpListFlex(mvpData, theme) {
                   size: 'xs',
                   color: isWeekBestMvp ? (isWhite ? '#b45309' : '#fde047') : colors.textPrimary,
                   flex: 0
-                },
-                /*...(isWeekBestMvp ? [{
+                }
+                /*,
+                ...(isWeekBestMvp ? [{
                   type: 'text',
                   text: '👑 MVP OF THE YEAR',
                   weight: 'bold',
@@ -4217,7 +4218,7 @@ function buildMvpListFlex(mvpData, theme) {
                   margin: 'sm',
                   flex: 0
                 }] : [])*/
-                []
+
               ]
             },
             headerActionContent
