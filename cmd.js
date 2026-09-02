@@ -263,7 +263,7 @@ const COMMAND_REGISTRY = {
         }
     },
     'resetteam': async () => { await db.resetMemberTeam(); return [{ type: 'text', text: `ปรับให้ทุกคนไม่มีทีมแล้ว` }]; },
-    'randomteam': async (context) => {
+    'randomteam1': async (context) => {
         const dow = (new Date()).getDay();
         if (dow >= 0) {
             const team_res = await db.addTeamMemberWeek();
@@ -280,7 +280,7 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม" }];
     },
-    'randombypos': async (context) => {
+    'randomteam': async (context) => {
         const { param, groupId } = context;
         const week = await db.queryWeekID(param || 0);
         if (!week || week.length === 0) {
