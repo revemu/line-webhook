@@ -4385,6 +4385,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       type: 'box',
       layout: 'vertical',
       width: cardWidth,
+      flex: 0,
       alignItems: 'center',
       contents: [
         {
@@ -4485,6 +4486,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       type: 'box',
       layout: 'vertical',
       width: cardWidth,
+      flex: 0,
       alignItems: 'center',
       contents: [
         {
@@ -4576,6 +4578,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
       alignItems: 'flex-start',
       justifyContent: justify,
       spacing: 'xs',
+      flex: 0,
       contents: pairContents
     };
   };
