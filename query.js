@@ -4975,10 +4975,10 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
   const tacticalFitPreference = {
     CF: ['CF', 'AM', 'MF', 'DW', 'DF'],
     AM: ['AM', 'CF', 'MF', 'DW', 'DF'],
-    MF: ['MF', 'AM', 'DM', 'DW', 'CF', 'DF'],
+    MF: ['MF', 'AM', 'CF', 'DM', 'DW', 'DF'],
     DM: ['DM', 'DF', 'MF', 'DW', 'AM', 'CF'],
-    DW: ['DW', 'DF', 'AM', 'MF', 'CF'],
-    DF: ['DF', 'DM', 'DW', 'MF', 'CF', 'AM']
+    DW: ['DW', 'DF', 'DM', 'MF', 'CF', 'AM'],
+    DF: ['DF', 'DM', 'DW', 'MF']
   };
 
   // 1. Assign GK
@@ -5009,7 +5009,7 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
   for (const r of outfieldRoles) {
     for (const slot of finalSlots[r]) {
       if (slot.primary === null) {
-        // Search compatible roles for surplus players (e.g. DF/CF -> DW)
+        // Search compatible roles for surplus players (e.g. DM/DW/MF for DF)
         const candidates = tacticalFitPreference[r] || outfieldRoles;
         for (const candRole of candidates) {
           if (assigned[candRole] && assigned[candRole].length > 0) {
@@ -5024,6 +5024,46 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
           const p = unassigned.shift();
           p.effectivePos = r;
           slot.primary = p;
+        }
+      }
+    }
+  }
+
+  // 3.5. Tactical Re-allocation for Mandatory Defence (DF):
+  // If DF is still vacant because no natural DF/DM/DW were surplus, but CF/AM are available:
+  // Move lowest-rated DW (or MF) starter back to DF, and use the spare CF/AM to fill that vacated DW/MF slot!
+  for (const slot of finalSlots.DF) {
+    if (slot.primary === null) {
+      const borrowRoles = ['DW', 'DM', 'MF'];
+      for (const bRole of borrowRoles) {
+        if (finalSlots[bRole] && finalSlots[bRole].length > 0) {
+          const filledSlots = finalSlots[bRole].filter(s => s.primary !== null);
+          if (filledSlots.length > 0) {
+            filledSlots.sort((a, b) => getPlayerScore(a.primary) - getPlayerScore(b.primary));
+            const donorSlot = filledSlots[0];
+            const movedPlayer = donorSlot.primary;
+            donorSlot.primary = null;
+
+            movedPlayer.effectivePos = 'DF';
+            slot.primary = movedPlayer;
+
+            // Fill the newly vacated slot in bRole from available surplus roles (e.g. CF, AM, unassigned)
+            const fillCandidates = tacticalFitPreference[bRole] || outfieldRoles;
+            for (const cRole of fillCandidates) {
+              if (assigned[cRole] && assigned[cRole].length > 0) {
+                const newStarter = assigned[cRole].shift();
+                newStarter.effectivePos = bRole;
+                donorSlot.primary = newStarter;
+                break;
+              }
+            }
+            if (donorSlot.primary === null && unassigned.length > 0) {
+              const newStarter = unassigned.shift();
+              newStarter.effectivePos = bRole;
+              donorSlot.primary = newStarter;
+            }
+            break;
+          }
         }
       }
     }
