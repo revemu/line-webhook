@@ -1643,9 +1643,8 @@ async function saveWeekMvpRecords(week_id, mvpList) {
     const g = Number(item.goals) || 0;
     const a = Number(item.assists) || 0;
     const cs = Number(item.cleanSheets !== undefined ? item.cleanSheets : (item.clean_sheet || 0)) || 0;
-    const ga = Number(item.goalsConceded !== undefined ? item.goalsConceded : (item.conceded || 0)) || 0;
-    const raw = parseFloat(item.rawScore || item.score || 0);
-    const rat = parseFloat(item.score || 0);
+    const raw = parseFloat(Number(item.rawScore !== undefined ? item.rawScore : (item.score || 0)).toFixed(4));
+    const rat = parseFloat(Number(item.score || 0).toFixed(2));
 
     await executeQuery(`
       INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, assists, clean_sheet, conceded, raw_score, rating)
@@ -4642,7 +4641,7 @@ async function getMvpList(targetYear = null, groupId = null) {
     LEFT JOIN member_team_week_tbl mtw ON m.week_id = mtw.week_id AND m.member_id = mtw.member_id
     LEFT JOIN member_tbl mem ON m.member_id = mem.id
     WHERE YEAR(w.date) = ?
-    ORDER BY w.date DESC, m.rating DESC, m.raw_score DESC
+    ORDER BY w.date DESC, m.raw_score DESC, m.rating DESC, (m.goals * 4 + m.assists * 3 + m.clean_sheet * 3) DESC
   `, [year]);
 
   if (!mvpRows || mvpRows.length === 0) {
@@ -4650,12 +4649,16 @@ async function getMvpList(targetYear = null, groupId = null) {
   }
 
   // Group by week_id preserving chronological order (newest to oldest)
-  // Only include the top MVP winner(s) of each week (highest rating/raw_score for that week)
+  // Only include the top MVP winner(s) of each week (highest raw_score/rating for that week)
   const weekMap = new Map();
   for (const row of mvpRows) {
     const wId = row.week_id;
     const rawScore = parseFloat(row.raw_score || 0);
     const rating = parseFloat(row.rating || 0);
+    const g = Number(row.goals) || 0;
+    const a = Number(row.assists) || 0;
+    const cs = Number(row.clean_sheet) || 0;
+    const rowPoints = (g * 4) + (a * 3) + (cs * 3);
 
     if (!weekMap.has(wId)) {
       const wDate = row.date ? new Date(row.date) : null;
@@ -4667,17 +4670,39 @@ async function getMvpList(targetYear = null, groupId = null) {
         team_id: row.team_id || null,
         maxScore: rawScore,
         maxRating: rating,
+        maxPoints: rowPoints,
         mvps: []
       });
     }
 
     const weekEntry = weekMap.get(wId);
-    if (!weekEntry.team_id && row.team_id) {
-      weekEntry.team_id = row.team_id;
-    }
-    // Only accept players who tied for the highest score/rating of this week (must be MVP winner)
-    if (rawScore < weekEntry.maxScore - 0.001) {
+    // Prevent duplicate entries for the same member in the same week
+    const memId = row.member_id || (row.id || 0);
+    const memName = (row.member_name || row.name || '').trim();
+    if (weekEntry.mvps.some(m => (memId > 0 && m.member_id === memId) || (memName && m.name.trim().toLowerCase() === memName.toLowerCase()))) {
       continue;
+    }
+
+    // Only accept players who strictly tied for the true top MVP winner of this week
+    if (weekEntry.mvps.length > 0) {
+      // If a top MVP is already selected for this week, a second player is ONLY added if they genuinely tied on all top metrics
+      if (weekEntry.maxScore > 0) {
+        if (Math.abs(rawScore - weekEntry.maxScore) > 0.0001) {
+          continue;
+        }
+      } else if (weekEntry.maxRating > 0) {
+        if (Math.abs(rating - weekEntry.maxRating) > 0.0001 || rowPoints !== weekEntry.maxPoints) {
+          continue;
+        }
+      } else {
+        // No valid positive score -> do not add multiple players
+        continue;
+      }
+
+      // Further verify that match contributions match the top player
+      if (g !== weekEntry.maxGoals || a !== weekEntry.maxAssists) {
+        continue;
+      }
     }
 
     const isYearBest = (bestRaw > 0 && rawScore >= bestRaw - 0.0001) || (bestRating > 0 && rating >= bestRating - 0.0001);
@@ -4700,8 +4725,8 @@ async function getMvpList(targetYear = null, groupId = null) {
     const conceded = Number(row.conceded) || 0;
 
     weekEntry.mvps.push({
-      member_id: row.member_id,
-      name: row.member_name || (row.name || ''),
+      member_id: memId,
+      name: memName,
       team_id: row.team_id || null,
       isBestMvp: isYearBest,
       info,
