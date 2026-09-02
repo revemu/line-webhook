@@ -4146,7 +4146,7 @@ function buildMvpListFlex(mvpData, theme) {
 
     const headerActionContent = isDuplicateTop ? {
       type: 'text',
-      text: '👑 อันดับ 1',
+      text: '👑 MVP of the Year!',
       weight: 'bold',
       size: 'xs',
       color: '#f59e0b',
