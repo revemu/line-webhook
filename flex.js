@@ -4365,10 +4365,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     const pWStat = player.weekStats || {};
     const pHasWRating = pWStat.rating && pWStat.rating !== '-' && Number(pWStat.rating) > 0;
-    const pYearRating = (player.yearStats?.rating && player.yearStats.rating !== '-' && Number(player.yearStats.rating) > 0)
-      ? player.yearStats.rating
-      : (player.rank && Number(player.rank) > 0 ? parseFloat(player.rank).toFixed(1) : (pHasWRating ? pWStat.rating : '-'));
-    const pRatingStr = pYearRating !== '-' ? `⭐${pYearRating}` : '⭐-';
+    const pRatingStr = pHasWRating ? `⭐${parseFloat(pWStat.rating).toFixed(1)}` : '⭐n/a';
     const pStatsLine = `${pRatingStr} (⚽${pWStat.goals || 0} 👟${pWStat.assists || 0})`;
 
     const posBadgeText = isAlternate
@@ -4902,9 +4899,9 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     // Bottom Bar: Team MVP Highlight
     if (momPlayer) {
       const momName = (momPlayer.name || momPlayer.alias || 'Player').replace(/^@/, '');
-      const momRatingVal = momPlayer.weekStats?.rating && momPlayer.weekStats.rating !== '-'
-        ? Number(momPlayer.weekStats.rating).toFixed(1)
-        : (momPlayer.rank ? Number(momPlayer.rank).toFixed(1) : '-');
+      const momRatingVal = (momPlayer.weekStats?.rating && momPlayer.weekStats.rating !== '-' && Number(momPlayer.weekStats.rating) > 0)
+        ? parseFloat(momPlayer.weekStats.rating).toFixed(1)
+        : 'n/a';
       const momGoals = Number(momPlayer.weekStats?.goals || 0);
       const momAssists = Number(momPlayer.weekStats?.assists || 0);
       const statsParts = [];
