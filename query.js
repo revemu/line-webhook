@@ -5450,6 +5450,217 @@ async function getTeamFormation(param = '', groupId = null) {
   return flexMsg;
 }
 
+/**
+ * Randomize registered players for the week into balanced teams by position & rating,
+ * ensuring priority players (member_tbl.team_id = 1) for the same position are placed in separate teams.
+ * Rules:
+ *  - Registered members <= 24 -> 3 teams
+ *  - Registered members > 24 -> 4 teams
+ *  - Team sizes: 7 or 8 players depending on count
+ */
+async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
+  let weekId = targetWeekId;
+  if (!weekId || weekId === 0) {
+    const weekRes = await queryWeekID(0);
+    if (!weekRes || weekRes.length === 0) {
+      return { status: 'NO_WEEK', message: 'ไม่พบสัปดาห์ปัจจุบัน' };
+    }
+    weekId = weekRes[0].id;
+  }
+
+  const weekInfo = await queryWeekID(weekId);
+  const matchDate = weekInfo?.[0]?.date ? new Date(weekInfo[0].date) : new Date();
+  const matchYear = matchDate.getFullYear() > 2400 ? matchDate.getFullYear() - 543 : matchDate.getFullYear();
+
+  // 1. Fetch all registered members for this week
+  const query = `
+    SELECT 
+      mtw.id as mtw_id,
+      mtw.member_id,
+      mtw.team_id,
+      mtw.pos_id as week_pos_id,
+      m.id,
+      m.name,
+      m.alias,
+      m.rank,
+      m.picture_url,
+      m.line_user_id,
+      m.team_id as member_team_id,
+      m.pos_id as member_pos_id,
+      COALESCE(p_week.code, p_mem.code, '') as pos_code,
+      COALESCE(p_week.name, p_mem.name, '') as pos_name
+    FROM member_team_week_tbl mtw
+    LEFT JOIN member_tbl m ON mtw.member_id = m.id
+    LEFT JOIN pos_tbl p_week ON mtw.pos_id = p_week.id
+    LEFT JOIN pos_tbl p_mem ON m.pos_id = p_mem.id
+    WHERE mtw.week_id = ?
+    ORDER BY mtw.id ASC
+  `;
+  const registeredMembers = await executeQuery(query, [weekId]);
+  if (!registeredMembers || registeredMembers.length === 0) {
+    return { status: 'NO_PLAYERS', message: 'ยังไม่มีผู้เล่นลงทะเบียนในสัปดาห์นี้' };
+  }
+
+  const N = registeredMembers.length;
+  // Rule: <= 24 -> 3 teams, > 24 -> 4 teams
+  const K = N <= 24 ? 3 : 4;
+
+  // 2. Ensure team colors for this week (K teams)
+  await addTeamColorWeek(K, weekId);
+  const teamColors = await getTeamColorWeek(weekId);
+  if (!teamColors || teamColors.length < K) {
+    return { status: 'ERROR', message: 'ไม่สามารถสร้างสีทีมได้ครบตามจำนวน' };
+  }
+  const activeTeams = teamColors.slice(0, K);
+
+  // 3. Fetch yearly ratings for player score balancing
+  const yearStatsMap = {};
+  try {
+    await ensureMemberYearStatTable();
+    let yearRows = await executeQuery(
+      "SELECT member_id, total_rating, avg_rating, max_rating, weeks_played FROM member_year_stat_tbl WHERE year = ?",
+      [matchYear]
+    );
+    if (!yearRows || yearRows.length === 0) {
+      await updateYearStatCache(matchYear);
+      yearRows = await executeQuery(
+        "SELECT member_id, total_rating, avg_rating, max_rating, weeks_played FROM member_year_stat_tbl WHERE year = ?",
+        [matchYear]
+      );
+    }
+    if (yearRows && yearRows.length > 0) {
+      yearRows.forEach(r => {
+        const weeksPlayed = Number(r.weeks_played) || 0;
+        const totalRating = parseFloat(r.total_rating) || 0;
+        const avg = parseFloat(r.avg_rating) || (weeksPlayed > 0 ? (totalRating / weeksPlayed) : 0);
+        yearStatsMap[r.member_id] = avg > 0 ? avg : 0;
+      });
+    }
+  } catch (e) { }
+
+  // Attach rating to each member
+  for (const m of registeredMembers) {
+    const yAvg = yearStatsMap[m.member_id] || 0;
+    const rankVal = parseFloat(m.rank || 0) || 0;
+    m.rating = yAvg > 0 ? yAvg : (rankVal > 0 ? rankVal : 0);
+    m.posCode = (m.pos_code || 'MF').toUpperCase();
+  }
+
+  // 4. Calculate team capacities
+  const baseCap = Math.floor(N / K);
+  const extraCount = N % K;
+
+  const teams = activeTeams.map((tc, idx) => ({
+    teamColorObj: tc,
+    teamId: tc.id,
+    teamIndex: tc.index || (idx + 1),
+    color: tc.color,
+    maxCapacity: idx < extraCount ? (baseCap + 1) : baseCap,
+    members: [],
+    positionCounts: { GK: 0, DF: 0, DW: 0, DM: 0, MF: 0, AM: 0, CF: 0, OTHER: 0 },
+    ratingSum: 0
+  }));
+
+  const addPlayerToTeam = (player, team) => {
+    team.members.push(player);
+    const pos = team.positionCounts[player.posCode] !== undefined ? player.posCode : 'OTHER';
+    team.positionCounts[pos]++;
+    team.ratingSum += player.rating;
+  };
+
+  // 5. Separate Priority Players (member_team_id === 1)
+  const priorityPlayers = registeredMembers.filter(m => Number(m.member_team_id) === 1);
+  const regularPlayers = registeredMembers.filter(m => Number(m.member_team_id) !== 1);
+
+  // Group priority players by position
+  const priorityByPos = {};
+  for (const p of priorityPlayers) {
+    if (!priorityByPos[p.posCode]) priorityByPos[p.posCode] = [];
+    priorityByPos[p.posCode].push(p);
+  }
+
+  // Distribute priority players position-by-position across distinct teams
+  for (const pos of Object.keys(priorityByPos)) {
+    const pList = priorityByPos[pos];
+    pList.sort((a, b) => b.rating - a.rating);
+    for (const player of pList) {
+      const candidateTeams = teams.filter(t => t.members.length < t.maxCapacity);
+      if (candidateTeams.length > 0) {
+        // Exclude teams that already have a priority player of the same position
+        const teamsWithoutSamePosPriority = candidateTeams.filter(t => 
+          !t.members.some(m => Number(m.member_team_id) === 1 && m.posCode === player.posCode)
+        );
+        const pool = teamsWithoutSamePosPriority.length > 0 ? teamsWithoutSamePosPriority : candidateTeams;
+        
+        pool.sort((a, b) => {
+          const posDiff = (a.positionCounts[player.posCode] || 0) - (b.positionCounts[player.posCode] || 0);
+          if (posDiff !== 0) return posDiff;
+          return a.ratingSum - b.ratingSum;
+        });
+
+        addPlayerToTeam(player, pool[0]);
+      }
+    }
+  }
+
+  // 6. Balanced Draft for Regular Players by Position
+  const regularByPos = {};
+  const posOrder = ['GK', 'DF', 'DW', 'MF', 'CF', 'DM', 'AM'];
+  for (const p of regularPlayers) {
+    const code = p.posCode;
+    if (!regularByPos[code]) regularByPos[code] = [];
+    regularByPos[code].push(p);
+  }
+
+  const allPosKeys = [...new Set([...posOrder, ...Object.keys(regularByPos)])];
+  for (const pos of allPosKeys) {
+    const playersInPos = regularByPos[pos] || [];
+    if (playersInPos.length === 0) continue;
+
+    // Sort by rating descending
+    playersInPos.sort((a, b) => b.rating - a.rating);
+
+    for (const player of playersInPos) {
+      const availableTeams = teams.filter(t => t.members.length < t.maxCapacity);
+      if (availableTeams.length > 0) {
+        availableTeams.sort((a, b) => {
+          const posCountDiff = (a.positionCounts[pos] || 0) - (b.positionCounts[pos] || 0);
+          if (posCountDiff !== 0) return posCountDiff;
+          return a.ratingSum - b.ratingSum;
+        });
+
+        addPlayerToTeam(player, availableTeams[0]);
+      }
+    }
+  }
+
+  // 7. Persist Team Assignments into Database (member_team_week_tbl)
+  for (const team of teams) {
+    for (const member of team.members) {
+      await executeQuery(
+        "UPDATE member_team_week_tbl SET team_id = ?, team = ? WHERE member_id = ? AND week_id = ?",
+        [team.teamId, team.teamIndex, member.member_id, weekId]
+      );
+    }
+  }
+
+  return {
+    status: 'SUCCESS',
+    weekId,
+    teamCount: K,
+    totalPlayers: N,
+    teams: teams.map(t => ({
+      teamId: t.teamId,
+      teamIndex: t.teamIndex,
+      color: t.color,
+      playerCount: t.members.length,
+      avgRating: t.members.length > 0 ? (t.ratingSum / t.members.length).toFixed(2) : '0.00',
+      positionCounts: t.positionCounts,
+      members: t.members
+    }))
+  };
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -5519,5 +5730,6 @@ module.exports = {
   setMemberWeekPosition,
   getEffectiveMemberPosition,
   allocateFormationSlots,
-  getTeamFormation
+  getTeamFormation,
+  randomTeamByPosition
 };

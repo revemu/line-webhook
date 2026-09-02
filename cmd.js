@@ -280,6 +280,47 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม" }];
     },
+    'randombypos': async (context) => {
+        const { param, groupId } = context;
+        const week = await db.queryWeekID(param || 0);
+        if (!week || week.length === 0) {
+            return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];
+        }
+        const randRes = await db.randomTeamByPosition(week[0].id, groupId);
+        if (!randRes || randRes.status === 'NO_PLAYERS') {
+            return [{ type: 'text', text: "ยังไม่มีผู้เล่นลงทะเบียนในสัปดาห์นี้" }];
+        }
+        if (randRes.status === 'ERROR') {
+            return [{ type: 'text', text: `เกิดข้อผิดพลาด: ${randRes.message}` }];
+        }
+
+        const bubbles = await db.getTeamFormation(week[0].id, groupId);
+        if (bubbles) {
+            const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
+            if (bubblesList.length > 0) {
+                const replyMessages = [];
+                for (let i = 0; i < bubblesList.length && replyMessages.length < 5; i++) {
+                    const bubble = bubblesList[i];
+                    let teamName = `ทีม ${i + 1}`;
+                    let dateStr = '';
+                    try {
+                        teamName = bubble.header?.contents?.[0]?.contents?.[1]?.text || teamName;
+                        const dateText = bubble.header?.contents?.[0]?.contents?.[2]?.text || '';
+                        dateStr = dateText.replace(/^📅\s*/, '').trim();
+                    } catch (e) { }
+
+                    const dateSuffix = dateStr ? ` - ${dateStr}` : '';
+                    replyMessages.push({
+                        type: 'flex',
+                        altText: `⚽ ผังการเล่น ${teamName}${dateSuffix}`,
+                        contents: bubble
+                    });
+                }
+                return replyMessages;
+            }
+        }
+        return [{ type: 'text', text: `✅ สุ่มทีมตามตำแหน่งสำเร็จ (${randRes.teamCount} ทีม, ${randRes.totalPlayers} คน)` }];
+    },
     'teamweek1': async (context) => {
         const { param, groupId } = context;
         const week = await db.queryWeekID(param);
