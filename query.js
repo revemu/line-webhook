@@ -5170,7 +5170,7 @@ async function getTeamFormation(param = '', groupId = null) {
   // 2. Metadata (Theme, Week, Colors)
   const tMetaStart = Date.now();
   const theme = await getTheme();
-  const trimmed = (param || '').trim();
+  const trimmed = String(param !== null && param !== undefined ? param : '').trim();
   let teamArg = null;
   let weekArg = 0;
 
