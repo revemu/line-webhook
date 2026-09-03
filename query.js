@@ -352,6 +352,11 @@ async function updateMemberPriority(member_id, priority) {
   return await executeQuery(query, [priority, member_id]);
 }
 
+async function setMemberWeekPriority(member_id, week_id, priority) {
+  const query = "update member_team_week_tbl set priority=? where member_id=? and week_id=?";
+  return await executeQuery(query, [priority, member_id, week_id]);
+}
+
 async function resetMemberTeam() {
   const week = await queryWeekID();
   let query = `update member_team_week_tbl set team_id=0 where week_id=${week[0].id}`;
@@ -4960,7 +4965,10 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
 
   const getPlayerScore = (p) => {
     if (!p) return 0;
-    const priorityTier = Number(p.priority !== undefined ? p.priority : (p.member_priority !== undefined ? p.member_priority : p.member_team_id)) || 0;
+    const weekPriority = Number(p.week_priority);
+    const priorityTier = (!isNaN(weekPriority) && weekPriority > 0)
+      ? weekPriority
+      : (Number(p.priority !== undefined ? p.priority : (p.member_priority !== undefined ? p.member_priority : p.member_team_id)) || 0);
     const priorityBonus = priorityTier === 1 ? 10000 : (priorityTier === 2 ? 5000 : 0);
     // Primary score strictly by yearly avg rating -> rank -> week rating
     const yAvg = parseFloat(p.yearStats?.avgRating || 0) || 0;
@@ -5056,7 +5064,10 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
           // Only borrow from non-fixed players (priority tier not 1 and not 2)
           const filledSlots = finalSlots[bRole].filter(s => {
             if (!s.primary) return false;
-            const pTier = Number(s.primary.priority !== undefined ? s.primary.priority : (s.primary.member_priority !== undefined ? s.primary.member_priority : s.primary.member_team_id)) || 0;
+            const weekPriority = Number(s.primary.week_priority);
+            const pTier = (!isNaN(weekPriority) && weekPriority > 0)
+              ? weekPriority
+              : (Number(s.primary.priority !== undefined ? s.primary.priority : (s.primary.member_priority !== undefined ? s.primary.member_priority : s.primary.member_team_id)) || 0);
             return pTier !== 1 && pTier !== 2;
           });
           if (filledSlots.length > 0) {
@@ -5372,6 +5383,7 @@ async function getTeamFormation(param = '', groupId = null) {
         mtw.member_id,
         mtw.team_id,
         mtw.pos_id as week_pos_id,
+        mtw.priority as week_priority,
         m.id,
         m.name,
         m.alias,
@@ -5379,8 +5391,8 @@ async function getTeamFormation(param = '', groupId = null) {
         m.donate,
         m.picture_url,
         m.line_user_id,
-        m.priority,
         m.priority as member_priority,
+        COALESCE(NULLIF(mtw.priority, 0), m.priority, 0) as priority,
         m.team_id as member_team_id,
         m.pos_id as member_pos_id,
         COALESCE(p_week.code, p_mem.code, '') as pos_code,
@@ -5502,14 +5514,15 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       mtw.member_id,
       mtw.team_id,
       mtw.pos_id as week_pos_id,
+      mtw.priority as week_priority,
       m.id,
       m.name,
       m.alias,
       m.rank,
       m.picture_url,
       m.line_user_id,
-      m.priority,
       m.priority as member_priority,
+      COALESCE(NULLIF(mtw.priority, 0), m.priority, 0) as priority,
       m.team_id as member_team_id,
       m.pos_id as member_pos_id,
       COALESCE(p_week.code, p_mem.code, '') as pos_code,
@@ -5594,7 +5607,11 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     team.ratingSum += player.rating;
   };
 
-  const getMemberPriority = (m) => Number(m.priority !== undefined ? m.priority : (m.member_priority !== undefined ? m.member_priority : m.member_team_id)) || 0;
+  const getMemberPriority = (m) => {
+    const weekPriority = Number(m.week_priority);
+    if (!isNaN(weekPriority) && weekPriority > 0) return weekPriority;
+    return Number(m.priority !== undefined ? m.priority : (m.member_priority !== undefined ? m.member_priority : m.member_team_id)) || 0;
+  };
 
   // 5. Separate Priority Players: Tier 1 (priority === 1) and Tier 2 (priority === 2)
   const distributePriorityTier = (tierNum) => {
@@ -5681,8 +5698,8 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   for (const team of teams) {
     for (const member of team.members) {
       await executeQuery(
-        "UPDATE member_team_week_tbl SET team_id = ?, team = ? WHERE member_id = ? AND week_id = ?",
-        [team.teamId, team.teamIndex, member.member_id, weekId]
+        "UPDATE member_team_week_tbl SET team_id = ? WHERE member_id = ? AND week_id = ?",
+        [team.teamId, member.member_id, weekId]
       );
     }
   }
@@ -5720,6 +5737,7 @@ module.exports = {
   updateMemberInfo,
   updateMemberRank,
   updateMemberPriority,
+  setMemberWeekPriority,
   updateMemberDebt,
   updateMemberWeek,
   setWeekCost,

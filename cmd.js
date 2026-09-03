@@ -8,8 +8,8 @@ const slipService = require('./slip');
 const { getNextSaturday } = require('./utils/date');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify']);
-const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my']);
-const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority']);
+const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my']);
+const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek']);
 
 function parseCommandString(cmdStr) {
     const pos = cmdStr.indexOf(' ');
@@ -383,8 +383,18 @@ const COMMAND_REGISTRY = {
     },
     'setpriority': async (context) => {
         const { is_mention, member_id, priority_val, member_name } = context;
-        if (is_mention) { await db.updateMemberPriority(member_id, priority_val); return [{ type: 'text', text: `ปรับ priority tier ของ ${member_name} เป็น ${priority_val} เรียบร้อยครับ` }]; }
+        if (is_mention) { await db.updateMemberPriority(member_id, priority_val); return [{ type: 'text', text: `ปรับ priority tier ค่าเริ่มต้นของ ${member_name} เป็น ${priority_val} เรียบร้อยครับ` }]; }
         return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setpriority @ชื่อสมาชิก ระดับ (1, 2 หรือ 0)` }];
+    },
+    'setpriorityweek': async (context) => {
+        const { is_mention, member_id, priority_val, member_name } = context;
+        if (is_mention) {
+            const week = await db.queryWeekID(0);
+            if (!week || week.length === 0) return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];
+            await db.setMemberWeekPriority(member_id, week[0].id, priority_val);
+            return [{ type: 'text', text: `ปรับ priority tier ประจำสัปดาห์ของ ${member_name} เป็น ${priority_val} เรียบร้อยครับ` }];
+        }
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setpriorityweek @ชื่อสมาชิก ระดับ (1, 2 หรือ 0 เพื่อใช้ค่า default)` }];
     },
     'setdebt': async (context) => {
         const { is_mention, member_id, debt_val, member_name } = context;
@@ -882,7 +892,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
     }
 
     let priority_val = 0;
-    if (cmd === 'setpriority') {
+    if (cmd === 'setpriority' || cmd === 'setpriorityweek') {
         const parts = param.split(/\s+/).filter(Boolean);
         if (parts.length > 1) {
             const possibleVal = parts.pop();
