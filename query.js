@@ -5513,6 +5513,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       mtw.id as mtw_id,
       mtw.member_id,
       mtw.team_id,
+      mtw.team as week_team,
       mtw.pos_id as week_pos_id,
       mtw.priority as week_priority,
       m.id,
@@ -5600,11 +5601,13 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     ratingSum: 0
   }));
 
+  const assignedMemberIds = new Set();
   const addPlayerToTeam = (player, team) => {
     team.members.push(player);
     const pos = team.positionCounts[player.posCode] !== undefined ? player.posCode : 'OTHER';
     team.positionCounts[pos]++;
     team.ratingSum += player.rating;
+    assignedMemberIds.add(player.member_id);
   };
 
   const getMemberPriority = (m) => {
@@ -5613,9 +5616,35 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     return Number(m.priority !== undefined ? m.priority : (m.member_priority !== undefined ? m.member_priority : m.member_team_id)) || 0;
   };
 
-  // 5. Separate Priority Players: Tier 1 (priority === 1) and Tier 2 (priority === 2)
+  // Helper to retrieve all unassigned members belonging to the same strict group (mtw.team > 0)
+  const getUnassignedGroup = (player) => {
+    const groupNum = Number(player.week_team);
+    if (!isNaN(groupNum) && groupNum > 0) {
+      return registeredMembers.filter(m => !assignedMemberIds.has(m.member_id) && Number(m.week_team) === groupNum);
+    }
+    return assignedMemberIds.has(player.member_id) ? [] : [player];
+  };
+
+  const placeGroupIntoTeam = (group, team) => {
+    for (const p of group) {
+      addPlayerToTeam(p, team);
+    }
+  };
+
+  // Helper to find best candidate teams with enough capacity for a group
+  const findCandidateTeamsForGroup = (groupLength) => {
+    let candidateTeams = teams.filter(t => t.members.length + groupLength <= t.maxCapacity);
+    if (candidateTeams.length === 0) {
+      // Fallback: teams with the most available room
+      candidateTeams = [...teams].sort((a, b) => (b.maxCapacity - b.members.length) - (a.maxCapacity - a.members.length));
+    }
+    return candidateTeams;
+  };
+
+  // 5. Priority Tier Distribution: Tier 1 (priority === 1) and Tier 2 (priority === 2)
+  // When a priority player is placed, any strict teammates (matching team > 0) are placed into the SAME team with them
   const distributePriorityTier = (tierNum) => {
-    const tierPlayers = registeredMembers.filter(m => getMemberPriority(m) === tierNum);
+    const tierPlayers = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id) && getMemberPriority(m) === tierNum);
     const byPos = {};
     for (const p of tierPlayers) {
       if (!byPos[p.posCode]) byPos[p.posCode] = [];
@@ -5625,16 +5654,23 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     for (const pos of Object.keys(byPos)) {
       const pList = shuffleArray([...byPos[pos]]);
       for (const player of pList) {
-        const candidateTeams = teams.filter(t => t.members.length < t.maxCapacity);
+        if (assignedMemberIds.has(player.member_id)) continue;
+        const group = getUnassignedGroup(player);
+        if (group.length === 0) continue;
+
+        const candidateTeams = findCandidateTeamsForGroup(group.length);
         if (candidateTeams.length > 0) {
           // Exclude teams that already have a priority player of this SAME tier and SAME position
+          const tierPositionsInGroup = new Set(group.filter(m => getMemberPriority(m) === tierNum).map(m => m.posCode));
           const teamsWithoutSameTierAndPos = candidateTeams.filter(t => 
-            !t.members.some(m => getMemberPriority(m) === tierNum && m.posCode === player.posCode)
+            !t.members.some(m => getMemberPriority(m) === tierNum && tierPositionsInGroup.has(m.posCode))
           );
           const pool = teamsWithoutSameTierAndPos.length > 0 ? teamsWithoutSameTierAndPos : candidateTeams;
           
           const shuffledPool = shuffleArray([...pool]);
           shuffledPool.sort((a, b) => {
+            const countDiff = a.members.length - b.members.length;
+            if (countDiff !== 0) return countDiff;
             const posDiff = (a.positionCounts[player.posCode] || 0) - (b.positionCounts[player.posCode] || 0);
             if (posDiff !== 0) return posDiff;
             const ratingDiff = a.ratingSum - b.ratingSum;
@@ -5642,7 +5678,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
             return 0;
           });
 
-          addPlayerToTeam(player, shuffledPool[0]);
+          placeGroupIntoTeam(group, shuffledPool[0]);
         }
       }
     }
@@ -5652,11 +5688,40 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   distributePriorityTier(1);
   distributePriorityTier(2);
 
-  // 6. Balanced Draft for Regular Players by Position with Randomization
-  const regularPlayers = registeredMembers.filter(m => {
-    const tier = getMemberPriority(m);
-    return tier !== 1 && tier !== 2;
-  });
+  // 6. Remaining Strict Bound Groups (for regular players with matching team > 0)
+  const remainingGroupsMap = {};
+  for (const m of registeredMembers) {
+    if (!assignedMemberIds.has(m.member_id)) {
+      const gNum = Number(m.week_team);
+      if (!isNaN(gNum) && gNum > 0) {
+        if (!remainingGroupsMap[gNum]) remainingGroupsMap[gNum] = [];
+        remainingGroupsMap[gNum].push(m);
+      }
+    }
+  }
+
+  const remainingGroupNumbers = Object.keys(remainingGroupsMap).map(Number);
+  remainingGroupNumbers.sort((a, b) => remainingGroupsMap[b].length - remainingGroupsMap[a].length);
+
+  for (const gNum of remainingGroupNumbers) {
+    const group = remainingGroupsMap[gNum].filter(m => !assignedMemberIds.has(m.member_id));
+    if (group.length === 0) continue;
+
+    const candidateTeams = findCandidateTeamsForGroup(group.length);
+    if (candidateTeams.length > 0) {
+      const shuffledPool = shuffleArray([...candidateTeams]);
+      shuffledPool.sort((a, b) => {
+        const countDiff = a.members.length - b.members.length;
+        if (countDiff !== 0) return countDiff;
+        return a.ratingSum - b.ratingSum;
+      });
+
+      placeGroupIntoTeam(group, shuffledPool[0]);
+    }
+  }
+
+  // 7. Balanced Draft for Regular Players by Position with Randomization
+  const regularPlayers = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id) && getMemberPriority(m) !== 1 && getMemberPriority(m) !== 2);
   const regularByPos = {};
   const posOrder = ['GK', 'DF', 'DW', 'MF', 'CF', 'DM', 'AM'];
   for (const p of regularPlayers) {
@@ -5678,23 +5743,41 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     });
 
     for (const player of playersInPos) {
-      const availableTeams = teams.filter(t => t.members.length < t.maxCapacity);
-      if (availableTeams.length > 0) {
-        const shuffledTeams = shuffleArray([...availableTeams]);
+      if (assignedMemberIds.has(player.member_id)) continue;
+      const group = getUnassignedGroup(player);
+      if (group.length === 0) continue;
+
+      const candidateTeams = findCandidateTeamsForGroup(group.length);
+      if (candidateTeams.length > 0) {
+        const shuffledTeams = shuffleArray([...candidateTeams]);
         shuffledTeams.sort((a, b) => {
           const posCountDiff = (a.positionCounts[pos] || 0) - (b.positionCounts[pos] || 0);
           if (posCountDiff !== 0) return posCountDiff;
+          const countDiff = a.members.length - b.members.length;
+          if (countDiff !== 0) return countDiff;
           const ratingDiff = a.ratingSum - b.ratingSum;
           if (Math.abs(ratingDiff) > 1.2) return ratingDiff;
           return 0; // Keep random shuffle order for close ratings
         });
 
-        addPlayerToTeam(player, shuffledTeams[0]);
+        placeGroupIntoTeam(group, shuffledTeams[0]);
       }
     }
   }
 
-  // 7. Persist Team Assignments into Database (member_team_week_tbl)
+  // 8. Fallback for any remaining unassigned player
+  for (const player of registeredMembers) {
+    if (!assignedMemberIds.has(player.member_id)) {
+      const group = getUnassignedGroup(player);
+      if (group.length === 0) continue;
+      const candidateTeams = findCandidateTeamsForGroup(group.length);
+      const pool = candidateTeams.length > 0 ? candidateTeams : teams;
+      pool.sort((a, b) => a.members.length - b.members.length);
+      placeGroupIntoTeam(group, pool[0]);
+    }
+  }
+
+  // 9. Persist Team Assignments into Database (member_team_week_tbl)
   for (const team of teams) {
     for (const member of team.members) {
       await executeQuery(
