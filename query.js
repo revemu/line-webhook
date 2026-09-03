@@ -4919,10 +4919,27 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
     }
   }
 
+  // 1.5. Tactical adaptations for surplus DF and MF:
+  // A. When DF has no vacant slot (assigned.DF > targetDF), DF can play DM, and then DW
+  while (assigned.DF.length > targetDF && targetDM < limDM.max && needed > 0) {
+    targetDM++;
+    needed--;
+  }
+  while (assigned.DF.length > (targetDF + (assigned.DM.length === 0 ? targetDM : 0)) && targetDW < limDW.max && needed > 0) {
+    targetDW++;
+    needed--;
+  }
+
+  // B. MF can play DM instead (when assigned.MF > targetMF)
+  while (assigned.MF.length > targetMF && targetDM < limDM.max && needed > 0) {
+    targetDM++;
+    needed--;
+  }
+
   // 2. Fill remaining needed starter slots using tactical default balance (mandatory min >= 1 roles first)
   const tacticalFillOrder = is8PlayerWeek
-    ? ['MF', 'DF', 'DW', 'CF', 'AM', 'DM']
-    : ['MF', 'DW', 'DF', 'CF', 'AM', 'DM'];
+    ? ['MF', 'DM', 'DW', 'DF', 'CF', 'AM']
+    : ['MF', 'DM', 'DW', 'DF', 'CF', 'AM'];
 
   for (const pos of tacticalFillOrder) {
     if (needed <= 0) break;
@@ -4999,7 +5016,7 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
   const tacticalFitPreference = {
     CF: ['CF', 'AM', 'MF', 'DW', 'DF'],
     AM: ['AM', 'CF', 'MF', 'DW', 'DF'],
-    MF: ['MF', 'AM', 'CF', 'DM', 'DW', 'DF'],
+    MF: ['MF', 'DM', 'AM', 'CF', 'DW', 'DF'],
     DM: ['DM', 'DF', 'MF', 'DW', 'AM', 'CF'],
     DW: ['DW', 'DF', 'DM', 'MF', 'CF', 'AM'],
     DF: ['DF', 'DM', 'DW', 'MF']
