@@ -3995,8 +3995,10 @@ function buildMvpListFlex(mvpData, theme) {
   const bestWeekEntry = weeks.find(w => w.isBestMvp || (w.mvps || []).some(m => m.isBestMvp)) || (bestMvpPlayers && bestMvpPlayers.length > 0 && weeks.find(w => w.week_id === bestMvpPlayers[0].week_id)) || null;
 
   const hasTopDuplicate = Boolean(bestWeekEntry);
-  const page1Capacity = hasTopDuplicate ? 9 : 10;
-  const defaultCapacity = 10;
+  const maxBubbles = 10;
+  const targetCapacity = Math.max(5, Math.ceil((weeks.length + (hasTopDuplicate ? 1 : 0)) / maxBubbles));
+  const page1Capacity = hasTopDuplicate ? Math.max(1, targetCapacity - 1) : targetCapacity;
+  const defaultCapacity = targetCapacity;
 
   const chunks = [];
   let remainingWeeks = [...weeks];
@@ -4116,27 +4118,19 @@ function buildMvpListFlex(mvpData, theme) {
                 type: 'text',
                 text: pStatsStr,
                 size: 'xs',
-                color: isWhite ? '#475569' : '#cbd5e1',
-                margin: 'none'
+                color: isWhite ? '#475569' : '#cbd5e1'
               }
             ]
           },
           {
-            type: 'box',
-            layout: 'vertical',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            flex: 0,
-            contents: [
-              {
-                type: 'text',
-                text: pRatingStr,
-                weight: 'bold',
-                size: 'sm',
-                color: isPlayerBest ? '#d97706' : (isWhite ? '#d97706' : '#fbbf24'),
-                align: 'end'
-              }
-            ]
+            type: 'text',
+            text: pRatingStr,
+            weight: 'bold',
+            size: 'sm',
+            color: isPlayerBest ? '#d97706' : (isWhite ? '#d97706' : '#fbbf24'),
+            align: 'end',
+            gravity: 'center',
+            flex: 0
           }
         ]
       };
@@ -4197,31 +4191,12 @@ function buildMvpListFlex(mvpData, theme) {
           justifyContent: 'space-between',
           contents: [
             {
-              type: 'box',
-              layout: 'horizontal',
-              alignItems: 'center',
-              flex: 1,
-              contents: [
-                {
-                  type: 'text',
-                  text: `📅 ${w.dateStr || `สัปดาห์ ${w.week_id}`}`,
-                  weight: 'bold',
-                  size: 'xs',
-                  color: isWeekBestMvp ? (isWhite ? '#b45309' : '#fde047') : colors.textPrimary,
-                  flex: 0
-                }
-                /*,
-                ...(isWeekBestMvp ? [{
-                  type: 'text',
-                  text: '👑 MVP OF THE YEAR',
-                  weight: 'bold',
-                  size: 'xxs',
-                  color: '#f59e0b',
-                  margin: 'sm',
-                  flex: 0
-                }] : [])*/
-
-              ]
+              type: 'text',
+              text: `📅 ${w.dateStr || `สัปดาห์ ${w.week_id}`}`,
+              weight: 'bold',
+              size: 'xs',
+              color: isWeekBestMvp ? (isWhite ? '#b45309' : '#fde047') : colors.textPrimary,
+              flex: 1
             },
             headerActionContent
           ]
