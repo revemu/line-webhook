@@ -347,6 +347,11 @@ async function updateMemberRank(member_id, rank) {
   return await executeQuery(query, [rank, member_id]);
 }
 
+async function updateMemberPriority(member_id, priority) {
+  const query = "update member_tbl set priority=? where id=?";
+  return await executeQuery(query, [priority, member_id]);
+}
+
 async function resetMemberTeam() {
   const week = await queryWeekID();
   let query = `update member_team_week_tbl set team_id=0 where week_id=${week[0].id}`;
@@ -2863,8 +2868,8 @@ async function getAutoRegCount(groupId = null) {
     let query = `
       SELECT COUNT(DISTINCT m.id) as count 
       FROM member_tbl m 
-      LEFT JOIN autoreg_tbl a ON m.id = a.member_id 
-      WHERE (m.auto_reg = 1 OR a.status = 1)
+      INNER JOIN autoreg_tbl a ON m.id = a.member_id 
+      WHERE a.status = 1
     `;
     const params = [];
     if (groupId) {
@@ -4197,18 +4202,6 @@ async function ensureAutoRegTable() {
 
     // Normalize any legacy NULL group_id to empty string
     await executeQuery("UPDATE autoreg_tbl SET group_id = '' WHERE group_id IS NULL");
-
-    // Migrate existing member_tbl auto_reg = 1 entries ONLY if not already present in autoreg_tbl
-    const migrateSql = `
-      INSERT INTO autoreg_tbl (member_id, group_id, priority_order, status)
-      SELECT m.id, '', 0, 1 
-      FROM member_tbl m 
-      WHERE m.auto_reg = 1 
-        AND NOT EXISTS (
-          SELECT 1 FROM autoreg_tbl a WHERE a.member_id = m.id
-        )
-    `;
-    await executeQuery(migrateSql);
   } catch (err) {
     console.error("Error ensuring autoreg_tbl table:", err.message);
   }
@@ -4224,11 +4217,9 @@ async function updateMemberAutoReg(member_id, auto_reg, groupId = null) {
       ON DUPLICATE KEY UPDATE status = 1, updated_at = CURRENT_TIMESTAMP
     `;
     await executeQuery(insertQuery, [member_id, targetGroup]);
-    await executeQuery("UPDATE member_tbl SET auto_reg = 1 WHERE id = ?", [member_id]);
   } else {
     const deleteQuery = "DELETE FROM autoreg_tbl WHERE member_id = ?";
     await executeQuery(deleteQuery, [member_id]);
-    await executeQuery("UPDATE member_tbl SET auto_reg = 0 WHERE id = ?", [member_id]);
   }
 }
 
@@ -4241,8 +4232,8 @@ async function getAutoRegList(groupId = null) {
            COALESCE(a.status, 1) as autoreg_status, 
            COALESCE(a.created_at, CURRENT_TIMESTAMP) as autoreg_created_at
     FROM member_tbl m
-    LEFT JOIN autoreg_tbl a ON m.id = a.member_id
-    WHERE (m.auto_reg = 1 OR a.status = 1)
+    INNER JOIN autoreg_tbl a ON m.id = a.member_id
+    WHERE a.status = 1
   `;
   const params = [];
   if (groupId) {
@@ -4969,8 +4960,8 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
 
   const getPlayerScore = (p) => {
     if (!p) return 0;
-    const tid = Number(p.member_team_id);
-    const priorityBonus = tid === 1 ? 10000 : (tid === 2 ? 5000 : 0);
+    const priorityTier = Number(p.priority !== undefined ? p.priority : (p.member_priority !== undefined ? p.member_priority : p.member_team_id)) || 0;
+    const priorityBonus = priorityTier === 1 ? 10000 : (priorityTier === 2 ? 5000 : 0);
     // Primary score strictly by yearly avg rating -> rank -> week rating
     const yAvg = parseFloat(p.yearStats?.avgRating || 0) || 0;
     const yRating = parseFloat(p.yearStats?.rating || 0) || 0;
@@ -5062,8 +5053,12 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
       const borrowRoles = ['DW', 'DM', 'MF'];
       for (const bRole of borrowRoles) {
         if (finalSlots[bRole] && finalSlots[bRole].length > 0) {
-          // Only borrow from non-fixed players (member_team_id not 1 and not 2)
-          const filledSlots = finalSlots[bRole].filter(s => s.primary !== null && Number(s.primary.member_team_id) !== 1 && Number(s.primary.member_team_id) !== 2);
+          // Only borrow from non-fixed players (priority tier not 1 and not 2)
+          const filledSlots = finalSlots[bRole].filter(s => {
+            if (!s.primary) return false;
+            const pTier = Number(s.primary.priority !== undefined ? s.primary.priority : (s.primary.member_priority !== undefined ? s.primary.member_priority : s.primary.member_team_id)) || 0;
+            return pTier !== 1 && pTier !== 2;
+          });
           if (filledSlots.length > 0) {
             filledSlots.sort((a, b) => getPlayerScore(a.primary) - getPlayerScore(b.primary));
             const donorSlot = filledSlots[0];
@@ -5384,6 +5379,8 @@ async function getTeamFormation(param = '', groupId = null) {
         m.donate,
         m.picture_url,
         m.line_user_id,
+        m.priority,
+        m.priority as member_priority,
         m.team_id as member_team_id,
         m.pos_id as member_pos_id,
         COALESCE(p_week.code, p_mem.code, '') as pos_code,
@@ -5478,7 +5475,7 @@ async function getTeamFormation(param = '', groupId = null) {
 
 /**
  * Randomize registered players for the week into balanced teams by position & rating,
- * ensuring priority players (member_tbl.team_id = 1) for the same position are placed in separate teams.
+ * ensuring priority players (member_tbl.priority = 1) for the same position are placed in separate teams.
  * Rules:
  *  - Registered members <= 24 -> 3 teams
  *  - Registered members > 24 -> 4 teams
@@ -5511,6 +5508,8 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       m.rank,
       m.picture_url,
       m.line_user_id,
+      m.priority,
+      m.priority as member_priority,
       m.team_id as member_team_id,
       m.pos_id as member_pos_id,
       COALESCE(p_week.code, p_mem.code, '') as pos_code,
@@ -5595,9 +5594,11 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     team.ratingSum += player.rating;
   };
 
-  // 5. Separate Priority Players: Tier 1 (member_team_id === 1) and Tier 2 (member_team_id === 2)
+  const getMemberPriority = (m) => Number(m.priority !== undefined ? m.priority : (m.member_priority !== undefined ? m.member_priority : m.member_team_id)) || 0;
+
+  // 5. Separate Priority Players: Tier 1 (priority === 1) and Tier 2 (priority === 2)
   const distributePriorityTier = (tierNum) => {
-    const tierPlayers = registeredMembers.filter(m => Number(m.member_team_id) === tierNum);
+    const tierPlayers = registeredMembers.filter(m => getMemberPriority(m) === tierNum);
     const byPos = {};
     for (const p of tierPlayers) {
       if (!byPos[p.posCode]) byPos[p.posCode] = [];
@@ -5611,7 +5612,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
         if (candidateTeams.length > 0) {
           // Exclude teams that already have a priority player of this SAME tier and SAME position
           const teamsWithoutSameTierAndPos = candidateTeams.filter(t => 
-            !t.members.some(m => Number(m.member_team_id) === tierNum && m.posCode === player.posCode)
+            !t.members.some(m => getMemberPriority(m) === tierNum && m.posCode === player.posCode)
           );
           const pool = teamsWithoutSameTierAndPos.length > 0 ? teamsWithoutSameTierAndPos : candidateTeams;
           
@@ -5635,7 +5636,10 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   distributePriorityTier(2);
 
   // 6. Balanced Draft for Regular Players by Position with Randomization
-  const regularPlayers = registeredMembers.filter(m => Number(m.member_team_id) !== 1 && Number(m.member_team_id) !== 2);
+  const regularPlayers = registeredMembers.filter(m => {
+    const tier = getMemberPriority(m);
+    return tier !== 1 && tier !== 2;
+  });
   const regularByPos = {};
   const posOrder = ['GK', 'DF', 'DW', 'MF', 'CF', 'DM', 'AM'];
   for (const p of regularPlayers) {
@@ -5715,6 +5719,7 @@ module.exports = {
   updateMember,
   updateMemberInfo,
   updateMemberRank,
+  updateMemberPriority,
   updateMemberDebt,
   updateMemberWeek,
   setWeekCost,

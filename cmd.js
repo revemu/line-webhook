@@ -8,8 +8,8 @@ const slipService = require('./slip');
 const { getNextSaturday } = require('./utils/date');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify']);
-const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my']);
-const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt']);
+const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my']);
+const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority']);
 
 function parseCommandString(cmdStr) {
     const pos = cmdStr.indexOf(' ');
@@ -380,6 +380,11 @@ const COMMAND_REGISTRY = {
         const { is_mention, member_id, rank_val, member_name } = context;
         if (is_mention) { await db.updateMemberRank(member_id, rank_val); return [{ type: 'text', text: `ปรับระดับ (rank) ของ ${member_name} เป็น ${rank_val} เรียบร้อยครับ` }]; }
         return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setrank @ชื่อสมาชิก ระดับ` }];
+    },
+    'setpriority': async (context) => {
+        const { is_mention, member_id, priority_val, member_name } = context;
+        if (is_mention) { await db.updateMemberPriority(member_id, priority_val); return [{ type: 'text', text: `ปรับ priority tier ของ ${member_name} เป็น ${priority_val} เรียบร้อยครับ` }]; }
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setpriority @ชื่อสมาชิก ระดับ (1, 2 หรือ 0)` }];
     },
     'setdebt': async (context) => {
         const { is_mention, member_id, debt_val, member_name } = context;
@@ -876,6 +881,19 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         }
     }
 
+    let priority_val = 0;
+    if (cmd === 'setpriority') {
+        const parts = param.split(/\s+/).filter(Boolean);
+        if (parts.length > 1) {
+            const possibleVal = parts.pop();
+            const parsed = parseInt(possibleVal, 10);
+            if (!isNaN(parsed)) {
+                priority_val = parsed;
+                param = parts.join(' ').trim();
+            }
+        }
+    }
+
     const mentionResult = await resolveMentionTarget(cmd, param, member, quoteToken);
     if (mentionResult.reply) {
         return mentionResult.reply;
@@ -894,6 +912,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         groupId,
         is_flex,
         rank_val,
+        priority_val,
         debt_val,
         member,
         member_id,
