@@ -4371,8 +4371,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     const pStatsLine = `⚽${pWStat.goals || 0} 👟${pWStat.assists || 0}`;
 
     const posBadgeText = isAlternate
-      ? `${icon} (${posCode})`
-      : (isMom ? `👑 ${posCode}` : `${icon} ${posCode} ${pRatingStr}`);
+      ? `${icon} ${posCode} ${pRatingStr}`
+      : (isMom ? `👑 ${posCode} ${pRatingStr}` : `${icon} ${posCode} ${pRatingStr}`);
 
     const cardBorderColor = isMom ? '#F59E0B' : (isAlternate ? '#38BDF8' : '#FFFFFF');
     const cardBgColor = isAlternate ? '#0C2A44' : (teamColorHex || '#1E293B');
