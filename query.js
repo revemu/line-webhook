@@ -1653,6 +1653,7 @@ async function saveWeekMvpRecords(week_id, mvpList) {
     const g = Number(item.goals) || 0;
     const a = Number(item.assists) || 0;
     const cs = Number(item.cleanSheets !== undefined ? item.cleanSheets : (item.clean_sheet || 0)) || 0;
+    const ga = Number(item.goalsConceded !== undefined ? item.goalsConceded : (item.conceded !== undefined ? item.conceded : (item.ga || 0))) || 0;
     const raw = parseFloat(Number(item.rawScore !== undefined ? item.rawScore : (item.score || 0)).toFixed(4));
     const rat = parseFloat(Number(item.score || 0).toFixed(2));
 
