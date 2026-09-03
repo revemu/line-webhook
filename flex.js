@@ -4367,12 +4367,12 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
 
     const pWStat = player.weekStats || {};
     const pHasWRating = pWStat.rating && pWStat.rating !== '-' && Number(pWStat.rating) > 0;
-    const pRatingStr = pHasWRating ? `⭐${parseFloat(pWStat.rating).toFixed(1)}` : '⭐n/a';
-    const pStatsLine = `${pRatingStr} (⚽${pWStat.goals || 0} 👟${pWStat.assists || 0})`;
+    const pRatingStr = pHasWRating ? `⭐${parseFloat(pWStat.rating).toFixed(1)}` : '⭐?';
+    const pStatsLine = `⚽${pWStat.goals || 0} 👟${pWStat.assists || 0}`;
 
     const posBadgeText = isAlternate
       ? `${icon} (${posCode})`
-      : (isMom ? `👑 ${posCode}` : `${icon} ${posCode}`);
+      : (isMom ? `👑 ${posCode}` : `${icon} ${posCode} ${pRatingStr}`);
 
     const cardBorderColor = isMom ? '#F59E0B' : (isAlternate ? '#38BDF8' : '#FFFFFF');
     const cardBgColor = isAlternate ? '#0C2A44' : (teamColorHex || '#1E293B');
