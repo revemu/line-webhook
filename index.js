@@ -368,7 +368,7 @@ async function handleTextMessage(event, member) {
         console.log(`${member.name}: ${message.text}`);
         const h = new Date().getHours();
         const dow = new Date().getDay();
-        if (dow > 0 && h > 10 && h < 22 && source.groupId) {
+        if (dow > 0 && dow < 6 && h > 10 && h < 20 && source.groupId) {
             const [debt_str, sub, debt_count, proceed] = await db.getDebtList(0);
             if (proceed && debt_count > 0) {
                 console.log(`once a day debt call!`);
