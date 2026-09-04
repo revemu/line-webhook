@@ -3790,7 +3790,7 @@ function buildMatchWeekStandingsFlex({ dateStr, tableRows, topPlayers, leaders, 
         contents: [
           {
             type: 'text',
-            text: `${medals[i] || (i + 1 + '.')} ทีม${row.color || ''}`,
+            text: `${medals[i] || (i + 1 + '.')} ${row.color || ''}`,
             size: 'sm',
             color: teamColorHex,
             flex: 4,
@@ -4176,7 +4176,7 @@ function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColo
   }
 
   const allPlayers = (leaders && leaders.allPlayerRatings) ? [...leaders.allPlayerRatings].sort((a, b) => (b.rawScore || 0) - (a.rawScore || 0)) : [];
-  
+
   // Balance MVP players between Bubble 1 and Bubble 2:
   // If <= 8 players, show all in Bubble 1.
   // If > 8 players, balance roughly half in Bubble 1 and half in Bubble 2 (e.g. 7-9 players in Bubble 1).
