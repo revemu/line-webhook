@@ -364,60 +364,11 @@ const COMMAND_REGISTRY = {
     'formation': async (context) => COMMAND_REGISTRY['teamweek'](context),
     'lineup': async (context) => COMMAND_REGISTRY['teamweek'](context),
     'matchweek': async (context) => {
-        const { param, groupId, quoteToken } = context;
+        const { param, groupId } = context;
         const week = await db.queryWeekID(param);
         if (week && week.length > 0) {
-            const flexBundle = await db.getMatchWeek(week[0].id, groupId);
-            if (!flexBundle) {
-                return [{ type: 'text', text: `ยังไม่มีข้อมูลแมตช์ในสัปดาห์ ${week[0].date}` }];
-            }
-
-            const dateStr = week[0].date ? week[0].date : '';
-            const allBubbles = flexBundle.allBubbles || (Array.isArray(flexBundle) ? flexBundle : (flexBundle.contents || [flexBundle]));
-
-            if (allBubbles && allBubbles.length > 0) {
-                const chunkSize = 2;
-                const replyMessages = [];
-                const totalBubbles = allBubbles.length;
-
-                for (let i = 0; i < totalBubbles && replyMessages.length < 5; i += chunkSize) {
-                    const chunk = allBubbles.slice(i, i + chunkSize);
-                    const pageStart = i + 1;
-                    const pageEnd = i + chunk.length;
-                    const pageInfo = totalBubbles > 1 ? ` (${pageStart}${pageEnd > pageStart ? `-${pageEnd}` : ''}/${totalBubbles})` : '';
-
-                    if (chunk.length === 1) {
-                        replyMessages.push({
-                            type: 'flex',
-                            altText: `⚽ Match Week - ${dateStr}${pageInfo}`.trim(),
-                            contents: chunk[0]
-                        });
-                    } else {
-                        replyMessages.push({
-                            type: 'flex',
-                            altText: `⚽ Match Week - ${dateStr}${pageInfo}`.trim(),
-                            contents: {
-                                type: 'carousel',
-                                contents: chunk
-                            }
-                        });
-                    }
-                }
-
-                try {
-                    const tempDir = path.join(__dirname, 'temp');
-                    if (!fs.existsSync(tempDir)) {
-                        fs.mkdirSync(tempDir, { recursive: true });
-                    }
-                    fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
-                    fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
-                } catch (saveErr) {
-                    console.error('Error saving latest_flex.json in matchweek:', saveErr.message);
-                }
-
-                return replyMessages;
-            }
-
+            const msg = await db.getMatchWeek(week[0].id, groupId);
+            if (msg) return { type: 'flex', altText: `Match Week - ${week[0].date ? week[0].date : ''}`.trim(), contents: msg };
             return [{ type: 'text', text: `ยังไม่มีข้อมูลแมตช์ในสัปดาห์ ${week[0].date}` }];
         }
         return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
