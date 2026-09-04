@@ -3995,7 +3995,7 @@ function buildMvpListFlex(mvpData, theme) {
   const bestWeekEntry = weeks.find(w => w.isBestMvp || (w.mvps || []).some(m => m.isBestMvp)) || (bestMvpPlayers && bestMvpPlayers.length > 0 && weeks.find(w => w.week_id === bestMvpPlayers[0].week_id)) || null;
 
   const hasTopDuplicate = Boolean(bestWeekEntry);
-  const maxBubbles = 6;
+  const maxBubbles = 8;
   const targetCapacity = Math.max(5, Math.ceil((weeks.length + (hasTopDuplicate ? 1 : 0)) / maxBubbles));
   const page1Capacity = hasTopDuplicate ? Math.max(1, targetCapacity - 1) : targetCapacity;
   const defaultCapacity = targetCapacity;
