@@ -4293,7 +4293,7 @@ function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColo
   if (totwBubble) {
     resultMessages.push({
       type: 'flex',
-      altText: `🌟 ทีมยอดเยี่ยมประจำสัปดาห์ (Team of the Week) - ${dateStr || ''}`.trim(),
+      altText: `🌟 Team of the Week - ${dateStr || ''}`.trim(),
       contents: totwBubble
     });
   }
