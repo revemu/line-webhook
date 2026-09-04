@@ -5234,9 +5234,25 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     WHERE mtw.week_id = ?
     ORDER BY mtw.id ASC
   `;
-  const registeredMembers = await executeQuery(query, [weekId]);
-  if (!registeredMembers || registeredMembers.length === 0) {
+  const allRegistered = await executeQuery(query, [weekId]);
+  if (!allRegistered || allRegistered.length === 0) {
     return { status: 'NO_PLAYERS', message: 'ยังไม่มีผู้เล่นลงทะเบียนในสัปดาห์นี้' };
+  }
+
+  // Limit randomization to members registered within maxweek quota (FIFO by mtw.id ASC)
+  const maxPlayers = (weekInfo && weekInfo[0] && weekInfo[0].max) ? Number(weekInfo[0].max) : 24;
+  const registeredMembers = allRegistered.slice(0, maxPlayers);
+  const reserveMembers = allRegistered.slice(maxPlayers);
+
+  // Ensure any excess reserve members beyond maxweek have no team assigned (team_id = 0)
+  if (reserveMembers.length > 0) {
+    const reserveMtwIds = reserveMembers.map(r => r.mtw_id).filter(Boolean);
+    if (reserveMtwIds.length > 0) {
+      await executeQuery(
+        `UPDATE member_team_week_tbl SET team_id = 0 WHERE id IN (${reserveMtwIds.join(',')})`
+      );
+    }
+    console.log(`[randomteam] Capped at max ${maxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
   }
 
   const N = registeredMembers.length;
