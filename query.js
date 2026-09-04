@@ -5488,6 +5488,19 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   // Rule: <= 24 -> 3 teams, > 24 -> 4 teams
   const K = N <= 24 ? 3 : 4;
 
+  // Check if all players within maxweek quota already have teams assigned
+  const allHadTeam = registeredMembers.length > 0 && registeredMembers.every(m => Number(m.team_id) > 0);
+  if (allHadTeam) {
+    console.log(`[randomteam] All ${registeredMembers.length} players (<= max ${maxPlayers}) already have teams. Skipping re-randomization.`);
+    return {
+      status: 'ALREADY_ASSIGNED',
+      alreadyAssigned: true,
+      weekId,
+      teamCount: K,
+      totalPlayers: N
+    };
+  }
+
   // 2. Ensure team colors for this week (K teams)
   await addTeamColorWeek(K, weekId);
   const teamColors = await getTeamColorWeek(weekId);

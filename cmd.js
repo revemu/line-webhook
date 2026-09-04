@@ -319,6 +319,9 @@ const COMMAND_REGISTRY = {
                 return replyMessages;
             }
         }
+        if (randRes.alreadyAssigned) {
+            return [{ type: 'text', text: `ผู้เล่นทุกคนมีทีมแล้ว (${randRes.totalPlayers} คน)` }];
+        }
         return [{ type: 'text', text: `✅ สุ่มทีมตามตำแหน่งสำเร็จ (${randRes.teamCount} ทีม, ${randRes.totalPlayers} คน)` }];
     },
     'teamweek1': async (context) => {
