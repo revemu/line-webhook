@@ -2395,6 +2395,106 @@ async function calcAndSaveMaxMvpScore(options = {}) {
   }
 }
 
+/**
+ * Select the best players of the week for Team of the Week (TOTW)
+ * based on position limits from pos_tbl (min_8/max_8 for 8-player teams, min/max for 7-player teams)
+ * and player performance points (MVP scores).
+ */
+function selectTeamOfTheWeekPlayers(allPlayers, is8PlayerWeek, posLimitsMap) {
+  if (!allPlayers || allPlayers.length === 0) return [];
+
+  const defaultLimits = {
+    DF: { min: 1, max: 2, min_8: 1, max_8: 3 },
+    DW: { min: 2, max: 2, min_8: 2, max_8: 2 },
+    DM: { min: 0, max: 1, min_8: 0, max_8: 1 },
+    MF: { min: 1, max: 2, min_8: 1, max_8: 3 },
+    AM: { min: 0, max: 1, min_8: 0, max_8: 2 },
+    CF: { min: 0, max: 1, min_8: 0, max_8: 2 },
+    GK: { min: 0, max: 1, min_8: 0, max_8: 1 }
+  };
+
+  const getLimit = (pos) => {
+    const lim = posLimitsMap[pos] || {};
+    const def = defaultLimits[pos] || { min: 0, max: 2, min_8: 0, max_8: 2 };
+    if (is8PlayerWeek) {
+      return {
+        min: lim.min_8 !== undefined && !isNaN(lim.min_8) ? Number(lim.min_8) : (lim.min !== undefined && !isNaN(lim.min) ? Number(lim.min) : (def.min_8 !== undefined ? def.min_8 : def.min)),
+        max: lim.max_8 !== undefined && !isNaN(lim.max_8) ? Number(lim.max_8) : (lim.max !== undefined && !isNaN(lim.max) ? Number(lim.max) : (def.max_8 !== undefined ? def.max_8 : def.max))
+      };
+    }
+    return {
+      min: lim.min !== undefined && !isNaN(lim.min) ? Number(lim.min) : def.min,
+      max: lim.max !== undefined && !isNaN(lim.max) ? Number(lim.max) : def.max
+    };
+  };
+
+  // Sort all players by score / rawScore descending
+  const sortedPlayers = [...allPlayers].sort((a, b) => {
+    const scoreDiff = (Number(b.score) || 0) - (Number(a.score) || 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    return (Number(b.rawScore) || 0) - (Number(a.rawScore) || 0);
+  });
+
+  // Group by posCode
+  const byPos = {};
+  for (const p of sortedPlayers) {
+    const code = (p.pos?.code || p.pos_code || 'MF').toUpperCase();
+    if (!byPos[code]) byPos[code] = [];
+    byPos[code].push(p);
+  }
+
+  const selectedMembers = [];
+  const selectedIds = new Set();
+  const selectedPosCounts = {};
+
+  const addPlayer = (p) => {
+    selectedMembers.push(p);
+    selectedIds.add(p.member_id || p.id);
+    const code = (p.pos?.code || p.pos_code || 'MF').toUpperCase();
+    selectedPosCounts[code] = (selectedPosCounts[code] || 0) + 1;
+  };
+
+  const targetSize = is8PlayerWeek ? 8 : 7;
+
+  // 1. Mandatory positions (min) in priority order: GK, DW, DF, MF, DM, AM, CF
+  const mandatoryPositions = ['GK', 'DW', 'DF', 'MF', 'DM', 'AM', 'CF'];
+  for (const pos of mandatoryPositions) {
+    const lim = getLimit(pos);
+    const neededMin = lim.min;
+    const candidates = byPos[pos] || [];
+    for (const p of candidates) {
+      if ((selectedPosCounts[pos] || 0) >= neededMin) break;
+      if (!selectedIds.has(p.member_id || p.id)) {
+        addPlayer(p);
+      }
+    }
+  }
+
+  // 2. Fill remaining positions up to targetSize by highest rating without exceeding position max
+  for (const p of sortedPlayers) {
+    if (selectedMembers.length >= targetSize) break;
+    const pId = p.member_id || p.id;
+    if (selectedIds.has(pId)) continue;
+
+    const code = (p.pos?.code || p.pos_code || 'MF').toUpperCase();
+    const lim = getLimit(code);
+    if ((selectedPosCounts[code] || 0) < lim.max) {
+      addPlayer(p);
+    }
+  }
+
+  // 3. Fallback: if slots still remain (due to strict limits), fill with remaining highest rated players
+  for (const p of sortedPlayers) {
+    if (selectedMembers.length >= targetSize) break;
+    const pId = p.member_id || p.id;
+    if (!selectedIds.has(pId)) {
+      addPlayer(p);
+    }
+  }
+
+  return selectedMembers;
+}
+
 async function getMatchWeek(week_id = 0, groupId = null) {
   const res = await queryWeekID(week_id);
   if (res && res.length > 0) {
@@ -2423,6 +2523,88 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       }
     }
 
+    // Build Team of the Week (TOTW) Formation Bubble
+    let totwBubble = null;
+    if (leaders && leaders.allPlayerRatings && leaders.allPlayerRatings.length > 0) {
+      try {
+        let is8PlayerWeek = false;
+        const teamCountsRes = await executeQuery(
+          "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
+          [week_id]
+        );
+        if (teamCountsRes && teamCountsRes.length > 0) {
+          const maxCount = Math.max(...teamCountsRes.map(r => Number(r.cnt) || 0));
+          if (maxCount >= 8) {
+            is8PlayerWeek = true;
+          }
+        }
+
+        const posLimitsMap = {};
+        try {
+          const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+          if (posRows && posRows.length > 0) {
+            posRows.forEach(r => {
+              const code = (r.code || '').toUpperCase();
+              posLimitsMap[code] = {
+                min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
+                max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
+                min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
+                max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
+              };
+            });
+          }
+        } catch (ePos) { }
+
+        const totwRawMembers = selectTeamOfTheWeekPlayers(leaders.allPlayerRatings, is8PlayerWeek, posLimitsMap);
+        if (totwRawMembers && totwRawMembers.length > 0) {
+          const formattedTotwMembers = totwRawMembers.map(m => {
+            const wRating = m.score ? parseFloat(m.score).toFixed(1) : '-';
+            return {
+              id: m.member_id || m.id,
+              member_id: m.member_id || m.id,
+              name: m.name,
+              alias: m.alias,
+              rank: m.rank,
+              picture_url: m.picture_url,
+              line_user_id: m.line_user_id,
+              pos_code: (m.pos?.code || m.pos_code || 'MF').toUpperCase(),
+              pos_name: m.pos?.name || m.pos_name || '',
+              pos_icon: m.pos?.icon || m.pos_icon || '',
+              weekStats: {
+                rating: wRating,
+                goals: m.goals || 0,
+                assists: m.assists || 0
+              },
+              yearStats: {
+                rating: wRating,
+                goals: m.goals || 0,
+                assists: m.assists || 0
+              }
+            };
+          });
+
+          const allocation = allocateFormationSlots(formattedTotwMembers, is8PlayerWeek, posLimitsMap);
+          const totwFormationData = [{
+            teamId: 'totw',
+            teamColor: '🌟 ทีมยอดเยี่ยมประจำสัปดาห์ (Team of the Week)',
+            colorCode: '#EAB308',
+            url: null,
+            formationName: allocation.formationName,
+            slots: allocation.slots,
+            totalPlayers: allocation.totalPlayers,
+            members: formattedTotwMembers
+          }];
+
+          const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, '');
+          if (totwBubbles && totwBubbles.length > 0) {
+            totwBubble = totwBubbles[0];
+          }
+        }
+      } catch (eTotw) {
+        console.error("Error building Team of the Week formation:", eTotw);
+      }
+    }
+
     return flex.buildMatchWeekMessages({
       dateStr: date_str,
       tableRows,
@@ -2432,7 +2614,8 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       theme,
       assets,
       headerUrl,
-      matchDetailsMap
+      matchDetailsMap,
+      totwBubble
     });
   }
   return null;

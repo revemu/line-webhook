@@ -4183,11 +4183,12 @@ function buildMatchWeekMatchesFlex({ dateStr, matchChunk, teamColors, colors, he
 }
 
 /**
- * Builds the 2-message structure for /matchweek:
+ * Builds the 3-message structure for /matchweek:
  * MSG 1: Bubble 1 (Table week + Balanced MVP List) & Bubble 2 (MVP Rest Players if needed)
  * MSG 2: Match Detail bubbles (up to 3 bubbles)
+ * MSG 3: Team of the Week (TOTW) Formation Bubble
  */
-function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColors, theme, assets, headerUrl, matchDetailsMap }) {
+function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColors, theme, assets, headerUrl, matchDetailsMap, totwBubble }) {
   const colors = getThemeColors(theme, assets ? assets.teamColors : {});
   const totalMatches = matches ? matches.length : 0;
   let totalGoals = 0;
@@ -4248,6 +4249,8 @@ function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColo
     }
   };
 
+  const resultMessages = [msg1];
+
   // ── MSG 2: Match Details up to 3 bubbles (8 matches per bubble) ──
   if (matches && matches.length > 0) {
     const chunkSize = 8;
@@ -4283,10 +4286,19 @@ function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColo
       }
     };
 
-    return [msg1, msg2];
+    resultMessages.push(msg2);
   }
 
-  return [msg1];
+  // ── MSG 3: Team of the Week (TOTW) Formation Bubble ──
+  if (totwBubble) {
+    resultMessages.push({
+      type: 'flex',
+      altText: `🌟 ทีมยอดเยี่ยมประจำสัปดาห์ (Team of the Week) - ${dateStr || ''}`.trim(),
+      contents: totwBubble
+    });
+  }
+
+  return resultMessages;
 }
 
 function buildTableWeekFlex(dateStr, weekTables, teamColors) {
@@ -4965,6 +4977,9 @@ function buildMvpListFlex(mvpData, theme) {
 function formatTeamDisplayName(rawColor) {
   if (!rawColor) return 'ทีม';
   const c = String(rawColor).trim();
+  if (c.includes('Team of the Week') || c.includes('TOTW') || c.includes('ยอดเยี่ยม') || c.startsWith('🌟')) {
+    return c;
+  }
   const colorMap = {
     'white': 'ขาว',
     'red': 'แดง',
@@ -4987,6 +5002,9 @@ function formatTeamDisplayName(rawColor) {
 
 function getTeamHeaderTheme(rawColor) {
   const c = String(rawColor || '').toLowerCase().replace(/^ทีม(สี)?/, '').replace(/^สี/, '').trim();
+  if (c.includes('team of the week') || c.includes('totw') || c.includes('ยอดเยี่ยม') || c.includes('🌟') || c.includes('gold')) {
+    return { bg: '#1E1B4B', titleColor: '#FDE047', subColor: '#E2E8F0', badgeBg: '#4338CA', badgeText: '#FDE047', dot: '#F59E0B' };
+  }
   const themes = {
     'ขาว': { bg: '#F1F5F9', titleColor: '#0F172A', subColor: '#475569', badgeBg: '#CBD5E1', badgeText: '#0F172A', dot: '#94A3B8' },
     'white': { bg: '#F1F5F9', titleColor: '#0F172A', subColor: '#475569', badgeBg: '#CBD5E1', badgeText: '#0F172A', dot: '#94A3B8' },
