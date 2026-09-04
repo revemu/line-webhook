@@ -3702,7 +3702,8 @@ function buildMatchWeekStandingsFlex({ dateStr, tableRows, colors, headerUrl, to
         cornerRadius: '100px',
         backgroundColor: teamColorHex,
         flex: 0,
-        margin: 'xs'
+        margin: 'xs',
+        contents: []
       });
 
       // Team Name
