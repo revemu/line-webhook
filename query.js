@@ -1462,6 +1462,28 @@ async function ensurePosTables() {
         await executeQuery("INSERT INTO pos_tbl (code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded) VALUES ('DW', 'Defensive Wing', '🏃', 5.00, 3.50, 2.00, 0.25)");
       }
     }
+
+    // Ensure min, max, min_8, max_8 columns exist in pos_tbl
+    try {
+      const colRows = await executeQuery("SHOW COLUMNS FROM pos_tbl");
+      if (colRows && colRows.length > 0) {
+        const existingCols = new Set(colRows.map(c => (c.Field || '').toLowerCase()));
+        if (!existingCols.has('min')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN min INT DEFAULT 0");
+        }
+        if (!existingCols.has('max')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN max INT DEFAULT 2");
+        }
+        if (!existingCols.has('min_8')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN min_8 INT DEFAULT NULL");
+        }
+        if (!existingCols.has('max_8')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN max_8 INT DEFAULT NULL");
+        }
+      }
+    } catch (colErr) {
+      console.error("Error ensuring pos_tbl columns:", colErr.message);
+    }
   } catch (err) {
     console.error("Error creating position tables:", err.message);
   }
@@ -4477,6 +4499,9 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
     }
   }
 
+  // Determine if this team is configured for 8 players
+  const is8Player = is8PlayerWeek || regulars.length >= 8 || count >= 8;
+
   // Group regular players by explicit pos_code from DB
   const assigned = {
     GK: [],
@@ -4500,20 +4525,26 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
 
   const hasGK = assigned.GK.length > 0;
 
-  // Dynamic starters on pitch based on role constraints (from pos_tbl.min and pos_tbl.max):
+  // Dynamic starters on pitch based on role constraints (from pos_tbl: min_8/max_8 for 8-player teams, min/max for 7-player teams):
   const defaultLimits = {
-    DF: { min: 1, max: 2 },
-    DW: { min: 2, max: 2 },
-    DM: { min: 0, max: 1 },
-    MF: { min: 1, max: 2 },
-    AM: { min: 0, max: 1 },
-    CF: { min: 0, max: 1 },
-    GK: { min: 0, max: 1 }
+    DF: { min: 1, max: 2, min_8: 1, max_8: 3 },
+    DW: { min: 2, max: 2, min_8: 2, max_8: 2 },
+    DM: { min: 0, max: 1, min_8: 0, max_8: 1 },
+    MF: { min: 1, max: 2, min_8: 1, max_8: 3 },
+    AM: { min: 0, max: 1, min_8: 0, max_8: 2 },
+    CF: { min: 0, max: 1, min_8: 0, max_8: 2 },
+    GK: { min: 0, max: 1, min_8: 0, max_8: 1 }
   };
 
   const getLimit = (pos) => {
     const lim = posLimitsMap[pos] || {};
-    const def = defaultLimits[pos] || { min: 0, max: 2 };
+    const def = defaultLimits[pos] || { min: 0, max: 2, min_8: 0, max_8: 2 };
+    if (is8Player) {
+      return {
+        min: lim.min_8 !== undefined && !isNaN(lim.min_8) ? Number(lim.min_8) : (lim.min !== undefined && !isNaN(lim.min) ? Number(lim.min) : (def.min_8 !== undefined ? def.min_8 : def.min)),
+        max: lim.max_8 !== undefined && !isNaN(lim.max_8) ? Number(lim.max_8) : (lim.max !== undefined && !isNaN(lim.max) ? Number(lim.max) : (def.max_8 !== undefined ? def.max_8 : def.max))
+      };
+    }
     return {
       min: lim.min !== undefined && !isNaN(lim.min) ? Number(lim.min) : def.min,
       max: lim.max !== undefined && !isNaN(lim.max) ? Number(lim.max) : def.max
@@ -4543,7 +4574,7 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
   let targetGK = hasGK ? Math.min(1, limGK.max) : (limGK.min || 0);
 
   const baseOutfield = targetDF + targetDW + targetDM + targetMF + targetAM + targetCF;
-  const targetOutfieldTotal = is8PlayerWeek ? 7 : 6;
+  const targetOutfieldTotal = is8Player ? 7 : 6;
   let needed = Math.max(0, targetOutfieldTotal - baseOutfield);
 
   // 1. Allocate based on natural player positions registered in team:
@@ -5044,13 +5075,15 @@ async function getTeamFormation(param = '', groupId = null) {
   // 4.6 Position Min/Max Limits from pos_tbl
   const posLimitsMap = {};
   try {
-    const posRows = await executeQuery("SELECT code, min, max FROM pos_tbl");
+    const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
     if (posRows && posRows.length > 0) {
       posRows.forEach(r => {
         const code = (r.code || '').toUpperCase();
         posLimitsMap[code] = {
           min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
-          max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined
+          max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
+          min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
+          max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
         };
       });
     }
@@ -5062,7 +5095,9 @@ async function getTeamFormation(param = '', groupId = null) {
           const code = (r.code || '').toUpperCase();
           posLimitsMap[code] = {
             min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
-            max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined
+            max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
+            min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
+            max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
           };
         });
       }
@@ -5144,7 +5179,8 @@ async function getTeamFormation(param = '', groupId = null) {
     });
 
     const tTacticsStart = Date.now();
-    const allocation = allocateFormationSlots(members || [], is8PlayerWeek, posLimitsMap);
+    const isTeam8Player = (members && members.length >= 8) || is8PlayerWeek;
+    const allocation = allocateFormationSlots(members || [], isTeam8Player, posLimitsMap);
     totalTacticsDuration += (Date.now() - tTacticsStart);
 
     formationsData.push({
@@ -5292,6 +5328,64 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     }
   } catch (e) { }
 
+  // 3.5 Position Min/Max Limits from pos_tbl (for 7-player: min/max, for 8-player: min_8/max_8)
+  const posLimitsMap = {};
+  try {
+    const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+    if (posRows && posRows.length > 0) {
+      posRows.forEach(r => {
+        const code = (r.code || '').toUpperCase();
+        posLimitsMap[code] = {
+          min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
+          max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
+          min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
+          max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
+        };
+      });
+    }
+  } catch (e) {
+    try {
+      const posRows = await executeQuery("SELECT * FROM pos_tbl");
+      if (posRows && posRows.length > 0) {
+        posRows.forEach(r => {
+          const code = (r.code || '').toUpperCase();
+          posLimitsMap[code] = {
+            min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
+            max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
+            min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
+            max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
+          };
+        });
+      }
+    } catch (e2) { }
+  }
+
+  const defaultLimits = {
+    DF: { min: 1, max: 2, min_8: 1, max_8: 3 },
+    DW: { min: 2, max: 2, min_8: 2, max_8: 2 },
+    DM: { min: 0, max: 1, min_8: 0, max_8: 1 },
+    MF: { min: 1, max: 2, min_8: 1, max_8: 3 },
+    AM: { min: 0, max: 1, min_8: 0, max_8: 2 },
+    CF: { min: 0, max: 1, min_8: 0, max_8: 2 },
+    GK: { min: 0, max: 1, min_8: 0, max_8: 1 }
+  };
+
+  const getTeamPosLimit = (team, pos) => {
+    const is8 = team.maxCapacity >= 8;
+    const lim = posLimitsMap[pos] || {};
+    const def = defaultLimits[pos] || { min: 0, max: 2, min_8: 0, max_8: 2 };
+    if (is8) {
+      return {
+        min: lim.min_8 !== undefined && !isNaN(lim.min_8) ? Number(lim.min_8) : (lim.min !== undefined && !isNaN(lim.min) ? Number(lim.min) : (def.min_8 !== undefined ? def.min_8 : def.min)),
+        max: lim.max_8 !== undefined && !isNaN(lim.max_8) ? Number(lim.max_8) : (lim.max !== undefined && !isNaN(lim.max) ? Number(lim.max) : (def.max_8 !== undefined ? def.max_8 : def.max))
+      };
+    }
+    return {
+      min: lim.min !== undefined && !isNaN(lim.min) ? Number(lim.min) : def.min,
+      max: lim.max !== undefined && !isNaN(lim.max) ? Number(lim.max) : def.max
+    };
+  };
+
   // Attach rating to each member
   for (const m of registeredMembers) {
     const yAvg = yearStatsMap[m.member_id] || 0;
@@ -5375,12 +5469,16 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
 
         const candidateTeams = findCandidateTeamsForGroup(group.length);
         if (candidateTeams.length > 0) {
+          // Prioritize teams that haven't reached max capacity for this position
+          const teamsUnderPosMax = candidateTeams.filter(t => (t.positionCounts[player.posCode] || 0) < getTeamPosLimit(t, player.posCode).max);
+          const poolWithPosRoom = teamsUnderPosMax.length > 0 ? teamsUnderPosMax : candidateTeams;
+
           // Exclude teams that already have a priority player of this SAME tier and SAME position
           const tierPositionsInGroup = new Set(group.filter(m => getMemberPriority(m) === tierNum).map(m => m.posCode));
-          const teamsWithoutSameTierAndPos = candidateTeams.filter(t => 
+          const teamsWithoutSameTierAndPos = poolWithPosRoom.filter(t => 
             !t.members.some(m => getMemberPriority(m) === tierNum && tierPositionsInGroup.has(m.posCode))
           );
-          const pool = teamsWithoutSameTierAndPos.length > 0 ? teamsWithoutSameTierAndPos : candidateTeams;
+          const pool = teamsWithoutSameTierAndPos.length > 0 ? teamsWithoutSameTierAndPos : poolWithPosRoom;
           
           const shuffledPool = shuffleArray([...pool]);
           shuffledPool.sort((a, b) => {
@@ -5464,7 +5562,11 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
 
       const candidateTeams = findCandidateTeamsForGroup(group.length);
       if (candidateTeams.length > 0) {
-        const shuffledTeams = shuffleArray([...candidateTeams]);
+        // Prioritize teams that haven't reached max capacity for this position
+        const teamsUnderPosMax = candidateTeams.filter(t => (t.positionCounts[pos] || 0) < getTeamPosLimit(t, pos).max);
+        const pool = teamsUnderPosMax.length > 0 ? teamsUnderPosMax : candidateTeams;
+
+        const shuffledTeams = shuffleArray([...pool]);
         shuffledTeams.sort((a, b) => {
           const posCountDiff = (a.positionCounts[pos] || 0) - (b.positionCounts[pos] || 0);
           if (posCountDiff !== 0) return posCountDiff;
