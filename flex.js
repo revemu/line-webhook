@@ -4072,8 +4072,8 @@ function buildMatchWeekMatchesFlex({ dateStr, matchChunk, teamColors, colors, he
     const team_a = (teamColors || []).find(t => t.id === match.team_a_id);
     const team_b = (teamColors || []).find(t => t.id === match.team_b_id);
 
-    const teamAName = team_a && team_a.color ? `ทีม${team_a.color}` : '?';
-    const teamBName = team_b && team_b.color ? `ทีม${team_b.color}` : '?';
+    const teamAName = team_a && team_a.color ? `${team_a.color}` : '?';
+    const teamBName = team_b && team_b.color ? `${team_b.color}` : '?';
     const teamAColor = team_a ? colors.tdc(team_a.color) : colors.textPrimary;
     const teamBColor = team_b ? colors.tdc(team_b.color) : colors.textPrimary;
 
