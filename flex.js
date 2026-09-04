@@ -4226,9 +4226,9 @@ function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColo
     }
   };
 
-  // ── MSG 2: Match Details up to 3 bubbles ──
+  // ── MSG 2: Match Details up to 3 bubbles (8 matches per bubble) ──
   if (matches && matches.length > 0) {
-    const chunkSize = Math.max(6, Math.ceil(matches.length / 3));
+    const chunkSize = 8;
     const matchBubbles = [];
     const totalMatchPages = Math.min(3, Math.ceil(matches.length / chunkSize));
 
