@@ -2924,9 +2924,10 @@ function buildMemberStatsFlex(data, theme) {
     spacing: 'sm',
     margin: 'md',
     contents: [
-      makeBoxButton('🏆 อันดับผู้นำ', '/top', topStatsColor),
-      makeBoxButton('📉 ทำเนียบซึมเศร้า', '/bottom', bottomStatsColor),
-      makeBoxButton('👍 สถิติส่วนตัว', '/stat', buttonColor)
+      makeBoxButton('🏆 ผู้นำ', '/top', topStatsColor),
+      makeBoxButton('📉 ซึมเศร้า', '/bottom', bottomStatsColor),
+      makeBoxButton('👑 MVP', '/mvplist', '#dbb104ff'),
+      makeBoxButton('👍 ส่วนตัว', '/stat', buttonColor)
     ]
   });
 
