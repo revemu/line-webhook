@@ -1307,10 +1307,11 @@ function buildLiveFlex(matchInfo, theme) {
 }
 
 function makeBoxButton(label, text, color, flexVal = 1, size = 'sm', wrap = false) {
+  const safeColor = color && typeof color === 'string' && /^[0-9a-fA-F]{3,8}$/.test(color) ? `#${color}` : color;
   return {
     type: 'box',
     layout: 'vertical',
-    backgroundColor: color,
+    backgroundColor: safeColor,
     cornerRadius: 'md',
     paddingTop: 'sm',
     paddingBottom: 'sm',
@@ -1954,7 +1955,7 @@ function buildWelcomeFlex(displayName, theme, imageUrl, dateStr = '') {
     contents: [
       makeBoxButton('👍 ลงชื่อ', '+1', buttonRegisterColor),
       makeBoxButton('❌ ยกเลิก', '-1', buttonCancelColor),
-      makeBoxButton('💰 จ่ายเงิน', '/qr', '004466')
+      makeBoxButton('💰 จ่ายเงิน', '/qr', '#004466')
     ]
   });
 
