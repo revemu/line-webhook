@@ -4221,6 +4221,16 @@ async function getMemberStats(memberId, groupId = null) {
     FROM mvp_week_tbl m
     JOIN week_tbl w ON m.week_id = w.id
     WHERE m.member_id = ?
+      AND m.raw_score > 0
+      AND m.raw_score = (
+        SELECT MAX(m2.raw_score)
+        FROM mvp_week_tbl m2
+        WHERE m2.week_id = m.week_id
+          AND m2.member_id > 0
+          AND m2.member_name NOT LIKE '@team%'
+          AND m2.member_name NOT LIKE '+team%'
+          AND m2.member_name NOT LIKE 'team%'
+      )
   `;
 
   const ratingQuery = `
