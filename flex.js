@@ -3587,6 +3587,660 @@ function buildScorerRowFlex(icon, match_goals, goal_status, assets, resolveMembe
   };
 }
 
+/**
+ * Renders a single player stats row in matchweek MVP tables
+ */
+function renderMatchWeekPlayerRow(p, indexInChunk, startIndex, leaders, colors, assets, isWhite) {
+  const globalRank = startIndex + indexInChunk + 1;
+  const isTop1 = globalRank === 1;
+  const isMvp = leaders && leaders.mvps && leaders.mvps.some(m => m.id === p.id);
+  const isTopScorer = leaders && leaders.topScorers && leaders.topScorers.some(ts => ts.id === p.id);
+  const isTopAssist = leaders && leaders.topAssists && leaders.topAssists.some(ta => ta.id === p.id);
+
+  const mvpBadgeUrl = (assets?.hofBadge?.['mvp']?.url || assets?.hofBadge?.['best_mvp']?.url) || 'https://bearbit.org/pic/crown.gif';
+  const scorerBadgeUrl = (assets?.hofBadge?.['scorer']?.url || assets?.hofBadge?.['top_scorer']?.url) || null;
+  const assistBadgeUrl = (assets?.hofBadge?.['assist']?.url || assets?.hofBadge?.['top_assist']?.url) || null;
+
+  const nameColContents = [];
+
+  // Award / HOF Badges
+  const badgeUrls = [];
+  if (isMvp && mvpBadgeUrl) badgeUrls.push(mvpBadgeUrl);
+  if (isTopScorer && scorerBadgeUrl && !badgeUrls.includes(scorerBadgeUrl)) badgeUrls.push(scorerBadgeUrl);
+  if (isTopAssist && assistBadgeUrl && !badgeUrls.includes(assistBadgeUrl)) badgeUrls.push(assistBadgeUrl);
+
+  if (badgeUrls.length > 0) {
+    badgeUrls.forEach(bUrl => {
+      nameColContents.push({
+        type: 'box',
+        layout: 'vertical',
+        width: '14px',
+        height: '14px',
+        flex: 0,
+        margin: 'xs',
+        contents: [
+          {
+            type: 'image',
+            url: bUrl,
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'fit',
+            animated: true
+          }
+        ]
+      });
+    });
+  } else if (p.info?.pictureUrl || p.picture_url) {
+    nameColContents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: '14px',
+      height: '14px',
+      cornerRadius: '100px',
+      flex: 0,
+      margin: 'xs',
+      contents: [
+        {
+          type: 'image',
+          url: p.info?.pictureUrl || p.picture_url,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'cover'
+        }
+      ]
+    });
+  }
+
+  const displayName = (p.name || '').replace(/^@+/, '');
+  nameColContents.push({
+    type: 'text',
+    text: displayName,
+    size: 'xs',
+    color: (p.info && p.info.nameColor) ? p.info.nameColor : colors.textPrimary,
+    weight: (isTop1 || isMvp || isTopScorer || isTopAssist) ? 'bold' : 'regular',
+    margin: 'xs',
+    flex: 1
+  });
+
+  const statParts = [];
+  if (p.goals > 0) statParts.push(`⚽${p.goals}`);
+  if (p.assists > 0) statParts.push(`👟${p.assists}`);
+  if (p.cleanSheets > 0) statParts.push(`🧤${p.cleanSheets}`);
+  if (p.own_goals > 0) statParts.push(`🥅${p.own_goals}`);
+  const statStr = statParts.length > 0 ? statParts.join(' ') : '-';
+
+  const posIcon = p.pos ? (p.pos.icon || '') : (p.posIcon || '');
+  const posCode = p.pos ? p.pos.code : (p.posCode || '');
+  const teamName = p.teamName || '';
+  const teamColorHex = colors.tdc(teamName);
+  const ratingScoreStr = (p.score || 0).toFixed(1);
+
+  return {
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'xs',
+    paddingStart: 'xs',
+    paddingEnd: 'xs',
+    alignItems: 'center',
+    contents: [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        alignItems: 'center',
+        flex: 4,
+        contents: nameColContents
+      },
+      {
+        type: 'text',
+        text: `${posIcon}${posCode}`,
+        size: 'xs',
+        color: teamColorHex || colors.textMuted,
+        flex: 2,
+        align: 'center'
+      },
+      {
+        type: 'text',
+        text: statStr,
+        size: 'xs',
+        color: colors.textMutedLight || colors.textMuted,
+        flex: 4,
+        align: 'center'
+      },
+      {
+        type: 'text',
+        text: ratingScoreStr,
+        size: 'xs',
+        weight: 'bold',
+        color: isTop1 ? (isWhite ? '#b45309' : '#fde047') : (colors.textAccent || colors.textPrimary),
+        flex: 2,
+        align: 'end'
+      }
+    ]
+  };
+}
+
+/**
+ * Builds Bubble 1 for /matchweek: Standings Table + Top 5 MVP Player Stats
+ */
+function buildMatchWeekStandingsTop5Flex({ dateStr, tableRows, top5Players, leaders, colors, headerUrl, totalMatches, totalGoals, assets }) {
+  const isWhite = colors.name === 'white';
+  const bodyContents = [];
+
+  // Standings Header Box
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: colors.bgRound,
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    contents: [
+      {
+        type: 'text',
+        text: '📊 ตารางคะแนน',
+        weight: 'bold',
+        size: 'lg',
+        color: colors.textPrimary,
+        align: 'center'
+      },
+      {
+        type: 'text',
+        text: `เสาร์ที่ ${dateStr || ''}`,
+        size: 'sm',
+        color: colors.textMuted,
+        align: 'center',
+        margin: 'xs'
+      }
+    ]
+  });
+
+  if (tableRows && tableRows.length > 0) {
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'md',
+      paddingStart: 'xs',
+      paddingEnd: 'xs',
+      alignItems: 'center',
+      contents: [
+        { type: 'text', text: 'ทีม', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
+        { type: 'text', text: 'W', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+        { type: 'text', text: 'D', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+        { type: 'text', text: 'L', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+        { type: 'text', text: 'GD', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+        { type: 'text', text: 'PTS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' }
+      ]
+    });
+
+    bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
+
+    const medals = ['🥇', '🥈', '🥉', '4️⃣'];
+    tableRows.forEach((row, i) => {
+      const isTopTeam = i === 0;
+      const gd = (row.G !== undefined ? row.G : (row.g || 0)) - (row.A !== undefined ? row.A : (row.a || 0));
+      const gdStr = gd > 0 ? `+${gd}` : `${gd}`;
+      const teamColorHex = colors.tdc(row.color);
+
+      const rowBox = {
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'sm',
+        paddingStart: 'xs',
+        paddingEnd: 'xs',
+        alignItems: 'center',
+        contents: [
+          {
+            type: 'text',
+            text: `${medals[i] || (i + 1 + '.')} ทีม${row.color || ''}`,
+            size: 'sm',
+            color: teamColorHex,
+            flex: 4,
+            weight: isTopTeam ? 'bold' : 'regular'
+          },
+          { type: 'text', text: `${row.w ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: `${row.d ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: `${row.l ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
+          { type: 'text', text: gdStr, size: 'sm', color: gd >= 0 ? (isWhite ? '#15803d' : '#88ff88') : (isWhite ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
+          { type: 'text', text: `${row.pts ?? 0}`, size: 'sm', color: isTopTeam ? (isWhite ? '#b45309' : '#fde047') : colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
+        ]
+      };
+
+      if (isTopTeam) {
+        rowBox.backgroundColor = isWhite ? '#fef3c7' : '#1e1b4b';
+        rowBox.cornerRadius = 'sm';
+        rowBox.paddingTop = 'xs';
+        rowBox.paddingBottom = 'xs';
+      }
+
+      bodyContents.push(rowBox);
+    });
+
+    if (totalMatches > 0 || totalGoals > 0) {
+      bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'sm',
+        contents: [
+          {
+            type: 'text',
+            text: `🏟️ แข่งขัน: ${totalMatches || '-'} นัด`,
+            size: 'xs',
+            color: colors.textMuted,
+            flex: 1,
+            align: 'center'
+          },
+          {
+            type: 'text',
+            text: `⚽ ยิงรวม: ${totalGoals || '-'} ประตู`,
+            size: 'xs',
+            color: colors.textMuted,
+            flex: 1,
+            align: 'center'
+          }
+        ]
+      });
+    }
+  }
+
+  // Top 5 MVP Player Stats
+  if (top5Players && top5Players.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgRound,
+      paddingAll: 'sm',
+      cornerRadius: 'sm',
+      margin: 'sm',
+      contents: [
+        {
+          type: 'text',
+          text: '⭐ สถิติสมาชิก (Top 5)',
+          size: 'sm',
+          weight: 'bold',
+          color: colors.textPrimary,
+          align: 'center'
+        }
+      ]
+    });
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'sm',
+      paddingStart: 'xs',
+      paddingEnd: 'xs',
+      alignItems: 'center',
+      contents: [
+        { type: 'text', text: 'สมาชิก', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
+        { type: 'text', text: 'POS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
+        { type: 'text', text: 'G/A/CS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4, align: 'center' },
+        { type: 'text', text: 'Rating', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
+      ]
+    });
+
+    bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
+
+    top5Players.forEach((p, i) => {
+      bodyContents.push(renderMatchWeekPlayerRow(p, i, 0, leaders, colors, assets, isWhite));
+    });
+  }
+
+  const bubble = {
+    type: 'bubble',
+    size: 'mega',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'sm',
+      contents: bodyContents
+    }
+  };
+
+  if (headerUrl && headerUrl.trim() !== '') {
+    bubble.header = {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgHeader,
+      paddingAll: 'none',
+      contents: [
+        { type: 'image', url: headerUrl, size: 'full', aspectRatio: '20:7', aspectMode: 'cover' }
+      ]
+    };
+  }
+
+  return bubble;
+}
+
+/**
+ * Builds Bubble 2 for /matchweek: MVP Player Stats for the rest of the players (rank 6+)
+ */
+function buildMatchWeekRestMvpFlex({ dateStr, restPlayers, leaders, colors, headerUrl, assets, startIndex = 5 }) {
+  const isWhite = colors.name === 'white';
+  const bodyContents = [];
+
+  // Header Box
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: colors.bgRound,
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    contents: [
+      {
+        type: 'text',
+        text: '⭐ สถิติสมาชิก (อันดับ 6+)',
+        weight: 'bold',
+        size: 'lg',
+        color: colors.textPrimary,
+        align: 'center'
+      },
+      {
+        type: 'text',
+        text: `เสาร์ที่ ${dateStr || ''}`,
+        size: 'sm',
+        color: colors.textMuted,
+        align: 'center',
+        margin: 'xs'
+      }
+    ]
+  });
+
+  // Table Column Headers
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'md',
+    paddingStart: 'xs',
+    paddingEnd: 'xs',
+    alignItems: 'center',
+    contents: [
+      { type: 'text', text: 'สมาชิก', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
+      { type: 'text', text: 'POS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
+      { type: 'text', text: 'G/A/CS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4, align: 'center' },
+      { type: 'text', text: 'Rating', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
+    ]
+  });
+
+  bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
+
+  // Render rest players
+  restPlayers.forEach((p, i) => {
+    bodyContents.push(renderMatchWeekPlayerRow(p, i, startIndex, leaders, colors, assets, isWhite));
+  });
+
+  const bubble = {
+    type: 'bubble',
+    size: 'mega',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'sm',
+      contents: bodyContents
+    }
+  };
+
+  if (headerUrl && headerUrl.trim() !== '') {
+    bubble.header = {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgHeader,
+      paddingAll: 'none',
+      contents: [
+        { type: 'image', url: headerUrl, size: 'full', aspectRatio: '20:7', aspectMode: 'cover' }
+      ]
+    };
+  }
+
+  return bubble;
+}
+
+/**
+ * Builds Match Details Bubble for /matchweek (chunk of matches)
+ */
+function buildMatchWeekMatchesFlex({ dateStr, matchChunk, teamColors, colors, headerUrl, startNum, endNum, totalMatches, matchDetailsMap = {} }) {
+  const isWhite = colors.name === 'white';
+  const bodyContents = [];
+
+  // Match Chunk Header Box
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: colors.bgRound,
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    contents: [
+      {
+        type: 'text',
+        text: totalMatches > matchChunk.length ? `⚽ ผลการแข่งขัน [แมตช์ ${startNum} - ${endNum}]` : '⚽ ผลการแข่งขัน',
+        weight: 'bold',
+        size: 'lg',
+        color: colors.textPrimary,
+        align: 'center'
+      },
+      {
+        type: 'text',
+        text: `เสาร์ที่ ${dateStr || ''}`,
+        size: 'sm',
+        color: colors.textMuted,
+        align: 'center',
+        margin: 'xs'
+      }
+    ]
+  });
+
+  for (const match of matchChunk) {
+    const team_a = (teamColors || []).find(t => t.id === match.team_a_id);
+    const team_b = (teamColors || []).find(t => t.id === match.team_b_id);
+
+    const teamAName = team_a && team_a.color ? `ทีม${team_a.color}` : '?';
+    const teamBName = team_b && team_b.color ? `ทีม${team_b.color}` : '?';
+    const teamAColor = team_a ? colors.tdc(team_a.color) : colors.textPrimary;
+    const teamBColor = team_b ? colors.tdc(team_b.color) : colors.textPrimary;
+
+    const goalBox = matchDetailsMap[match.id]?.goalBox || null;
+    const assistBox = matchDetailsMap[match.id]?.assistBox || null;
+
+    const cardContents = [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        alignItems: 'center',
+        margin: 'xs',
+        contents: [
+          {
+            type: 'text',
+            text: `[#${match.match_num ?? '?'}]`,
+            size: 'xs',
+            color: colors.textMuted,
+            flex: 1,
+            align: 'start'
+          },
+          {
+            type: 'text',
+            text: teamAName,
+            size: 'sm',
+            weight: 'bold',
+            color: teamAColor,
+            flex: 3,
+            align: 'end'
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            backgroundColor: isWhite ? '#e2e8f0' : colors.bgCurrent,
+            cornerRadius: 'md',
+            paddingStart: 'sm',
+            paddingEnd: 'sm',
+            paddingTop: 'xs',
+            paddingBottom: 'xs',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flex: 2,
+            margin: 'xs',
+            contents: [
+              {
+                type: 'text',
+                text: `${match.team_a_goal ?? 0} - ${match.team_b_goal ?? 0}`,
+                size: 'sm',
+                weight: 'bold',
+                color: colors.textAccent,
+                align: 'center'
+              }
+            ]
+          },
+          {
+            type: 'text',
+            text: teamBName,
+            size: 'sm',
+            weight: 'bold',
+            color: teamBColor,
+            flex: 3,
+            align: 'start'
+          }
+        ]
+      }
+    ];
+
+    if (goalBox) cardContents.push(goalBox);
+    if (assistBox) cardContents.push(assistBox);
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgRound,
+      paddingAll: 'sm',
+      cornerRadius: 'md',
+      margin: 'sm',
+      contents: cardContents
+    });
+  }
+
+  const bubble = {
+    type: 'bubble',
+    size: 'mega',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'sm',
+      contents: bodyContents
+    }
+  };
+
+  if (headerUrl && headerUrl.trim() !== '') {
+    bubble.header = {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgHeader,
+      paddingAll: 'none',
+      contents: [
+        { type: 'image', url: headerUrl, size: 'full', aspectRatio: '20:7', aspectMode: 'cover' }
+      ]
+    };
+  }
+
+  return bubble;
+}
+
+/**
+ * Builds the 2-message structure for /matchweek:
+ * MSG 1: Bubble 1 (Table week + Top 5 MVP) & Bubble 2 (MVP Rest Players if > 5)
+ * MSG 2: Match Detail bubbles (up to 3 bubbles)
+ */
+function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColors, theme, assets, headerUrl, matchDetailsMap }) {
+  const colors = getThemeColors(theme, assets ? assets.teamColors : {});
+  const totalMatches = matches ? matches.length : 0;
+  let totalGoals = 0;
+  if (matches) {
+    matches.forEach(m => {
+      totalGoals += (Number(m.team_a_goal) || 0) + (Number(m.team_b_goal) || 0);
+    });
+  }
+
+  const allPlayers = (leaders && leaders.allPlayerRatings) ? [...leaders.allPlayerRatings].sort((a, b) => (b.rawScore || 0) - (a.rawScore || 0)) : [];
+  const top5Players = allPlayers.slice(0, 5);
+  const restPlayers = allPlayers.slice(5);
+
+  // ── MSG 1: Standings + Top 5 MVP (Bubble 1) & Rest Players (Bubble 2 if exists) ──
+  const bubble1 = buildMatchWeekStandingsTop5Flex({
+    dateStr,
+    tableRows,
+    top5Players,
+    leaders,
+    colors,
+    headerUrl,
+    totalMatches,
+    totalGoals,
+    assets
+  });
+
+  const msg1Bubbles = [bubble1];
+  if (restPlayers.length > 0) {
+    const bubble2 = buildMatchWeekRestMvpFlex({
+      dateStr,
+      restPlayers,
+      leaders,
+      colors,
+      headerUrl,
+      assets,
+      startIndex: 5
+    });
+    msg1Bubbles.push(bubble2);
+  }
+
+  const msg1 = {
+    type: 'flex',
+    altText: `📊 สรุปผลงานประจำสัปดาห์ - ${dateStr || ''}`.trim(),
+    contents: msg1Bubbles.length === 1 ? bubble1 : {
+      type: 'carousel',
+      contents: msg1Bubbles
+    }
+  };
+
+  // ── MSG 2: Match Details up to 3 bubbles ──
+  if (matches && matches.length > 0) {
+    const chunkSize = Math.max(6, Math.ceil(matches.length / 3));
+    const matchBubbles = [];
+    const totalMatchPages = Math.min(3, Math.ceil(matches.length / chunkSize));
+
+    for (let m = 0; m < totalMatchPages; m++) {
+      const matchChunk = matches.slice(m * chunkSize, (m + 1) * chunkSize);
+      if (matchChunk.length === 0) break;
+      const startNum = matchChunk[0].match_num ?? (m * chunkSize + 1);
+      const endNum = matchChunk[matchChunk.length - 1].match_num ?? (m * chunkSize + matchChunk.length);
+
+      const matchBubble = buildMatchWeekMatchesFlex({
+        dateStr,
+        matchChunk,
+        teamColors,
+        colors,
+        headerUrl,
+        startNum,
+        endNum,
+        totalMatches,
+        matchDetailsMap
+      });
+      matchBubbles.push(matchBubble);
+    }
+
+    const msg2 = {
+      type: 'flex',
+      altText: `⚽ ผลการแข่งขัน - ${dateStr || ''}`.trim(),
+      contents: matchBubbles.length === 1 ? matchBubbles[0] : {
+        type: 'carousel',
+        contents: matchBubbles
+      }
+    };
+
+    return [msg1, msg2];
+  }
+
+  return [msg1];
+}
+
 function buildTableWeekFlex(dateStr, weekTables, teamColors) {
   const tables = [
     {
@@ -5142,6 +5796,10 @@ module.exports = {
   buildTableWeekFlex,
   buildTopStatFlex,
   buildTeamWeekFlex,
-  buildFormationFlex
+  buildFormationFlex,
+  buildMatchWeekStandingsTop5Flex,
+  buildMatchWeekRestMvpFlex,
+  buildMatchWeekMatchesFlex,
+  buildMatchWeekMessages
 };
 

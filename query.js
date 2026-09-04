@@ -2374,397 +2374,46 @@ async function calcAndSaveMaxMvpScore(options = {}) {
 }
 
 async function getMatchWeek(week_id = 0, groupId = null) {
-
   const res = await queryWeekID(week_id);
   if (res && res.length > 0) {
     if (week_id == 0) {
       week_id = res[0].id;
     }
+    const assets = await fetchDisplayAssets();
+    const theme = await getTheme();
+    const imgTpl = await getTemplate('matchweek', 'header');
+    const headerUrl = imgTpl ? imgTpl.url : null;
+
+    const date = new Date(res[0].date);
+    const date_str = await getFormatDate(date);
+    const team_colors = await getTeamColorWeek(week_id);
+    const tableRows = await queryTableWeek(week_id);
+    const leaders = await getWeekLeaderStats(week_id, groupId);
     const matches = await queryMatchWeek(week_id);
+
+    // Pre-fetch goal and assist boxes for matches
+    const matchDetailsMap = {};
     if (matches && matches.length > 0) {
-      const assets = await fetchDisplayAssets();
-      const theme = await getTheme();
-      const colors = flex.getThemeColors(theme, assets.teamColors);
-      const imgTpl = await getTemplate('matchweek', 'header');
-      let headerUrl = imgTpl ? imgTpl.url : null;
-
-      const date = new Date(res[0].date);
-      const date_str = await getFormatDate(date);
-      let team_colors = await getTeamColorWeek(week_id);
-
-      // ── 1. Build Standings Table Bubble (Bubble 1) ──
-      const tableRows = await queryTableWeek(week_id);
-      const tableBodyContents = [];
-
-      tableBodyContents.push({
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: colors.bgRound,
-        paddingAll: 'md',
-        cornerRadius: 'md',
-        contents: [
-          {
-            type: 'text',
-            text: '📊 ตารางคะแนน',
-            weight: 'bold',
-            size: 'lg',
-            color: colors.textPrimary,
-            align: 'center'
-          },
-          {
-            type: 'text',
-            text: `เสาร์ที่ ${date_str || ''}`,
-            size: 'sm',
-            color: colors.textMuted,
-            align: 'center',
-            margin: 'xs'
-          }
-        ]
-      });
-
-      if (tableRows && tableRows.length > 0) {
-        tableBodyContents.push({
-          type: 'box',
-          layout: 'horizontal',
-          margin: 'md',
-          paddingStart: 'xs',
-          paddingEnd: 'xs',
-          contents: [
-            { type: 'text', text: 'ทีม', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
-            { type: 'text', text: 'W', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
-            { type: 'text', text: 'D', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
-            { type: 'text', text: 'L', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
-            { type: 'text', text: 'GD', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
-            { type: 'text', text: 'PTS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' }
-          ]
-        });
-
-        tableBodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
-
-        const medals = ['🥇', '🥈', '🥉', '4️⃣'];
-        tableRows.forEach((row, i) => {
-          const gd = (row.G || 0) - (row.A || 0);
-          const gdStr = gd > 0 ? `+${gd}` : `${gd}`;
-          tableBodyContents.push({
-            type: 'box',
-            layout: 'horizontal',
-            margin: 'sm',
-            paddingStart: 'xs',
-            paddingEnd: 'xs',
-            alignItems: 'center',
-            contents: [
-              { type: 'text', text: `${medals[i] || (i + 1 + '.')} ${row.color || ''}`, size: 'sm', color: colors.tdc(row.color), flex: 4, weight: i === 0 ? 'bold' : 'regular' },
-              { type: 'text', text: `${row.w ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
-              { type: 'text', text: `${row.d ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
-              { type: 'text', text: `${row.l ?? 0}`, size: 'sm', color: colors.textMutedLight, flex: 1, align: 'center' },
-              { type: 'text', text: gdStr, size: 'sm', color: gd >= 0 ? (colors.name === 'white' ? '#15803d' : '#88ff88') : (colors.name === 'white' ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
-              { type: 'text', text: `${row.pts ?? 0}`, size: 'sm', color: colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
-            ]
-          });
-        });
+      for (const match of matches) {
+        const goalBox = await queryMatchGoal(match.id, 0, groupId);
+        const assistBox = await queryMatchGoal(match.id, 3, groupId);
+        matchDetailsMap[match.id] = { goalBox, assistBox };
       }
-
-      // ── Weekly Leaders & Member MVP Score Rating Table in Bubble 1 ──
-      const leaders = await getWeekLeaderStats(week_id, groupId);
-
-      if (leaders && leaders.allPlayerRatings && leaders.allPlayerRatings.length > 0) {
-        tableBodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
-        tableBodyContents.push({
-          type: 'text',
-          text: '⭐ สถิติสมาชิกประจำสัปดาห์',
-          size: 'xs',
-          weight: 'bold',
-          color: colors.textPrimary,
-          margin: 'sm',
-          align: 'center'
-        });
-
-        // Table Header
-        tableBodyContents.push({
-          type: 'box',
-          layout: 'horizontal',
-          margin: 'xs',
-          paddingStart: 'xs',
-          paddingEnd: 'xs',
-          alignItems: 'center',
-          contents: [
-            { type: 'text', text: 'สมาชิก', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
-            { type: 'text', text: 'POS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
-            { type: 'text', text: 'G/A', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4, align: 'center' },
-            { type: 'text', text: 'Rating', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
-          ]
-        });
-
-        tableBodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
-
-        const sortedPlayers = [...leaders.allPlayerRatings].sort((a, b) => (b.rawScore || 0) - (a.rawScore || 0));
-        const displayPlayers = sortedPlayers;
-
-        displayPlayers.forEach((p, i) => {
-          const isTop1 = (i === 0) || (sortedPlayers[0] && p.rawScore === sortedPlayers[0].rawScore);
-          const isMvp = leaders.mvps && leaders.mvps.some(m => m.id === p.id);
-          const isTopScorer = leaders.topScorers && leaders.topScorers.some(ts => ts.id === p.id);
-          const isTopAssist = leaders.topAssists && leaders.topAssists.some(ta => ta.id === p.id);
-
-          const nameColContents = [];
-
-          // HOF Badges for Weekly Winners (MVP 👑, Most Scorer ⚽, Most Assist 👟)
-          const weekBadgeUrls = [];
-
-          if (isMvp) {
-            const mvpRaw = (assets.hofBadge && assets.hofBadge['mvp']) ? assets.hofBadge['mvp'].url : (p.info && p.info.hofBadgeUrl ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif');
-            if (mvpRaw) weekBadgeUrls.push(mvpRaw);
-          }
-          if (isTopScorer) {
-            const scorerRaw = (assets.hofBadge && assets.hofBadge['scorer']) ? assets.hofBadge['scorer'].url : ((assets.hofBadge && assets.hofBadge['top_scorer']) ? assets.hofBadge['top_scorer'].url : null);
-            if (scorerRaw && !weekBadgeUrls.includes(scorerRaw)) weekBadgeUrls.push(scorerRaw);
-          }
-          if (isTopAssist) {
-            const assistRaw = (assets.hofBadge && assets.hofBadge['assist']) ? assets.hofBadge['assist'].url : ((assets.hofBadge && assets.hofBadge['top_assist']) ? assets.hofBadge['top_assist'].url : null);
-            if (assistRaw && !weekBadgeUrls.includes(assistRaw)) weekBadgeUrls.push(assistRaw);
-          }
-
-          // Fallback HOF badge if Top 1 but no specific weekly award URL matched
-          if (isTop1 && weekBadgeUrls.length === 0) {
-            const defaultHofRaw = (p.info && p.info.hofBadgeUrl) ? p.info.hofBadgeUrl : 'https://bearbit.org/pic/crown.gif';
-            if (defaultHofRaw) weekBadgeUrls.push(defaultHofRaw);
-          }
-
-          // Render reduced HOF Badges (width 14px)
-          weekBadgeUrls.forEach(bUrl => {
-            if (bUrl) {
-              nameColContents.push({
-                type: 'box',
-                layout: 'vertical',
-                width: '14px',
-                height: '14px',
-                flex: 0,
-                margin: 'xs',
-                contents: [
-                  {
-                    type: 'image',
-                    url: bUrl,
-                    size: 'full',
-                    aspectRatio: '1:1',
-                    aspectMode: 'fit',
-                    animated: true
-                  }
-                ]
-              });
-            }
-          });
-
-          // Member Name without leading @
-          const displayName = (p.name || '').replace(/^@+/, '');
-          nameColContents.push({
-            type: 'text',
-            text: displayName,
-            size: 'xs',
-            color: (p.info && p.info.nameColor) ? p.info.nameColor : colors.textPrimary,
-            weight: (isTop1 || isMvp || isTopScorer || isTopAssist) ? 'bold' : 'regular',
-            margin: 'xs',
-            flex: 1
-          });
-
-          const teamMatches = p.matches || 1;
-          const gaTotal = (p.goals || 0) + (p.assists || 0);
-          const gaRate = teamMatches > 0 ? (gaTotal / teamMatches).toFixed(1) : gaTotal.toFixed(1);
-
-          const statParts = [];
-          if (p.goals > 0) statParts.push(`⚽${p.goals}`);
-          if (p.assists > 0) statParts.push(`👟${p.assists}`);
-          if (p.own_goals > 0) statParts.push(`🥅${p.own_goals}`);
-          const statIcons = statParts.length > 0 ? statParts.join(' ') : '-';
-          const statStr = gaTotal > 0 ? `${statIcons}` : (statParts.length > 0 ? `${statIcons}` : '-');
-          //const statStr = `${statIcons}`;
-
-          const posIcon = p.pos ? (p.pos.icon || '') : '';
-          const posCode = p.pos ? p.pos.code : '';
-          const teamName = p.teamName || '';
-          const teamColorHex = colors.tdc(teamName);
-
-          const ratingScoreStr = (p.score || 0).toFixed(1);
-
-          tableBodyContents.push({
-            type: 'box',
-            layout: 'horizontal',
-            margin: 'xs',
-            paddingStart: 'xs',
-            paddingEnd: 'xs',
-            alignItems: 'center',
-            contents: [
-              {
-                type: 'box',
-                layout: 'horizontal',
-                alignItems: 'center',
-                flex: 4,
-                contents: nameColContents
-              },
-              {
-                type: 'text',
-                text: `${posIcon}${posCode}`,
-                size: 'xs',
-                color: teamColorHex || colors.textMuted,
-                flex: 2,
-                align: 'center'
-              },
-              {
-                type: 'text',
-                text: statStr,
-                size: 'xs',
-                color: colors.textMutedLight || colors.textMuted,
-                flex: 4,
-                align: 'center'
-              },
-              {
-                type: 'text',
-                text: ratingScoreStr,
-                size: 'xs',
-                weight: 'bold',
-                color: isTop1 ? '#eab308' : (colors.textAccent || colors.textPrimary),
-                flex: 2,
-                align: 'end'
-              }
-            ]
-          });
-        });
-      }
-
-      const tableBubble = {
-        type: 'bubble',
-        size: 'mega',
-        body: {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: colors.bgMain,
-          paddingAll: 'sm',
-          contents: tableBodyContents
-        }
-      };
-
-      if (headerUrl && headerUrl.trim() !== '') {
-        tableBubble.header = {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: colors.bgHeader,
-          paddingAll: 'none',
-          contents: [
-            { type: 'image', url: headerUrl, size: 'full', aspectRatio: '20:7', aspectMode: 'cover' }
-          ]
-        };
-      }
-
-      // ── 2. Build Match Detail Bubbles (Up to 12 matches per bubble) ──
-      const matchBubbles = [];
-      const chunkSize = 12;
-
-      for (let i = 0; i < matches.length; i += chunkSize) {
-        const matchChunk = matches.slice(i, i + chunkSize);
-        const startNum = matchChunk[0].match_num ?? (i + 1);
-        const endNum = matchChunk[matchChunk.length - 1].match_num ?? (i + matchChunk.length);
-
-        const matchBodyContents = [];
-
-        matchBodyContents.push({
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: colors.bgRound,
-          paddingAll: 'md',
-          cornerRadius: 'md',
-          contents: [
-            {
-              type: 'text',
-              text: matches.length > chunkSize ? `⚽ รายละเอียดแมตช์ [${startNum} - ${endNum}]` : '⚽ รายละเอียดการแข่งขัน',
-              weight: 'bold',
-              size: 'lg',
-              color: colors.textPrimary,
-              align: 'center'
-            },
-            {
-              type: 'text',
-              text: `เสาร์ที่ ${date_str || ''}`,
-              size: 'sm',
-              color: colors.textMuted,
-              align: 'center',
-              margin: 'xs'
-            }
-          ]
-        });
-
-        for (const match of matchChunk) {
-          const team_a = team_colors.filter(t => t.id === match.team_a_id)[0];
-          const team_b = team_colors.filter(t => t.id === match.team_b_id)[0];
-
-          const goalBox = await queryMatchGoal(match.id, 0, groupId);
-          const assistBox = await queryMatchGoal(match.id, 3, groupId);
-
-          const cardContents = [
-            {
-              type: 'box',
-              layout: 'horizontal',
-              alignItems: 'center',
-              margin: 'xs',
-              contents: [
-                { type: 'text', text: `[${match.match_num ?? '?'}]`, size: 'xs', color: colors.textMuted, flex: 1, align: 'start' },
-                { type: 'text', text: team_a && team_a.color ? team_a.color : '?', size: 'md', weight: 'bold', color: team_a ? colors.tdc(team_a.color) : colors.textPrimary, flex: 3, align: 'end' },
-                { type: 'text', text: `${match.team_a_goal ?? 0} - ${match.team_b_goal ?? 0}`, size: 'md', weight: 'bold', color: colors.textAccent, flex: 2, align: 'center' },
-                { type: 'text', text: team_b && team_b.color ? team_b.color : '?', size: 'md', weight: 'bold', color: team_b ? colors.tdc(team_b.color) : colors.textPrimary, flex: 3, align: 'start' }
-              ]
-            }
-          ];
-
-          if (goalBox) cardContents.push(goalBox);
-          if (assistBox) cardContents.push(assistBox);
-
-          matchBodyContents.push({
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: colors.bgRound,
-            paddingAll: 'sm',
-            cornerRadius: 'md',
-            margin: 'sm',
-            contents: cardContents
-          });
-        }
-
-        const chunkBubble = {
-          type: 'bubble',
-          size: 'mega',
-          body: {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: colors.bgMain,
-            paddingAll: 'sm',
-            contents: matchBodyContents
-          }
-        };
-
-        if (headerUrl && headerUrl.trim() !== '') {
-          chunkBubble.header = {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: colors.bgHeader,
-            paddingAll: 'none',
-            contents: [
-              { type: 'image', url: headerUrl, size: 'full', aspectRatio: '20:7', aspectMode: 'cover' }
-            ]
-          };
-        }
-
-        matchBubbles.push(chunkBubble);
-      }
-
-      return {
-        type: 'carousel',
-        contents: [
-          tableBubble,
-          ...matchBubbles
-        ]
-      };
     }
 
-
+    return flex.buildMatchWeekMessages({
+      dateStr: date_str,
+      tableRows,
+      leaders,
+      matches,
+      teamColors: team_colors,
+      theme,
+      assets,
+      headerUrl,
+      matchDetailsMap
+    });
   }
+  return null;
 }
 
 
