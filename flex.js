@@ -3915,7 +3915,7 @@ function buildMatchWeekStandingsFlex({ dateStr, tableRows, topPlayers, leaders, 
 
   const bubble = {
     type: 'bubble',
-    size: 'giga',
+    size: 'mega',
     body: {
       type: 'box',
       layout: 'vertical',
@@ -4009,7 +4009,7 @@ function buildMatchWeekRestMvpFlex({ dateStr, restPlayers, leaders, colors, head
 
   const bubble = {
     type: 'bubble',
-    size: 'giga',
+    size: 'mega',
     body: {
       type: 'box',
       layout: 'vertical',
@@ -4157,7 +4157,7 @@ function buildMatchWeekMatchesFlex({ dateStr, matchChunk, teamColors, colors, he
 
   const bubble = {
     type: 'bubble',
-    size: 'giga',
+    size: 'mega',
     body: {
       type: 'box',
       layout: 'vertical',
