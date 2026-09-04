@@ -3667,7 +3667,9 @@ function renderMatchWeekPlayerRow(p, indexInChunk, startIndex, leaders, colors, 
   if (p.assists > 0) statParts.push(`👟${p.assists}`);
   if (p.cleanSheets > 0) statParts.push(`🧤${p.cleanSheets}`);
   if (p.own_goals > 0) statParts.push(`🥅${p.own_goals}`);
-  const statStr = statParts.length > 0 ? statParts.join(' ') : '-';
+  const gStr = p.goals > 0 ? `${p.goals}` : '-';
+  const aStr = p.assists > 0 ? `${p.assists}` : '-';
+  const csStr = p.cleanSheets > 0 ? `${p.cleanSheets}` : '-';
 
   const posIcon = p.pos ? (p.pos.icon || '') : (p.posIcon || '');
   const posCode = p.pos ? p.pos.code : (p.posCode || '');
@@ -3700,10 +3702,26 @@ function renderMatchWeekPlayerRow(p, indexInChunk, startIndex, leaders, colors, 
       },
       {
         type: 'text',
-        text: statStr,
+        text: gStr,
         size: 'xs',
-        color: colors.textMutedLight || colors.textMuted,
-        flex: 4,
+        color: p.goals > 0 ? colors.textPrimary : (colors.textMutedLight || colors.textMuted),
+        flex: 1,
+        align: 'center'
+      },
+      {
+        type: 'text',
+        text: aStr,
+        size: 'xs',
+        color: p.assists > 0 ? colors.textPrimary : (colors.textMutedLight || colors.textMuted),
+        flex: 1,
+        align: 'center'
+      },
+      {
+        type: 'text',
+        text: csStr,
+        size: 'xs',
+        color: p.cleanSheets > 0 ? colors.textPrimary : (colors.textMutedLight || colors.textMuted),
+        flex: 1,
         align: 'center'
       },
       {
@@ -3881,7 +3899,9 @@ function buildMatchWeekStandingsFlex({ dateStr, tableRows, topPlayers, leaders, 
       contents: [
         { type: 'text', text: 'สมาชิก', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
         { type: 'text', text: 'POS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
-        { type: 'text', text: 'G/A/CS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4, align: 'center' },
+        { type: 'text', text: '⚽', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+        { type: 'text', text: '👟', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+        { type: 'text', text: '🧤', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
         { type: 'text', text: 'Rating', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
       ]
     });
@@ -3895,7 +3915,7 @@ function buildMatchWeekStandingsFlex({ dateStr, tableRows, topPlayers, leaders, 
 
   const bubble = {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     body: {
       type: 'box',
       layout: 'vertical',
@@ -3962,7 +3982,7 @@ function buildMatchWeekRestMvpFlex({ dateStr, restPlayers, leaders, colors, head
     ]
   });
 
-  // Table Column Headers
+  // Table Column Headers with Icons
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
@@ -3973,7 +3993,9 @@ function buildMatchWeekRestMvpFlex({ dateStr, restPlayers, leaders, colors, head
     contents: [
       { type: 'text', text: 'สมาชิก', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4 },
       { type: 'text', text: 'POS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'center' },
-      { type: 'text', text: 'G/A/CS', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 4, align: 'center' },
+      { type: 'text', text: '⚽', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+      { type: 'text', text: '👟', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
+      { type: 'text', text: '🧤', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 1, align: 'center' },
       { type: 'text', text: 'Rating', size: 'xs', weight: 'bold', color: colors.textMuted, flex: 2, align: 'end' }
     ]
   });
@@ -3987,7 +4009,7 @@ function buildMatchWeekRestMvpFlex({ dateStr, restPlayers, leaders, colors, head
 
   const bubble = {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     body: {
       type: 'box',
       layout: 'vertical',
@@ -4135,7 +4157,7 @@ function buildMatchWeekMatchesFlex({ dateStr, matchChunk, teamColors, colors, he
 
   const bubble = {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     body: {
       type: 'box',
       layout: 'vertical',
