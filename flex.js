@@ -3720,32 +3720,32 @@ function renderMatchWeekPlayerRow(p, indexInChunk, startIndex, leaders, colors, 
 }
 
 /**
- * Builds Bubble 1 for /matchweek: Standings Table + Top 5 MVP Player Stats
+ * Builds Bubble 1 for /matchweek: Standings Table + Balanced Top MVP Player Stats
  */
-function buildMatchWeekStandingsTop5Flex({ dateStr, tableRows, top5Players, leaders, colors, headerUrl, totalMatches, totalGoals, assets }) {
+function buildMatchWeekStandingsFlex({ dateStr, tableRows, topPlayers, leaders, colors, headerUrl, totalMatches, totalGoals, assets, totalPlayersCount = 0 }) {
   const isWhite = colors.name === 'white';
   const bodyContents = [];
 
-  // Standings Header Box
+  // Standings Header Box (compact with reduced text size)
   bodyContents.push({
     type: 'box',
     layout: 'vertical',
     backgroundColor: colors.bgRound,
-    paddingAll: 'md',
+    paddingAll: 'sm',
     cornerRadius: 'md',
     contents: [
       {
         type: 'text',
         text: '📊 ตารางคะแนน',
         weight: 'bold',
-        size: 'lg',
+        size: 'md',
         color: colors.textPrimary,
         align: 'center'
       },
       {
         type: 'text',
         text: `เสาร์ที่ ${dateStr || ''}`,
-        size: 'sm',
+        size: 'xs',
         color: colors.textMuted,
         align: 'center',
         margin: 'xs'
@@ -3757,7 +3757,7 @@ function buildMatchWeekStandingsTop5Flex({ dateStr, tableRows, top5Players, lead
     bodyContents.push({
       type: 'box',
       layout: 'horizontal',
-      margin: 'md',
+      margin: 'sm',
       paddingStart: 'xs',
       paddingEnd: 'xs',
       alignItems: 'center',
@@ -3783,7 +3783,7 @@ function buildMatchWeekStandingsTop5Flex({ dateStr, tableRows, top5Players, lead
       const rowBox = {
         type: 'box',
         layout: 'horizontal',
-        margin: 'sm',
+        margin: 'xs',
         paddingStart: 'xs',
         paddingEnd: 'xs',
         alignItems: 'center',
@@ -3815,11 +3815,11 @@ function buildMatchWeekStandingsTop5Flex({ dateStr, tableRows, top5Players, lead
     });
 
     if (totalMatches > 0 || totalGoals > 0) {
-      bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+      bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
       bodyContents.push({
         type: 'box',
         layout: 'horizontal',
-        margin: 'sm',
+        margin: 'xs',
         contents: [
           {
             type: 'text',
@@ -3842,21 +3842,28 @@ function buildMatchWeekStandingsTop5Flex({ dateStr, tableRows, top5Players, lead
     }
   }
 
-  // Top 5 MVP Player Stats
-  if (top5Players && top5Players.length > 0) {
+  // MVP Player Stats Section
+  if (topPlayers && topPlayers.length > 0) {
+    const isPartialList = totalPlayersCount > topPlayers.length;
+    const mvpSectionTitle = isPartialList
+      ? `⭐ สถิติสมาชิก (อันดับ 1 - ${topPlayers.length})`
+      : '⭐ สถิติสมาชิกประจำสัปดาห์';
+
     bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
     bodyContents.push({
       type: 'box',
       layout: 'vertical',
       backgroundColor: colors.bgRound,
-      paddingAll: 'sm',
+      paddingAll: 'xs',
+      paddingTop: 'xs',
+      paddingBottom: 'xs',
       cornerRadius: 'sm',
       margin: 'sm',
       contents: [
         {
           type: 'text',
-          text: '⭐ สถิติสมาชิก (Top 5)',
-          size: 'sm',
+          text: mvpSectionTitle,
+          size: 'xs',
           weight: 'bold',
           color: colors.textPrimary,
           align: 'center'
@@ -3867,7 +3874,7 @@ function buildMatchWeekStandingsTop5Flex({ dateStr, tableRows, top5Players, lead
     bodyContents.push({
       type: 'box',
       layout: 'horizontal',
-      margin: 'sm',
+      margin: 'xs',
       paddingStart: 'xs',
       paddingEnd: 'xs',
       alignItems: 'center',
@@ -3881,7 +3888,7 @@ function buildMatchWeekStandingsTop5Flex({ dateStr, tableRows, top5Players, lead
 
     bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
 
-    top5Players.forEach((p, i) => {
+    topPlayers.forEach((p, i) => {
       bodyContents.push(renderMatchWeekPlayerRow(p, i, 0, leaders, colors, assets, isWhite));
     });
   }
@@ -3913,33 +3920,41 @@ function buildMatchWeekStandingsTop5Flex({ dateStr, tableRows, top5Players, lead
   return bubble;
 }
 
+// Alias for backwards compatibility
+const buildMatchWeekStandingsTop5Flex = buildMatchWeekStandingsFlex;
+
 /**
- * Builds Bubble 2 for /matchweek: MVP Player Stats for the rest of the players (rank 6+)
+ * Builds Bubble 2 for /matchweek: MVP Player Stats for the rest of the players
  */
-function buildMatchWeekRestMvpFlex({ dateStr, restPlayers, leaders, colors, headerUrl, assets, startIndex = 5 }) {
+function buildMatchWeekRestMvpFlex({ dateStr, restPlayers, leaders, colors, headerUrl, assets, startIndex = 0, totalPlayersCount = 0 }) {
   const isWhite = colors.name === 'white';
   const bodyContents = [];
 
-  // Header Box
+  const endRank = startIndex + restPlayers.length;
+  const headerTitle = totalPlayersCount > endRank
+    ? `⭐ สถิติสมาชิก (อันดับ ${startIndex + 1} - ${endRank})`
+    : `⭐ สถิติสมาชิก (อันดับ ${startIndex + 1}+)`;
+
+  // Header Box (compact with reduced text size)
   bodyContents.push({
     type: 'box',
     layout: 'vertical',
     backgroundColor: colors.bgRound,
-    paddingAll: 'md',
+    paddingAll: 'sm',
     cornerRadius: 'md',
     contents: [
       {
         type: 'text',
-        text: '⭐ สถิติสมาชิก (อันดับ 6+)',
+        text: headerTitle,
         weight: 'bold',
-        size: 'lg',
+        size: 'md',
         color: colors.textPrimary,
         align: 'center'
       },
       {
         type: 'text',
         text: `เสาร์ที่ ${dateStr || ''}`,
-        size: 'sm',
+        size: 'xs',
         color: colors.textMuted,
         align: 'center',
         margin: 'xs'
@@ -3951,7 +3966,7 @@ function buildMatchWeekRestMvpFlex({ dateStr, restPlayers, leaders, colors, head
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
-    margin: 'md',
+    margin: 'sm',
     paddingStart: 'xs',
     paddingEnd: 'xs',
     alignItems: 'center',
@@ -4004,26 +4019,26 @@ function buildMatchWeekMatchesFlex({ dateStr, matchChunk, teamColors, colors, he
   const isWhite = colors.name === 'white';
   const bodyContents = [];
 
-  // Match Chunk Header Box
+  // Match Chunk Header Box (compact with reduced text size)
   bodyContents.push({
     type: 'box',
     layout: 'vertical',
     backgroundColor: colors.bgRound,
-    paddingAll: 'md',
+    paddingAll: 'sm',
     cornerRadius: 'md',
     contents: [
       {
         type: 'text',
         text: totalMatches > matchChunk.length ? `⚽ ผลการแข่งขัน [แมตช์ ${startNum} - ${endNum}]` : '⚽ ผลการแข่งขัน',
         weight: 'bold',
-        size: 'lg',
+        size: 'md',
         color: colors.textPrimary,
         align: 'center'
       },
       {
         type: 'text',
         text: `เสาร์ที่ ${dateStr || ''}`,
-        size: 'sm',
+        size: 'xs',
         color: colors.textMuted,
         align: 'center',
         margin: 'xs'
@@ -4147,7 +4162,7 @@ function buildMatchWeekMatchesFlex({ dateStr, matchChunk, teamColors, colors, he
 
 /**
  * Builds the 2-message structure for /matchweek:
- * MSG 1: Bubble 1 (Table week + Top 5 MVP) & Bubble 2 (MVP Rest Players if > 5)
+ * MSG 1: Bubble 1 (Table week + Balanced MVP List) & Bubble 2 (MVP Rest Players if needed)
  * MSG 2: Match Detail bubbles (up to 3 bubbles)
  */
 function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColors, theme, assets, headerUrl, matchDetailsMap }) {
@@ -4161,20 +4176,30 @@ function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColo
   }
 
   const allPlayers = (leaders && leaders.allPlayerRatings) ? [...leaders.allPlayerRatings].sort((a, b) => (b.rawScore || 0) - (a.rawScore || 0)) : [];
-  const top5Players = allPlayers.slice(0, 5);
-  const restPlayers = allPlayers.slice(5);
+  
+  // Balance MVP players between Bubble 1 and Bubble 2:
+  // If <= 8 players, show all in Bubble 1.
+  // If > 8 players, balance roughly half in Bubble 1 and half in Bubble 2 (e.g. 7-9 players in Bubble 1).
+  let bubble1PlayerCount = allPlayers.length;
+  if (allPlayers.length > 8) {
+    bubble1PlayerCount = Math.ceil(allPlayers.length / 2);
+  }
 
-  // ── MSG 1: Standings + Top 5 MVP (Bubble 1) & Rest Players (Bubble 2 if exists) ──
-  const bubble1 = buildMatchWeekStandingsTop5Flex({
+  const topPlayers = allPlayers.slice(0, bubble1PlayerCount);
+  const restPlayers = allPlayers.slice(bubble1PlayerCount);
+
+  // ── MSG 1: Standings + Balanced MVP (Bubble 1) & Rest Players (Bubble 2 if exists) ──
+  const bubble1 = buildMatchWeekStandingsFlex({
     dateStr,
     tableRows,
-    top5Players,
+    topPlayers,
     leaders,
     colors,
     headerUrl,
     totalMatches,
     totalGoals,
-    assets
+    assets,
+    totalPlayersCount: allPlayers.length
   });
 
   const msg1Bubbles = [bubble1];
@@ -4186,7 +4211,8 @@ function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColo
       colors,
       headerUrl,
       assets,
-      startIndex: 5
+      startIndex: bubble1PlayerCount,
+      totalPlayersCount: allPlayers.length
     });
     msg1Bubbles.push(bubble2);
   }
@@ -5797,6 +5823,7 @@ module.exports = {
   buildTopStatFlex,
   buildTeamWeekFlex,
   buildFormationFlex,
+  buildMatchWeekStandingsFlex,
   buildMatchWeekStandingsTop5Flex,
   buildMatchWeekRestMvpFlex,
   buildMatchWeekMatchesFlex,
