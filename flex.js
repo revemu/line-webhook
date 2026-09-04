@@ -3716,16 +3716,12 @@ function buildMatchWeekStandingsFlex({ dateStr, tableRows, colors, headerUrl, to
         margin: 'xs'
       });
 
-      bodyContents.push({
+      const rowBox = {
         type: 'box',
         layout: 'horizontal',
         margin: 'sm',
         paddingStart: 'xs',
         paddingEnd: 'xs',
-        paddingTop: isTopTeam ? 'xs' : 'none',
-        paddingBottom: isTopTeam ? 'xs' : 'none',
-        backgroundColor: isTopTeam ? (isWhite ? '#fef3c7' : '#1e1b4b') : 'transparent',
-        cornerRadius: isTopTeam ? 'sm' : 'none',
         alignItems: 'center',
         contents: [
           {
@@ -3741,7 +3737,16 @@ function buildMatchWeekStandingsFlex({ dateStr, tableRows, colors, headerUrl, to
           { type: 'text', text: gdStr, size: 'sm', color: gd >= 0 ? (isWhite ? '#15803d' : '#88ff88') : (isWhite ? '#dc2626' : '#ff8888'), flex: 1, align: 'center' },
           { type: 'text', text: `${row.pts ?? 0}`, size: 'sm', color: isTopTeam ? (isWhite ? '#b45309' : '#fde047') : colors.textPrimary, flex: 1, align: 'center', weight: 'bold' }
         ]
-      });
+      };
+
+      if (isTopTeam) {
+        rowBox.backgroundColor = isWhite ? '#fef3c7' : '#1e1b4b';
+        rowBox.cornerRadius = 'sm';
+        rowBox.paddingTop = 'xs';
+        rowBox.paddingBottom = 'xs';
+      }
+
+      bodyContents.push(rowBox);
     });
 
     // Summary footer bar
