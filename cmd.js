@@ -244,6 +244,7 @@ const COMMAND_REGISTRY = {
             const msg = await db.getMemberWeek(0);
             return [{ type: 'text', text: msg }];
         }
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: -pay @ชื่อสมาชิก` }];
     },
     '-team': async (context) => ({ type: 'text', text: `พิมพ์ +team1(-4) ได้เลย ไม่ต้อง -team` }),
     '+team1': async (context) => COMMAND_REGISTRY['+teamN'] ? COMMAND_REGISTRY['+teamN'](context) : undefined,
@@ -535,6 +536,9 @@ const COMMAND_REGISTRY = {
         if (statsData) return { type: 'flex', altText: `สถิติส่วนตัวของ ${statsData.member.name}`, contents: flex.buildMemberStatsFlex(statsData, theme) };
         return [{ type: 'text', text: "ไม่พบข้อมูลสถิติของสมาชิกท่านนี้" }];
     },
+    'mystat': async (context) => COMMAND_REGISTRY['stat'](context),
+    'me': async (context) => COMMAND_REGISTRY['stat'](context),
+    'my': async (context) => COMMAND_REGISTRY['stat'](context),
     'bottom': async (context) => {
         const { param, groupId } = context;
         const limit = param != '' ? Number(param) : 30;
@@ -838,114 +842,124 @@ async function resolveMentionTarget(cmd, param, member, quoteToken) {
 }
 
 async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
-    const { cmd, param: rawParam } = parseCommandString(cmd_str);
-    let param = rawParam;
-
-    if (member && member.debt > 0 && member.admin !== 1 && !ADMIN_RESTRICTED_COMMANDS.has(cmd)) {
-        const displayName = (member.name || '').replace('@', '');
-        return formatTextReply(`ขออภัย ${displayName} ยังมียอดค้างชำระ ${member.debt} บาท ไม่สามารถใช้งานคำสั่งได้`, quoteToken);
-    }
-
     try {
-        const adminCmds = await db.getAdminCommands();
-        const adminCmdSet = new Set(adminCmds || []);
-        if (adminCmdSet.has(cmd)) {
-            if (!member || member.admin !== 1) {
-                return [{
-                    type: 'text',
-                    quoteToken: quoteToken,
-                    text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับผู้ดูแลระบบเท่านั้น)`
-                }];
+        const { cmd, param: rawParam } = parseCommandString(cmd_str);
+        let param = rawParam;
+
+        if (member && member.debt > 0 && member.admin !== 1 && !ADMIN_RESTRICTED_COMMANDS.has(cmd)) {
+            const displayName = (member.name || '').replace('@', '');
+            return formatTextReply(`ขออภัย ${displayName} ยังมียอดค้างชำระ ${member.debt} บาท ไม่สามารถใช้งานคำสั่งได้`, quoteToken);
+        }
+
+        try {
+            const adminCmds = await db.getAdminCommands();
+            const adminCmdSet = new Set(adminCmds || []);
+            if (adminCmdSet.has(cmd)) {
+                if (!member || member.admin !== 1) {
+                    return [{
+                        type: 'text',
+                        quoteToken: quoteToken,
+                        text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับผู้ดูแลระบบเท่านั้น)`
+                    }];
+                }
+            }
+        } catch (dbErr) {
+            console.error('⚠️ Failed to verify admin command from database:', dbErr.message);
+        }
+
+        let is_flex = true;
+        if (param.toLowerCase().includes('text')) {
+            is_flex = false;
+            param = param.replace(/text/gi, '').trim();
+        }
+
+        let rank_val = 0;
+        if (cmd === 'setrank') {
+            const parts = param.split(/\s+/).filter(Boolean);
+            if (parts.length > 1) {
+                const possibleVal = parts.pop();
+                const parsed = parseInt(possibleVal, 10);
+                if (!isNaN(parsed)) {
+                    rank_val = parsed;
+                    param = parts.join(' ').trim();
+                }
             }
         }
-    } catch (dbErr) {
-        console.error('⚠️ Failed to verify admin command from database:', dbErr.message);
-    }
 
-    let is_flex = true;
-    if (param.toLowerCase().includes('text')) {
-        is_flex = false;
-        param = param.replace(/text/gi, '').trim();
-    }
-
-    let rank_val = 0;
-    if (cmd === 'setrank') {
-        const parts = param.split(/\s+/).filter(Boolean);
-        if (parts.length > 1) {
-            const possibleVal = parts.pop();
-            const parsed = parseInt(possibleVal, 10);
-            if (!isNaN(parsed)) {
-                rank_val = parsed;
-                param = parts.join(' ').trim();
+        let debt_val = 0;
+        if (cmd === 'setdebt') {
+            const parts = param.split(/\s+/).filter(Boolean);
+            if (parts.length > 1) {
+                const possibleVal = parts.pop();
+                const parsed = parseInt(possibleVal, 10);
+                if (!isNaN(parsed)) {
+                    debt_val = parsed;
+                    param = parts.join(' ').trim();
+                }
             }
         }
-    }
 
-    let debt_val = 0;
-    if (cmd === 'setdebt') {
-        const parts = param.split(/\s+/).filter(Boolean);
-        if (parts.length > 1) {
-            const possibleVal = parts.pop();
-            const parsed = parseInt(possibleVal, 10);
-            if (!isNaN(parsed)) {
-                debt_val = parsed;
-                param = parts.join(' ').trim();
+        let priority_val = 0;
+        if (cmd === 'setpriority' || cmd === 'setpriorityweek') {
+            const parts = param.split(/\s+/).filter(Boolean);
+            if (parts.length > 1) {
+                const possibleVal = parts.pop();
+                const parsed = parseInt(possibleVal, 10);
+                if (!isNaN(parsed)) {
+                    priority_val = parsed;
+                    param = parts.join(' ').trim();
+                }
             }
         }
-    }
 
-    let priority_val = 0;
-    if (cmd === 'setpriority' || cmd === 'setpriorityweek') {
-        const parts = param.split(/\s+/).filter(Boolean);
-        if (parts.length > 1) {
-            const possibleVal = parts.pop();
-            const parsed = parseInt(possibleVal, 10);
-            if (!isNaN(parsed)) {
-                priority_val = parsed;
-                param = parts.join(' ').trim();
+        const mentionResult = await resolveMentionTarget(cmd, param, member, quoteToken);
+        if (mentionResult.reply) {
+            return mentionResult.reply;
+        }
+
+        let member_id = mentionResult.member_id;
+        let member_name = mentionResult.member_name;
+        let target_line_user_id = mentionResult.target_line_user_id;
+        let is_mention = mentionResult.is_mention;
+        param = mentionResult.param;
+
+        const result = await handleCommandSwitch({
+            cmd,
+            param,
+            quoteToken,
+            groupId,
+            is_flex,
+            rank_val,
+            priority_val,
+            debt_val,
+            member,
+            member_id,
+            member_name,
+            target_line_user_id,
+            is_mention
+        });
+
+        try {
+            const tempDir = path.join(__dirname, 'temp');
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true });
             }
+            fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(result, null, 2), 'utf8');
+            fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(result, null, 2), 'utf8');
+        } catch (e) {
+            console.error('Error writing latest_flex.json:', e.message);
         }
+
+        return result;
+    } catch (err) {
+        console.error('⚠️ Error processing command:', err);
+        const errDetail = err && err.message ? err.message : String(err);
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `เกิดข้อผิดพลาด: ${errDetail}`
+        }];
     }
-
-    const mentionResult = await resolveMentionTarget(cmd, param, member, quoteToken);
-    if (mentionResult.reply) {
-        return mentionResult.reply;
-    }
-
-    let member_id = mentionResult.member_id;
-    let member_name = mentionResult.member_name;
-    let target_line_user_id = mentionResult.target_line_user_id;
-    let is_mention = mentionResult.is_mention;
-    param = mentionResult.param;
-
-    const result = await handleCommandSwitch({
-        cmd,
-        param,
-        quoteToken,
-        groupId,
-        is_flex,
-        rank_val,
-        priority_val,
-        debt_val,
-        member,
-        member_id,
-        member_name,
-        target_line_user_id,
-        is_mention
-    });
-
-    try {
-        const tempDir = path.join(__dirname, 'temp');
-        if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-        }
-        fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(result, null, 2), 'utf8');
-        fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(result, null, 2), 'utf8');
-    } catch (e) {
-        console.error('Error writing latest_flex.json:', e.message);
-    }
-
-    return result;
 }
 
 async function handleCommandSwitch(context) {
@@ -965,7 +979,12 @@ async function handleCommandSwitch(context) {
             }
         } catch (handlerErr) {
             console.error('⚠️ Error in command registry handler for', cmd, handlerErr.message || handlerErr);
-            // fall through to legacy switch
+            const errDetail = handlerErr && handlerErr.message ? handlerErr.message : String(handlerErr);
+            return [{
+                type: 'text',
+                quoteToken,
+                text: `เกิดข้อผิดพลาด (${cmd}): ${errDetail}`
+            }];
         }
     }
     // No registry handler matched; show default unknown-command menu
