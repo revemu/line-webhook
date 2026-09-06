@@ -516,7 +516,7 @@ async function newWeek(week_date, custom_time_range = null) {
 
   if (last_week != date_str) {
     new_week_num = week[0].number + 1;
-    const insertQuery = "INSERT INTO week_tbl (number, date, status, year, max, cost, time_range) VALUES (?, ?, 2, ?, 24, 0, ?)";
+    const insertQuery = "INSERT INTO week_tbl (number, date, location_id, year, max, cost, time_range) VALUES (?, ?, 2, ?, 24, 0, ?)";
     const res = await executeQuery(insertQuery, [new_week_num, date_str, y, time_range]);
     const new_week_id = res.insertId;
     target_week_id = new_week_id;
@@ -5681,11 +5681,11 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
 
           // Exclude teams that already have a priority player of this SAME tier and SAME position
           const tierPositionsInGroup = new Set(group.filter(m => getMemberPriority(m) === tierNum).map(m => m.posCode));
-          const teamsWithoutSameTierAndPos = poolWithPosRoom.filter(t => 
+          const teamsWithoutSameTierAndPos = poolWithPosRoom.filter(t =>
             !t.members.some(m => getMemberPriority(m) === tierNum && tierPositionsInGroup.has(m.posCode))
           );
           const pool = teamsWithoutSameTierAndPos.length > 0 ? teamsWithoutSameTierAndPos : poolWithPosRoom;
-          
+
           const shuffledPool = shuffleArray([...pool]);
           shuffledPool.sort((a, b) => {
             const countDiff = a.members.length - b.members.length;
