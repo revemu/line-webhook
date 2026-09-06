@@ -680,7 +680,7 @@ async function setWeekCost(totalCost) {
 
   // Query all members registered for this week
   const membersQuery = `
-    SELECT mtw.member_id, mtw.pay, m.team_id 
+    SELECT mtw.member_id, mtw.pay, m.team_id, m.admin 
     FROM member_team_week_tbl mtw
     INNER JOIN member_tbl m ON mtw.member_id = m.id
     WHERE mtw.week_id = ?
@@ -690,7 +690,7 @@ async function setWeekCost(totalCost) {
     return { success: false, message: 'ไม่มีสมาชิกที่ลงชื่อในสัปดาห์นี้' };
   }
 
-  const payingMembers = members.filter(m => (m.team_id !== 101 && m.team_id !== 1));
+  const payingMembers = members.filter(m => (m.team_id !== 101 && m.admin !== 1));
   //const count = members.length;
   const count = (members.length > week[0].max) ? week[0].max : members.length;
   if (count === 0) {
@@ -704,7 +704,7 @@ async function setWeekCost(totalCost) {
     [costfee, week_id]
   );
   for (const m of payingMembers) {
-    if (m.team_id === 101 || m.team_id === 1) {
+    if (m.team_id === 101 || m.admin === 1) {
       continue;
     } else if (m.team_id === 100) {
       costfee = 40;
@@ -2771,7 +2771,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.fav_team_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0";
+      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+";
@@ -2903,7 +2903,7 @@ async function getMemberWeek(type = 0) {
     query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.fav_team_id, member_tbl.id, member_tbl.donate, member_tbl.fav_team_id, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0";
+      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+"
@@ -2997,7 +2997,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
     query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.fav_team_id, fav_team_tbl.url FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id LEFT JOIN fav_team_tbl ON member_tbl.fav_team_id=fav_team_tbl.id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and member_tbl.team_id <> 1";
+      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+"
