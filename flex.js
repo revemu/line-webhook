@@ -5286,19 +5286,29 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
     const slots = team.slots || { CF: [], AM: [], MF: [], DM: [], DW: [], DF: [], GK: [], alternates: [] };
     const teamNameFormatted = formatTeamDisplayName(team.teamColor);
     const headerTheme = getTeamHeaderTheme(team.teamColor);
+    const isTotw = (team.teamId === 'totw') || (team.teamColor && (team.teamColor.includes('Team of the Week') || team.teamColor.includes('TOTW') || team.teamColor.includes('ยอดเยี่ยม')));
 
-    // Identify Man of the Match (MOM) for this team strictly based on this week's performance
+    // Identify Man of the Match (MOM) / Team MVP strictly based on week rating (tie-break by goals, assists)
     const allTeamMembers = team.members || [];
     let momPlayer = null;
-    let topScore = -1;
+    let topRating = -1;
+    let topGoals = -1;
+    let topAssists = -1;
     for (const m of allTeamMembers) {
       const wRating = parseFloat(m.weekStats?.rating || 0) || 0;
       const wGoals = Number(m.weekStats?.goals || 0) || 0;
       const wAssists = Number(m.weekStats?.assists || 0) || 0;
-      const totalPoints = wRating * 10 + (wGoals * 4) + (wAssists * 3);
-      if (totalPoints > topScore && wRating > 0) {
-        topScore = totalPoints;
+      if (wRating > topRating && wRating > 0) {
+        topRating = wRating;
+        topGoals = wGoals;
+        topAssists = wAssists;
         momPlayer = m;
+      } else if (wRating === topRating && wRating > 0) {
+        if (wGoals > topGoals || (wGoals === topGoals && wAssists > topAssists)) {
+          topGoals = wGoals;
+          topAssists = wAssists;
+          momPlayer = m;
+        }
       }
     }
     const momPlayerId = momPlayer ? momPlayer.id : null;
@@ -5647,7 +5657,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 layout: 'horizontal',
                 alignItems: 'center',
                 contents: [
-                  { type: 'text', text: '👑 Team MVP', size: 'xxs', color: '#FCD34D', weight: 'bold', flex: 0 },
+                  { type: 'text', text: isTotw ? '👑 Week MVP' : '👑 Team MVP', size: 'xxs', color: '#FCD34D', weight: 'bold', flex: 0 },
                   { type: 'text', text: `• ${momName}`, size: 'xs', color: '#FFFFFF', weight: 'bold', margin: 'xs', flex: 1, wrap: false }
                 ]
               },
@@ -5718,7 +5728,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 layout: 'horizontal',
                 alignItems: 'center',
                 contents: [
-                  { type: 'text', text: '👑 Team MVP', size: 'xxs', color: '#94A3B8', weight: 'bold', flex: 0 },
+                  { type: 'text', text: isTotw ? '👑 Week MVP' : '👑 Team MVP', size: 'xxs', color: '#94A3B8', weight: 'bold', flex: 0 },
                   { type: 'text', text: '• n/a', size: 'xs', color: '#94A3B8', weight: 'bold', margin: 'xs', flex: 1, wrap: false }
                 ]
               },

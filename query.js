@@ -2591,7 +2591,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           const allocation = allocateFormationSlots(formattedTotwMembers, is8PlayerWeek, posLimitsMap);
           const totwFormationData = [{
             teamId: 'totw',
-            teamColor: '🌟 ทีมยอดเยี่ยมประจำสัปดาห์ (Team of the Week)',
+            teamColor: '🌟 Team of the Week 🌟',
             colorCode: '#EAB308',
             url: null,
             formationName: allocation.formationName,
