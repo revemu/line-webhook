@@ -232,7 +232,7 @@ async function handleJoinedMember(event) {
                 if (res && res.displayName) {
                     const line_name = `@${res.displayName}`;
                     console.log(`add new member ${member.userId}: ${line_name}`);
-                    await db.newMember(member.userId, line_name);
+                    await db.newMember(member.userId, line_name, res.pictureUrl);
                     const theme = await db.getTheme();
                     const week = await db.queryWeekID(0);
                     const dateStr = week.length > 0 ? week[0].date : '';
@@ -255,19 +255,42 @@ async function handleJoinedMember(event) {
     }
 }
 
+function normalizeProfilePic(url) {
+    if (!url || typeof url !== 'string') return '';
+    let u = url.trim();
+    if (u === '' || u.toLowerCase() === 'none' || u.toLowerCase() === 'null') return '';
+    u = u.replace(/^http:\/\//i, 'https://');
+    u = u.replace(/https:\/\/sprofile\.line-scdn\.net\//i, 'https://profile.line-scdn.net/');
+    u = u.replace(/\/preview$/i, '').replace(/\/+$/, '');
+    return u;
+}
+
 async function manageMember(source, member, line_name, pictureUrl) {
-    line_name = `@${line_name}`;
+    line_name = `@${(line_name || '').trim()}`;
     if (member.length > 0) {
-        const existingPic = member[0].picture_url;
-        if (line_name !== member[0].name || (pictureUrl && pictureUrl !== existingPic)) {
-            console.log(`update existing member info ${source.userId}: ${member[0].name} => ${line_name}, pic update: ${pictureUrl !== existingPic}`);
-            await db.updateMemberInfo(member[0].id, line_name, pictureUrl);
+        const currentMember = member[0];
+        const existingName = (currentMember.name || '').trim();
+        const existingPic = currentMember.picture_url;
+
+        const normExistingPic = normalizeProfilePic(existingPic);
+        const normNewPic = normalizeProfilePic(pictureUrl);
+
+        const isNameChanged = line_name !== '' && line_name !== existingName;
+        const isPicChanged = Boolean(normNewPic && normNewPic !== normExistingPic);
+
+        if (isNameChanged || isPicChanged) {
+            const finalName = isNameChanged ? line_name : currentMember.name;
+            const finalPic = isPicChanged ? pictureUrl : existingPic;
+            console.log(`update existing member info ${source.userId}: ${currentMember.name} => ${finalName}, pic update: ${isPicChanged}`);
+            await db.updateMemberInfo(currentMember.id, finalName, finalPic);
+            currentMember.name = finalName;
+            currentMember.picture_url = finalPic;
+            currentMember.pictureUrl = finalPic;
         }
     } else {
         console.log(`add new member ${source.userId}: ${line_name}`);
         await db.newMember(source.userId, line_name, pictureUrl);
     }
-
 }
 
 async function handleMessage(event) {

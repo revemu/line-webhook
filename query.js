@@ -373,9 +373,14 @@ async function newMember(lineID, name, pictureUrl = null) {
   return res;
 }
 
-async function updateMemberInfo(member_id, name, pictureUrl = null) {
-  let query = "update member_tbl set name = ?, picture_url = ? where id = ?";
-  return await executeQuery(query, [name, pictureUrl, member_id]);
+async function updateMemberInfo(member_id, name, pictureUrl = undefined) {
+  if (pictureUrl !== undefined) {
+    let query = "update member_tbl set name = ?, picture_url = ? where id = ?";
+    return await executeQuery(query, [name, pictureUrl, member_id]);
+  } else {
+    let query = "update member_tbl set name = ? where id = ?";
+    return await executeQuery(query, [name, member_id]);
+  }
 }
 
 function shuffleArray(array) {
