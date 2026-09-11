@@ -5792,7 +5792,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   // 7. Balanced Draft for Regular Players by Position with Randomization
   const regularPlayers = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id) && getMemberPriority(m) !== 1 && getMemberPriority(m) !== 2);
   const regularByPos = {};
-  const posOrder = ['GK', 'DF', 'DW', 'MF', 'CF', 'DM', 'AM'];
+  const posOrder = ['GK', 'CF', 'AM', 'DM', 'DF', 'DW', 'MF'];
   for (const p of regularPlayers) {
     const code = p.posCode;
     if (!regularByPos[code]) regularByPos[code] = [];
