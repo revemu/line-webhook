@@ -389,7 +389,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       <g transform="translate(42, 32)">
         <circle cx="0" cy="0" r="26.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
         ${goalIconDataUri ? `
-          <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="-17" y="-19" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+          <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="-17" y="-19" width="39" height="39" preserveAspectRatio="xMidYMid meet"/>
         ` : `
           <polygon points="0,-5.5 5.5,-2 3.5,5 -3.5,5 -5.5,-2" fill="#111827"/>
           <line x1="0" y1="-5.5" x2="0" y2="-13.5" stroke="#111827" stroke-width="1.8"/>
@@ -412,7 +412,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       <g transform="translate(-40, 32)">
         <circle cx="0" cy="0" r="26.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
         ${assistIconDataUri ? `
-          <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-20" y="-18" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+          <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-20" y="-18" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
         ` : `
           <g transform="translate(-11, -8) scale(1.2)">
             <path d="M1,9 C3,7 5,5 9,5 C11,5 13,7 15,7 C17,7 18,9 18,10 C18,11 16,12 13,12 C8,12 3,11 1,9 Z" fill="#38BDF8"/>
