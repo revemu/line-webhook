@@ -2612,7 +2612,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             console.warn('[TOTW] Could not pre-generate TOTW image:', eTotwImg.message);
           }
 
-          const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, '', week[0].date, week[0].id);
+          const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, '', res[0].date, res[0].id);
           if (totwBubbles && totwBubbles.length > 0) {
             totwBubble = totwBubbles[0];
           }
