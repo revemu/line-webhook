@@ -352,7 +352,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
         <g transform="translate(${pillX}, ${pillY})">
           <rect x="0" y="0" width="${pillWidth}" height="${pillHeight}" rx="15" fill="${badgeBg}" stroke="#FFFFFF" stroke-width="2.5"/>
           <text x="${isMom ? 32 : pillWidth / 2}" y="28" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${pRatingVal}</text>
-          ${isMom ? `<g transform="translate(-11, -6) scale(1.5)"><polygon points="53,8 55.5,14 62,14 57,18 59,24 53,20 47,24 49,18 44,14 50.5,14" fill="#FDE047"/></g>` : ''}
+          ${isMom ? `<g transform="translate(-14, -6) scale(1.5)"><polygon points="53,8 55.5,14 62,14 57,18 59,24 53,20 47,24 49,18 44,14 50.5,14" fill="#FDE047"/></g>` : ''}
         </g>
       `;
     }
