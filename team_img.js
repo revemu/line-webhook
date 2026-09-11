@@ -586,7 +586,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           ${momAvatarSvg}
 
           <!-- Crown Vector -->
-          <g transform="translate(155, 48) scale(2.5)">
+          <g transform="translate(155, 50) scale(2.5)">
             <polygon points="0,12 4,2 9,8 14,2 18,12" fill="#F59E0B" stroke="#78350F" stroke-width="1"/>
           </g>
           <text x="210" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
