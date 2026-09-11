@@ -467,8 +467,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       // Left Flank (DW Left)
       const lx = pitchX + 130;
       if (leftSlot.primary && leftSlot.alternate) {
-        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, lx - 55, row.y);
-        pitchPlayersSvg += renderSinglePlayer(leftSlot.alternate, 'DW', true, momPlayerId === leftSlot.alternate?.id, lx + 70, row.y);
+        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, 125, row.y);
+        pitchPlayersSvg += renderSinglePlayer(leftSlot.alternate, 'DW', true, momPlayerId === leftSlot.alternate?.id, 305, row.y);
       } else {
         pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, lx, row.y);
       }
@@ -476,28 +476,31 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       // Right Flank (DW Right)
       const rx = pitchX + pitchWidth - 130;
       if (rightSlot.primary && rightSlot.alternate) {
-        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, rx - 70, row.y);
-        pitchPlayersSvg += renderSinglePlayer(rightSlot.alternate, 'DW', true, momPlayerId === rightSlot.alternate?.id, rx + 55, row.y);
+        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, 775, row.y);
+        pitchPlayersSvg += renderSinglePlayer(rightSlot.alternate, 'DW', true, momPlayerId === rightSlot.alternate?.id, 955, row.y);
       } else {
         pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, rx, row.y);
       }
     } else {
-      // Center distributed slots (compact central spine)
+      // Center distributed slots (wide central layout for generous spacing)
       const centerX = pitchX + pitchWidth / 2;
       let xPositions = [];
       if (numSlots === 1) {
         xPositions = [centerX];
       } else if (numSlots === 2) {
-        xPositions = [centerX - 165, centerX + 165];
+        xPositions = [centerX - 230, centerX + 230];
       } else if (numSlots === 3) {
-        xPositions = [centerX - 240, centerX, centerX + 240];
+        xPositions = [centerX - 275, centerX, centerX + 275];
+      } else if (numSlots === 4) {
+        xPositions = [centerX - 330, centerX - 110, centerX + 110, centerX + 330];
       }
 
+      const altOffset = numSlots === 1 ? 95 : 85;
       slotList.forEach((slot, idx) => {
         const cx = xPositions[idx] || centerX;
         if (slot.primary && slot.alternate) {
-          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx - 75, row.y);
-          pitchPlayersSvg += renderSinglePlayer(slot.alternate, row.role, true, momPlayerId === slot.alternate?.id, cx + 75, row.y);
+          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx - altOffset, row.y);
+          pitchPlayersSvg += renderSinglePlayer(slot.alternate, row.role, true, momPlayerId === slot.alternate?.id, cx + altOffset, row.y);
         } else {
           pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx, row.y);
         }
