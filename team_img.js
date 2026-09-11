@@ -634,10 +634,10 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     
     <!-- Dot & Title -->
     <circle cx="34" cy="32" r="8" fill="${headerColors.dot}"/>
-    <text x="54" y="42" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
+    <text x="54" y="42" font-size="32" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
     
     <!-- Subtitle Line -->
-    <text x="32" y="72" font-size="15" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
+    <text x="32" y="72" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
   </g>
   `;
 
