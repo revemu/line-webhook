@@ -252,10 +252,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     }
   }
 
-  // Fallback if no valid rating found
-  if (!momPlayer && allMembers.length > 0) {
-    momPlayer = allMembers[0];
-  }
+  // No fallback: if no player has a real match rating > 0, momPlayer stays null
+  // and no crown will be shown (match hasn't been played yet)
 
   const momPlayerId = momPlayer ? (momPlayer.id || momPlayer.member_id) : null;
   const isMomPlayer = (p) => {
