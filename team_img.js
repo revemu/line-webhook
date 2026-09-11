@@ -637,7 +637,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           <text x="300" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">• n/a</text>
           <text x="155" y="130" font-size="30" font-family="Sarabun, sans-serif" fill="#64748B">ยังไม่มีการแข่งขันสัปดาห์นี้</text>
 
-          <rect x="810" y="89" width="150" height="90" rx="14" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
+          <rect x="810" y="48" width="150" height="90" rx="14" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
           <text x="885" y="103" font-size="32" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">n/a</text>
         </g>
       `;
