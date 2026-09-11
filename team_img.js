@@ -651,6 +651,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
   let WeekDate = '';
   if (formattedDateStr) WeekDate = formattedDateStr;
   subItems.push(`${team.totalPlayers || 0} คน • ${cleanFormationName}`);
+
   if (timeRange) subItems.push(timeRange);
   const headerSubtitle = subItems.join('   •   ');
 
@@ -665,7 +666,9 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     <text x="54" y="42" font-size="32" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
 
     <!-- Date & Time -->
-    <text x="700" y="42" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(WeekDate)}</text>
+    <text x="850" y="42" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(WeekDate)}</text>
+    <text x="850" y="85" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(timeRange)}</text>
+
     
     <!-- Subtitle Line -->
     <text x="32" y="85" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
