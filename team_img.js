@@ -223,42 +223,46 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
   const pitchX = 40;
   const pitchY = pitchOnly ? 25 : 130;
   const pitchWidth = 1000;
-  const pitchHeight = 1140;
-  const svgHeight = pitchOnly ? (pitchY + pitchHeight + 25) : 1560;
+  const pitchHeight = 1260;
+  const svgHeight = pitchOnly ? (pitchY + pitchHeight + 25) : 1630;
 
-  // Determine row positions on the tactical pitch (1080p layout)
+  // Determine row positions on the tactical pitch (1080p layout with expanded spacing)
   const hasCF = slots.CF && slots.CF.length > 0;
   const hasAM = slots.AM && slots.AM.length > 0;
   const hasDM = slots.DM && slots.DM.length > 0;
 
   const rowLayouts = [];
   if (hasCF && hasAM) {
-    rowLayouts.push({ role: 'CF', y: pitchY + 100, slots: slots.CF });
-    rowLayouts.push({ role: 'AM', y: pitchY + 240, slots: slots.AM });
+    rowLayouts.push({ role: 'CF', y: pitchY + 75, slots: slots.CF });
+    rowLayouts.push({ role: 'AM', y: pitchY + 265, slots: slots.AM });
   } else if (hasCF) {
-    rowLayouts.push({ role: 'CF', y: pitchY + 130, slots: slots.CF });
+    rowLayouts.push({ role: 'CF', y: pitchY + 105, slots: slots.CF });
   } else if (hasAM) {
-    rowLayouts.push({ role: 'AM', y: pitchY + 130, slots: slots.AM });
+    rowLayouts.push({ role: 'AM', y: pitchY + 135, slots: slots.AM });
   } else {
-    rowLayouts.push({ role: 'CF', y: pitchY + 130, slots: [{ primary: null, alternate: null }] });
+    rowLayouts.push({ role: 'CF', y: pitchY + 105, slots: [{ primary: null, alternate: null }] });
   }
 
-  rowLayouts.push({ role: 'MF', y: pitchY + (hasDM ? 390 : 430), slots: slots.MF && slots.MF.length > 0 ? slots.MF : [{ primary: null, alternate: null }] });
+  rowLayouts.push({
+    role: 'MF',
+    y: pitchY + (hasCF && hasAM ? (hasDM ? 450 : 475) : (hasDM ? 385 : 460)),
+    slots: slots.MF && slots.MF.length > 0 ? slots.MF : [{ primary: null, alternate: null }]
+  });
 
   if (hasDM) {
-    rowLayouts.push({ role: 'DM', y: pitchY + 560, slots: slots.DM });
+    rowLayouts.push({ role: 'DM', y: pitchY + (hasCF && hasAM ? 635 : 595), slots: slots.DM });
   }
 
   rowLayouts.push({
     role: 'DW',
-    y: pitchY + (hasDM ? 710 : 680),
+    y: pitchY + (hasDM ? 785 : 725),
     slots: slots.DW && slots.DW.length > 0 ? slots.DW : [{ primary: null, alternate: null }, { primary: null, alternate: null }],
     isFlank: true
   });
 
-  rowLayouts.push({ role: 'DF', y: pitchY + 860, slots: slots.DF && slots.DF.length > 0 ? slots.DF : [{ primary: null, alternate: null }] });
+  rowLayouts.push({ role: 'DF', y: pitchY + 945, slots: slots.DF && slots.DF.length > 0 ? slots.DF : [{ primary: null, alternate: null }] });
 
-  rowLayouts.push({ role: 'GK', y: pitchY + 1030, slots: slots.GK && slots.GK.length > 0 ? slots.GK : [{ primary: null, alternate: null }] });
+  rowLayouts.push({ role: 'GK', y: pitchY + 1145, slots: slots.GK && slots.GK.length > 0 ? slots.GK : [{ primary: null, alternate: null }] });
 
   // Render individual player cards
   let defsSvg = '';
@@ -456,44 +460,44 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     const numSlots = slotList.length;
 
     if (row.isFlank) {
-      // Left and right flank placement (DW Left & Right)
+      // Left and right flank placement (DW Left & Right) - Wide near touchlines
       const leftSlot = slotList[0] || { primary: null, alternate: null };
       const rightSlot = slotList[1] || { primary: null, alternate: null };
 
       // Left Flank (DW Left)
-      const lx = pitchX + 160;
+      const lx = pitchX + 130;
       if (leftSlot.primary && leftSlot.alternate) {
-        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, lx - 85, row.y);
-        pitchPlayersSvg += renderSinglePlayer(leftSlot.alternate, 'DW', true, momPlayerId === leftSlot.alternate?.id, lx + 85, row.y);
+        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, lx - 55, row.y);
+        pitchPlayersSvg += renderSinglePlayer(leftSlot.alternate, 'DW', true, momPlayerId === leftSlot.alternate?.id, lx + 70, row.y);
       } else {
         pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, lx, row.y);
       }
 
       // Right Flank (DW Right)
-      const rx = pitchX + pitchWidth - 160;
+      const rx = pitchX + pitchWidth - 130;
       if (rightSlot.primary && rightSlot.alternate) {
-        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, rx - 85, row.y);
-        pitchPlayersSvg += renderSinglePlayer(rightSlot.alternate, 'DW', true, momPlayerId === rightSlot.alternate?.id, rx + 85, row.y);
+        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, rx - 70, row.y);
+        pitchPlayersSvg += renderSinglePlayer(rightSlot.alternate, 'DW', true, momPlayerId === rightSlot.alternate?.id, rx + 55, row.y);
       } else {
         pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, rx, row.y);
       }
     } else {
-      // Center distributed slots
+      // Center distributed slots (compact central spine)
       const centerX = pitchX + pitchWidth / 2;
       let xPositions = [];
       if (numSlots === 1) {
         xPositions = [centerX];
       } else if (numSlots === 2) {
-        xPositions = [centerX - 200, centerX + 200];
+        xPositions = [centerX - 165, centerX + 165];
       } else if (numSlots === 3) {
-        xPositions = [centerX - 285, centerX, centerX + 285];
+        xPositions = [centerX - 240, centerX, centerX + 240];
       }
 
       slotList.forEach((slot, idx) => {
         const cx = xPositions[idx] || centerX;
         if (slot.primary && slot.alternate) {
-          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx - 85, row.y);
-          pitchPlayersSvg += renderSinglePlayer(slot.alternate, row.role, true, momPlayerId === slot.alternate?.id, cx + 85, row.y);
+          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx - 75, row.y);
+          pitchPlayersSvg += renderSinglePlayer(slot.alternate, row.role, true, momPlayerId === slot.alternate?.id, cx + 75, row.y);
         } else {
           pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx, row.y);
         }
@@ -542,7 +546,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
 
       mvpBarSvg = `
         <!-- MVP Container -->
-        <g transform="translate(40, 1290)">
+        <g transform="translate(40, 1390)">
           <rect x="0" y="0" width="${pitchWidth}" height="190" rx="18" fill="#0F172ACC" stroke="#F59E0B" stroke-width="2.2"/>
           
           <!-- Avatar Ring -->
@@ -566,7 +570,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     } else {
       mvpBarSvg = `
         <!-- MVP Placeholder Container -->
-        <g transform="translate(40, 1290)">
+        <g transform="translate(40, 1390)">
           <rect x="0" y="0" width="${pitchWidth}" height="190" rx="18" fill="#0F172ACC" stroke="#475569" stroke-width="1.5"/>
           <circle cx="85" cy="95" r="48" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
           <polygon points="74,103 79,88 85,96 91,88 96,103" fill="#64748B"/>
@@ -729,7 +733,7 @@ async function generateTeamImage(team, dateStr = '', timeRange = '', options = {
   const pitchOnly = !!options.pitchOnly;
   const svg = await buildTeamFormationSvg(team, dateStr, timeRange, options);
   const width = 1080;
-  const height = pitchOnly ? 1190 : 1560;
+  const height = pitchOnly ? 1310 : 1630;
   const filename = await convertSvgToPng(svg, width, height);
 
   let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
