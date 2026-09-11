@@ -550,7 +550,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
         xPositions = [centerX - 330, centerX - 110, centerX + 110, centerX + 330];
       }
 
-      const altOffset = numSlots === 1 ? 95 : 85;
+      const altOffset = numSlots === 1 ? 105 : 95;
       slotList.forEach((slot, idx) => {
         const cx = xPositions[idx] || centerX;
         if (slot.primary && slot.alternate) {
