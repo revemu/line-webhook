@@ -452,10 +452,10 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     const textColor = isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF');
 
     const nameTextSvg = isTwoLines ? `
-      <text x="18" y="21" font-size="14.5" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
-      <text x="18" y="41" font-size="14.5" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[1])}</text>
+      <text x="18" y="21" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
+      <text x="18" y="41" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[1])}</text>
     ` : `
-      <text x="18" y="25" font-size="17" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
+      <text x="18" y="25" font-size="20" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
     `;
 
     return `
