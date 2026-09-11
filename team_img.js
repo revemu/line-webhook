@@ -365,8 +365,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       const numRating = parseFloat(pWStat.rating);
       let badgeBg = '#22C55E';
       if (isMom) badgeBg = '#2563EB'; // FotMob MVP Blue
-      else if (numRating >= 7.0) badgeBg = '#22C55E'; // Green
-      else if (numRating >= 6.0) badgeBg = '#F59E0B'; // Amber
+      else if (numRating >= 3.0) badgeBg = '#22C55E'; // Green
+      else if (numRating >= 2.0) badgeBg = '#F59E0B'; // Amber
       else badgeBg = '#EF4444'; // Red
 
       const pillWidth = isMom ? 82 : 72;
