@@ -665,10 +665,10 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     <text x="54" y="42" font-size="32" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
 
     <!-- Date & Time -->
-    <text x="500" y="42" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(WeekDate)}</text>
+    <text x="700" y="42" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(WeekDate)}</text>
     
     <!-- Subtitle Line -->
-    <text x="32" y="105" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
+    <text x="32" y="85" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
   </g>
   `;
 
