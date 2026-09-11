@@ -296,7 +296,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       return `
         <g transform="translate(${cx}, ${cy})">
           <circle cx="0" cy="0" r="52" fill="#1E293B" stroke="#FFFFFF44" stroke-width="3" stroke-dasharray="8 4"/>
-          <text x="0" y="10" font-size="22" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">${escapeXml(posCode)}</text>
+          <text x="0" y="10" font-size="26" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">${escapeXml(posCode)}</text>
         </g>
       `;
     }
@@ -452,10 +452,10 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     const textColor = isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF');
 
     const nameTextSvg = isTwoLines ? `
-      <text x="18" y="21" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
-      <text x="18" y="41" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[1])}</text>
+      <text x="18" y="21" font-size="24" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
+      <text x="18" y="41" font-size="24" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[1])}</text>
     ` : `
-      <text x="18" y="25" font-size="20" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
+      <text x="18" y="25" font-size="24" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
     `;
 
     return `
