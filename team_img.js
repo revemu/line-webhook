@@ -359,12 +359,11 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
 
     // 2. Overlapping Goal Badge (Bottom-Right)
     const goalBadgeSvg = goals > 0 ? `
-      <g transform="translate(36, 30)">
+      <g transform="translate(36, 32)">
+        <circle cx="0" cy="0" r="18.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
         ${goalIconDataUri ? `
-          <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="-18" y="-18" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+          <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="-13.5" y="-13.5" width="27" height="27" preserveAspectRatio="xMidYMid meet"/>
         ` : `
-          <circle cx="0" cy="0" r="18" fill="#111827" stroke="#FFFFFF" stroke-width="2.5"/>
-          <circle cx="0" cy="0" r="14.5" fill="#FFFFFF"/>
           <polygon points="0,-5.5 5.5,-2 3.5,5 -3.5,5 -5.5,-2" fill="#111827"/>
           <line x1="0" y1="-5.5" x2="0" y2="-13.5" stroke="#111827" stroke-width="1.8"/>
           <line x1="5.5" y1="-2" x2="13" y2="-4" stroke="#111827" stroke-width="1.8"/>
@@ -373,7 +372,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           <line x1="-5.5" y1="-2" x2="-13" y2="-4" stroke="#111827" stroke-width="1.8"/>
         `}
         ${goals > 1 ? `
-          <g transform="translate(12, -12)">
+          <g transform="translate(13, -12)">
             <circle cx="0" cy="0" r="10.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
             <text x="0" y="5.5" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${goals}</text>
           </g>
@@ -383,11 +382,11 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
 
     // 3. Overlapping Assist Badge (Bottom-Left)
     const assistBadgeSvg = assists > 0 ? `
-      <g transform="translate(-36, 30)">
+      <g transform="translate(-36, 32)">
+        <circle cx="0" cy="0" r="18.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
         ${assistIconDataUri ? `
-          <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-22" y="-14" width="44" height="28" preserveAspectRatio="xMidYMid meet"/>
+          <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-14.5" y="-10" width="29" height="20" preserveAspectRatio="xMidYMid meet"/>
         ` : `
-          <circle cx="0" cy="0" r="18" fill="#111827" stroke="#FFFFFF" stroke-width="2.5"/>
           <g transform="translate(-11, -8) scale(1.2)">
             <path d="M1,9 C3,7 5,5 9,5 C11,5 13,7 15,7 C17,7 18,9 18,10 C18,11 16,12 13,12 C8,12 3,11 1,9 Z" fill="#38BDF8"/>
             <path d="M3.5,12 L3.5,15 M7.5,12 L7.5,15 M12.5,12 L12.5,15" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
@@ -395,7 +394,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           </g>
         `}
         ${assists > 1 ? `
-          <g transform="translate(-15, -13)">
+          <g transform="translate(-13, -12)">
             <circle cx="0" cy="0" r="10.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
             <text x="0" y="5.5" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${assists}</text>
           </g>
