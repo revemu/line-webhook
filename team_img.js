@@ -177,7 +177,7 @@ function getTeamHeaderColors(teamColorName) {
   if (n.includes('pink') || n.includes('ชมพู')) return { bg: '#9D174D', accent: '#EC4899', title: '#FCE7F3', dot: '#F472B6' };
   if (n.includes('purple') || n.includes('ม่วง')) return { bg: '#6D28D9', accent: '#A855F7', title: '#EDE9FE', dot: '#C084FC' };
   if (n.includes('black') || n.includes('ดำ')) return { bg: '#1E293B', accent: '#94A3B8', title: '#F1F5F9', dot: '#CBD5E1' };
-  if (n.includes('white') || n.includes('ขาว')) return { bg: '#ffffffff', accent: '#000000ff', title: '#000000ff', dot: '#000000ff' };
+  if (n.includes('white') || n.includes('ขาว')) return { bg: '#ffffffff', accent: '#000000ff', title: '#000000ff', dot: '#ffffffff' };
   return { bg: '#1E293B', accent: '#38BDF8', title: '#FFFFFF', dot: '#38BDF8' };
 }
 
@@ -662,7 +662,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     <rect x="0" y="0" width="${pitchWidth}" height="90" rx="16" fill="url(#header-grad)" stroke="${headerColors.accent}" stroke-width="2"/>
     
     <!-- Dot & Title -->
-    <circle cx="34" cy="32" r="8" fill="${headerColors.dot}"/>
+    <circle cx="34" cy="32" r="8" stroke="${headerColors.title}" stroke-width="2" fill="${headerColors.dot}"/>
     <text x="54" y="42" font-size="32" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
 
     <!-- Date & Time -->
@@ -671,7 +671,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
 
     
     <!-- Subtitle Line -->
-    <text x="32" y="80" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
+    <text x="32" y="80" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(headerSubtitle)}</text>
   </g>
   `;
 
