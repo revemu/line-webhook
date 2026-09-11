@@ -452,10 +452,10 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     const textColor = isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF');
 
     const nameTextSvg = isTwoLines ? `
-      <text x="18" y="21" font-size="24" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
-      <text x="18" y="41" font-size="24" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[1])}</text>
+      <text x="18" y="21" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
+      <text x="18" y="41" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[1])}</text>
     ` : `
-      <text x="18" y="25" font-size="24" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
+      <text x="18" y="25" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
     `;
 
     return `
@@ -475,7 +475,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           <rect x="-${labelBoxWidth / 2}" y="0" width="${labelBoxWidth}" height="${labelBoxHeight}" rx="10" fill="${isAlternate ? '#071828EE' : (isMom ? '#1A1608F4' : '#000000CC')}" stroke="${isMom ? '#F59E0BCC' : (isAlternate ? '#38BDF888' : '#FFFFFF26')}" stroke-width="1.4"/>
           
           <rect x="-${labelBoxWidth / 2 - 5}" y="${posBadgeY}" width="40" height="${posBadgeH}" rx="6" fill="${posColor}"/>
-          <text x="-${labelBoxWidth / 2 - 24}" y="${posTextY}" font-size="24" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${escapeXml(posCode)}</text>
+          <text x="-${labelBoxWidth / 2 - 24}" y="${posTextY}" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${escapeXml(posCode)}</text>
           
           ${nameTextSvg}
         </g>
