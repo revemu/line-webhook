@@ -98,7 +98,7 @@ async function fetchImageAsBase64(url, timeoutMs = 6000) {
         avatarCache.set(secureUrl, dataUri);
         return dataUri;
       } else {
-        try { fs.unlinkSync(diskPath); } catch (e) {}
+        try { fs.unlinkSync(diskPath); } catch (e) { }
       }
     }
   } catch (diskErr) {
@@ -186,7 +186,7 @@ function getTeamHeaderColors(teamColorName) {
  */
 async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options = {}) {
   const isTotw = String(team.teamId || '').toLowerCase() === 'totw';
-  
+
   // Format team name: remove 'ทีม' / 'ทีม ' prefix as requested (e.g. 'Red', 'Yellow', 'Green')
   let rawTeamColor = team.teamColor || `Team ${team.teamId}`;
   rawTeamColor = stripEmojis(rawTeamColor).replace(/^ทีม(สี)?\s*/i, '').replace(/^สี/i, '').trim();
@@ -204,7 +204,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
   // Collect ALL player objects from team.members and all formation slots
   const playersToLoad = new Set();
   allMembers.forEach(m => { if (m) playersToLoad.add(m); });
-  
+
   Object.values(slots).forEach(slotGroup => {
     if (Array.isArray(slotGroup)) {
       slotGroup.forEach(slot => {
@@ -343,15 +343,15 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       else if (numRating >= 6.0) badgeBg = '#F59E0B'; // Amber
       else badgeBg = '#EF4444'; // Red
 
-      const pillWidth = isMom ? 72 : 58;
-      const pillHeight = 30;
+      const pillWidth = isMom ? 82 : 72;
+      const pillHeight = 40;
       const pillX = 18;
       const pillY = -56;
 
       ratingBadgeSvg = `
         <g transform="translate(${pillX}, ${pillY})">
           <rect x="0" y="0" width="${pillWidth}" height="${pillHeight}" rx="15" fill="${badgeBg}" stroke="#FFFFFF" stroke-width="2.5"/>
-          <text x="${isMom ? 27 : pillWidth / 2}" y="22" font-size="17" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${pRatingVal}</text>
+          <text x="${isMom ? 27 : pillWidth / 2}" y="22" font-size="20" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${pRatingVal}</text>
           ${isMom ? `<polygon points="53,8 55.5,14 62,14 57,18 59,24 53,20 47,24 49,18 44,14 50.5,14" fill="#FDE047"/>` : ''}
         </g>
       `;
