@@ -5800,7 +5800,11 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
                 paddingBottom: '2px',
                 margin: 'sm',
                 flex: 0,
-                action: {
+                action: team.imageUrl ? {
+                  type: 'uri',
+                  label: 'ดูรูปเต็ม',
+                  uri: team.imageUrl
+                } : {
                   type: 'message',
                   label: 'รูปภาพ',
                   text: isTotw
@@ -5860,7 +5864,26 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
           }
         ]
       },
-      body: {
+      body: team.imageUrl ? {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'none',
+        backgroundColor: '#0B0F19',
+        contents: [
+          {
+            type: 'image',
+            url: team.imageUrl,
+            size: 'full',
+            aspectRatio: '1080:1560',
+            aspectMode: 'cover',
+            action: {
+              type: 'uri',
+              label: 'ดูรูปเต็ม',
+              uri: team.imageUrl
+            }
+          }
+        ]
+      } : {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'sm',

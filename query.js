@@ -2600,6 +2600,14 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             members: formattedTotwMembers
           }];
 
+          try {
+            const teamImg = require('./team_img');
+            const totwUrl = await teamImg.generateTeamImage(totwFormationData[0], date_str, '');
+            if (totwUrl) totwFormationData[0].imageUrl = totwUrl;
+          } catch (eTotwImg) {
+            console.warn('[TOTW] Could not pre-generate TOTW image:', eTotwImg.message);
+          }
+
           const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, '', week[0].date, week[0].id);
           if (totwBubbles && totwBubbles.length > 0) {
             totwBubble = totwBubbles[0];
@@ -5426,6 +5434,21 @@ async function getTeamFormationData(param = '', groupId = null) {
 async function getTeamFormation(param = '', groupId = null) {
   const data = await getTeamFormationData(param, groupId);
   if (!data || !data.formationsData || data.formationsData.length === 0) return null;
+
+  // Pre-generate high-res tactical formation images in parallel
+  try {
+    const teamImg = require('./team_img');
+    await Promise.all(data.formationsData.map(async (team) => {
+      try {
+        const url = await teamImg.generateTeamImage(team, data.dateStr, data.timeRange);
+        if (url) team.imageUrl = url;
+      } catch (eImg) {
+        console.warn(`[getTeamFormation] Image generation failed for team ${team.teamId}:`, eImg.message);
+      }
+    }));
+  } catch (err) {
+    console.warn('[getTeamFormation] team_img module error:', err.message);
+  }
 
   const tFlexStart = Date.now();
   const flexMsg = flex.buildFormationFlex(data.formationsData, data.theme, data.dateStr, data.timeRange, data.weekDate, data.weekId);

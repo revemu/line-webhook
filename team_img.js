@@ -167,8 +167,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
   
   // Format team name: remove 'ทีม' / 'ทีม ' prefix as requested (e.g. 'Red', 'Yellow', 'Green')
   let rawTeamColor = team.teamColor || `Team ${team.teamId}`;
-  rawTeamColor = rawTeamColor.replace(/^ทีม(สี)?\s*/i, '').replace(/^สี/i, '').trim();
-  const teamNameFormatted = isTotw ? 'Team of the Week' : rawTeamColor;
+  rawTeamColor = stripEmojis(rawTeamColor).replace(/^ทีม(สี)?\s*/i, '').replace(/^สี/i, '').trim();
+  const teamNameFormatted = isTotw ? 'Team of the Week' : (rawTeamColor || 'Team');
 
   const formattedDateStr = dateStr ? getFormatDate(dateStr, 'short') : '';
   const headerColors = getTeamHeaderColors(team.teamColor);
@@ -217,46 +217,46 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
   }
   const momPlayerId = momPlayer ? momPlayer.id : null;
 
-  const svgWidth = 800;
-  const svgHeight = 1120;
+  const svgWidth = 1080;
+  const svgHeight = 1560;
   const pitchX = 40;
-  const pitchY = 120;
-  const pitchWidth = 720;
-  const pitchHeight = 820;
+  const pitchY = 130;
+  const pitchWidth = 1000;
+  const pitchHeight = 1140;
 
-  // Determine row positions on the tactical pitch
+  // Determine row positions on the tactical pitch (1080p layout)
   const hasCF = slots.CF && slots.CF.length > 0;
   const hasAM = slots.AM && slots.AM.length > 0;
   const hasDM = slots.DM && slots.DM.length > 0;
 
   const rowLayouts = [];
   if (hasCF && hasAM) {
-    rowLayouts.push({ role: 'CF', y: pitchY + 70, slots: slots.CF });
-    rowLayouts.push({ role: 'AM', y: pitchY + 180, slots: slots.AM });
-  } else if (hasCF) {
     rowLayouts.push({ role: 'CF', y: pitchY + 110, slots: slots.CF });
+    rowLayouts.push({ role: 'AM', y: pitchY + 260, slots: slots.AM });
+  } else if (hasCF) {
+    rowLayouts.push({ role: 'CF', y: pitchY + 150, slots: slots.CF });
   } else if (hasAM) {
-    rowLayouts.push({ role: 'AM', y: pitchY + 110, slots: slots.AM });
+    rowLayouts.push({ role: 'AM', y: pitchY + 150, slots: slots.AM });
   } else {
-    rowLayouts.push({ role: 'CF', y: pitchY + 110, slots: [{ primary: null, alternate: null }] });
+    rowLayouts.push({ role: 'CF', y: pitchY + 150, slots: [{ primary: null, alternate: null }] });
   }
 
-  rowLayouts.push({ role: 'MF', y: pitchY + (hasDM ? 290 : 320), slots: slots.MF && slots.MF.length > 0 ? slots.MF : [{ primary: null, alternate: null }] });
+  rowLayouts.push({ role: 'MF', y: pitchY + (hasDM ? 420 : 460), slots: slots.MF && slots.MF.length > 0 ? slots.MF : [{ primary: null, alternate: null }] });
 
   if (hasDM) {
-    rowLayouts.push({ role: 'DM', y: pitchY + 420, slots: slots.DM });
+    rowLayouts.push({ role: 'DM', y: pitchY + 590, slots: slots.DM });
   }
 
   rowLayouts.push({
     role: 'DW',
-    y: pitchY + (hasDM ? 540 : 500),
+    y: pitchY + (hasDM ? 760 : 720),
     slots: slots.DW && slots.DW.length > 0 ? slots.DW : [{ primary: null, alternate: null }, { primary: null, alternate: null }],
     isFlank: true
   });
 
-  rowLayouts.push({ role: 'DF', y: pitchY + 650, slots: slots.DF && slots.DF.length > 0 ? slots.DF : [{ primary: null, alternate: null }] });
+  rowLayouts.push({ role: 'DF', y: pitchY + 910, slots: slots.DF && slots.DF.length > 0 ? slots.DF : [{ primary: null, alternate: null }] });
 
-  rowLayouts.push({ role: 'GK', y: pitchY + 755, slots: slots.GK && slots.GK.length > 0 ? slots.GK : [{ primary: null, alternate: null }] });
+  rowLayouts.push({ role: 'GK', y: pitchY + 1045, slots: slots.GK && slots.GK.length > 0 ? slots.GK : [{ primary: null, alternate: null }] });
 
   // Render individual player cards
   let defsSvg = '';
@@ -267,8 +267,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
       // Empty slot placeholder
       return `
         <g transform="translate(${cx}, ${cy})">
-          <circle cx="0" cy="0" r="26" fill="#1E293B" stroke="#FFFFFF44" stroke-width="2" stroke-dasharray="4 2"/>
-          <text x="0" y="5" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">${escapeXml(posCode)}</text>
+          <circle cx="0" cy="0" r="38" fill="#1E293B" stroke="#FFFFFF44" stroke-width="2.5" stroke-dasharray="6 3"/>
+          <text x="0" y="8" font-size="16" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">${escapeXml(posCode)}</text>
         </g>
       `;
     }
@@ -282,8 +282,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     const posColor = posBadgeColor[posCode] || '#64748B';
 
     const borderColor = isMom ? '#F59E0B' : (isAlternate ? '#38BDF8' : '#FFFFFF');
-    const borderWidth = isMom ? '3.5' : (isAlternate ? '2.5' : '2');
-    const avatarR = 26;
+    const borderWidth = isMom ? '4' : (isAlternate ? '3' : '2.5');
+    const avatarR = 38;
 
     const clipId = `clip-avatar-${pId}-${isAlternate ? 'alt' : 'prim'}`;
     defsSvg += `<clipPath id="${clipId}"><circle cx="0" cy="0" r="${avatarR}"/></clipPath>\n`;
@@ -296,7 +296,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
       <image href="${dataUri}" xlink:href="${dataUri}" x="-${avatarR}" y="-${avatarR}" width="${avatarR * 2}" height="${avatarR * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>
     ` : `
       <circle cx="0" cy="0" r="${avatarR}" fill="${isAlternate ? '#0C2A44' : '#1E293B'}"/>
-      <text x="0" y="6" font-size="14" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(posCode)}</text>
+      <text x="0" y="8" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(posCode)}</text>
     `;
 
     const goals = Number(pWStat.goals || 0);
@@ -312,35 +312,35 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
       else if (numRating >= 6.0) badgeBg = '#F59E0B'; // Amber
       else badgeBg = '#EF4444'; // Red
 
-      const pillWidth = isMom ? 40 : 30;
-      const pillHeight = 18;
-      const pillX = 8;
-      const pillY = -28;
+      const pillWidth = isMom ? 56 : 44;
+      const pillHeight = 24;
+      const pillX = 14;
+      const pillY = -42;
 
       ratingBadgeSvg = `
         <g transform="translate(${pillX}, ${pillY})">
-          <rect x="0" y="0" width="${pillWidth}" height="${pillHeight}" rx="9" fill="${badgeBg}" stroke="#FFFFFF" stroke-width="1.5"/>
-          <text x="${isMom ? 15 : pillWidth / 2}" y="13.5" font-size="11" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${pRatingVal}</text>
-          ${isMom ? `<polygon points="29,5 30.5,8.5 34,8.5 31.2,10.6 32.2,14 29,11.8 25.8,14 26.8,10.6 24,8.5 27.5,8.5" fill="#FDE047"/>` : ''}
+          <rect x="0" y="0" width="${pillWidth}" height="${pillHeight}" rx="12" fill="${badgeBg}" stroke="#FFFFFF" stroke-width="2"/>
+          <text x="${isMom ? 21 : pillWidth / 2}" y="17" font-size="14" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${pRatingVal}</text>
+          ${isMom ? `<polygon points="41,6 43,11 48,11 44,14 45.5,19 41,16 36.5,19 38,14 34,11 39,11" fill="#FDE047"/>` : ''}
         </g>
       `;
     }
 
     // 2. Overlapping Goal Badge (Bottom-Right)
     const goalBadgeSvg = goals > 0 ? `
-      <g transform="translate(16, 14)">
-        <circle cx="0" cy="0" r="10.5" fill="#111827" stroke="#FFFFFF" stroke-width="1.8"/>
-        <circle cx="0" cy="0" r="8" fill="#FFFFFF"/>
-        <polygon points="0,-3.2 3,-1 2,2.8 -2,2.8 -3,-1" fill="#111827"/>
-        <line x1="0" y1="-3.2" x2="0" y2="-7" stroke="#111827" stroke-width="1.1"/>
-        <line x1="3" y1="-1" x2="6.8" y2="-2.2" stroke="#111827" stroke-width="1.1"/>
-        <line x1="2" y1="2.8" x2="4.8" y2="6.5" stroke="#111827" stroke-width="1.1"/>
-        <line x1="-2" y1="2.8" x2="-4.8" y2="6.5" stroke="#111827" stroke-width="1.1"/>
-        <line x1="-3" y1="-1" x2="-6.8" y2="-2.2" stroke="#111827" stroke-width="1.1"/>
+      <g transform="translate(26, 22)">
+        <circle cx="0" cy="0" r="14" fill="#111827" stroke="#FFFFFF" stroke-width="2"/>
+        <circle cx="0" cy="0" r="11" fill="#FFFFFF"/>
+        <polygon points="0,-4 4,-1.5 2.5,3.8 -2.5,3.8 -4,-1.5" fill="#111827"/>
+        <line x1="0" y1="-4" x2="0" y2="-10" stroke="#111827" stroke-width="1.5"/>
+        <line x1="4" y1="-1.5" x2="9.5" y2="-3" stroke="#111827" stroke-width="1.5"/>
+        <line x1="2.5" y1="3.8" x2="6.5" y2="9" stroke="#111827" stroke-width="1.5"/>
+        <line x1="-2.5" y1="3.8" x2="-6.5" y2="9" stroke="#111827" stroke-width="1.5"/>
+        <line x1="-4" y1="-1.5" x2="-9.5" y2="-3" stroke="#111827" stroke-width="1.5"/>
         ${goals > 1 ? `
-          <g transform="translate(7, -7)">
-            <circle cx="0" cy="0" r="5.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="1"/>
-            <text x="0" y="3" font-size="8" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${goals}</text>
+          <g transform="translate(9, -9)">
+            <circle cx="0" cy="0" r="7.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="1.5"/>
+            <text x="0" y="4" font-size="10.5" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${goals}</text>
           </g>
         ` : ''}
       </g>
@@ -348,17 +348,17 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
 
     // 3. Overlapping Assist Badge (Bottom-Left)
     const assistBadgeSvg = assists > 0 ? `
-      <g transform="translate(-16, 14)">
-        <circle cx="0" cy="0" r="10.5" fill="#111827" stroke="#FFFFFF" stroke-width="1.8"/>
-        <g transform="translate(-6.5, -4.5) scale(0.72)">
+      <g transform="translate(-26, 22)">
+        <circle cx="0" cy="0" r="14" fill="#111827" stroke="#FFFFFF" stroke-width="2"/>
+        <g transform="translate(-9, -6) scale(0.95)">
           <path d="M1,9 C3,7 5,5 9,5 C11,5 13,7 15,7 C17,7 18,9 18,10 C18,11 16,12 13,12 C8,12 3,11 1,9 Z" fill="#38BDF8"/>
-          <path d="M3.5,12 L3.5,14.5 M7.5,12 L7.5,14.5 M12.5,12 L12.5,14.5" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M6.5,5 L8.5,8 M8.5,5 L10.5,8" stroke="#FFFFFF" stroke-width="0.9"/>
+          <path d="M3.5,12 L3.5,15 M7.5,12 L7.5,15 M12.5,12 L12.5,15" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M6.5,5 L8.5,8.5 M8.5,5 L10.5,8.5" stroke="#FFFFFF" stroke-width="1.1"/>
         </g>
         ${assists > 1 ? `
-          <g transform="translate(-7, -7)">
-            <circle cx="0" cy="0" r="5.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="1"/>
-            <text x="0" y="3" font-size="8" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${assists}</text>
+          <g transform="translate(-9, -9)">
+            <circle cx="0" cy="0" r="7.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="1.5"/>
+            <text x="0" y="4" font-size="10.5" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${assists}</text>
           </g>
         ` : ''}
       </g>
@@ -366,14 +366,14 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
 
     // 4. Name & Position Label Underneath Avatar
     const crownSvg = isMom ? `
-      <g transform="translate(-7, -35)">
-        <polygon points="0,7 3,0 7,5 11,0 14,7" fill="#F59E0B" stroke="#78350F" stroke-width="0.8"/>
-        <rect x="0" y="7" width="14" height="2" fill="#D97706"/>
+      <g transform="translate(-10, -48)">
+        <polygon points="0,10 5,0 10,7 15,0 20,10" fill="#F59E0B" stroke="#78350F" stroke-width="1"/>
+        <rect x="0" y="10" width="20" height="3" fill="#D97706"/>
       </g>
     ` : '';
 
-    const labelBoxWidth = 98;
-    const labelBoxHeight = 22;
+    const labelBoxWidth = 132;
+    const labelBoxHeight = 30;
     const displayName = isAlternate ? `(Alt) ${pName}` : pName;
     const truncatedName = displayName.length > 13 ? displayName.slice(0, 12) + '..' : displayName;
 
@@ -390,13 +390,13 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
         ${assistBadgeSvg}
 
         <!-- Name & Position Pill Underneath Avatar -->
-        <g transform="translate(0, ${avatarR + 5})">
-          <rect x="-${labelBoxWidth / 2}" y="0" width="${labelBoxWidth}" height="${labelBoxHeight}" rx="6" fill="${isAlternate ? '#071828EE' : (isMom ? '#1A1608F4' : '#000000CC')}" stroke="${isMom ? '#F59E0BCC' : (isAlternate ? '#38BDF888' : '#FFFFFF26')}" stroke-width="1"/>
+        <g transform="translate(0, ${avatarR + 8})">
+          <rect x="-${labelBoxWidth / 2}" y="0" width="${labelBoxWidth}" height="${labelBoxHeight}" rx="8" fill="${isAlternate ? '#071828EE' : (isMom ? '#1A1608F4' : '#000000CC')}" stroke="${isMom ? '#F59E0BCC' : (isAlternate ? '#38BDF888' : '#FFFFFF26')}" stroke-width="1.2"/>
           
-          <rect x="-${labelBoxWidth / 2 - 3}" y="3" width="22" height="16" rx="3" fill="${posColor}"/>
-          <text x="-${labelBoxWidth / 2 - 14}" y="14.5" font-size="9.5" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${escapeXml(posCode)}</text>
+          <rect x="-${labelBoxWidth / 2 - 4}" y="4" width="30" height="22" rx="4" fill="${posColor}"/>
+          <text x="-${labelBoxWidth / 2 - 19}" y="19" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${escapeXml(posCode)}</text>
           
-          <text x="11" y="15" font-size="10.5" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(truncatedName)}</text>
+          <text x="14" y="20" font-size="14" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(truncatedName)}</text>
         </g>
       </g>
     `;
@@ -408,24 +408,24 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     const numSlots = slotList.length;
 
     if (row.isFlank) {
-      // Left and right flank placement
+      // Left and right flank placement (DW Left & Right)
       const leftSlot = slotList[0] || { primary: null, alternate: null };
       const rightSlot = slotList[1] || { primary: null, alternate: null };
 
       // Left Flank (DW Left)
-      const lx = pitchX + 110;
+      const lx = pitchX + 150;
       if (leftSlot.primary && leftSlot.alternate) {
-        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, lx - 48, row.y);
-        pitchPlayersSvg += renderSinglePlayer(leftSlot.alternate, 'DW', true, momPlayerId === leftSlot.alternate?.id, lx + 48, row.y);
+        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, lx - 65, row.y);
+        pitchPlayersSvg += renderSinglePlayer(leftSlot.alternate, 'DW', true, momPlayerId === leftSlot.alternate?.id, lx + 65, row.y);
       } else {
         pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, lx, row.y);
       }
 
       // Right Flank (DW Right)
-      const rx = pitchX + pitchWidth - 110;
+      const rx = pitchX + pitchWidth - 150;
       if (rightSlot.primary && rightSlot.alternate) {
-        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, rx - 48, row.y);
-        pitchPlayersSvg += renderSinglePlayer(rightSlot.alternate, 'DW', true, momPlayerId === rightSlot.alternate?.id, rx + 48, row.y);
+        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, rx - 65, row.y);
+        pitchPlayersSvg += renderSinglePlayer(rightSlot.alternate, 'DW', true, momPlayerId === rightSlot.alternate?.id, rx + 65, row.y);
       } else {
         pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, rx, row.y);
       }
@@ -436,16 +436,16 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
       if (numSlots === 1) {
         xPositions = [centerX];
       } else if (numSlots === 2) {
-        xPositions = [centerX - 120, centerX + 120];
+        xPositions = [centerX - 170, centerX + 170];
       } else if (numSlots === 3) {
-        xPositions = [centerX - 180, centerX, centerX + 180];
+        xPositions = [centerX - 240, centerX, centerX + 240];
       }
 
       slotList.forEach((slot, idx) => {
         const cx = xPositions[idx] || centerX;
         if (slot.primary && slot.alternate) {
-          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx - 52, row.y);
-          pitchPlayersSvg += renderSinglePlayer(slot.alternate, row.role, true, momPlayerId === slot.alternate?.id, cx + 52, row.y);
+          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx - 70, row.y);
+          pitchPlayersSvg += renderSinglePlayer(slot.alternate, row.role, true, momPlayerId === slot.alternate?.id, cx + 70, row.y);
         } else {
           pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx, row.y);
         }
@@ -463,7 +463,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
 
   // Bottom MVP Bar SVG
   let mvpBarSvg = '';
-  const starBigSvg = `<polygon points="0,-6 1.8,-1.8 6.3,-1.8 2.7,1 3.8,5.4 0,2.7 -3.8,5.4 -2.7,1 -6.3,-1.8 -1.8,-1.8" fill="#FDE047"/>`;
+  const starBigSvg = `<polygon points="0,-8 2.4,-2.4 8.4,-2.4 3.6,1.3 5,7.2 0,3.6 -5,7.2 -3.6,1.3 -8.4,-2.4 -2.4,-2.4" fill="#FDE047"/>`;
 
   if (momPlayer) {
     const rawMomName = (momPlayer.name || momPlayer.alias || 'Player').replace(/^@/, '');
@@ -476,58 +476,58 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     const statsParts = [];
     if (momGoals > 0) statsParts.push(`${momGoals} ประตู`);
     if (momAssists > 0) statsParts.push(`${momAssists} แอสซิสต์`);
-    const momStatsDesc = statsParts.length > 0 ? statsParts.join('  •  ') : 'ลงสนามสัปดาห์นี้';
+    const momStatsDesc = statsParts.length > 0 ? statsParts.join('   •   ') : 'ลงสนามสัปดาห์นี้';
 
     const momClipId = `clip-mom-${momPlayer.id}`;
-    defsSvg += `<clipPath id="${momClipId}"><circle cx="45" cy="45" r="24"/></clipPath>\n`;
+    defsSvg += `<clipPath id="${momClipId}"><circle cx="85" cy="95" r="48"/></clipPath>\n`;
 
     const rawMomPic = momPlayer.picture_url || momPlayer.pictureUrl;
     const momPicUrl = rawMomPic ? rawMomPic.trim().replace(/^http:\/\//i, 'https://') : null;
     const momDataUri = momPlayer.avatarDataUri || (momPicUrl ? avatarCache.get(momPicUrl) : null);
     const momAvatarSvg = momDataUri ? `
-      <image href="${momDataUri}" xlink:href="${momDataUri}" x="21" y="21" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#${momClipId})"/>
+      <image href="${momDataUri}" xlink:href="${momDataUri}" x="37" y="47" width="96" height="96" preserveAspectRatio="xMidYMid slice" clip-path="url(#${momClipId})"/>
     ` : `
-      <circle cx="45" cy="45" r="24" fill="#2A1802"/>
-      <polygon points="38,47 41,39 45,44 49,39 52,47" fill="#F59E0B"/>
+      <circle cx="85" cy="95" r="48" fill="#2A1802"/>
+      <polygon points="74,103 79,88 85,96 91,88 96,103" fill="#F59E0B"/>
     `;
 
     mvpBarSvg = `
       <!-- MVP Container -->
-      <g transform="translate(40, 960)">
-        <rect x="0" y="0" width="720" height="90" rx="12" fill="#0F172ACC" stroke="#F59E0B" stroke-width="1.8"/>
+      <g transform="translate(40, 1290)">
+        <rect x="0" y="0" width="${pitchWidth}" height="190" rx="18" fill="#0F172ACC" stroke="#F59E0B" stroke-width="2.2"/>
         
         <!-- Avatar Ring -->
-        <circle cx="45" cy="45" r="25" fill="none" stroke="#F59E0B" stroke-width="2.5"/>
+        <circle cx="85" cy="95" r="50" fill="none" stroke="#F59E0B" stroke-width="3.5"/>
         ${momAvatarSvg}
 
         <!-- Crown Vector -->
-        <g transform="translate(85, 20)">
-          <polygon points="0,10 3,2 7,7 11,2 14,10" fill="#F59E0B" stroke="#78350F" stroke-width="0.8"/>
+        <g transform="translate(155, 38)">
+          <polygon points="0,12 4,2 9,8 14,2 18,12" fill="#F59E0B" stroke="#78350F" stroke-width="1"/>
         </g>
-        <text x="106" y="30" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
-        <text x="180" y="30" font-size="15" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
-        <text x="85" y="58" font-size="13" font-family="Sarabun, sans-serif" fill="#CBD5E1">${escapeXml(momStatsDesc)}</text>
+        <text x="180" y="52" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
+        <text x="275" y="52" font-size="22" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
+        <text x="155" y="96" font-size="17" font-family="Sarabun, sans-serif" fill="#CBD5E1">${escapeXml(momStatsDesc)}</text>
 
         <!-- Rating Box -->
-        <rect x="600" y="22" width="100" height="46" rx="8" fill="#231602" stroke="#F59E0B" stroke-width="1.5"/>
-        <g transform="translate(625, 45)">${starBigSvg}</g>
-        <text x="655" y="51" font-size="17" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FDE047" text-anchor="middle">${escapeXml(momRatingVal)}</text>
+        <rect x="810" y="48" width="150" height="90" rx="14" fill="#231602" stroke="#F59E0B" stroke-width="2"/>
+        <g transform="translate(850, 93)">${starBigSvg}</g>
+        <text x="900" y="103" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FDE047" text-anchor="middle">${escapeXml(momRatingVal)}</text>
       </g>
     `;
   } else {
     mvpBarSvg = `
       <!-- MVP Placeholder Container -->
-      <g transform="translate(40, 960)">
-        <rect x="0" y="0" width="720" height="90" rx="12" fill="#0F172ACC" stroke="#475569" stroke-width="1.2"/>
-        <circle cx="45" cy="45" r="24" fill="#1E293B" stroke="#475569" stroke-width="1.2"/>
-        <polygon points="38,47 41,39 45,44 49,39 52,47" fill="#64748B"/>
+      <g transform="translate(40, 1290)">
+        <rect x="0" y="0" width="${pitchWidth}" height="190" rx="18" fill="#0F172ACC" stroke="#475569" stroke-width="1.5"/>
+        <circle cx="85" cy="95" r="48" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
+        <polygon points="74,103 79,88 85,96 91,88 96,103" fill="#64748B"/>
 
-        <text x="85" y="32" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
-        <text x="165" y="32" font-size="15" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">• n/a</text>
-        <text x="85" y="58" font-size="13" font-family="Sarabun, sans-serif" fill="#64748B">ยังไม่มีการแข่งขันสัปดาห์นี้</text>
+        <text x="155" y="52" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
+        <text x="255" y="52" font-size="22" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">• n/a</text>
+        <text x="155" y="96" font-size="17" font-family="Sarabun, sans-serif" fill="#64748B">ยังไม่มีการแข่งขันสัปดาห์นี้</text>
 
-        <rect x="600" y="22" width="100" height="46" rx="8" fill="#1E293B" stroke="#475569" stroke-width="1"/>
-        <text x="650" y="51" font-size="17" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">n/a</text>
+        <rect x="810" y="48" width="150" height="90" rx="14" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
+        <text x="885" y="103" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">n/a</text>
       </g>
     `;
   }
@@ -540,7 +540,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
   if (timeRange) subItems.push(timeRange);
   const headerSubtitle = subItems.join('   •   ');
 
-  // Assembly Full SVG
+  // Assembly Full SVG (1080p)
   const svg = `
 <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <defs>
@@ -553,7 +553,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
       <stop offset="100%" stop-color="#0F172A"/>
     </linearGradient>
     <clipPath id="pitch-clip">
-      <rect x="${pitchX}" y="${pitchY}" width="${pitchWidth}" height="${pitchHeight}" rx="14"/>
+      <rect x="${pitchX}" y="${pitchY}" width="${pitchWidth}" height="${pitchHeight}" rx="18"/>
     </clipPath>
     ${defsSvg}
   </defs>
@@ -562,15 +562,15 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
   <rect width="${svgWidth}" height="${svgHeight}" fill="url(#bg-grad)"/>
 
   <!-- Top Header Bar -->
-  <g transform="translate(40, 20)">
-    <rect x="0" y="0" width="720" height="84" rx="14" fill="url(#header-grad)" stroke="${headerColors.accent}" stroke-width="1.8"/>
+  <g transform="translate(40, 24)">
+    <rect x="0" y="0" width="${pitchWidth}" height="90" rx="16" fill="url(#header-grad)" stroke="${headerColors.accent}" stroke-width="2"/>
     
     <!-- Dot & Title -->
-    <circle cx="28" cy="30" r="7" fill="${headerColors.dot}"/>
-    <text x="46" y="38" font-size="24" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
+    <circle cx="34" cy="32" r="8" fill="${headerColors.dot}"/>
+    <text x="54" y="42" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
     
     <!-- Subtitle Line -->
-    <text x="24" y="66" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
+    <text x="32" y="72" font-size="15" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
   </g>
 
   <!-- Football Pitch (Lawn Stripes & Markings) -->
@@ -579,40 +579,40 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     ${pitchStripesSvg}
 
     <!-- Halfway Line -->
-    <line x1="${pitchX}" y1="${pitchY + pitchHeight / 2}" x2="${pitchX + pitchWidth}" y2="${pitchY + pitchHeight / 2}" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2"/>
+    <line x1="${pitchX}" y1="${pitchY + pitchHeight / 2}" x2="${pitchX + pitchWidth}" y2="${pitchY + pitchHeight / 2}" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2.5"/>
 
     <!-- Center Circle & Spot -->
-    <circle cx="${pitchX + pitchWidth / 2}" cy="${pitchY + pitchHeight / 2}" r="70" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2"/>
-    <circle cx="${pitchX + pitchWidth / 2}" cy="${pitchY + pitchHeight / 2}" r="4" fill="#FFFFFF" fill-opacity="0.7"/>
+    <circle cx="${pitchX + pitchWidth / 2}" cy="${pitchY + pitchHeight / 2}" r="90" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2.5"/>
+    <circle cx="${pitchX + pitchWidth / 2}" cy="${pitchY + pitchHeight / 2}" r="5" fill="#FFFFFF" fill-opacity="0.7"/>
 
     <!-- Top Penalty Area & Goal Area -->
-    <rect x="${pitchX + (pitchWidth - 280) / 2}" y="${pitchY}" width="280" height="120" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2"/>
-    <rect x="${pitchX + (pitchWidth - 140) / 2}" y="${pitchY}" width="140" height="45" fill="none" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="1.5"/>
-    <circle cx="${pitchX + pitchWidth / 2}" cy="${pitchY + 85}" r="3" fill="#FFFFFF" fill-opacity="0.7"/>
+    <rect x="${pitchX + (pitchWidth - 380) / 2}" y="${pitchY}" width="380" height="160" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2.5"/>
+    <rect x="${pitchX + (pitchWidth - 190) / 2}" y="${pitchY}" width="190" height="60" fill="none" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="2"/>
+    <circle cx="${pitchX + pitchWidth / 2}" cy="${pitchY + 115}" r="4" fill="#FFFFFF" fill-opacity="0.7"/>
 
     <!-- Bottom Penalty Area & Goal Area -->
-    <rect x="${pitchX + (pitchWidth - 280) / 2}" y="${pitchY + pitchHeight - 120}" width="280" height="120" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2"/>
-    <rect x="${pitchX + (pitchWidth - 140) / 2}" y="${pitchY + pitchHeight - 45}" width="140" height="45" fill="none" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="1.5"/>
-    <circle cx="${pitchX + pitchWidth / 2}" cy="${pitchY + pitchHeight - 85}" r="3" fill="#FFFFFF" fill-opacity="0.7"/>
+    <rect x="${pitchX + (pitchWidth - 380) / 2}" y="${pitchY + pitchHeight - 160}" width="380" height="160" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2.5"/>
+    <rect x="${pitchX + (pitchWidth - 190) / 2}" y="${pitchY + pitchHeight - 60}" width="190" height="60" fill="none" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="2"/>
+    <circle cx="${pitchX + pitchWidth / 2}" cy="${pitchY + pitchHeight - 115}" r="4" fill="#FFFFFF" fill-opacity="0.7"/>
 
     <!-- Corner Arcs -->
-    <path d="M ${pitchX} ${pitchY + 25} A 25 25 0 0 0 ${pitchX + 25} ${pitchY}" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2"/>
-    <path d="M ${pitchX + pitchWidth - 25} ${pitchY} A 25 25 0 0 0 ${pitchX + pitchWidth} ${pitchY + 25}" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2"/>
-    <path d="M ${pitchX} ${pitchY + pitchHeight - 25} A 25 25 0 0 1 ${pitchX + 25} ${pitchY + pitchHeight}" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2"/>
-    <path d="M ${pitchX + pitchWidth - 25} ${pitchY + pitchHeight} A 25 25 0 0 1 ${pitchX + pitchWidth} ${pitchY + pitchHeight - 25}" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2"/>
+    <path d="M ${pitchX} ${pitchY + 35} A 35 35 0 0 0 ${pitchX + 35} ${pitchY}" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2.5"/>
+    <path d="M ${pitchX + pitchWidth - 35} ${pitchY} A 35 35 0 0 0 ${pitchX + pitchWidth} ${pitchY + 35}" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2.5"/>
+    <path d="M ${pitchX} ${pitchY + pitchHeight - 35} A 35 35 0 0 1 ${pitchX + 35} ${pitchY + pitchHeight}" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2.5"/>
+    <path d="M ${pitchX + pitchWidth - 35} ${pitchY + pitchHeight} A 35 35 0 0 1 ${pitchX + pitchWidth} ${pitchY + pitchHeight - 35}" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2.5"/>
 
     <!-- Pitch Players Nodes -->
     ${pitchPlayersSvg}
   </g>
 
   <!-- Pitch Outer Border Frame -->
-  <rect x="${pitchX}" y="${pitchY}" width="${pitchWidth}" height="${pitchHeight}" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="2.5"/>
+  <rect x="${pitchX}" y="${pitchY}" width="${pitchWidth}" height="${pitchHeight}" rx="18" fill="none" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="3"/>
 
   <!-- MVP Bottom Highlight Bar -->
   ${mvpBarSvg}
 
   <!-- Footer Watermark -->
-  <text x="${svgWidth / 2}" y="${svgHeight - 20}" font-size="11" font-family="Sarabun, sans-serif" fill="#64748B" text-anchor="middle">Generated by Revemu Football Bot • ${new Date().getFullYear()}</text>
+  <text x="${svgWidth / 2}" y="${svgHeight - 20}" font-size="13" font-family="Sarabun, sans-serif" fill="#64748B" text-anchor="middle">Generated by Revemu Football Bot • ${new Date().getFullYear()}</text>
 </svg>
 `;
 
