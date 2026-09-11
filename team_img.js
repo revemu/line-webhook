@@ -399,8 +399,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           <line x1="-5.5" y1="-2" x2="-13" y2="-4" stroke="#111827" stroke-width="1.8"/>
         `}
         ${goals > 1 ? `
-          <g transform="translate(18, -20)">
-            <circle cx="0" cy="0" r="17" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+          <g transform="translate(18, -23)">
+            <circle cx="0" cy="0" r="15" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
             <text x="0" y="5.5" font-size="26" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${goals}</text>
           </g>
         ` : ''}
@@ -422,7 +422,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
         `}
         ${assists > 1 ? `
           <g transform="translate(-18, -23)">
-            <circle cx="0" cy="0" r="17" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
+            <circle cx="0" cy="0" r="15" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
             <text x="0" y="5.5" font-size="26" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${assists}</text>
           </g>
         ` : ''}
