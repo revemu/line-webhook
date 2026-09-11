@@ -4825,12 +4825,32 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
     }
   }
 
-  // Phase C: Tactical fill if needed still > 0 (e.g. team has generic players, or unassigned)
-  const tacticalFillOrder = is8PlayerWeek
-    ? ['CF', 'AM', 'MF', 'DM', 'DW', 'DF']
-    : ['CF', 'AM', 'MF', 'DM', 'DW', 'DF'];
+  // Phase C: Tactical fill if needed still > 0
+  // First pass: expand slots for positions that still have surplus natural players waiting
+  // (e.g. if 3 MF players exist but only 2 MF slots were allocated, add a 3rd MF slot before adding a CF slot)
+  const surplusOrder = ['MF', 'DW', 'DF', 'DM', 'AM', 'CF'];
+  for (const pos of surplusOrder) {
+    if (needed <= 0) break;
+    const lim = getLimit(pos);
+    const remaining = pos === 'DM' ? remainingDMCount : (pos === 'DF' ? (assigned.DF.length + dmForDFCount) : assigned[pos].length);
+    let curTarget = pos === 'CF' ? targetCF : (pos === 'AM' ? targetAM : (pos === 'DM' ? targetDM : (pos === 'DW' ? targetDW : (pos === 'MF' ? targetMF : targetDF))));
+    // Only expand this slot if there are natural players for this position still unaccounted for
+    while (remaining > curTarget && curTarget < lim.max && needed > 0) {
+      curTarget++;
+      needed--;
+      if (pos === 'CF') targetCF = curTarget;
+      else if (pos === 'AM') targetAM = curTarget;
+      else if (pos === 'DM') targetDM = curTarget;
+      else if (pos === 'DW') targetDW = curTarget;
+      else if (pos === 'MF') targetMF = curTarget;
+      else if (pos === 'DF') targetDF = curTarget;
+    }
+  }
 
-  for (const pos of tacticalFillOrder) {
+  // Second pass: if still needed (e.g. unassigned/generic players), fill MF→DW→DF→DM→AM→CF
+  // Avoid adding CF slots for non-CF players
+  const genericFillOrder = ['MF', 'DW', 'DF', 'DM', 'AM', 'CF'];
+  for (const pos of genericFillOrder) {
     if (needed <= 0) break;
     const lim = getLimit(pos);
     let curTarget = pos === 'CF' ? targetCF : (pos === 'AM' ? targetAM : (pos === 'DM' ? targetDM : (pos === 'DW' ? targetDW : (pos === 'MF' ? targetMF : targetDF))));
