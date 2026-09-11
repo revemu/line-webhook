@@ -24,7 +24,7 @@ let goalIconDataUri = '';
 let assistIconDataUri = '';
 
 try {
-  const goalPath = path.join(__dirname, 'assets', 'icon_goal.png');
+  const goalPath = path.join(__dirname, 'assets', 'icon_goal2.png');
   if (fs.existsSync(goalPath)) {
     goalIconDataUri = `data:image/png;base64,${fs.readFileSync(goalPath).toString('base64')}`;
   }
@@ -33,7 +33,7 @@ try {
 }
 
 try {
-  const assistPath = path.join(__dirname, 'assets', 'icon_assist.png');
+  const assistPath = path.join(__dirname, 'assets', 'icon_assist2.png');
   if (fs.existsSync(assistPath)) {
     assistIconDataUri = `data:image/png;base64,${fs.readFileSync(assistPath).toString('base64')}`;
   }
