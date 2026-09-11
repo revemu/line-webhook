@@ -410,7 +410,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
 
     // 3. Overlapping Assist Badge (Bottom-Left)
     const assistBadgeSvg = assists > 0 ? `
-      <g transform="translate(-29, 32)">
+      <g transform="translate(-40, 32)">
         <circle cx="0" cy="0" r="26.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
         ${assistIconDataUri ? `
           <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-20" y="-18" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
