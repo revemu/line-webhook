@@ -455,7 +455,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       <text x="18" y="23" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
       <text x="18" y="43" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[1])}</text>
     ` : `
-      <text x="18" y="30" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
+      <text x="18" y="28.5" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
     `;
 
     return `
