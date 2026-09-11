@@ -96,6 +96,7 @@ async function handleEvent(event) {
 
 // Serve static assets from project directory and 'pic' folder
 app.use('/img/qr', express.static(path.join(__dirname, 'qr')));
+app.use('/img/team', express.static(path.join(__dirname, 'img', 'team')));
 app.use('/img', express.static(path.join(__dirname, 'img')));
 app.use(express.static(__dirname));
 

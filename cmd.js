@@ -3,6 +3,7 @@ const path = require('path');
 const db = require('./query');
 const flex = require('./flex');
 const qrGen = require('./qr_gen');
+const teamImg = require('./team_img');
 const axios = require('axios');
 const slipService = require('./slip');
 const { getNextSaturday } = require('./utils/date');
@@ -336,8 +337,30 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
     },
+    'teamimg': async (context) => {
+        const { param, groupId } = context;
+        let cleanParam = (param || '').trim();
+        cleanParam = cleanParam.replace(/^(img|image)\s*/i, '').trim();
+        const imageUrls = await teamImg.generateTeamFormationImages(cleanParam, groupId);
+        if (imageUrls && imageUrls.length > 0) {
+            return imageUrls.map(url => ({
+                type: 'image',
+                originalContentUrl: url,
+                previewImageUrl: url
+            }));
+        }
+        return [{ type: 'text', text: 'ยังไม่มีข้อมูลทีมหรือผังการเล่นสำหรับสร้างรูปภาพ' }];
+    },
+    'teamimage': async (context) => COMMAND_REGISTRY['teamimg'](context),
+    'formationimg': async (context) => COMMAND_REGISTRY['teamimg'](context),
+    'lineupimg': async (context) => COMMAND_REGISTRY['teamimg'](context),
     'teamweek': async (context) => {
         const { param, groupId } = context;
+        const trimmed = (param || '').trim().toLowerCase();
+        if (trimmed === 'img' || trimmed === 'image' || trimmed.startsWith('img ') || trimmed.startsWith('image ')) {
+            context.param = (param || '').trim().replace(/^(img|image)\s*/i, '').trim();
+            return COMMAND_REGISTRY['teamimg'](context);
+        }
         const bubbles = await db.getTeamFormation(param, groupId);
         if (bubbles) {
             const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);

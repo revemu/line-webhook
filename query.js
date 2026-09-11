@@ -5119,7 +5119,7 @@ function isLikelyDateStr(str) {
   return false;
 }
 
-async function getTeamFormation(param = '', groupId = null) {
+async function getTeamFormationData(param = '', groupId = null) {
   const tTotalStart = Date.now();
 
   // 1. DDL Checks
@@ -5393,15 +5393,10 @@ async function getTeamFormation(param = '', groupId = null) {
     });
   }
 
-  // 6. Build Flex Message JSON
-  const tFlexStart = Date.now();
-  const flexMsg = flex.buildFormationFlex(formationsData, theme, dateStr, timeRange);
-  const flexDuration = Date.now() - tFlexStart;
-
   const totalDuration = Date.now() - tTotalStart;
 
   console.log(`\n======================================================`);
-  console.log(`⏱️ [/formation Performance Breakdown]`);
+  console.log(`⏱️ [/formation Data Performance Breakdown]`);
   console.log(`======================================================`);
   console.log(`  1. Schema / DDL Check (ensurePosTables)      : ${ddlDuration} ms`);
   console.log(`  2. Week & Theme Metadata Queries            : ${metaDuration} ms`);
@@ -5410,10 +5405,28 @@ async function getTeamFormation(param = '', groupId = null) {
   console.log(`  5. Team Members SQL (${teamsToRender.length} teams)           : ${totalMembersQueryDuration} ms`);
   console.log(`  6. LINE API Profile Avatars (if missing)    : ${totalLineAvatarDuration} ms`);
   console.log(`  7. Tactical Slot Allocation (In-Memory)     : ${totalTacticsDuration} ms`);
-  console.log(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
   console.log(`------------------------------------------------------`);
-  console.log(`  🚀 Total /formation Server Time             : ${totalDuration} ms`);
+  console.log(`  🚀 Total Data Server Time                   : ${totalDuration} ms`);
   console.log(`======================================================\n`);
+
+  return {
+    formationsData,
+    theme,
+    dateStr,
+    timeRange,
+    weekId,
+    weekDate: week[0].date
+  };
+}
+
+async function getTeamFormation(param = '', groupId = null) {
+  const data = await getTeamFormationData(param, groupId);
+  if (!data || !data.formationsData || data.formationsData.length === 0) return null;
+
+  const tFlexStart = Date.now();
+  const flexMsg = flex.buildFormationFlex(data.formationsData, data.theme, data.dateStr, data.timeRange);
+  const flexDuration = Date.now() - tFlexStart;
+  console.log(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
 
   return flexMsg;
 }
@@ -5903,6 +5916,7 @@ module.exports = {
   setMemberWeekPosition,
   getEffectiveMemberPosition,
   allocateFormationSlots,
+  getTeamFormationData,
   getTeamFormation,
   randomTeamByPosition
 };

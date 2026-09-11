@@ -4660,6 +4660,17 @@ function buildTeamWeekFlex(teamColors, teamMembersMap, theme, assets = {}, resol
         backgroundColor: colors.bgMain,
         paddingAll: 'sm',
         contents: bodyContents
+      },
+      footer: {
+        type: 'box',
+        layout: 'horizontal',
+        backgroundColor: colors.bgMain,
+        paddingAll: 'sm',
+        spacing: 'sm',
+        contents: [
+          makeBoxButton('⚽ ผังทีม', `/teamweek ${team.id}`, '#0284c7'),
+          makeBoxButton('📸 ส่งออกรูปภาพ', `/teamimg ${team.id}`, '#059669')
+        ]
       }
     });
   }
@@ -5841,6 +5852,41 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           endColor: '#14532D'
         },
         contents: bodyContents
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: headerTheme.bg || '#0B0F19',
+        paddingAll: 'sm',
+        contents: [
+          {
+            type: 'box',
+            layout: 'horizontal',
+            backgroundColor: isTotw ? '#D97706' : '#0284C7',
+            cornerRadius: 'md',
+            paddingTop: 'sm',
+            paddingBottom: 'sm',
+            action: {
+              type: 'message',
+              label: '📸 ส่งออกรูปภาพ',
+              text: isTotw
+                ? `/totwimg ${dateStr ? getSlashDate(dateStr) : ''}`.trim()
+                : `/teamimg ${team.teamId || ''} ${dateStr ? getSlashDate(dateStr) : ''}`.trim()
+            },
+            alignItems: 'center',
+            justifyContent: 'center',
+            contents: [
+              {
+                type: 'text',
+                text: '📸 ส่งออกรูปภาพ',
+                color: '#ffffff',
+                align: 'center',
+                weight: 'bold',
+                size: 'sm'
+              }
+            ]
+          }
+        ]
       }
     };
   });
