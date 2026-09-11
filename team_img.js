@@ -383,9 +383,9 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     // 3. Overlapping Assist Badge (Bottom-Left)
     const assistBadgeSvg = assists > 0 ? `
       <g transform="translate(-36, 32)">
-        <circle cx="0" cy="0" r="18.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
+        <circle cx="0" cy="0" r="26.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
         ${assistIconDataUri ? `
-          <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-14.5" y="-10" width="29" height="20" preserveAspectRatio="xMidYMid meet"/>
+          <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-14.5" y="-10" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
         ` : `
           <g transform="translate(-11, -8) scale(1.2)">
             <path d="M1,9 C3,7 5,5 9,5 C11,5 13,7 15,7 C17,7 18,9 18,10 C18,11 16,12 13,12 C8,12 3,11 1,9 Z" fill="#38BDF8"/>
@@ -396,7 +396,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
         ${assists > 1 ? `
           <g transform="translate(-13, -12)">
             <circle cx="0" cy="0" r="10.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
-            <text x="0" y="5.5" font-size="20" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${assists}</text>
+            <text x="0" y="5.5" font-size="26" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${assists}</text>
           </g>
         ` : ''}
       </g>
