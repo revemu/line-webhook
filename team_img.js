@@ -652,7 +652,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
   if (formattedDateStr) WeekDate = formattedDateStr;
   subItems.push(`${team.totalPlayers || 0} คน • ${cleanFormationName}`);
 
-  if (timeRange) subItems.push(timeRange);
+  //if (timeRange) subItems.push(timeRange);
   const headerSubtitle = subItems.join('   •   ');
 
   // Assembly SVG
