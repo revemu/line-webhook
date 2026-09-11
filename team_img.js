@@ -19,15 +19,14 @@ if (!fs.existsSync(avatarCacheDir)) {
   fs.mkdirSync(avatarCacheDir, { recursive: true });
 }
 
-// Pre-load custom Goal & Assist icons as file:// URIs (resvg reads local files directly)
+// Pre-load custom Goal & Assist icons as Base64 Data URIs (resvg requires data: URIs for <image> tags)
 let goalIconDataUri = '';
 let assistIconDataUri = '';
 
 try {
   const goalPath = path.join(__dirname, 'assets', 'icon_goal.png');
   if (fs.existsSync(goalPath)) {
-    // Use file:// URI so resvg loads directly from disk — no base64 needed
-    goalIconDataUri = `file:///${goalPath.replace(/\\/g, '/')}`;
+    goalIconDataUri = `data:image/png;base64,${fs.readFileSync(goalPath).toString('base64')}`;
   }
 } catch (e) {
   console.warn('[TeamImg] Could not load icon_goal.png:', e.message);
@@ -36,7 +35,7 @@ try {
 try {
   const assistPath = path.join(__dirname, 'assets', 'icon_assist.png');
   if (fs.existsSync(assistPath)) {
-    assistIconDataUri = `file:///${assistPath.replace(/\\/g, '/')}`;
+    assistIconDataUri = `data:image/png;base64,${fs.readFileSync(assistPath).toString('base64')}`;
   }
 } catch (e) {
   console.warn('[TeamImg] Could not load icon_assist.png:', e.message);
@@ -74,34 +73,10 @@ function getAvatarDiskCachePath(url) {
 }
 
 /**
- * Returns a file:// URI for a cached avatar if it exists on disk, otherwise null.
- * resvg can load file:// URIs directly without any base64 encoding.
+ * Fetches an image URL and converts it into a base64 Data URI with local disk caching.
+ * resvg (used by svg2img) only supports data: URIs in <image> tags — not file:// URIs.
  */
-const avatarFileCache = new Map(); // url -> file:// URI
-function getAvatarFileUri(url) {
-  if (!url) return null;
-  let secureUrl = url.trim();
-  if (secureUrl.startsWith('http://')) secureUrl = secureUrl.replace(/^http:\/\//i, 'https://');
-  if (avatarFileCache.has(secureUrl)) return avatarFileCache.get(secureUrl);
-  const diskPath = getAvatarDiskCachePath(secureUrl);
-  try {
-    if (fs.existsSync(diskPath)) {
-      const stats = fs.statSync(diskPath);
-      if (stats.size > 50) {
-        const fileUri = `file:///${diskPath.replace(/\\/g, '/')}`;
-        avatarFileCache.set(secureUrl, fileUri);
-        return fileUri;
-      }
-    }
-  } catch (e) { }
-  return null;
-}
-
-/**
- * Fetches an image URL and caches it to disk.
- * Returns a file:// URI when possible (preferred by resvg), falling back to base64 data URI.
- */
-const avatarCache = new Map(); // url -> file:// URI or data URI
+const avatarCache = new Map(); // url -> base64 data URI
 async function fetchImageAsBase64(url, timeoutMs = 6000) {
   if (!url || typeof url !== 'string' || !url.trim().startsWith('http')) return null;
   let secureUrl = url.trim();
@@ -109,21 +84,20 @@ async function fetchImageAsBase64(url, timeoutMs = 6000) {
     secureUrl = secureUrl.replace(/^http:\/\//i, 'https://');
   }
 
-  // 1. In-memory cache (stores file:// URI or data URI)
+  // 1. In-memory cache
   if (avatarCache.has(secureUrl)) {
     return avatarCache.get(secureUrl);
   }
 
-  // 2. Local disk cache — prefer file:// URI (no base64 needed)
+  // 2. Local disk cache — read bytes and encode to base64 (no network needed)
   const diskPath = getAvatarDiskCachePath(secureUrl);
   try {
     if (fs.existsSync(diskPath)) {
-      const stats = fs.statSync(diskPath);
-      if (stats.size > 50) {
-        const fileUri = `file:///${diskPath.replace(/\\/g, '/')}`;
-        avatarCache.set(secureUrl, fileUri);
-        avatarFileCache.set(secureUrl, fileUri);
-        return fileUri;
+      const buffer = fs.readFileSync(diskPath);
+      if (buffer && buffer.length > 50) {
+        const dataUri = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+        avatarCache.set(secureUrl, dataUri);
+        return dataUri;
       } else {
         try { fs.unlinkSync(diskPath); } catch (e) { }
       }
@@ -132,7 +106,7 @@ async function fetchImageAsBase64(url, timeoutMs = 6000) {
     console.warn(`[AvatarCache] Disk read error (${diskPath}):`, diskErr.message);
   }
 
-  // 3. Remote download — save to disk, then return file:// URI
+  // 3. Remote download — save to disk cache, then return base64 data URI
   try {
     const response = await axios.get(secureUrl, {
       responseType: 'arraybuffer',
@@ -143,24 +117,19 @@ async function fetchImageAsBase64(url, timeoutMs = 6000) {
       }
     });
     if (response.data && response.data.length > 50) {
+      const contentType = response.headers['content-type'] || 'image/jpeg';
       const buffer = Buffer.from(response.data);
 
-      // Save to disk cache
+      // Save to disk cache for future reuse
       try {
         fs.writeFileSync(diskPath, buffer);
-        // Return file:// URI — resvg reads it directly, no base64 overhead
-        const fileUri = `file:///${diskPath.replace(/\\/g, '/')}`;
-        avatarCache.set(secureUrl, fileUri);
-        avatarFileCache.set(secureUrl, fileUri);
-        return fileUri;
       } catch (writeErr) {
         console.warn(`[AvatarCache] Disk write error (${diskPath}):`, writeErr.message);
-        // Fallback: return base64 data URI if disk write failed
-        const contentType = response.headers['content-type'] || 'image/jpeg';
-        const dataUri = `data:${contentType};base64,${buffer.toString('base64')}`;
-        avatarCache.set(secureUrl, dataUri);
-        return dataUri;
       }
+
+      const dataUri = `data:${contentType};base64,${buffer.toString('base64')}`;
+      avatarCache.set(secureUrl, dataUri);
+      return dataUri;
     }
   } catch (err) {
     console.warn(`[AvatarCache] Failed to download avatar (${secureUrl}):`, err.message);
