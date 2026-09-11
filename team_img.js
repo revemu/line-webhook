@@ -362,7 +362,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       <g transform="translate(36, 32)">
         <circle cx="0" cy="0" r="26.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
         ${goalIconDataUri ? `
-          <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="-16" y="-14" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+          <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="-18" y="-10" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
         ` : `
           <polygon points="0,-5.5 5.5,-2 3.5,5 -3.5,5 -5.5,-2" fill="#111827"/>
           <line x1="0" y1="-5.5" x2="0" y2="-13.5" stroke="#111827" stroke-width="1.8"/>
