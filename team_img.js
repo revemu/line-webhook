@@ -177,7 +177,7 @@ function getTeamHeaderColors(teamColorName) {
   if (n.includes('pink') || n.includes('ชมพู')) return { bg: '#9D174D', accent: '#EC4899', title: '#FCE7F3', dot: '#F472B6' };
   if (n.includes('purple') || n.includes('ม่วง')) return { bg: '#6D28D9', accent: '#A855F7', title: '#EDE9FE', dot: '#C084FC' };
   if (n.includes('black') || n.includes('ดำ')) return { bg: '#1E293B', accent: '#94A3B8', title: '#F1F5F9', dot: '#CBD5E1' };
-  if (n.includes('white') || n.includes('ขาว')) return { bg: '#ffffffff', accent: '#4d5052ff', title: '#534f4fff', dot: '#505355ff' };
+  if (n.includes('white') || n.includes('ขาว')) return { bg: '#ffffffff', accent: '#000000ff', title: '#534f4fff', dot: '#505355ff' };
   return { bg: '#1E293B', accent: '#38BDF8', title: '#FFFFFF', dot: '#38BDF8' };
 }
 
