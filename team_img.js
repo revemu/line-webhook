@@ -394,7 +394,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           </g>
         `}
         ${assists > 1 ? `
-          <g transform="translate(-10, -8)">
+          <g transform="translate(-8, -18)">
             <circle cx="0" cy="0" r="20" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
             <text x="0" y="5.5" font-size="26" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${assists}</text>
           </g>
