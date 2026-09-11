@@ -374,7 +374,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       const pillWidth = isMom ? 82 : 72;
       const pillHeight = 40;
       const pillX = 18;
-      const pillY = -56;
+      const pillY = -70;
 
       ratingBadgeSvg = `
         <g transform="translate(${pillX}, ${pillY})">
