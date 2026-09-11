@@ -267,8 +267,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
       // Empty slot placeholder
       return `
         <g transform="translate(${cx}, ${cy})">
-          <circle cx="0" cy="0" r="22" fill="#1E293B" stroke="#FFFFFF44" stroke-width="2" stroke-dasharray="4 2"/>
-          <text x="0" y="5" font-size="12" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">${escapeXml(posCode)}</text>
+          <circle cx="0" cy="0" r="26" fill="#1E293B" stroke="#FFFFFF44" stroke-width="2" stroke-dasharray="4 2"/>
+          <text x="0" y="5" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">${escapeXml(posCode)}</text>
         </g>
       `;
     }
@@ -279,11 +279,11 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     const pWStat = player.weekStats || {};
     const pHasWRating = pWStat.rating && pWStat.rating !== '-' && Number(pWStat.rating) > 0;
     const pRatingVal = pHasWRating ? parseFloat(pWStat.rating).toFixed(1) : '-';
-    const badgeBg = isAlternate ? '#0284C7' : (posBadgeColor[posCode] || '#64748B');
+    const posColor = posBadgeColor[posCode] || '#64748B';
 
     const borderColor = isMom ? '#F59E0B' : (isAlternate ? '#38BDF8' : '#FFFFFF');
     const borderWidth = isMom ? '3.5' : (isAlternate ? '2.5' : '2');
-    const avatarR = 24;
+    const avatarR = 26;
 
     const clipId = `clip-avatar-${pId}-${isAlternate ? 'alt' : 'prim'}`;
     defsSvg += `<clipPath id="${clipId}"><circle cx="0" cy="0" r="${avatarR}"/></clipPath>\n`;
@@ -296,25 +296,86 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
       <image href="${dataUri}" xlink:href="${dataUri}" x="-${avatarR}" y="-${avatarR}" width="${avatarR * 2}" height="${avatarR * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>
     ` : `
       <circle cx="0" cy="0" r="${avatarR}" fill="${isAlternate ? '#0C2A44' : '#1E293B'}"/>
-      <text x="0" y="5" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(posCode)}</text>
+      <text x="0" y="6" font-size="14" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(posCode)}</text>
     `;
 
     const goals = Number(pWStat.goals || 0);
     const assists = Number(pWStat.assists || 0);
-    const hasStats = goals > 0 || assists > 0;
-    const statsStr = hasStats ? `G: ${goals}  A: ${assists}` : '';
 
-    const cardBoxWidth = 114;
-    const cardBoxHeight = hasStats ? 46 : 34;
+    // 1. Overlapping Rating Badge (Top-Right)
+    let ratingBadgeSvg = '';
+    if (pHasWRating) {
+      const numRating = parseFloat(pWStat.rating);
+      let badgeBg = '#22C55E';
+      if (isMom) badgeBg = '#2563EB'; // FotMob MVP Blue
+      else if (numRating >= 7.0) badgeBg = '#22C55E'; // Green
+      else if (numRating >= 6.0) badgeBg = '#F59E0B'; // Amber
+      else badgeBg = '#EF4444'; // Red
 
-    // Vector Star & Crown elements (avoids resvg tofu box glyphs)
-    const starSvg = `<polygon points="0,-4 1.2,-1.2 4.2,-1.2 1.8,0.7 2.7,3.6 0,1.8 -2.7,3.6 -1.8,0.7 -4.2,-1.2 -1.2,-1.2" fill="#FDE047"/>`;
+      const pillWidth = isMom ? 40 : 30;
+      const pillHeight = 18;
+      const pillX = 8;
+      const pillY = -28;
+
+      ratingBadgeSvg = `
+        <g transform="translate(${pillX}, ${pillY})">
+          <rect x="0" y="0" width="${pillWidth}" height="${pillHeight}" rx="9" fill="${badgeBg}" stroke="#FFFFFF" stroke-width="1.5"/>
+          <text x="${isMom ? 15 : pillWidth / 2}" y="13.5" font-size="11" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${pRatingVal}</text>
+          ${isMom ? `<polygon points="29,5 30.5,8.5 34,8.5 31.2,10.6 32.2,14 29,11.8 25.8,14 26.8,10.6 24,8.5 27.5,8.5" fill="#FDE047"/>` : ''}
+        </g>
+      `;
+    }
+
+    // 2. Overlapping Goal Badge (Bottom-Right)
+    const goalBadgeSvg = goals > 0 ? `
+      <g transform="translate(16, 14)">
+        <circle cx="0" cy="0" r="10.5" fill="#111827" stroke="#FFFFFF" stroke-width="1.8"/>
+        <circle cx="0" cy="0" r="8" fill="#FFFFFF"/>
+        <polygon points="0,-3.2 3,-1 2,2.8 -2,2.8 -3,-1" fill="#111827"/>
+        <line x1="0" y1="-3.2" x2="0" y2="-7" stroke="#111827" stroke-width="1.1"/>
+        <line x1="3" y1="-1" x2="6.8" y2="-2.2" stroke="#111827" stroke-width="1.1"/>
+        <line x1="2" y1="2.8" x2="4.8" y2="6.5" stroke="#111827" stroke-width="1.1"/>
+        <line x1="-2" y1="2.8" x2="-4.8" y2="6.5" stroke="#111827" stroke-width="1.1"/>
+        <line x1="-3" y1="-1" x2="-6.8" y2="-2.2" stroke="#111827" stroke-width="1.1"/>
+        ${goals > 1 ? `
+          <g transform="translate(7, -7)">
+            <circle cx="0" cy="0" r="5.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="1"/>
+            <text x="0" y="3" font-size="8" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${goals}</text>
+          </g>
+        ` : ''}
+      </g>
+    ` : '';
+
+    // 3. Overlapping Assist Badge (Bottom-Left)
+    const assistBadgeSvg = assists > 0 ? `
+      <g transform="translate(-16, 14)">
+        <circle cx="0" cy="0" r="10.5" fill="#111827" stroke="#FFFFFF" stroke-width="1.8"/>
+        <g transform="translate(-6.5, -4.5) scale(0.72)">
+          <path d="M1,9 C3,7 5,5 9,5 C11,5 13,7 15,7 C17,7 18,9 18,10 C18,11 16,12 13,12 C8,12 3,11 1,9 Z" fill="#38BDF8"/>
+          <path d="M3.5,12 L3.5,14.5 M7.5,12 L7.5,14.5 M12.5,12 L12.5,14.5" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M6.5,5 L8.5,8 M8.5,5 L10.5,8" stroke="#FFFFFF" stroke-width="0.9"/>
+        </g>
+        ${assists > 1 ? `
+          <g transform="translate(-7, -7)">
+            <circle cx="0" cy="0" r="5.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="1"/>
+            <text x="0" y="3" font-size="8" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${assists}</text>
+          </g>
+        ` : ''}
+      </g>
+    ` : '';
+
+    // 4. Name & Position Label Underneath Avatar
     const crownSvg = isMom ? `
-      <g transform="translate(-7, -33)">
+      <g transform="translate(-7, -35)">
         <polygon points="0,7 3,0 7,5 11,0 14,7" fill="#F59E0B" stroke="#78350F" stroke-width="0.8"/>
         <rect x="0" y="7" width="14" height="2" fill="#D97706"/>
       </g>
     ` : '';
+
+    const labelBoxWidth = 98;
+    const labelBoxHeight = 22;
+    const displayName = isAlternate ? `(Alt) ${pName}` : pName;
+    const truncatedName = displayName.length > 13 ? displayName.slice(0, 12) + '..' : displayName;
 
     return `
       <g transform="translate(${cx}, ${cy})">
@@ -323,23 +384,19 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
         ${avatarSvg}
         ${crownSvg}
 
-        <!-- Name & Badge Card -->
-        <g transform="translate(0, ${avatarR + 4})">
-          <rect x="-${cardBoxWidth / 2}" y="0" width="${cardBoxWidth}" height="${cardBoxHeight}" rx="6" fill="${isAlternate ? '#071828EE' : (isMom ? '#1A1608F4' : '#000000CC')}" stroke="${isMom ? '#F59E0BCC' : (isAlternate ? '#38BDF888' : '#FFFFFF33')}" stroke-width="1"/>
+        <!-- Overlapping Badges (Top-Right Rating, Bottom-Right Goal, Bottom-Left Assist) -->
+        ${ratingBadgeSvg}
+        ${goalBadgeSvg}
+        ${assistBadgeSvg}
+
+        <!-- Name & Position Pill Underneath Avatar -->
+        <g transform="translate(0, ${avatarR + 5})">
+          <rect x="-${labelBoxWidth / 2}" y="0" width="${labelBoxWidth}" height="${labelBoxHeight}" rx="6" fill="${isAlternate ? '#071828EE' : (isMom ? '#1A1608F4' : '#000000CC')}" stroke="${isMom ? '#F59E0BCC' : (isAlternate ? '#38BDF888' : '#FFFFFF26')}" stroke-width="1"/>
           
-          <!-- Position & Rating Pill -->
-          <rect x="-42" y="3" width="84" height="15" rx="3" fill="${badgeBg}"/>
-          <text x="-12" y="14" font-size="10" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${escapeXml(posCode)}</text>
-          <g transform="translate(10, 10)">${starSvg}</g>
-          <text x="24" y="14" font-size="10" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${escapeXml(pRatingVal)}</text>
-
-          <!-- Player Name -->
-          <text x="0" y="28" font-size="11" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(pName.length > 13 ? pName.slice(0, 12) + '..' : pName)}</text>
-
-          ${hasStats ? `
-          <!-- Stats Line -->
-          <text x="0" y="41" font-size="9.5" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : '#FCD34D'}" text-anchor="middle">${escapeXml(statsStr)}</text>
-          ` : ''}
+          <rect x="-${labelBoxWidth / 2 - 3}" y="3" width="22" height="16" rx="3" fill="${posColor}"/>
+          <text x="-${labelBoxWidth / 2 - 14}" y="14.5" font-size="9.5" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${escapeXml(posCode)}</text>
+          
+          <text x="11" y="15" font-size="10.5" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(truncatedName)}</text>
         </g>
       </g>
     `;
