@@ -385,7 +385,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       <g transform="translate(-36, 32)">
         <circle cx="0" cy="0" r="26.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
         ${assistIconDataUri ? `
-          <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-18" y="-15" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+          <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-20" y="-12" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
         ` : `
           <g transform="translate(-11, -8) scale(1.2)">
             <path d="M1,9 C3,7 5,5 9,5 C11,5 13,7 15,7 C17,7 18,9 18,10 C18,11 16,12 13,12 C8,12 3,11 1,9 Z" fill="#38BDF8"/>
