@@ -448,7 +448,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     const labelBoxHeight = isTwoLines ? 54 : 38;
     const posBadgeY = isTwoLines ? 11 : 5;
     const posBadgeH = isTwoLines ? 32 : 28;
-    const posTextY = isTwoLines ? 33 : 24;
+    const posTextY = isTwoLines ? 33 : 28;
     const textColor = isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF');
 
     const nameTextSvg = isTwoLines ? `
