@@ -225,19 +225,47 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     }
   }));
 
-  // Identify Team MVP
+  // Identify Team / Week MVP (Highest rating player with goals/assists tiebreaker)
   let momPlayer = null;
-  if (!isTotw) {
-    const validMoms = allMembers
-      .filter(m => m.weekStats && m.weekStats.rating && m.weekStats.rating !== '-' && Number(m.weekStats.rating) > 0)
-      .sort((a, b) => parseFloat(b.weekStats.rating) - parseFloat(a.weekStats.rating));
-    if (validMoms.length > 0) {
-      momPlayer = validMoms[0];
+  let topRating = -1;
+  let topGoals = -1;
+  let topAssists = -1;
+
+  for (const m of allMembers) {
+    if (!m) continue;
+    const rRaw = m.weekStats?.rating || m.score || m.raw_score || 0;
+    const wRating = (!isNaN(parseFloat(rRaw)) && rRaw !== '-') ? parseFloat(rRaw) : 0;
+    const wGoals = Number(m.weekStats?.goals || m.goals || 0) || 0;
+    const wAssists = Number(m.weekStats?.assists || m.assists || 0) || 0;
+
+    if (wRating > topRating && wRating > 0) {
+      topRating = wRating;
+      topGoals = wGoals;
+      topAssists = wAssists;
+      momPlayer = m;
+    } else if (wRating === topRating && wRating > 0) {
+      if (wGoals > topGoals || (wGoals === topGoals && wAssists > topAssists)) {
+        topGoals = wGoals;
+        topAssists = wAssists;
+        momPlayer = m;
+      }
     }
-  } else if (allMembers.length > 0) {
+  }
+
+  // Fallback if no valid rating found
+  if (!momPlayer && allMembers.length > 0) {
     momPlayer = allMembers[0];
   }
-  const momPlayerId = momPlayer ? momPlayer.id : null;
+
+  const momPlayerId = momPlayer ? (momPlayer.id || momPlayer.member_id) : null;
+  const isMomPlayer = (p) => {
+    if (!p || !momPlayer) return false;
+    const pId = p.id || p.member_id;
+    const mId = momPlayer.id || momPlayer.member_id;
+    if (pId && mId && String(pId) === String(mId)) return true;
+    if (p.name && momPlayer.name && p.name.trim() === momPlayer.name.trim()) return true;
+    return false;
+  };
 
   // Determine dimensions based on pitchOnly mode
   const pitchOnly = !!options.pitchOnly;
@@ -496,19 +524,19 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       // Left Flank (DW Left)
       const lx = pitchX + 130;
       if (leftSlot.primary && leftSlot.alternate) {
-        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, 125, row.y);
-        pitchPlayersSvg += renderSinglePlayer(leftSlot.alternate, 'DW', true, momPlayerId === leftSlot.alternate?.id, 305, row.y);
+        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, isMomPlayer(leftSlot.primary), 125, row.y);
+        pitchPlayersSvg += renderSinglePlayer(leftSlot.alternate, 'DW', true, isMomPlayer(leftSlot.alternate), 305, row.y);
       } else {
-        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, momPlayerId === leftSlot.primary?.id, lx, row.y);
+        pitchPlayersSvg += renderSinglePlayer(leftSlot.primary, 'DW', false, isMomPlayer(leftSlot.primary), lx, row.y);
       }
 
       // Right Flank (DW Right)
       const rx = pitchX + pitchWidth - 130;
       if (rightSlot.primary && rightSlot.alternate) {
-        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, 775, row.y);
-        pitchPlayersSvg += renderSinglePlayer(rightSlot.alternate, 'DW', true, momPlayerId === rightSlot.alternate?.id, 955, row.y);
+        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, isMomPlayer(rightSlot.primary), 775, row.y);
+        pitchPlayersSvg += renderSinglePlayer(rightSlot.alternate, 'DW', true, isMomPlayer(rightSlot.alternate), 955, row.y);
       } else {
-        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, momPlayerId === rightSlot.primary?.id, rx, row.y);
+        pitchPlayersSvg += renderSinglePlayer(rightSlot.primary, 'DW', false, isMomPlayer(rightSlot.primary), rx, row.y);
       }
     } else {
       // Center distributed slots (wide central layout for generous spacing)
@@ -528,10 +556,10 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       slotList.forEach((slot, idx) => {
         const cx = xPositions[idx] || centerX;
         if (slot.primary && slot.alternate) {
-          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx - altOffset, row.y);
-          pitchPlayersSvg += renderSinglePlayer(slot.alternate, row.role, true, momPlayerId === slot.alternate?.id, cx + altOffset, row.y);
+          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, isMomPlayer(slot.primary), cx - altOffset, row.y);
+          pitchPlayersSvg += renderSinglePlayer(slot.alternate, row.role, true, isMomPlayer(slot.alternate), cx + altOffset, row.y);
         } else {
-          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, momPlayerId === slot.primary?.id, cx, row.y);
+          pitchPlayersSvg += renderSinglePlayer(slot.primary, row.role, false, isMomPlayer(slot.primary), cx, row.y);
         }
       });
     }
