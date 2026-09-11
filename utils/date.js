@@ -24,7 +24,7 @@ function parseDateInput(date) {
 
   if (typeof date === 'string') {
     const str = date.trim();
-    // Match date string starting with a 4-digit year e.g. "2569-08-18" or "2569/08/18"
+    // 1. Match date string starting with a 4-digit year e.g. "2569-08-18" or "2569/08/18"
     const match = str.match(/^(\d{4})[-/](.*)$/);
     if (match) {
       let year = parseInt(match[1], 10);
@@ -35,6 +35,47 @@ function parseDateInput(date) {
         if (!isNaN(dObj.getTime())) return dObj;
       }
     }
+
+    // 2. Match Thai date format e.g. "12 ก.ย. 69", "12 ก.ย. 2569", "12 กันยายน 2026"
+    const thaiMatch = str.match(/^(\d{1,2})\s*([ก-๙\.]+)(?:\s*(\d{2,4}))?$/);
+    if (thaiMatch) {
+      const day = parseInt(thaiMatch[1], 10);
+      const mStr = thaiMatch[2].trim();
+      let mIdx = thaiMonthsShort.indexOf(mStr);
+      if (mIdx === -1) {
+        mIdx = thaiMonthsShort.findIndex(m => m.replace(/\./g, '') === mStr.replace(/\./g, ''));
+      }
+      if (mIdx === -1) {
+        mIdx = thaiMonths.indexOf(mStr);
+      }
+      if (mIdx !== -1) {
+        let year = thaiMatch[3] ? parseInt(thaiMatch[3], 10) : new Date().getFullYear();
+        if (year < 100) {
+          if (year >= 43) {
+            year = 2500 + year - 543;
+          } else {
+            year = 2000 + year;
+          }
+        } else if (year >= 2400) {
+          year -= 543;
+        }
+        const dObj = new Date(year, mIdx, day);
+        if (!isNaN(dObj.getTime())) return dObj;
+      }
+    }
+
+    // 3. Match DD/MM/YY or DD/MM/YYYY format e.g. "12/09/26", "12/09/2026"
+    const slashMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})(?:[\/\-\.](\d{2,4}))?$/);
+    if (slashMatch) {
+      const day = parseInt(slashMatch[1], 10);
+      const month = parseInt(slashMatch[2], 10) - 1;
+      let year = slashMatch[3] ? parseInt(slashMatch[3], 10) : new Date().getFullYear();
+      if (year < 100) year += 2000;
+      if (year >= 2400) year -= 543;
+      const dObj = new Date(year, month, day);
+      if (!isNaN(dObj.getTime())) return dObj;
+    }
+
     const dObj = new Date(str);
     return isNaN(dObj.getTime()) ? null : dObj;
   }

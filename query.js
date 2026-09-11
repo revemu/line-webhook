@@ -2600,7 +2600,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             members: formattedTotwMembers
           }];
 
-          const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, '');
+          const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, '', week[0].date, week[0].id);
           if (totwBubbles && totwBubbles.length > 0) {
             totwBubble = totwBubbles[0];
           }
@@ -5428,7 +5428,7 @@ async function getTeamFormation(param = '', groupId = null) {
   if (!data || !data.formationsData || data.formationsData.length === 0) return null;
 
   const tFlexStart = Date.now();
-  const flexMsg = flex.buildFormationFlex(data.formationsData, data.theme, data.dateStr, data.timeRange);
+  const flexMsg = flex.buildFormationFlex(data.formationsData, data.theme, data.dateStr, data.timeRange, data.weekDate, data.weekId);
   const flexDuration = Date.now() - tFlexStart;
   console.log(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
 

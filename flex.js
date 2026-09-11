@@ -5026,10 +5026,11 @@ function getTeamHeaderTheme(rawColor) {
   return themes[c] || { bg: '#0B0F19', titleColor: '#FFFFFF', subColor: '#94A3B8', badgeBg: '#1E293B', badgeText: '#38BDF8', dot: '#3B82F6' };
 }
 
-function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '') {
+function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '', weekDate = null, weekId = null) {
   if (!formationsData || formationsData.length === 0) return null;
 
   const formattedDateStr = dateStr ? getFormatDate(dateStr, 'short') : '';
+  const exportDateArg = (weekDate && getSlashDate(weekDate)) || (dateStr && getSlashDate(dateStr)) || (weekId ? String(weekId) : '');
 
   const posBadgeColor = {
     'GK': '#EAB308',
@@ -5803,8 +5804,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                   type: 'message',
                   label: 'รูปภาพ',
                   text: isTotw
-                    ? `/totwimg ${dateStr ? getSlashDate(dateStr) : ''}`.trim()
-                    : `/teamimg ${team.teamId || team.teamColor || ''} ${dateStr ? getSlashDate(dateStr) : ''}`.trim()
+                    ? `/totwimg ${exportDateArg}`.trim()
+                    : `/teamimg ${team.teamId || team.teamColor || ''} ${exportDateArg}`.trim()
                 },
                 contents: [
                   {
