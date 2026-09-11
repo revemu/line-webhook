@@ -633,12 +633,12 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           <circle cx="85" cy="95" r="48" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
           <polygon points="74,103 79,88 85,96 91,88 96,103" fill="#64748B"/>
 
-          <text x="155" y="52" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
-          <text x="255" y="52" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">• n/a</text>
-          <text x="155" y="96" font-size="25" font-family="Sarabun, sans-serif" fill="#64748B">ยังไม่มีการแข่งขันสัปดาห์นี้</text>
+          <text x="155" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
+          <text x="300" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">• n/a</text>
+          <text x="155" y="130" font-size="30" font-family="Sarabun, sans-serif" fill="#64748B">ยังไม่มีการแข่งขันสัปดาห์นี้</text>
 
-          <rect x="810" y="48" width="150" height="90" rx="14" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
-          <text x="885" y="103" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">n/a</text>
+          <rect x="810" y="89" width="150" height="90" rx="14" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
+          <text x="885" y="103" font-size="32" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">n/a</text>
         </g>
       `;
     }
