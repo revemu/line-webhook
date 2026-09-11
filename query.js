@@ -4774,6 +4774,8 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
   if (assigned.DF.length < limDF.min && assigned.DM.length > 0) {
     dmForDFCount = Math.min(assigned.DM.length, limDF.min - assigned.DF.length);
   }
+  // DM players remaining for the DM slot(s) after some are used to fill DF shortage
+  const remainingDMCount = Math.max(0, assigned.DM.length - dmForDFCount);
 
   let targetDF = limDF.min;
   let targetDW = limDW.min;
@@ -4787,71 +4789,46 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
   const targetOutfieldTotal = is8Player ? 7 : 6;
   let needed = Math.max(0, targetOutfieldTotal - baseOutfield);
 
-  // 1. Allocate based on natural player positions registered in team:
-  // Mandatory roles first (min >= 1)
-  const mandatoryRoles = ['DW', 'MF', 'DF'];
-  for (const pos of mandatoryRoles) {
+  // 1. Phase A: Allocate 1 starter slot for every natural position present in the team
+  // Priority: CF, AM, DM, DF, DW, MF (give specialised roles a starter slot whenever natural players exist)
+  const presentRoles = ['CF', 'AM', 'DM', 'DF', 'DW', 'MF'];
+  for (const pos of presentRoles) {
     const lim = getLimit(pos);
-    let effectiveAssignedCount = assigned[pos].length;
-    if (pos === 'DF') {
-      effectiveAssignedCount += dmForDFCount;
-    }
-    let curTarget = pos === 'DW' ? targetDW : (pos === 'MF' ? targetMF : targetDF);
-    while (effectiveAssignedCount > curTarget && curTarget < lim.max && needed > 0) {
+    const countForPos = pos === 'DM' ? remainingDMCount : (pos === 'DF' ? (assigned.DF.length + dmForDFCount) : assigned[pos].length);
+    let curTarget = pos === 'CF' ? targetCF : (pos === 'AM' ? targetAM : (pos === 'DM' ? targetDM : (pos === 'DW' ? targetDW : (pos === 'MF' ? targetMF : targetDF))));
+    if (countForPos > curTarget && curTarget < lim.max && needed > 0) {
       curTarget++;
       needed--;
-      if (pos === 'DW') targetDW = curTarget;
+      if (pos === 'CF') targetCF = curTarget;
+      else if (pos === 'AM') targetAM = curTarget;
+      else if (pos === 'DM') targetDM = curTarget;
+      else if (pos === 'DW') targetDW = curTarget;
       else if (pos === 'MF') targetMF = curTarget;
       else if (pos === 'DF') targetDF = curTarget;
     }
   }
 
-  // Next, allocate natural players for optional positions (min == 0)
-  // Note: remaining DM count after dmForDFCount
-  const remainingDMCount = Math.max(0, assigned.DM.length - dmForDFCount);
-  const optionalRoles = ['CF', 'AM', 'DM'];
-  for (const pos of optionalRoles) {
+  // Phase B: Expand slots for positions with surplus natural players (e.g. 2nd CF if team has 2 CFs, 2nd AM, 2nd DF, 2nd/3rd MF)
+  for (const pos of presentRoles) {
     const lim = getLimit(pos);
-    const countForPos = pos === 'DM' ? remainingDMCount : assigned[pos].length;
-    let curTarget = pos === 'CF' ? targetCF : (pos === 'AM' ? targetAM : targetDM);
+    const countForPos = pos === 'DM' ? remainingDMCount : (pos === 'DF' ? (assigned.DF.length + dmForDFCount) : assigned[pos].length);
+    let curTarget = pos === 'CF' ? targetCF : (pos === 'AM' ? targetAM : (pos === 'DM' ? targetDM : (pos === 'DW' ? targetDW : (pos === 'MF' ? targetMF : targetDF))));
     while (countForPos > curTarget && curTarget < lim.max && needed > 0) {
       curTarget++;
       needed--;
       if (pos === 'CF') targetCF = curTarget;
       else if (pos === 'AM') targetAM = curTarget;
       else if (pos === 'DM') targetDM = curTarget;
+      else if (pos === 'DW') targetDW = curTarget;
+      else if (pos === 'MF') targetMF = curTarget;
+      else if (pos === 'DF') targetDF = curTarget;
     }
   }
 
-  // 1.5. Tactical adaptations for surplus DF and MF:
-  // A. When DF has no vacant slot (assigned.DF > targetDF), DF can play DM, and then DW
-  while (assigned.DF.length > targetDF && targetDM < limDM.max && needed > 0) {
-    targetDM++;
-    needed--;
-  }
-  while (assigned.DF.length > (targetDF + (assigned.DM.length === 0 ? targetDM : 0)) && targetDW < limDW.max && needed > 0) {
-    targetDW++;
-    needed--;
-  }
-
-  // B. MF can play DM (when assigned.MF > targetMF) or AM / CF if needed
-  while (assigned.MF.length > targetMF && targetDM < limDM.max && needed > 0) {
-    targetDM++;
-    needed--;
-  }
-  while (assigned.MF.length > (targetMF + (assigned.DM.length === 0 ? targetDM : 0)) && targetAM < limAM.max && needed > 0) {
-    targetAM++;
-    needed--;
-  }
-  while (assigned.MF.length > (targetMF + (assigned.DM.length === 0 ? targetDM : 0) + (assigned.AM.length === 0 ? targetAM : 0)) && targetCF < limCF.max && needed > 0) {
-    targetCF++;
-    needed--;
-  }
-
-  // 2. Fill remaining needed starter slots using tactical default balance (mandatory min >= 1 roles first)
+  // Phase C: Tactical fill if needed still > 0 (e.g. team has generic players, or unassigned)
   const tacticalFillOrder = is8PlayerWeek
-    ? ['MF', 'DM', 'AM', 'CF', 'DW', 'DF']
-    : ['MF', 'DM', 'AM', 'CF', 'DW', 'DF'];
+    ? ['CF', 'AM', 'MF', 'DM', 'DW', 'DF']
+    : ['CF', 'AM', 'MF', 'DM', 'DW', 'DF'];
 
   for (const pos of tacticalFillOrder) {
     if (needed <= 0) break;
@@ -4958,8 +4935,8 @@ function allocateFormationSlots(members, is8PlayerWeek = false, posLimitsMap = {
     }
   }
 
-  // 2. Exact Natural Position Match for Primary Starters (Mandatory roles first, then optional)
-  const outfieldRoles = ['DW', 'MF', 'DF', 'CF', 'AM', 'DM'];
+  // 2. Exact Natural Position Match for Primary Starters (Specialised roles first)
+  const outfieldRoles = ['CF', 'AM', 'DM', 'DF', 'DW', 'MF'];
   for (const r of outfieldRoles) {
     for (const slot of finalSlots[r]) {
       if (slot.primary === null && assigned[r].length > 0) {
