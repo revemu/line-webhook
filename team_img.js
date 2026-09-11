@@ -54,22 +54,29 @@ function getAvatarDiskCachePath(url) {
  * Fetches an image URL and converts it into a base64 Data URI with local disk caching.
  */
 const avatarCache = new Map();
-async function fetchImageAsBase64(url, timeoutMs = 5000) {
+async function fetchImageAsBase64(url, timeoutMs = 6000) {
   if (!url || typeof url !== 'string' || !url.trim().startsWith('http')) return null;
-  const secureUrl = url.trim().replace(/^http:\/\//i, 'https://').replace(/\/preview$/i, '');
+  let secureUrl = url.trim();
+  if (secureUrl.startsWith('http://')) {
+    secureUrl = secureUrl.replace(/^http:\/\//i, 'https://');
+  }
 
   // 1. In-memory cache
-  if (avatarCache.has(secureUrl)) return avatarCache.get(secureUrl);
+  if (avatarCache.has(secureUrl)) {
+    return avatarCache.get(secureUrl);
+  }
 
   // 2. Local disk cache
   const diskPath = getAvatarDiskCachePath(secureUrl);
   try {
     if (fs.existsSync(diskPath)) {
       const buffer = fs.readFileSync(diskPath);
-      if (buffer && buffer.length > 0) {
+      if (buffer && buffer.length > 50) {
         const dataUri = `data:image/jpeg;base64,${buffer.toString('base64')}`;
         avatarCache.set(secureUrl, dataUri);
         return dataUri;
+      } else {
+        try { fs.unlinkSync(diskPath); } catch (e) {}
       }
     }
   } catch (diskErr) {
@@ -82,26 +89,30 @@ async function fetchImageAsBase64(url, timeoutMs = 5000) {
       responseType: 'arraybuffer',
       timeout: timeoutMs,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
       }
     });
-    const contentType = response.headers['content-type'] || 'image/jpeg';
-    const buffer = Buffer.from(response.data);
+    if (response.data && response.data.length > 50) {
+      const contentType = response.headers['content-type'] || 'image/jpeg';
+      const buffer = Buffer.from(response.data);
 
-    // Save to disk cache for future reuse
-    try {
-      fs.writeFileSync(diskPath, buffer);
-    } catch (writeErr) {
-      console.warn(`[AvatarCache] Disk write error (${diskPath}):`, writeErr.message);
+      // Save to disk cache for future reuse
+      try {
+        fs.writeFileSync(diskPath, buffer);
+      } catch (writeErr) {
+        console.warn(`[AvatarCache] Disk write error (${diskPath}):`, writeErr.message);
+      }
+
+      const base64 = buffer.toString('base64');
+      const dataUri = `data:${contentType};base64,${base64}`;
+      avatarCache.set(secureUrl, dataUri);
+      return dataUri;
     }
-
-    const base64 = buffer.toString('base64');
-    const dataUri = `data:${contentType};base64,${base64}`;
-    avatarCache.set(secureUrl, dataUri);
-    return dataUri;
   } catch (err) {
-    return null;
+    console.warn(`[AvatarCache] Failed to download avatar (${secureUrl}):`, err.message);
   }
+  return null;
 }
 
 /**
@@ -162,9 +173,30 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
   const formattedDateStr = dateStr ? getFormatDate(dateStr, 'short') : '';
   const headerColors = getTeamHeaderColors(team.teamColor);
 
-  // Pre-fetch all player avatars in parallel
+  const slots = team.slots || {
+    CF: [], AM: [], MF: [], DM: [], DW: [], DF: [], GK: [], alternates: []
+  };
+
   const allMembers = team.members || [];
-  await Promise.all(allMembers.map(async (m) => {
+
+  // Collect ALL player objects from team.members and all formation slots
+  const playersToLoad = new Set();
+  allMembers.forEach(m => { if (m) playersToLoad.add(m); });
+  
+  Object.values(slots).forEach(slotGroup => {
+    if (Array.isArray(slotGroup)) {
+      slotGroup.forEach(slot => {
+        if (slot) {
+          if (slot.primary) playersToLoad.add(slot.primary);
+          if (slot.alternate) playersToLoad.add(slot.alternate);
+          if (slot.id && !slot.primary && !slot.alternate) playersToLoad.add(slot);
+        }
+      });
+    }
+  });
+
+  // Pre-fetch all player avatars in parallel
+  await Promise.all(Array.from(playersToLoad).map(async (m) => {
     const rawPic = m.picture_url || m.pictureUrl;
     if (rawPic && !m.avatarDataUri) {
       m.avatarDataUri = await fetchImageAsBase64(rawPic);
@@ -184,10 +216,6 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     momPlayer = allMembers[0];
   }
   const momPlayerId = momPlayer ? momPlayer.id : null;
-
-  const slots = team.slots || {
-    CF: [], AM: [], MF: [], DM: [], DW: [], DF: [], GK: [], alternates: []
-  };
 
   const svgWidth = 800;
   const svgHeight = 1120;
@@ -260,8 +288,12 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     const clipId = `clip-avatar-${pId}-${isAlternate ? 'alt' : 'prim'}`;
     defsSvg += `<clipPath id="${clipId}"><circle cx="0" cy="0" r="${avatarR}"/></clipPath>\n`;
 
-    const avatarSvg = player.avatarDataUri ? `
-      <image href="${player.avatarDataUri}" x="-${avatarR}" y="-${avatarR}" width="${avatarR * 2}" height="${avatarR * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>
+    const rawPic = player.picture_url || player.pictureUrl;
+    const playerPicUrl = rawPic ? rawPic.trim().replace(/^http:\/\//i, 'https://') : null;
+    const dataUri = player.avatarDataUri || (playerPicUrl ? avatarCache.get(playerPicUrl) : null);
+
+    const avatarSvg = dataUri ? `
+      <image href="${dataUri}" xlink:href="${dataUri}" x="-${avatarR}" y="-${avatarR}" width="${avatarR * 2}" height="${avatarR * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>
     ` : `
       <circle cx="0" cy="0" r="${avatarR}" fill="${isAlternate ? '#0C2A44' : '#1E293B'}"/>
       <text x="0" y="5" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(posCode)}</text>
@@ -392,8 +424,11 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     const momClipId = `clip-mom-${momPlayer.id}`;
     defsSvg += `<clipPath id="${momClipId}"><circle cx="45" cy="45" r="24"/></clipPath>\n`;
 
-    const momAvatarSvg = momPlayer.avatarDataUri ? `
-      <image href="${momPlayer.avatarDataUri}" x="21" y="21" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#${momClipId})"/>
+    const rawMomPic = momPlayer.picture_url || momPlayer.pictureUrl;
+    const momPicUrl = rawMomPic ? rawMomPic.trim().replace(/^http:\/\//i, 'https://') : null;
+    const momDataUri = momPlayer.avatarDataUri || (momPicUrl ? avatarCache.get(momPicUrl) : null);
+    const momAvatarSvg = momDataUri ? `
+      <image href="${momDataUri}" xlink:href="${momDataUri}" x="21" y="21" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#${momClipId})"/>
     ` : `
       <circle cx="45" cy="45" r="24" fill="#2A1802"/>
       <polygon points="38,47 41,39 45,44 49,39 52,47" fill="#F59E0B"/>
@@ -450,7 +485,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
 
   // Assembly Full SVG
   const svg = `
-<svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">
+<svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <defs>
     <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#0B0F19"/>
