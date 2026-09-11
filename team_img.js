@@ -360,7 +360,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     // 2. Overlapping Goal Badge (Bottom-Right)
     const goalBadgeSvg = goals > 0 ? `
       <g transform="translate(36, 32)">
-        <circle cx="0" cy="0" r="18.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
+        <circle cx="0" cy="0" r="26.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
         ${goalIconDataUri ? `
           <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="-13.5" y="-13.5" width="27" height="27" preserveAspectRatio="xMidYMid meet"/>
         ` : `
@@ -373,8 +373,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
         `}
         ${goals > 1 ? `
           <g transform="translate(13, -12)">
-            <circle cx="0" cy="0" r="10.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-            <text x="0" y="5.5" font-size="35" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${goals}</text>
+            <circle cx="0" cy="0" r="20" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+            <text x="0" y="5.5" font-size="26" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${goals}</text>
           </g>
         ` : ''}
       </g>
