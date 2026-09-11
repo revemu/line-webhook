@@ -647,7 +647,9 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
   // Clean Header Subtitle Text (No emojis that cause tofu boxes)
   const cleanFormationName = stripEmojis(team.formationName || 'ผังการเล่น');
   const subItems = [];
-  if (formattedDateStr) subItems.push(formattedDateStr);
+  //if (formattedDateStr) subItems.push(formattedDateStr);
+  let WeekDate = '';
+  if (formattedDateStr) WeekDate = formattedDateStr;
   subItems.push(`${team.totalPlayers || 0} คน • ${cleanFormationName}`);
   if (timeRange) subItems.push(timeRange);
   const headerSubtitle = subItems.join('   •   ');
@@ -661,9 +663,12 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     <!-- Dot & Title -->
     <circle cx="34" cy="32" r="8" fill="${headerColors.dot}"/>
     <text x="54" y="42" font-size="32" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
+
+    <!-- Date & Time -->
+    <text x="500" y="42" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(WeekDate)}</text>
     
     <!-- Subtitle Line -->
-    <text x="32" y="72" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
+    <text x="32" y="105" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
   </g>
   `;
 
