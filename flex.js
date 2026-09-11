@@ -5593,7 +5593,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
       }
     ];
 
-    // Bottom Bar: Team MVP Highlight
+    // Bottom Bar: Team MVP Highlight Card
+    let mvpCard = null;
     if (momPlayer) {
       const momName = (momPlayer.name || momPlayer.alias || 'Player').replace(/^@/, '');
       const momRatingVal = (momPlayer.weekStats?.rating && momPlayer.weekStats.rating !== '-' && Number(momPlayer.weekStats.rating) > 0)
@@ -5606,7 +5607,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
       if (momAssists > 0) statsParts.push(`👟 ${momAssists} แอสซิสต์`);
       const momStatsDesc = statsParts.length > 0 ? statsParts.join('  ') : 'ลงสนามสัปดาห์นี้';
 
-      bodyContents.push({
+      mvpCard = {
         type: 'box',
         layout: 'horizontal',
         backgroundColor: '#0F172ACC',
@@ -5684,10 +5685,11 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
             ]
           }
         ]
-      });
+      };
+      bodyContents.push(mvpCard);
     } else {
       // Week has not been played yet -> Team MVP shows n/a
-      bodyContents.push({
+      mvpCard = {
         type: 'box',
         layout: 'horizontal',
         backgroundColor: '#0F172ACC',
@@ -5755,7 +5757,8 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
             ]
           }
         ]
-      });
+      };
+      bodyContents.push(mvpCard);
     }
 
     return {
@@ -5800,10 +5803,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
                 paddingBottom: '2px',
                 margin: 'sm',
                 flex: 0,
-                action: team.imageUrl ? {
+                action: (team.imageUrl || team.pitchImageUrl) ? {
                   type: 'uri',
                   label: 'ดูรูปเต็ม',
-                  uri: team.imageUrl
+                  uri: team.imageUrl || team.pitchImageUrl
                 } : {
                   type: 'message',
                   label: 'รูปภาพ',
@@ -5864,7 +5867,34 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
           }
         ]
       },
-      body: team.imageUrl ? {
+      body: team.pitchImageUrl ? {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'none',
+        backgroundColor: '#0B0F19',
+        contents: [
+          {
+            type: 'image',
+            url: team.pitchImageUrl,
+            size: 'full',
+            aspectRatio: '1080:1190',
+            aspectMode: 'cover',
+            action: {
+              type: 'uri',
+              label: 'ดูรูปเต็ม',
+              uri: team.imageUrl || team.pitchImageUrl
+            }
+          },
+          ...(mvpCard ? [{
+            type: 'box',
+            layout: 'vertical',
+            paddingStart: 'sm',
+            paddingEnd: 'sm',
+            paddingBottom: 'sm',
+            contents: [mvpCard]
+          }] : [])
+        ]
+      } : (team.imageUrl ? {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'none',
@@ -5894,7 +5924,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
           endColor: '#14532D'
         },
         contents: bodyContents
-      }
+      })
     };
   });
 

@@ -162,7 +162,7 @@ function getTeamHeaderColors(teamColorName) {
 /**
  * Builds the SVG string for a single team's tactical formation.
  */
-async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
+async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options = {}) {
   const isTotw = String(team.teamId || '').toLowerCase() === 'totw';
   
   // Format team name: remove 'ทีม' / 'ทีม ' prefix as requested (e.g. 'Red', 'Yellow', 'Green')
@@ -217,12 +217,14 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
   }
   const momPlayerId = momPlayer ? momPlayer.id : null;
 
+  // Determine dimensions based on pitchOnly mode
+  const pitchOnly = !!options.pitchOnly;
   const svgWidth = 1080;
-  const svgHeight = 1560;
   const pitchX = 40;
-  const pitchY = 130;
+  const pitchY = pitchOnly ? 25 : 130;
   const pitchWidth = 1000;
   const pitchHeight = 1140;
+  const svgHeight = pitchOnly ? (pitchY + pitchHeight + 25) : 1560;
 
   // Determine row positions on the tactical pitch (1080p layout)
   const hasCF = slots.CF && slots.CF.length > 0;
@@ -274,8 +276,11 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     }
 
     const pId = player.id || Math.random().toString(36).substring(2, 7);
-    const rawName = (player.name || player.alias || (isAlternate ? 'Alt' : 'Player')).replace(/^@/, '');
-    const pName = stripEmojis(rawName) || 'Player';
+    const rawName = (player.name || player.alias || (isAlternate ? 'สำรอง' : 'Player')).replace(/^@/, '');
+    const cleanRaw = stripEmojis(rawName)
+      .replace(/\s*[\(\[]\s*(alt|alternate|สำรอง|ตัวสำรอง)\s*[\)\]]\s*/gi, '')
+      .trim();
+    const pName = cleanRaw || (isAlternate ? 'สำรอง' : 'Player');
     const pWStat = player.weekStats || {};
     const pHasWRating = pWStat.rating && pWStat.rating !== '-' && Number(pWStat.rating) > 0;
     const pRatingVal = pHasWRating ? parseFloat(pWStat.rating).toFixed(1) : '-';
@@ -364,7 +369,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
       </g>
     ` : '';
 
-    // 4. Name & Position Label Underneath Avatar
+    // 4. Name & Position Label Underneath Avatar (Supports 1-Line & 2-Line Wrapping)
     const crownSvg = isMom ? `
       <g transform="translate(-10, -48)">
         <polygon points="0,10 5,0 10,7 15,0 20,10" fill="#F59E0B" stroke="#78350F" stroke-width="1"/>
@@ -372,10 +377,53 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
       </g>
     ` : '';
 
-    const labelBoxWidth = 132;
-    const labelBoxHeight = 30;
-    const displayName = isAlternate ? `(Alt) ${pName}` : pName;
-    const truncatedName = displayName.length > 13 ? displayName.slice(0, 12) + '..' : displayName;
+    // Calculate visual character width (Thai non-spacing vowels don't increase visual width)
+    const visualLength = pName.replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, '').length;
+    let nameLines = [pName];
+    if (visualLength > 9) {
+      if (pName.includes(' ')) {
+        const parts = pName.split(/\s+/);
+        if (parts.length >= 2) {
+          const l1 = parts[0];
+          let l2 = parts.slice(1).join(' ');
+          const v2 = l2.replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, '').length;
+          if (v2 > 10) l2 = l2.slice(0, 9) + '..';
+          nameLines = [l1, l2];
+        }
+      } else if (visualLength > 10) {
+        let vCount = 0;
+        let splitIdx = Math.floor(pName.length / 2);
+        for (let i = 0; i < pName.length; i++) {
+          if (!/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/.test(pName[i])) {
+            vCount++;
+            if (vCount >= Math.ceil(visualLength / 2)) {
+              splitIdx = i + 1;
+              break;
+            }
+          }
+        }
+        const l1 = pName.slice(0, splitIdx);
+        let l2 = pName.slice(splitIdx);
+        const v2 = l2.replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, '').length;
+        if (v2 > 9) l2 = l2.slice(0, 8) + '..';
+        nameLines = [l1, l2];
+      }
+    }
+
+    const isTwoLines = nameLines.length > 1;
+    const labelBoxWidth = 136;
+    const labelBoxHeight = isTwoLines ? 42 : 30;
+    const posBadgeY = isTwoLines ? 9 : 4;
+    const posBadgeH = isTwoLines ? 24 : 22;
+    const posTextY = isTwoLines ? 25 : 19;
+    const textColor = isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF');
+
+    const nameTextSvg = isTwoLines ? `
+      <text x="14" y="16" font-size="12" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
+      <text x="14" y="32" font-size="12" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[1])}</text>
+    ` : `
+      <text x="14" y="20" font-size="14" font-family="Sarabun, sans-serif" font-weight="bold" fill="${textColor}" text-anchor="middle">${escapeXml(nameLines[0])}</text>
+    `;
 
     return `
       <g transform="translate(${cx}, ${cy})">
@@ -393,10 +441,10 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
         <g transform="translate(0, ${avatarR + 8})">
           <rect x="-${labelBoxWidth / 2}" y="0" width="${labelBoxWidth}" height="${labelBoxHeight}" rx="8" fill="${isAlternate ? '#071828EE' : (isMom ? '#1A1608F4' : '#000000CC')}" stroke="${isMom ? '#F59E0BCC' : (isAlternate ? '#38BDF888' : '#FFFFFF26')}" stroke-width="1.2"/>
           
-          <rect x="-${labelBoxWidth / 2 - 4}" y="4" width="30" height="22" rx="4" fill="${posColor}"/>
-          <text x="-${labelBoxWidth / 2 - 19}" y="19" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${escapeXml(posCode)}</text>
+          <rect x="-${labelBoxWidth / 2 - 4}" y="${posBadgeY}" width="30" height="${posBadgeH}" rx="4" fill="${posColor}"/>
+          <text x="-${labelBoxWidth / 2 - 19}" y="${posTextY}" font-size="13" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${escapeXml(posCode)}</text>
           
-          <text x="14" y="20" font-size="14" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(truncatedName)}</text>
+          ${nameTextSvg}
         </g>
       </g>
     `;
@@ -461,75 +509,77 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
     pitchStripesSvg += `<rect x="${pitchX}" y="${pitchY + i * stripeHeight}" width="${pitchWidth}" height="${stripeHeight}" fill="${stripeColor}"/>\n`;
   }
 
-  // Bottom MVP Bar SVG
+  // Bottom MVP Bar SVG (only for full version)
   let mvpBarSvg = '';
   const starBigSvg = `<polygon points="0,-8 2.4,-2.4 8.4,-2.4 3.6,1.3 5,7.2 0,3.6 -5,7.2 -3.6,1.3 -8.4,-2.4 -2.4,-2.4" fill="#FDE047"/>`;
 
-  if (momPlayer) {
-    const rawMomName = (momPlayer.name || momPlayer.alias || 'Player').replace(/^@/, '');
-    const momName = stripEmojis(rawMomName) || 'Player';
-    const momRatingVal = (momPlayer.weekStats?.rating && momPlayer.weekStats.rating !== '-' && Number(momPlayer.weekStats.rating) > 0)
-      ? parseFloat(momPlayer.weekStats.rating).toFixed(1)
-      : 'n/a';
-    const momGoals = Number(momPlayer.weekStats?.goals || 0);
-    const momAssists = Number(momPlayer.weekStats?.assists || 0);
-    const statsParts = [];
-    if (momGoals > 0) statsParts.push(`${momGoals} ประตู`);
-    if (momAssists > 0) statsParts.push(`${momAssists} แอสซิสต์`);
-    const momStatsDesc = statsParts.length > 0 ? statsParts.join('   •   ') : 'ลงสนามสัปดาห์นี้';
+  if (!pitchOnly) {
+    if (momPlayer) {
+      const rawMomName = (momPlayer.name || momPlayer.alias || 'Player').replace(/^@/, '');
+      const momName = stripEmojis(rawMomName) || 'Player';
+      const momRatingVal = (momPlayer.weekStats?.rating && momPlayer.weekStats.rating !== '-' && Number(momPlayer.weekStats.rating) > 0)
+        ? parseFloat(momPlayer.weekStats.rating).toFixed(1)
+        : 'n/a';
+      const momGoals = Number(momPlayer.weekStats?.goals || 0);
+      const momAssists = Number(momPlayer.weekStats?.assists || 0);
+      const statsParts = [];
+      if (momGoals > 0) statsParts.push(`${momGoals} ประตู`);
+      if (momAssists > 0) statsParts.push(`${momAssists} แอสซิสต์`);
+      const momStatsDesc = statsParts.length > 0 ? statsParts.join('   •   ') : 'ลงสนามสัปดาห์นี้';
 
-    const momClipId = `clip-mom-${momPlayer.id}`;
-    defsSvg += `<clipPath id="${momClipId}"><circle cx="85" cy="95" r="48"/></clipPath>\n`;
+      const momClipId = `clip-mom-${momPlayer.id}`;
+      defsSvg += `<clipPath id="${momClipId}"><circle cx="85" cy="95" r="48"/></clipPath>\n`;
 
-    const rawMomPic = momPlayer.picture_url || momPlayer.pictureUrl;
-    const momPicUrl = rawMomPic ? rawMomPic.trim().replace(/^http:\/\//i, 'https://') : null;
-    const momDataUri = momPlayer.avatarDataUri || (momPicUrl ? avatarCache.get(momPicUrl) : null);
-    const momAvatarSvg = momDataUri ? `
-      <image href="${momDataUri}" xlink:href="${momDataUri}" x="37" y="47" width="96" height="96" preserveAspectRatio="xMidYMid slice" clip-path="url(#${momClipId})"/>
-    ` : `
-      <circle cx="85" cy="95" r="48" fill="#2A1802"/>
-      <polygon points="74,103 79,88 85,96 91,88 96,103" fill="#F59E0B"/>
-    `;
+      const rawMomPic = momPlayer.picture_url || momPlayer.pictureUrl;
+      const momPicUrl = rawMomPic ? rawMomPic.trim().replace(/^http:\/\//i, 'https://') : null;
+      const momDataUri = momPlayer.avatarDataUri || (momPicUrl ? avatarCache.get(momPicUrl) : null);
+      const momAvatarSvg = momDataUri ? `
+        <image href="${momDataUri}" xlink:href="${momDataUri}" x="37" y="47" width="96" height="96" preserveAspectRatio="xMidYMid slice" clip-path="url(#${momClipId})"/>
+      ` : `
+        <circle cx="85" cy="95" r="48" fill="#2A1802"/>
+        <polygon points="74,103 79,88 85,96 91,88 96,103" fill="#F59E0B"/>
+      `;
 
-    mvpBarSvg = `
-      <!-- MVP Container -->
-      <g transform="translate(40, 1290)">
-        <rect x="0" y="0" width="${pitchWidth}" height="190" rx="18" fill="#0F172ACC" stroke="#F59E0B" stroke-width="2.2"/>
-        
-        <!-- Avatar Ring -->
-        <circle cx="85" cy="95" r="50" fill="none" stroke="#F59E0B" stroke-width="3.5"/>
-        ${momAvatarSvg}
+      mvpBarSvg = `
+        <!-- MVP Container -->
+        <g transform="translate(40, 1290)">
+          <rect x="0" y="0" width="${pitchWidth}" height="190" rx="18" fill="#0F172ACC" stroke="#F59E0B" stroke-width="2.2"/>
+          
+          <!-- Avatar Ring -->
+          <circle cx="85" cy="95" r="50" fill="none" stroke="#F59E0B" stroke-width="3.5"/>
+          ${momAvatarSvg}
 
-        <!-- Crown Vector -->
-        <g transform="translate(155, 38)">
-          <polygon points="0,12 4,2 9,8 14,2 18,12" fill="#F59E0B" stroke="#78350F" stroke-width="1"/>
+          <!-- Crown Vector -->
+          <g transform="translate(155, 38)">
+            <polygon points="0,12 4,2 9,8 14,2 18,12" fill="#F59E0B" stroke="#78350F" stroke-width="1"/>
+          </g>
+          <text x="180" y="52" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
+          <text x="275" y="52" font-size="22" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
+          <text x="155" y="96" font-size="17" font-family="Sarabun, sans-serif" fill="#CBD5E1">${escapeXml(momStatsDesc)}</text>
+
+          <!-- Rating Box -->
+          <rect x="810" y="48" width="150" height="90" rx="14" fill="#231602" stroke="#F59E0B" stroke-width="2"/>
+          <g transform="translate(850, 93)">${starBigSvg}</g>
+          <text x="900" y="103" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FDE047" text-anchor="middle">${escapeXml(momRatingVal)}</text>
         </g>
-        <text x="180" y="52" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
-        <text x="275" y="52" font-size="22" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
-        <text x="155" y="96" font-size="17" font-family="Sarabun, sans-serif" fill="#CBD5E1">${escapeXml(momStatsDesc)}</text>
+      `;
+    } else {
+      mvpBarSvg = `
+        <!-- MVP Placeholder Container -->
+        <g transform="translate(40, 1290)">
+          <rect x="0" y="0" width="${pitchWidth}" height="190" rx="18" fill="#0F172ACC" stroke="#475569" stroke-width="1.5"/>
+          <circle cx="85" cy="95" r="48" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
+          <polygon points="74,103 79,88 85,96 91,88 96,103" fill="#64748B"/>
 
-        <!-- Rating Box -->
-        <rect x="810" y="48" width="150" height="90" rx="14" fill="#231602" stroke="#F59E0B" stroke-width="2"/>
-        <g transform="translate(850, 93)">${starBigSvg}</g>
-        <text x="900" y="103" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FDE047" text-anchor="middle">${escapeXml(momRatingVal)}</text>
-      </g>
-    `;
-  } else {
-    mvpBarSvg = `
-      <!-- MVP Placeholder Container -->
-      <g transform="translate(40, 1290)">
-        <rect x="0" y="0" width="${pitchWidth}" height="190" rx="18" fill="#0F172ACC" stroke="#475569" stroke-width="1.5"/>
-        <circle cx="85" cy="95" r="48" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
-        <polygon points="74,103 79,88 85,96 91,88 96,103" fill="#64748B"/>
+          <text x="155" y="52" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
+          <text x="255" y="52" font-size="22" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">• n/a</text>
+          <text x="155" y="96" font-size="17" font-family="Sarabun, sans-serif" fill="#64748B">ยังไม่มีการแข่งขันสัปดาห์นี้</text>
 
-        <text x="155" y="52" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
-        <text x="255" y="52" font-size="22" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8">• n/a</text>
-        <text x="155" y="96" font-size="17" font-family="Sarabun, sans-serif" fill="#64748B">ยังไม่มีการแข่งขันสัปดาห์นี้</text>
-
-        <rect x="810" y="48" width="150" height="90" rx="14" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
-        <text x="885" y="103" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">n/a</text>
-      </g>
-    `;
+          <rect x="810" y="48" width="150" height="90" rx="14" fill="#1E293B" stroke="#475569" stroke-width="1.5"/>
+          <text x="885" y="103" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#94A3B8" text-anchor="middle">n/a</text>
+        </g>
+      `;
+    }
   }
 
   // Clean Header Subtitle Text (No emojis that cause tofu boxes)
@@ -540,7 +590,26 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
   if (timeRange) subItems.push(timeRange);
   const headerSubtitle = subItems.join('   •   ');
 
-  // Assembly Full SVG (1080p)
+  // Assembly SVG
+  const headerBarSvg = pitchOnly ? '' : `
+  <!-- Top Header Bar -->
+  <g transform="translate(40, 24)">
+    <rect x="0" y="0" width="${pitchWidth}" height="90" rx="16" fill="url(#header-grad)" stroke="${headerColors.accent}" stroke-width="2"/>
+    
+    <!-- Dot & Title -->
+    <circle cx="34" cy="32" r="8" fill="${headerColors.dot}"/>
+    <text x="54" y="42" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
+    
+    <!-- Subtitle Line -->
+    <text x="32" y="72" font-size="15" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
+  </g>
+  `;
+
+  const watermarkSvg = pitchOnly ? '' : `
+  <!-- Footer Watermark -->
+  <text x="${svgWidth / 2}" y="${svgHeight - 20}" font-size="13" font-family="Sarabun, sans-serif" fill="#64748B" text-anchor="middle">Generated by Revemu Football Bot • ${new Date().getFullYear()}</text>
+  `;
+
   const svg = `
 <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <defs>
@@ -561,17 +630,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
   <!-- Background Base -->
   <rect width="${svgWidth}" height="${svgHeight}" fill="url(#bg-grad)"/>
 
-  <!-- Top Header Bar -->
-  <g transform="translate(40, 24)">
-    <rect x="0" y="0" width="${pitchWidth}" height="90" rx="16" fill="url(#header-grad)" stroke="${headerColors.accent}" stroke-width="2"/>
-    
-    <!-- Dot & Title -->
-    <circle cx="34" cy="32" r="8" fill="${headerColors.dot}"/>
-    <text x="54" y="42" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="${headerColors.title}">${escapeXml(teamNameFormatted)}</text>
-    
-    <!-- Subtitle Line -->
-    <text x="32" y="72" font-size="15" font-family="Sarabun, sans-serif" font-weight="bold" fill="#CBD5E1">${escapeXml(headerSubtitle)}</text>
-  </g>
+  ${headerBarSvg}
 
   <!-- Football Pitch (Lawn Stripes & Markings) -->
   <g clip-path="url(#pitch-clip)">
@@ -611,8 +670,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
   <!-- MVP Bottom Highlight Bar -->
   ${mvpBarSvg}
 
-  <!-- Footer Watermark -->
-  <text x="${svgWidth / 2}" y="${svgHeight - 20}" font-size="13" font-family="Sarabun, sans-serif" fill="#64748B" text-anchor="middle">Generated by Revemu Football Bot • ${new Date().getFullYear()}</text>
+  ${watermarkSvg}
 </svg>
 `;
 
@@ -621,15 +679,18 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '') {
 
 /**
  * Converts SVG to PNG and saves it into img/team/
+ * @param {string} svgString - SVG string
+ * @param {number} width - Output width in pixels
+ * @param {number} height - Output height in pixels
  * @returns {Promise<string>} filename
  */
-async function convertSvgToPng(svgString) {
+async function convertSvgToPng(svgString, width = 1080, height = 1560) {
   cleanupOldImages();
 
   const filename = `team_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
   const filePath = path.join(teamImgDir, filename);
 
-  const imgOptions = { format: 'png', width: 800, height: 1120 };
+  const imgOptions = { format: 'png', width, height };
   const fontFiles = [];
   if (fs.existsSync(fontPathSarabun)) fontFiles.push(fontPathSarabun);
   if (fs.existsSync(fontPathKaohom)) fontFiles.push(fontPathKaohom);
@@ -661,11 +722,15 @@ async function convertSvgToPng(svgString) {
  * @param {Object} team - FormationsData item
  * @param {string} dateStr - Short date string
  * @param {string} timeRange - Time range string
+ * @param {Object} options - Options { pitchOnly: boolean }
  * @returns {Promise<string>} Image public URL
  */
-async function generateTeamImage(team, dateStr = '', timeRange = '') {
-  const svg = await buildTeamFormationSvg(team, dateStr, timeRange);
-  const filename = await convertSvgToPng(svg);
+async function generateTeamImage(team, dateStr = '', timeRange = '', options = {}) {
+  const pitchOnly = !!options.pitchOnly;
+  const svg = await buildTeamFormationSvg(team, dateStr, timeRange, options);
+  const width = 1080;
+  const height = pitchOnly ? 1190 : 1560;
+  const filename = await convertSvgToPng(svg, width, height);
 
   let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
   if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');

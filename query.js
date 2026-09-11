@@ -2602,8 +2602,12 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
           try {
             const teamImg = require('./team_img');
-            const totwUrl = await teamImg.generateTeamImage(totwFormationData[0], date_str, '');
-            if (totwUrl) totwFormationData[0].imageUrl = totwUrl;
+            const [totwFullUrl, totwPitchUrl] = await Promise.all([
+              teamImg.generateTeamImage(totwFormationData[0], date_str, '', { pitchOnly: false }),
+              teamImg.generateTeamImage(totwFormationData[0], date_str, '', { pitchOnly: true })
+            ]);
+            if (totwFullUrl) totwFormationData[0].imageUrl = totwFullUrl;
+            if (totwPitchUrl) totwFormationData[0].pitchImageUrl = totwPitchUrl;
           } catch (eTotwImg) {
             console.warn('[TOTW] Could not pre-generate TOTW image:', eTotwImg.message);
           }
@@ -5435,13 +5439,17 @@ async function getTeamFormation(param = '', groupId = null) {
   const data = await getTeamFormationData(param, groupId);
   if (!data || !data.formationsData || data.formationsData.length === 0) return null;
 
-  // Pre-generate high-res tactical formation images in parallel
+  // Pre-generate high-res tactical formation images in parallel (Full for zoom/export, Pitch-Only for Flex body)
   try {
     const teamImg = require('./team_img');
     await Promise.all(data.formationsData.map(async (team) => {
       try {
-        const url = await teamImg.generateTeamImage(team, data.dateStr, data.timeRange);
-        if (url) team.imageUrl = url;
+        const [fullUrl, pitchUrl] = await Promise.all([
+          teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: false }),
+          teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: true })
+        ]);
+        if (fullUrl) team.imageUrl = fullUrl;
+        if (pitchUrl) team.pitchImageUrl = pitchUrl;
       } catch (eImg) {
         console.warn(`[getTeamFormation] Image generation failed for team ${team.teamId}:`, eImg.message);
       }
