@@ -4988,29 +4988,12 @@ function buildMvpListFlex(mvpData, theme) {
 }
 
 function formatTeamDisplayName(rawColor) {
-  if (!rawColor) return 'ทีม';
+  if (!rawColor) return '';
   const c = String(rawColor).trim();
   if (c.includes('Team of the Week') || c.includes('TOTW') || c.includes('ยอดเยี่ยม') || c.startsWith('🌟')) {
-    return c;
+    return '🌟 Team of the Week 🌟';
   }
-  const colorMap = {
-    'white': 'ขาว',
-    'red': 'แดง',
-    'green': 'เขียว',
-    'blue': 'น้ำเงิน',
-    'yellow': 'เหลือง',
-    'black': 'ดำ',
-    'orange': 'ส้ม',
-    'pink': 'ชมพู',
-    'purple': 'ม่วง',
-    'sky': 'ฟ้า',
-    'cyan': 'ฟ้า',
-    'grey': 'เทา',
-    'gray': 'เทา'
-  };
-  let thaiColor = colorMap[c.toLowerCase()] || c;
-  thaiColor = thaiColor.replace(/^ทีม(สี)?/, '').replace(/^สี/, '').trim();
-  return `ทีม${thaiColor}`;
+  return c.replace(/^ทีม(สี)?\s*/i, '').replace(/^สี/i, '').trim();
 }
 
 function getTeamHeaderTheme(rawColor) {
@@ -5802,8 +5785,43 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
                 weight: 'bold',
                 size: 'sm',
                 color: headerTheme.titleColor,
-                flex: 1,
+                flex: 0,
                 margin: 'sm'
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: isTotw ? '#D97706' : '#0284C7',
+                cornerRadius: 'sm',
+                paddingStart: '6px',
+                paddingEnd: '6px',
+                paddingTop: '2px',
+                paddingBottom: '2px',
+                margin: 'sm',
+                flex: 0,
+                action: {
+                  type: 'message',
+                  label: 'รูปภาพ',
+                  text: isTotw
+                    ? `/totwimg ${dateStr ? getSlashDate(dateStr) : ''}`.trim()
+                    : `/teamimg ${team.teamId || team.teamColor || ''} ${dateStr ? getSlashDate(dateStr) : ''}`.trim()
+                },
+                contents: [
+                  {
+                    type: 'text',
+                    text: '📸 รูป',
+                    size: 'xxs',
+                    color: '#FFFFFF',
+                    weight: 'bold',
+                    align: 'center'
+                  }
+                ]
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                contents: []
               },
               ...(formattedDateStr ? [{
                 type: 'text',
@@ -5852,41 +5870,6 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '')
           endColor: '#14532D'
         },
         contents: bodyContents
-      },
-      footer: {
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: headerTheme.bg || '#0B0F19',
-        paddingAll: 'sm',
-        contents: [
-          {
-            type: 'box',
-            layout: 'horizontal',
-            backgroundColor: isTotw ? '#D97706' : '#0284C7',
-            cornerRadius: 'md',
-            paddingTop: 'sm',
-            paddingBottom: 'sm',
-            action: {
-              type: 'message',
-              label: '📸 ส่งออกรูปภาพ',
-              text: isTotw
-                ? `/totwimg ${dateStr ? getSlashDate(dateStr) : ''}`.trim()
-                : `/teamimg ${team.teamId || ''} ${dateStr ? getSlashDate(dateStr) : ''}`.trim()
-            },
-            alignItems: 'center',
-            justifyContent: 'center',
-            contents: [
-              {
-                type: 'text',
-                text: '📸 ส่งออกรูปภาพ',
-                color: '#ffffff',
-                align: 'center',
-                weight: 'bold',
-                size: 'sm'
-              }
-            ]
-          }
-        ]
       }
     };
   });

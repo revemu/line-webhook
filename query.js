@@ -5112,10 +5112,6 @@ function isLikelyDateStr(str) {
   if (/^\d{1,2}\s*[ก-๙a-zA-Z\.]+(?:\s*\d{2,4})?$/.test(s)) {
     return true;
   }
-  // 3. Numeric week number > 4 (since team numbers are 1-4)
-  if (/^\d+$/.test(s) && Number(s) > 4) {
-    return true;
-  }
   return false;
 }
 
@@ -5139,7 +5135,7 @@ async function getTeamFormationData(param = '', groupId = null) {
       weekArg = trimmed;
     } else {
       const parts = trimmed.split(/\s+/).filter(Boolean);
-      const isKnownTeam = (t) => /^(team\d+|[1-4]|yellow|red|green|blue|black|white|orange|pink|purple|เหลือง|แดง|เขียว|น้ำเงิน|ฟ้า|ส้ม|ชมพู|ม่วง|ดำ|ขาว|all)$/i.test(t);
+      const isKnownTeam = (t) => /^(team\d+|[1-4]|yellow|red|green|blue|black|white|orange|pink|purple|เหลือง|แดง|เขียว|น้ำเงิน|ฟ้า|ส้ม|ชมพู|ม่วง|ดำ|ขาว|all|\d+)$/i.test(t);
 
       if (parts.length === 1) {
         if (isLikelyDateStr(parts[0])) {
@@ -5150,7 +5146,13 @@ async function getTeamFormationData(param = '', groupId = null) {
       } else {
         const firstToken = parts[0];
         const lastToken = parts[parts.length - 1];
-        if (isKnownTeam(firstToken)) {
+        if (isKnownTeam(firstToken) && isLikelyDateStr(parts.slice(1).join(' '))) {
+          teamArg = firstToken;
+          weekArg = parts.slice(1).join(' ').trim();
+        } else if (isKnownTeam(lastToken) && isLikelyDateStr(parts.slice(0, -1).join(' '))) {
+          teamArg = lastToken;
+          weekArg = parts.slice(0, -1).join(' ').trim();
+        } else if (isKnownTeam(firstToken)) {
           teamArg = firstToken;
           weekArg = parts.slice(1).join(' ').trim();
         } else if (isKnownTeam(lastToken)) {
@@ -5183,10 +5185,12 @@ async function getTeamFormationData(param = '', groupId = null) {
 
   let teamsToRender = teamColors;
   if (teamArg && teamArg.toLowerCase() !== 'all') {
-    const lowerArg = teamArg.toLowerCase();
+    const lowerArg = teamArg.toLowerCase().trim().replace(/^ทีม\s*/i, '');
     const matched = teamColors.filter(t => {
       if (String(t.id) === teamArg) return true;
-      if (String(t.color || '').toLowerCase().includes(lowerArg)) return true;
+      const tColorLower = String(t.color || '').toLowerCase().trim();
+      if (tColorLower === lowerArg || tColorLower.replace(/^ทีม\s*/i, '') === lowerArg) return true;
+      if (tColorLower.includes(lowerArg)) return true;
       const num = parseInt(teamArg, 10);
       if (!isNaN(num) && num >= 1 && num <= teamColors.length) {
         return teamColors[num - 1].id === t.id;
