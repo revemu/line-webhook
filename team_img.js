@@ -590,12 +590,12 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
             <polygon points="0,12 4,2 9,8 14,2 18,12" fill="#F59E0B" stroke="#78350F" stroke-width="1"/>
           </g>
           <text x="180" y="52" font-size="18" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
-          <text x="275" y="52" font-size="22" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
-          <text x="155" y="96" font-size="17" font-family="Sarabun, sans-serif" fill="#CBD5E1">${escapeXml(momStatsDesc)}</text>
+          <text x="275" y="52" font-size="25" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
+          <text x="155" y="96" font-size="25" font-family="Sarabun, sans-serif" fill="#CBD5E1">${escapeXml(momStatsDesc)}</text>
 
           <!-- Rating Box -->
           <rect x="810" y="48" width="150" height="90" rx="14" fill="#231602" stroke="#F59E0B" stroke-width="2"/>
-          <g transform="translate(850, 93)">${starBigSvg}</g>
+          <g transform="translate(850, 93) scale(1.8)">${starBigSvg}</g>
           <text x="900" y="103" font-size="28" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FDE047" text-anchor="middle">${escapeXml(momRatingVal)}</text>
         </g>
       `;
