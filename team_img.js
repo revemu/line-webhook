@@ -439,7 +439,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     // Calculate visual character width
     const visualLength = pName.replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, '').length;
     let nameLines = [pName];
-    if (visualLength > 9) {
+    if (visualLength > 12) {
       if (pName.includes(' ')) {
         const parts = pName.split(/\s+/);
         if (parts.length >= 2) {
@@ -449,7 +449,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           if (v2 > 10) l2 = l2.slice(0, 9) + '..';
           nameLines = [l1, l2];
         }
-      } else if (visualLength > 10) {
+      } else if (visualLength > 13) {
         let vCount = 0;
         let splitIdx = Math.floor(pName.length / 2);
         for (let i = 0; i < pName.length; i++) {
