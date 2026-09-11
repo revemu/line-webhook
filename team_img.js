@@ -470,7 +470,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     }
 
     const isTwoLines = nameLines.length > 1;
-    const labelBoxWidth = 170;
+    const labelBoxWidth = 190;
     const labelBoxHeight = isTwoLines ? 54 : 38;
     const posBadgeY = isTwoLines ? 11 : 5;
     const posBadgeH = isTwoLines ? 32 : 28;
