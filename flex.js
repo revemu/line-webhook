@@ -4292,23 +4292,18 @@ function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColo
     resultMessages.push(msg2);
   }
 
-  // ── MSG 3: Team of the Week (TOTW) Formation Bubble ──
-  if (totwBubble) {
-    resultMessages.push({
-      type: 'flex',
-      altText: `🌟 Team of the Week - ${dateStr || ''}`.trim(),
-      contents: totwBubble
-    });
-  }
+  // ── MSG 3: Team of the Week + Team Formations carousel ──
+  const formationCarouselBubbles = [];
+  if (totwBubble) formationCarouselBubbles.push(totwBubble);
+  if (formationBubbles && formationBubbles.length > 0) formationCarouselBubbles.push(...formationBubbles);
 
-  // ── MSG 4: Team Formation carousel (all teams, same as /teamweek) ──
-  if (formationBubbles && formationBubbles.length > 0) {
+  if (formationCarouselBubbles.length > 0) {
     resultMessages.push({
       type: 'flex',
-      altText: `⚽ ผังทีมประจำสัปดาห์ - ${dateStr || ''}`.trim(),
-      contents: formationBubbles.length === 1
-        ? formationBubbles[0]
-        : { type: 'carousel', contents: formationBubbles }
+      altText: `🌟 Team of the Week & ผังทีม - ${dateStr || ''}`.trim(),
+      contents: formationCarouselBubbles.length === 1
+        ? formationCarouselBubbles[0]
+        : { type: 'carousel', contents: formationCarouselBubbles }
     });
   }
 
