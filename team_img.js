@@ -592,30 +592,45 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       const momGoals = Number(momPlayer.weekStats?.goals || 0);
       const momAssists = Number(momPlayer.weekStats?.assists || 0);
 
-      // Build stats SVG: goal icon + count, assist icon + count
+      // Build stats SVG: goal icon + count, assist icon + count (with circular badge box)
       let momStatsSvg = '';
       if (momGoals === 0 && momAssists === 0) {
         momStatsSvg = `<text x="155" y="130" font-size="28" font-family="Sarabun, sans-serif" fill="#CBD5E1">ลงสนามสัปดาห์นี้</text>`;
       } else {
         let sx = 155;
         if (momGoals > 0) {
-          if (goalIconDataUri) {
-            momStatsSvg += `<image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="${sx}" y="108" width="32" height="32" preserveAspectRatio="xMidYMid meet"/>`;
-            sx += 36;
-          }
-          momStatsSvg += `<text x="${sx}" y="132" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">${momGoals}</text>`;
-          sx += momGoals >= 10 ? 42 : 28;
+          momStatsSvg += `
+            <g transform="translate(${sx}, 103)">
+              <circle cx="18" cy="18" r="18" fill="#FFFFFF" stroke="#0F172A" stroke-width="2"/>
+              ${goalIconDataUri ? `
+                <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="3" y="3" width="30" height="30" preserveAspectRatio="xMidYMid meet"/>
+              ` : `
+                <polygon points="18,11 23.5,15 21.5,22 14.5,22 12.5,15" fill="#111827"/>
+              `}
+            </g>
+          `;
+          sx += 46;
+          momStatsSvg += `<text x="${sx}" y="131" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">${momGoals}</text>`;
+          sx += momGoals >= 10 ? 44 : 28;
         }
         if (momAssists > 0) {
           if (momGoals > 0) {
-            momStatsSvg += `<text x="${sx}" y="132" font-size="28" font-family="Sarabun, sans-serif" fill="#94A3B8"> </text>`;
-            sx += 36;
+            sx += 24;
           }
-          if (assistIconDataUri) {
-            momStatsSvg += `<image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="${sx}" y="108" width="32" height="32" preserveAspectRatio="xMidYMid meet"/>`;
-            sx += 36;
-          }
-          momStatsSvg += `<text x="${sx}" y="132" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">${momAssists}</text>`;
+          momStatsSvg += `
+            <g transform="translate(${sx}, 103)">
+              <circle cx="18" cy="18" r="18" fill="#FFFFFF" stroke="#0F172A" stroke-width="2"/>
+              ${assistIconDataUri ? `
+                <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="5" y="5" width="26" height="26" preserveAspectRatio="xMidYMid meet"/>
+              ` : `
+                <g transform="translate(6, 6) scale(0.65)">
+                  <path d="M1,9 C3,7 5,5 9,5 C11,5 13,7 15,7 C17,7 18,9 18,10 C18,11 16,12 13,12 C8,12 3,11 1,9 Z" fill="#38BDF8"/>
+                </g>
+              `}
+            </g>
+          `;
+          sx += 46;
+          momStatsSvg += `<text x="${sx}" y="131" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">${momAssists}</text>`;
         }
       }
 
