@@ -49,28 +49,6 @@ const CROWN_PATHS = `
   <path style="fill:#FFD630;" d="M113.742,172.59c9.726,0,17.639,7.912,17.639,17.639s-7.912,17.639-17.639,17.639 s-17.639-7.912-17.639-17.639S104.016,172.59,113.742,172.59z M256,129.401v35.276c-9.726,0-17.639-7.912-17.639-17.639 C238.361,137.313,246.275,129.401,256,129.401z M169.952,136.984c9.726,0,17.639,7.912,17.639,17.639 c0,9.726-7.912,17.639-17.639,17.639c-9.726,0-17.639-7.912-17.639-17.639C152.314,144.897,160.227,136.984,169.952,136.984z"/>
 `;
 
-/**
- * Clean up old team images older than 2 hours.
- */
-function cleanupOldImages() {
-  try {
-    if (!fs.existsSync(teamImgDir)) return;
-    const files = fs.readdirSync(teamImgDir);
-    const now = Date.now();
-    for (const file of files) {
-      if (file.startsWith('team_') && file.endsWith('.png')) {
-        const filePath = path.join(teamImgDir, file);
-        const stats = fs.statSync(filePath);
-        if (now - stats.mtimeMs > 2 * 3600 * 1000) {
-          fs.unlinkSync(filePath);
-          console.log(`[TeamImg-Cleanup] Deleted old team image: ${file}`);
-        }
-      }
-    }
-  } catch (err) {
-    console.error('[TeamImg-Cleanup] Error cleaning up old team images:', err.message);
-  }
-}
 
 /**
  * Helper to get local disk cache path for a profile picture URL.
@@ -798,8 +776,6 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
  * @returns {Promise<string>} filename
  */
 async function convertSvgToPng(svgString, width = 1080, height = 1560) {
-  cleanupOldImages();
-
   const filename = `team_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
   const filePath = path.join(teamImgDir, filename);
 
@@ -880,7 +856,6 @@ module.exports = {
   buildTeamFormationSvg,
   generateTeamImage,
   generateTeamFormationImages,
-  cleanupOldImages,
   stripEmojis,
   fetchImageAsBase64
 };
