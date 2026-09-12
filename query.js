@@ -2622,10 +2622,32 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       }
     }
 
-    // Build Team Formation bubbles for MSG 4 (same images as /teamweek)
+    // Build Team Formation bubbles for MSG 4 (same images as /teamweek, using already-resolved week_id)
     let formationBubbles = null;
     try {
-      formationBubbles = await getTeamFormation(week_id, groupId);
+      // Pass week_id directly via options to bypass getTeamFormationData's string param parser
+      // (passing week_id as a string param would be mis-classified as a team number by isKnownTeam)
+      const formationData = await getTeamFormationData('', groupId, { weekId: week_id });
+      if (formationData && formationData.formationsData && formationData.formationsData.length > 0) {
+        const teamImgMod = require('./team_img');
+        await Promise.all(formationData.formationsData.map(async (team) => {
+          try {
+            const [fullUrl, pitchUrl] = await Promise.all([
+              teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: false }),
+              teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: true })
+            ]);
+            if (fullUrl) team.imageUrl = fullUrl;
+            if (pitchUrl) team.pitchImageUrl = pitchUrl;
+          } catch (eImg) {
+            console.warn(`[MatchWeek] Formation image failed for team ${team.teamId}:`, eImg.message);
+          }
+        }));
+        formationBubbles = flex.buildFormationFlex(
+          formationData.formationsData, formationData.theme,
+          formationData.dateStr, formationData.timeRange,
+          formationData.weekDate, formationData.weekId
+        );
+      }
     } catch (eFormation) {
       console.warn('[MatchWeek] Could not build formation bubbles:', eFormation.message);
     }
@@ -5133,7 +5155,7 @@ function isLikelyDateStr(str) {
   return false;
 }
 
-async function getTeamFormationData(param = '', groupId = null) {
+async function getTeamFormationData(param = '', groupId = null, options = {}) {
   const tTotalStart = Date.now();
 
   // 1. DDL Checks
@@ -5146,9 +5168,9 @@ async function getTeamFormationData(param = '', groupId = null) {
   const theme = await getTheme();
   const trimmed = String(param !== null && param !== undefined ? param : '').trim();
   let teamArg = null;
-  let weekArg = 0;
+  let weekArg = options.weekId || 0; // allow caller to bypass param parser with a pre-resolved week ID
 
-  if (trimmed) {
+  if (!options.weekId && trimmed) {
     if (isLikelyDateStr(trimmed)) {
       weekArg = trimmed;
     } else {
