@@ -659,7 +659,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           <!-- Crown SVG (inlined paths, 512x512 viewBox scaled to 90px) -->
           <g transform="translate(54, 0) scale(0.126)">${CROWN_PATHS}</g>
           <text x="155" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
-          <text x="300" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF"> • ${escapeXml(momName)}</text>
+          <text x="300" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">  • ${escapeXml(momName)}</text>
           ${momStatsSvg}
 
           <!-- Rating Box -->
