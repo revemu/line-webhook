@@ -591,10 +591,33 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
         : 'n/a';
       const momGoals = Number(momPlayer.weekStats?.goals || 0);
       const momAssists = Number(momPlayer.weekStats?.assists || 0);
-      const statsParts = [];
-      if (momGoals > 0) statsParts.push(`${momGoals} ประตู`);
-      if (momAssists > 0) statsParts.push(`${momAssists} แอสซิสต์`);
-      const momStatsDesc = statsParts.length > 0 ? statsParts.join('   •   ') : 'ลงสนามสัปดาห์นี้';
+
+      // Build stats SVG: goal icon + count, assist icon + count
+      let momStatsSvg = '';
+      if (momGoals === 0 && momAssists === 0) {
+        momStatsSvg = `<text x="155" y="130" font-size="28" font-family="Sarabun, sans-serif" fill="#CBD5E1">ลงสนามสัปดาห์นี้</text>`;
+      } else {
+        let sx = 155;
+        if (momGoals > 0) {
+          if (goalIconDataUri) {
+            momStatsSvg += `<image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="${sx}" y="108" width="32" height="32" preserveAspectRatio="xMidYMid meet"/>`;
+            sx += 36;
+          }
+          momStatsSvg += `<text x="${sx}" y="132" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">${momGoals}</text>`;
+          sx += momGoals >= 10 ? 42 : 28;
+        }
+        if (momAssists > 0) {
+          if (momGoals > 0) {
+            momStatsSvg += `<text x="${sx}" y="132" font-size="28" font-family="Sarabun, sans-serif" fill="#94A3B8">  •  </text>`;
+            sx += 36;
+          }
+          if (assistIconDataUri) {
+            momStatsSvg += `<image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="${sx}" y="108" width="32" height="32" preserveAspectRatio="xMidYMid meet"/>`;
+            sx += 36;
+          }
+          momStatsSvg += `<text x="${sx}" y="132" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">${momAssists}</text>`;
+        }
+      }
 
       const momClipId = `clip-mom-${momPlayer.id}`;
       defsSvg += `<clipPath id="${momClipId}"><circle cx="85" cy="95" r="48"/></clipPath>\n`;
@@ -622,7 +645,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           <g transform="translate(52, 0) scale(0.126)">${CROWN_PATHS}</g>
           <text x="155" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
           <text x="300" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
-          <text x="155" y="130" font-size="30" font-family="Sarabun, sans-serif" fill="#CBD5E1">${escapeXml(momStatsDesc)}</text>
+          ${momStatsSvg}
 
           <!-- Rating Box -->
           <rect x="810" y="48" width="150" height="90" rx="14" fill="#231602" stroke="#F59E0B" stroke-width="2"/>
