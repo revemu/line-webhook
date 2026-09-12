@@ -4189,9 +4189,9 @@ function buildMatchWeekMatchesFlex({ dateStr, matchChunk, teamColors, colors, he
  * MSG 1: Bubble 1 (Table week + Balanced MVP List) & Bubble 2 (MVP Rest Players if needed)
  * MSG 2: Match Detail bubbles (up to 3 bubbles)
  * MSG 3: Team of the Week (TOTW) Formation Bubble
- * MSG 4: Team Week carousel (team rosters)
+ * MSG 4: Team Formation carousel (all teams, same images as /teamweek)
  */
-function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColors, theme, assets, headerUrl, matchDetailsMap, totwBubble, teamWeekCarousel }) {
+function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColors, theme, assets, headerUrl, matchDetailsMap, totwBubble, formationBubbles }) {
   const colors = getThemeColors(theme, assets ? assets.teamColors : {});
   const totalMatches = matches ? matches.length : 0;
   let totalGoals = 0;
@@ -4301,12 +4301,14 @@ function buildMatchWeekMessages({ dateStr, tableRows, leaders, matches, teamColo
     });
   }
 
-  // ── MSG 4: Team Week carousel (team rosters) ──
-  if (teamWeekCarousel && teamWeekCarousel.contents && teamWeekCarousel.contents.length > 0) {
+  // ── MSG 4: Team Formation carousel (all teams, same as /teamweek) ──
+  if (formationBubbles && formationBubbles.length > 0) {
     resultMessages.push({
       type: 'flex',
       altText: `⚽ ผังทีมประจำสัปดาห์ - ${dateStr || ''}`.trim(),
-      contents: teamWeekCarousel
+      contents: formationBubbles.length === 1
+        ? formationBubbles[0]
+        : { type: 'carousel', contents: formationBubbles }
     });
   }
 
