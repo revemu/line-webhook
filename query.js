@@ -2628,9 +2628,10 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       imgTasks.push((async () => {
         const t0 = Date.now();
         try {
+          const totwTimeRange = res[0].time_range || '';
           const [fullUrl, pitchUrl] = await Promise.all([
-            teamImgMod.generateTeamImage(totwFormationData[0], date_str, '', { pitchOnly: false }),
-            teamImgMod.generateTeamImage(totwFormationData[0], date_str, '', { pitchOnly: true })
+            teamImgMod.generateTeamImage(totwFormationData[0], date_str, totwTimeRange, { pitchOnly: false }),
+            teamImgMod.generateTeamImage(totwFormationData[0], date_str, totwTimeRange, { pitchOnly: true })
           ]);
           const dur = Date.now() - t0;
           teamDurations['totw'] = dur;
@@ -2676,7 +2677,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     // Step 3: build flex bubbles (CPU only, fast)
     if (totwFormationData) {
       try {
-        const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, '', res[0].date, res[0].id);
+        const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, res[0].time_range || '', res[0].date, res[0].id);
         if (totwBubbles && totwBubbles.length > 0) totwBubble = totwBubbles[0];
       } catch (e) {
         console.warn('[MatchWeek] TOTW flex build failed:', e.message);
