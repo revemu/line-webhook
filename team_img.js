@@ -380,7 +380,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
 
       const pillWidth = isMom ? 82 : 72;
       const pillHeight = 40;
-      const pillX = 18;
+      const pillX = 20;
       const pillY = -70;
 
       ratingBadgeSvg = `
@@ -440,7 +440,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     // 4. Name & Position Label Underneath Avatar (Enlarged)
     // Crown: scale crown.svg paths (512x512 viewBox) to ~54px, centered above avatar
     const crownSvg = isMom
-      ? `<g transform="translate(-34, -112) scale(0.135)">${CROWN_PATHS}</g>`
+      ? `<g transform="translate(-34, -105) scale(0.135)">${CROWN_PATHS}</g>`
       : '';
 
     // Calculate visual character width
