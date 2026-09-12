@@ -768,15 +768,84 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
   return svg;
 }
 
+const LAYOUT_VERSION = 'v1'; // Increment if SVG design/layout changes
+const inFlightGenerations = new Map();
+
+/**
+ * Normalizes player data for deterministic metadata hashing.
+ */
+function serializePlayerForHash(p) {
+  if (!p) return null;
+  return {
+    id: String(p.id || p.member_id || ''),
+    name: String(p.name || p.alias || ''),
+    pic: String(p.picture_url || p.pictureUrl || '').trim(),
+    rating: String(p.weekStats?.rating ?? p.score ?? p.raw_score ?? ''),
+    goals: Number(p.weekStats?.goals ?? p.goals ?? 0),
+    assists: Number(p.weekStats?.assists ?? p.assists ?? 0)
+  };
+}
+
+/**
+ * Computes a deterministic MD5 hash of all visual formation inputs.
+ * If any player, position, rating, goal, assist, date, or layout setting changes,
+ * the hash changes, triggering a fresh image generation.
+ */
+function computeFormationMetadataHash(team, dateStr = '', timeRange = '', options = {}) {
+  const isTotw = String(team.teamId || '').toLowerCase() === 'totw';
+  const teamId = String(team.teamId || '');
+  const teamColor = String(team.teamColor || '');
+  const pitchOnly = !!options.pitchOnly;
+
+  const slots = team.slots || {};
+  const slotData = {};
+  for (const role of ['CF', 'AM', 'MF', 'DM', 'DW', 'DF', 'GK', 'alternates']) {
+    const list = slots[role] || [];
+    slotData[role] = list.map(s => {
+      if (!s) return null;
+      return {
+        pos: s.posCode || s.pos_code || role,
+        primary: serializePlayerForHash(s.primary || (s.id && !s.alternate ? s : null)),
+        alternate: serializePlayerForHash(s.alternate)
+      };
+    });
+  }
+
+  const members = (team.members || []).map(serializePlayerForHash)
+    .sort((a, b) => String(a?.id).localeCompare(String(b?.id)));
+
+  const metadata = {
+    layoutVersion: LAYOUT_VERSION,
+    isTotw,
+    teamId,
+    teamColor,
+    dateStr: String(dateStr || ''),
+    timeRange: String(timeRange || ''),
+    pitchOnly,
+    formationName: team.formationName || '',
+    slots: slotData,
+    members
+  };
+
+  return crypto.createHash('md5').update(JSON.stringify(metadata)).digest('hex').substring(0, 16);
+}
+
+function getPublicImageUrl(filename) {
+  let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+  if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
+  return `${baseUrl}/img/team/${filename}`;
+}
+
 /**
  * Converts SVG to PNG and saves it into img/team/
  * @param {string} svgString - SVG string
  * @param {number} width - Output width in pixels
  * @param {number} height - Output height in pixels
+ * @param {string|null} customFilename - Optional custom filename (e.g. metadata-hashed)
  * @returns {Promise<string>} filename
  */
-async function convertSvgToPng(svgString, width = 1080, height = 1560) {
-  const filename = `team_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
+async function convertSvgToPng(svgString, width = 1080, height = 1560, customFilename = null) {
+  const filename = customFilename || `team_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
   const filePath = path.join(teamImgDir, filename);
 
   const imgOptions = { format: 'png', width, height };
@@ -807,23 +876,52 @@ async function convertSvgToPng(svgString, width = 1080, height = 1560) {
 }
 
 /**
- * Generates an exported image for a single team formation.
+ * Generates an exported image for a single team formation with metadata-based disk caching.
+ * If an image for the exact same metadata already exists on disk, it returns immediately (<1ms).
  * @param {Object} team - FormationsData item
  * @param {string} dateStr - Short date string
  * @param {string} timeRange - Time range string
- * @param {Object} options - Options { pitchOnly: boolean }
+ * @param {Object} options - Options { pitchOnly: boolean, noCache: boolean }
  * @returns {Promise<string>} Image public URL
  */
 async function generateTeamImage(team, dateStr = '', timeRange = '', options = {}) {
   const pitchOnly = !!options.pitchOnly;
-  const svg = await buildTeamFormationSvg(team, dateStr, timeRange, options);
-  const width = 1080;
-  const height = pitchOnly ? 1310 : 1630;
-  const filename = await convertSvgToPng(svg, width, height);
+  const hash = computeFormationMetadataHash(team, dateStr, timeRange, options);
+  const safeId = String(team.teamId || 'team').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+  const mode = pitchOnly ? 'pitch' : 'full';
+  const filename = `team_${safeId}_${mode}_${hash}.png`;
+  const filePath = path.join(teamImgDir, filename);
 
-  let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-  if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
-  return `${baseUrl}/img/team/${filename}`;
+  // 1. Check disk cache: if identical formation image already exists and is non-empty, return immediately
+  if (!options.noCache && fs.existsSync(filePath)) {
+    try {
+      const stats = fs.statSync(filePath);
+      if (stats.size > 1000) {
+        return getPublicImageUrl(filename);
+      }
+    } catch (_) {}
+  }
+
+  // 2. In-flight request deduplication (prevent concurrent requests for same image from running resvg twice)
+  if (inFlightGenerations.has(filename)) {
+    return inFlightGenerations.get(filename);
+  }
+
+  // 3. Cache miss: generate SVG and convert to PNG
+  const genPromise = (async () => {
+    try {
+      const svg = await buildTeamFormationSvg(team, dateStr, timeRange, options);
+      const width = 1080;
+      const height = pitchOnly ? 1310 : 1630;
+      await convertSvgToPng(svg, width, height, filename);
+      return getPublicImageUrl(filename);
+    } finally {
+      inFlightGenerations.delete(filename);
+    }
+  })();
+
+  inFlightGenerations.set(filename, genPromise);
+  return genPromise;
 }
 
 /**
@@ -856,6 +954,7 @@ module.exports = {
   buildTeamFormationSvg,
   generateTeamImage,
   generateTeamFormationImages,
+  computeFormationMetadataHash,
   stripEmojis,
   fetchImageAsBase64
 };
