@@ -881,8 +881,8 @@ async function convertSvgToPng(svgString, width = 1080, height = 1560, customFil
  * @param {Object} team - FormationsData item
  * @param {string} dateStr - Short date string
  * @param {string} timeRange - Time range string
- * @param {Object} options - Options { pitchOnly: boolean, noCache: boolean }
- * @returns {Promise<string>} Image public URL
+ * @param {Object} options - Options { pitchOnly: boolean, noCache: boolean, returnMeta: boolean }
+ * @returns {Promise<string|Object>} Image public URL or { url, cached, filename } if returnMeta is true
  */
 async function generateTeamImage(team, dateStr = '', timeRange = '', options = {}) {
   const pitchOnly = !!options.pitchOnly;
@@ -897,31 +897,57 @@ async function generateTeamImage(team, dateStr = '', timeRange = '', options = {
     try {
       const stats = fs.statSync(filePath);
       if (stats.size > 1000) {
-        return getPublicImageUrl(filename);
+        const url = getPublicImageUrl(filename);
+        if (options.returnMeta) {
+          return { url, cached: true, filename };
+        }
+        return url;
       }
     } catch (_) {}
   }
 
   // 2. In-flight request deduplication (prevent concurrent requests for same image from running resvg twice)
-  if (inFlightGenerations.has(filename)) {
-    return inFlightGenerations.get(filename);
+  let genPromise = inFlightGenerations.get(filename);
+  if (!genPromise) {
+    // 3. Cache miss: generate SVG and convert to PNG
+    genPromise = (async () => {
+      try {
+        const svg = await buildTeamFormationSvg(team, dateStr, timeRange, options);
+        const width = 1080;
+        const height = pitchOnly ? 1310 : 1630;
+        await convertSvgToPng(svg, width, height, filename);
+        return { url: getPublicImageUrl(filename), filename };
+      } finally {
+        inFlightGenerations.delete(filename);
+      }
+    })();
+    inFlightGenerations.set(filename, genPromise);
   }
 
-  // 3. Cache miss: generate SVG and convert to PNG
-  const genPromise = (async () => {
-    try {
-      const svg = await buildTeamFormationSvg(team, dateStr, timeRange, options);
-      const width = 1080;
-      const height = pitchOnly ? 1310 : 1630;
-      await convertSvgToPng(svg, width, height, filename);
-      return getPublicImageUrl(filename);
-    } finally {
-      inFlightGenerations.delete(filename);
-    }
-  })();
+  const result = await genPromise;
+  if (options.returnMeta) {
+    return { url: result.url, cached: false, filename: result.filename };
+  }
+  return result.url;
+}
 
-  inFlightGenerations.set(filename, genPromise);
-  return genPromise;
+/**
+ * Checks whether a team formation image already exists in disk cache.
+ */
+function isTeamImageCached(team, dateStr = '', timeRange = '', options = {}) {
+  const pitchOnly = !!options.pitchOnly;
+  const hash = computeFormationMetadataHash(team, dateStr, timeRange, options);
+  const safeId = String(team.teamId || 'team').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+  const mode = pitchOnly ? 'pitch' : 'full';
+  const filename = `team_${safeId}_${mode}_${hash}.png`;
+  const filePath = path.join(teamImgDir, filename);
+  try {
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      return stats.size > 1000;
+    }
+  } catch (_) {}
+  return false;
 }
 
 /**
@@ -940,8 +966,13 @@ async function generateTeamFormationImages(param = '', groupId = null) {
   for (const team of data.formationsData) {
     if (imageUrls.length >= 4) break; // Limit to 4 images per reply
     try {
-      const url = await generateTeamImage(team, data.dateStr, data.timeRange);
-      if (url) imageUrls.push(url);
+      const res = await generateTeamImage(team, data.dateStr, data.timeRange, { returnMeta: true });
+      const url = res?.url || res;
+      if (url) {
+        imageUrls.push(url);
+        const cacheStr = res?.cached ? '(used cached image)' : '(generated)';
+        console.log(`  [TeamImg] Team ${team.teamId} image: ✅ ${cacheStr}`);
+      }
     } catch (err) {
       console.error(`[TeamImg] Failed to generate image for team ${team.teamId}:`, err.message);
     }
@@ -955,6 +986,7 @@ module.exports = {
   generateTeamImage,
   generateTeamFormationImages,
   computeFormationMetadataHash,
+  isTeamImageCached,
   stripEmojis,
   fetchImageAsBase64
 };

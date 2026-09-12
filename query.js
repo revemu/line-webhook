@@ -2619,25 +2619,36 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     const tImgStart = Date.now();
     const imgTasks = [];
     const teamDurations = {};
+    let cachedImageCount = 0;
+    let totalImageCount = 0;
 
     console.log(`\n======================================================`);
     console.log(`⏱️ [/matchweek Image Generation — TOTW + All Teams in Parallel]`);
     console.log(`======================================================`);
+
+    const formatImgStatus = (url, cached) => {
+      if (!url) return '❌';
+      return cached ? '✅ (used cached image)' : '✅ (generated)';
+    };
 
     if (totwFormationData) {
       imgTasks.push((async () => {
         const t0 = Date.now();
         try {
           const totwTimeRange = res[0].time_range || '';
-          const [fullUrl, pitchUrl] = await Promise.all([
-            teamImgMod.generateTeamImage(totwFormationData[0], date_str, totwTimeRange, { pitchOnly: false }),
-            teamImgMod.generateTeamImage(totwFormationData[0], date_str, totwTimeRange, { pitchOnly: true })
+          const [fullRes, pitchRes] = await Promise.all([
+            teamImgMod.generateTeamImage(totwFormationData[0], date_str, totwTimeRange, { pitchOnly: false, returnMeta: true }),
+            teamImgMod.generateTeamImage(totwFormationData[0], date_str, totwTimeRange, { pitchOnly: true, returnMeta: true })
           ]);
           const dur = Date.now() - t0;
           teamDurations['totw'] = dur;
-          if (fullUrl) totwFormationData[0].imageUrl = fullUrl;
-          if (pitchUrl) totwFormationData[0].pitchImageUrl = pitchUrl;
-          console.log(`  TOTW                       Full+Pitch: ${dur} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
+          const fullUrl = fullRes?.url || fullRes;
+          const pitchUrl = pitchRes?.url || pitchRes;
+          const fullCached = !!fullRes?.cached;
+          const pitchCached = !!pitchRes?.cached;
+          if (fullUrl) { totwFormationData[0].imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
+          if (pitchUrl) { totwFormationData[0].pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
+          console.log(`  TOTW                       Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
         } catch (e) {
           console.warn(`  TOTW ❌ image failed: ${e.message}`);
         }
@@ -2649,15 +2660,19 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         imgTasks.push((async (t) => {
           const t0 = Date.now();
           try {
-            const [fullUrl, pitchUrl] = await Promise.all([
-              teamImgMod.generateTeamImage(t, formationData.dateStr, formationData.timeRange, { pitchOnly: false }),
-              teamImgMod.generateTeamImage(t, formationData.dateStr, formationData.timeRange, { pitchOnly: true })
+            const [fullRes, pitchRes] = await Promise.all([
+              teamImgMod.generateTeamImage(t, formationData.dateStr, formationData.timeRange, { pitchOnly: false, returnMeta: true }),
+              teamImgMod.generateTeamImage(t, formationData.dateStr, formationData.timeRange, { pitchOnly: true, returnMeta: true })
             ]);
             const dur = Date.now() - t0;
             teamDurations[t.teamId] = dur;
-            if (fullUrl) t.imageUrl = fullUrl;
-            if (pitchUrl) t.pitchImageUrl = pitchUrl;
-            console.log(`  Team ${t.teamId} (${t.teamColor || '-'})   Full+Pitch: ${dur} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
+            const fullUrl = fullRes?.url || fullRes;
+            const pitchUrl = pitchRes?.url || pitchRes;
+            const fullCached = !!fullRes?.cached;
+            const pitchCached = !!pitchRes?.cached;
+            if (fullUrl) { t.imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
+            if (pitchUrl) { t.pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
+            console.log(`  Team ${t.teamId} (${t.teamColor || '-'})   Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
           } catch (e) {
             console.warn(`  Team ${t.teamId} ❌ image failed: ${e.message}`);
           }
@@ -2672,6 +2687,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     console.log(`------------------------------------------------------`);
     console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
     console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
+    if (totalImageCount > 0) {
+      console.log(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
+    }
     console.log(`======================================================\n`);
 
     // Step 3: build flex bubbles (CPU only, fast)
@@ -5517,23 +5535,33 @@ async function getTeamFormation(param = '', groupId = null) {
   // Pre-generate high-res tactical formation images in parallel (Full for zoom/export, Pitch-Only for Flex body)
   const tImgStart = Date.now();
   const teamDurations = [];
+  let cachedImageCount = 0;
+  let totalImageCount = 0;
   console.log(`\n======================================================`);
   console.log(`⏱️ [/formation Image Generation Performance]`);
   console.log(`======================================================`);
   try {
     const teamImg = require('./team_img');
+    const formatImgStatus = (url, cached) => {
+      if (!url) return '❌';
+      return cached ? '✅ (used cached image)' : '✅ (generated)';
+    };
     await Promise.all(data.formationsData.map(async (team) => {
       const tTeamStart = Date.now();
       try {
-        const [fullUrl, pitchUrl] = await Promise.all([
-          teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: false }),
-          teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: true })
+        const [fullRes, pitchRes] = await Promise.all([
+          teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: false, returnMeta: true }),
+          teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: true, returnMeta: true })
         ]);
         const dur = Date.now() - tTeamStart;
         teamDurations.push(dur);
-        if (fullUrl) team.imageUrl = fullUrl;
-        if (pitchUrl) team.pitchImageUrl = pitchUrl;
-        console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
+        const fullUrl = fullRes?.url || fullRes;
+        const pitchUrl = pitchRes?.url || pitchRes;
+        const fullCached = !!fullRes?.cached;
+        const pitchCached = !!pitchRes?.cached;
+        if (fullUrl) { team.imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
+        if (pitchUrl) { team.pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
+        console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
       } catch (eImg) {
         console.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
       }
@@ -5546,6 +5574,9 @@ async function getTeamFormation(param = '', groupId = null) {
   console.log(`------------------------------------------------------`);
   console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
   console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
+  if (totalImageCount > 0) {
+    console.log(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
+  }
 
   const tFlexStart = Date.now();
   const flexMsg = flex.buildFormationFlex(data.formationsData, data.theme, data.dateStr, data.timeRange, data.weekDate, data.weekId);
