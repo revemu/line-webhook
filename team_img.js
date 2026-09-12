@@ -41,16 +41,13 @@ try {
   console.warn('[TeamImg] Could not load icon_assist.png:', e.message);
 }
 
-// Pre-load crown SVG as Base64 Data URI
-let crownSvgDataUri = '';
-try {
-  const crownPath = path.join(__dirname, 'assets', 'crown.svg');
-  if (fs.existsSync(crownPath)) {
-    crownSvgDataUri = `data:image/svg+xml;base64,${fs.readFileSync(crownPath).toString('base64')}`;
-  }
-} catch (e) {
-  console.warn('[TeamImg] Could not load crown.svg:', e.message);
-}
+// Crown SVG paths inlined from assets/crown.svg (512x512 viewBox)
+const CROWN_PATHS = `
+  <path style="fill:#F5BE18;" d="M255.835,150.83L230.12,289.462l-58.519-130.06l6.923,141.929l-62.805-106.324l37.584,178.194 c12.858,0,71.377-10.221,102.696-10.055c53.738,0.329,101.707,5.11,102.532,10.055l37.584-178.194l-62.805,106.324l6.923-141.929 l-58.684,130.225L255.835,150.83z"/>
+  <path style="fill:#FFD630;" d="M255.835,150.83L230.12,289.462l-58.519-130.06l6.923,141.929l-62.805-106.324l37.584,178.194l0,0 c3.626-4.946,46.815-10.055,102.532-10.055L255.835,150.83L255.835,150.83z"/>
+  <path style="fill:#F5BE18;" d="M113.742,172.59c9.726,0,17.639,7.912,17.639,17.639s-7.912,17.639-17.639,17.639 s-17.639-7.912-17.639-17.639S104.016,172.59,113.742,172.59z M398.424,171.766c9.726,0,17.639,7.912,17.639,17.639 c0,9.726-7.912,17.639-17.639,17.639s-17.639-7.912-17.639-17.639C380.786,179.678,388.698,171.766,398.424,171.766z M340.894,137.643c9.726,0,17.639,7.912,17.639,17.639c0,9.726-7.912,17.639-17.639,17.639c-9.726,0-17.639-7.912-17.639-17.639 C323.255,145.555,331.168,137.643,340.894,137.643z M256,129.566c9.726,0,17.639,7.912,17.639,17.639 c0,9.726-7.912,17.639-17.639,17.639s-17.639-7.912-17.639-17.639C238.361,137.479,246.275,129.566,256,129.566z M169.952,137.149 c9.726,0,17.639,7.912,17.639,17.639c0,9.726-7.912,17.639-17.639,17.639c-9.726,0-17.639-7.912-17.639-17.639 C152.314,145.061,160.227,137.149,169.952,137.149z"/>
+  <path style="fill:#FFD630;" d="M113.742,172.59c9.726,0,17.639,7.912,17.639,17.639s-7.912,17.639-17.639,17.639 s-17.639-7.912-17.639-17.639S104.016,172.59,113.742,172.59z M256,129.401v35.276c-9.726,0-17.639-7.912-17.639-17.639 C238.361,137.313,246.275,129.401,256,129.401z M169.952,136.984c9.726,0,17.639,7.912,17.639,17.639 c0,9.726-7.912,17.639-17.639,17.639c-9.726,0-17.639-7.912-17.639-17.639C152.314,144.897,160.227,136.984,169.952,136.984z"/>
+`;
 
 /**
  * Clean up old team images older than 2 hours.
@@ -441,11 +438,10 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     ` : '';
 
     // 4. Name & Position Label Underneath Avatar (Enlarged)
-    const crownSvg = isMom ? (
-      crownSvgDataUri
-        ? `<image href="${crownSvgDataUri}" xlink:href="${crownSvgDataUri}" x="-27" y="-82" width="54" height="54" preserveAspectRatio="xMidYMid meet"/>`
-        : `<g transform="translate(-14, -66)"><polygon points="0,14 7,0 14,9 21,0 28,14" fill="#F59E0B" stroke="#78350F" stroke-width="1.2"/><rect x="0" y="14" width="28" height="4" fill="#D97706"/></g>`
-    ) : '';
+    // Crown: scale crown.svg paths (512x512 viewBox) to ~54px, centered above avatar
+    const crownSvg = isMom
+      ? `<g transform="translate(-27, -82) scale(0.105)">${CROWN_PATHS}</g>`
+      : '';
 
     // Calculate visual character width
     const visualLength = pName.replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, '').length;
@@ -622,11 +618,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           <circle cx="85" cy="95" r="50" fill="none" stroke="#F59E0B" stroke-width="3.5"/>
           ${momAvatarSvg}
 
-          <!-- Crown SVG -->
-          ${crownSvgDataUri
-            ? `<image href="${crownSvgDataUri}" xlink:href="${crownSvgDataUri}" x="40" y="10" width="90" height="90" preserveAspectRatio="xMidYMid meet"/>`
-            : `<g transform="translate(63, 18) scale(2.5)"><polygon points="0,12 4,2 9,8 14,2 18,12" fill="#F59E0B" stroke="#78350F" stroke-width="1"/></g>`
-          }
+          <!-- Crown SVG (inlined paths, 512x512 viewBox scaled to 90px) -->
+          <g transform="translate(40, 10) scale(0.176)">${CROWN_PATHS}</g>
           <text x="155" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
           <text x="300" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
           <text x="155" y="130" font-size="30" font-family="Sarabun, sans-serif" fill="#CBD5E1">${escapeXml(momStatsDesc)}</text>
