@@ -2630,23 +2630,36 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       const formationData = await getTeamFormationData('', groupId, { weekId: week_id });
       if (formationData && formationData.formationsData && formationData.formationsData.length > 0) {
         const teamImgMod = require('./team_img');
-        await Promise.all(formationData.formationsData.map(async (team) => {
-          try {
-            const [fullUrl, pitchUrl] = await Promise.all([
-              teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: false }),
-              teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: true })
-            ]);
-            if (fullUrl) team.imageUrl = fullUrl;
-            if (pitchUrl) team.pitchImageUrl = pitchUrl;
-          } catch (eImg) {
-            console.warn(`[MatchWeek] Formation image failed for team ${team.teamId}:`, eImg.message);
-          }
-        }));
-        formationBubbles = flex.buildFormationFlex(
-          formationData.formationsData, formationData.theme,
-          formationData.dateStr, formationData.timeRange,
-          formationData.weekDate, formationData.weekId
-        );
+      const tImgStart = Date.now();
+      console.log(`\n======================================================`);
+      console.log(`⏱️ [/matchweek Formation Image Generation]`);
+      console.log(`======================================================`);
+      await Promise.all(formationData.formationsData.map(async (team) => {
+        const tTeamStart = Date.now();
+        try {
+          const [fullUrl, pitchUrl] = await Promise.all([
+            teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: false }),
+            teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: true })
+          ]);
+          const tTeamDone = Date.now();
+          if (fullUrl) team.imageUrl = fullUrl;
+          if (pitchUrl) team.pitchImageUrl = pitchUrl;
+          console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${tTeamDone - tTeamStart} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
+        } catch (eImg) {
+          console.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
+        }
+      }));
+      const tImgTotal = Date.now() - tImgStart;
+      console.log(`------------------------------------------------------`);
+      console.log(`  🖼️  Total Image Generation (${formationData.formationsData.length} teams)    : ${tImgTotal} ms`);
+      console.log(`======================================================\n`);
+      const tFlexStart = Date.now();
+      formationBubbles = flex.buildFormationFlex(
+        formationData.formationsData, formationData.theme,
+        formationData.dateStr, formationData.timeRange,
+        formationData.weekDate, formationData.weekId
+      );
+      console.log(`  Flex JSON Builder                          : ${Date.now() - tFlexStart} ms`);
       }
     } catch (eFormation) {
       console.warn('[MatchWeek] Could not build formation bubbles:', eFormation.message);
@@ -5468,28 +5481,40 @@ async function getTeamFormation(param = '', groupId = null) {
   if (!data || !data.formationsData || data.formationsData.length === 0) return null;
 
   // Pre-generate high-res tactical formation images in parallel (Full for zoom/export, Pitch-Only for Flex body)
+  const tImgStart = Date.now();
+  console.log(`\n======================================================`);
+  console.log(`⏱️ [/formation Image Generation Performance]`);
+  console.log(`======================================================`);
   try {
     const teamImg = require('./team_img');
     await Promise.all(data.formationsData.map(async (team) => {
+      const tTeamStart = Date.now();
       try {
+        const tFullStart = Date.now();
         const [fullUrl, pitchUrl] = await Promise.all([
           teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: false }),
           teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: true })
         ]);
+        const tTeamDone = Date.now();
         if (fullUrl) team.imageUrl = fullUrl;
         if (pitchUrl) team.pitchImageUrl = pitchUrl;
+        console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${tTeamDone - tTeamStart} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
       } catch (eImg) {
-        console.warn(`[getTeamFormation] Image generation failed for team ${team.teamId}:`, eImg.message);
+        console.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
       }
     }));
   } catch (err) {
     console.warn('[getTeamFormation] team_img module error:', err.message);
   }
+  const tImgTotal = Date.now() - tImgStart;
+  console.log(`------------------------------------------------------`);
+  console.log(`  🖼️  Total Image Generation (${data.formationsData.length} teams)    : ${tImgTotal} ms`);
 
   const tFlexStart = Date.now();
   const flexMsg = flex.buildFormationFlex(data.formationsData, data.theme, data.dateStr, data.timeRange, data.weekDate, data.weekId);
   const flexDuration = Date.now() - tFlexStart;
   console.log(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
+  console.log(`======================================================\n`);
 
   return flexMsg;
 }
