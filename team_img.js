@@ -440,7 +440,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     // 4. Name & Position Label Underneath Avatar (Enlarged)
     // Crown: scale crown.svg paths (512x512 viewBox) to ~54px, centered above avatar
     const crownSvg = isMom
-      ? `<g transform="translate(-27, -102) scale(0.105)">${CROWN_PATHS}</g>`
+      ? `<g transform="translate(-27, -92) scale(0.105)">${CROWN_PATHS}</g>`
       : '';
 
     // Calculate visual character width
