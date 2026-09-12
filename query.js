@@ -2622,6 +2622,28 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       }
     }
 
+    // Build Team Week carousel (MSG 4)
+    let teamWeekCarousel = null;
+    if (team_colors && team_colors.length > 0) {
+      try {
+        const teamMembersMap = {};
+        for (const team of team_colors) {
+          team.teamColor = await getTeamColor(team.color);
+          const teamMembers = await executeQuery(
+            `SELECT member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl LEFT JOIN member_tbl ON member_team_week_tbl.member_id = member_tbl.id WHERE member_team_week_tbl.week_id = ? AND member_team_week_tbl.team_id = ?`,
+            [week_id, team.id]
+          );
+          if (teamMembers && teamMembers.length > 0) {
+            await Promise.all(teamMembers.map(member => ensureMemberPicture(member, groupId)));
+          }
+          teamMembersMap[team.id] = teamMembers || [];
+        }
+        teamWeekCarousel = flex.buildTeamWeekFlex(team_colors, teamMembersMap, theme, assets, resolveMemberDisplayInfo);
+      } catch (eTeamWeek) {
+        console.warn('[MatchWeek] Could not build team week carousel:', eTeamWeek.message);
+      }
+    }
+
     return flex.buildMatchWeekMessages({
       dateStr: date_str,
       tableRows,
@@ -2632,7 +2654,8 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       assets,
       headerUrl,
       matchDetailsMap,
-      totwBubble
+      totwBubble,
+      teamWeekCarousel
     });
   }
   return null;
