@@ -2528,147 +2528,175 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       }
     }
 
-    // Build Team of the Week (TOTW) Formation Bubble
+    // ── Build TOTW + Team Formation images in parallel ──
     let totwBubble = null;
-    if (leaders && leaders.allPlayerRatings && leaders.allPlayerRatings.length > 0) {
-      try {
-        let is8PlayerWeek = false;
-        const teamCountsRes = await executeQuery(
-          "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
-          [week_id]
-        );
-        if (teamCountsRes && teamCountsRes.length > 0) {
-          const maxCount = Math.max(...teamCountsRes.map(r => Number(r.cnt) || 0));
-          if (maxCount >= 8) {
-            is8PlayerWeek = true;
-          }
-        }
+    let formationBubbles = null;
 
-        const posLimitsMap = {};
+    // Step 1: prepare both datasets concurrently (DB queries, slot allocation)
+    let totwFormationData = null;
+    let formationData = null;
+
+    const tPrepStart = Date.now();
+    await Promise.all([
+      // TOTW data prep
+      (async () => {
+        if (!(leaders && leaders.allPlayerRatings && leaders.allPlayerRatings.length > 0)) return;
         try {
-          const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
-          if (posRows && posRows.length > 0) {
-            posRows.forEach(r => {
-              const code = (r.code || '').toUpperCase();
-              posLimitsMap[code] = {
-                min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
-                max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
-                min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
-                max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
+          let is8PlayerWeek = false;
+          const teamCountsRes = await executeQuery(
+            "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
+            [week_id]
+          );
+          if (teamCountsRes && teamCountsRes.length > 0) {
+            const maxCount = Math.max(...teamCountsRes.map(r => Number(r.cnt) || 0));
+            if (maxCount >= 8) is8PlayerWeek = true;
+          }
+
+          const posLimitsMap = {};
+          try {
+            const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+            if (posRows && posRows.length > 0) {
+              posRows.forEach(r => {
+                const code = (r.code || '').toUpperCase();
+                posLimitsMap[code] = {
+                  min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
+                  max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
+                  min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
+                  max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
+                };
+              });
+            }
+          } catch (ePos) { }
+
+          const totwRawMembers = selectTeamOfTheWeekPlayers(leaders.allPlayerRatings, is8PlayerWeek, posLimitsMap);
+          if (totwRawMembers && totwRawMembers.length > 0) {
+            const formattedTotwMembers = totwRawMembers.map(m => {
+              const wRating = m.score ? parseFloat(m.score).toFixed(1) : '-';
+              return {
+                id: m.member_id || m.id,
+                member_id: m.member_id || m.id,
+                name: m.name,
+                alias: m.alias,
+                rank: m.rank,
+                picture_url: m.picture_url,
+                line_user_id: m.line_user_id,
+                pos_code: (m.pos?.code || m.pos_code || 'MF').toUpperCase(),
+                pos_name: m.pos?.name || m.pos_name || '',
+                pos_icon: m.pos?.icon || m.pos_icon || '',
+                weekStats: { rating: wRating, goals: m.goals || 0, assists: m.assists || 0 },
+                yearStats: { rating: wRating, goals: m.goals || 0, assists: m.assists || 0 }
               };
             });
+            const allocation = allocateFormationSlots(formattedTotwMembers, is8PlayerWeek, posLimitsMap);
+            totwFormationData = [{
+              teamId: 'totw',
+              teamColor: '🌟 Team of the Week 🌟',
+              colorCode: '#EAB308',
+              url: null,
+              formationName: allocation.formationName,
+              slots: allocation.slots,
+              totalPlayers: allocation.totalPlayers,
+              members: formattedTotwMembers
+            }];
           }
-        } catch (ePos) { }
-
-        const totwRawMembers = selectTeamOfTheWeekPlayers(leaders.allPlayerRatings, is8PlayerWeek, posLimitsMap);
-        if (totwRawMembers && totwRawMembers.length > 0) {
-          const formattedTotwMembers = totwRawMembers.map(m => {
-            const wRating = m.score ? parseFloat(m.score).toFixed(1) : '-';
-            return {
-              id: m.member_id || m.id,
-              member_id: m.member_id || m.id,
-              name: m.name,
-              alias: m.alias,
-              rank: m.rank,
-              picture_url: m.picture_url,
-              line_user_id: m.line_user_id,
-              pos_code: (m.pos?.code || m.pos_code || 'MF').toUpperCase(),
-              pos_name: m.pos?.name || m.pos_name || '',
-              pos_icon: m.pos?.icon || m.pos_icon || '',
-              weekStats: {
-                rating: wRating,
-                goals: m.goals || 0,
-                assists: m.assists || 0
-              },
-              yearStats: {
-                rating: wRating,
-                goals: m.goals || 0,
-                assists: m.assists || 0
-              }
-            };
-          });
-
-          const allocation = allocateFormationSlots(formattedTotwMembers, is8PlayerWeek, posLimitsMap);
-          const totwFormationData = [{
-            teamId: 'totw',
-            teamColor: '🌟 Team of the Week 🌟',
-            colorCode: '#EAB308',
-            url: null,
-            formationName: allocation.formationName,
-            slots: allocation.slots,
-            totalPlayers: allocation.totalPlayers,
-            members: formattedTotwMembers
-          }];
-
-          try {
-            const teamImg = require('./team_img');
-            const [totwFullUrl, totwPitchUrl] = await Promise.all([
-              teamImg.generateTeamImage(totwFormationData[0], date_str, '', { pitchOnly: false }),
-              teamImg.generateTeamImage(totwFormationData[0], date_str, '', { pitchOnly: true })
-            ]);
-            if (totwFullUrl) totwFormationData[0].imageUrl = totwFullUrl;
-            if (totwPitchUrl) totwFormationData[0].pitchImageUrl = totwPitchUrl;
-          } catch (eTotwImg) {
-            console.warn('[TOTW] Could not pre-generate TOTW image:', eTotwImg.message);
-          }
-
-          const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, '', res[0].date, res[0].id);
-          if (totwBubbles && totwBubbles.length > 0) {
-            totwBubble = totwBubbles[0];
-          }
+        } catch (eTotw) {
+          console.error('[MatchWeek] TOTW data prep failed:', eTotw);
         }
-      } catch (eTotw) {
-        console.error("Error building Team of the Week formation:", eTotw);
-      }
-    }
+      })(),
+      // Team formation data prep
+      (async () => {
+        try {
+          formationData = await getTeamFormationData('', groupId, { weekId: week_id });
+        } catch (eFormation) {
+          console.warn('[MatchWeek] getTeamFormationData failed:', eFormation.message);
+        }
+      })()
+    ]);
+    console.log(`  [MatchWeek] Data prep (TOTW + formations)  : ${Date.now() - tPrepStart} ms`);
 
-    // Build Team Formation bubbles for MSG 4 (same images as /teamweek, using already-resolved week_id)
-    let formationBubbles = null;
-    try {
-      // Pass week_id directly via options to bypass getTeamFormationData's string param parser
-      // (passing week_id as a string param would be mis-classified as a team number by isKnownTeam)
-      const formationData = await getTeamFormationData('', groupId, { weekId: week_id });
-      if (formationData && formationData.formationsData && formationData.formationsData.length > 0) {
-        const teamImgMod = require('./team_img');
-      const tImgStart = Date.now();
-      const teamDurations = [];
-      console.log(`\n======================================================`);
-      console.log(`⏱️ [/matchweek Formation Image Generation]`);
-      console.log(`======================================================`);
-      await Promise.all(formationData.formationsData.map(async (team) => {
-        const tTeamStart = Date.now();
+    // Step 2: generate all images in parallel (TOTW full+pitch + all team full+pitch)
+    const teamImgMod = require('./team_img');
+    const tImgStart = Date.now();
+    const imgTasks = [];
+    const teamDurations = {};
+
+    console.log(`\n======================================================`);
+    console.log(`⏱️ [/matchweek Image Generation — TOTW + All Teams in Parallel]`);
+    console.log(`======================================================`);
+
+    if (totwFormationData) {
+      imgTasks.push((async () => {
+        const t0 = Date.now();
         try {
           const [fullUrl, pitchUrl] = await Promise.all([
-            teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: false }),
-            teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: true })
+            teamImgMod.generateTeamImage(totwFormationData[0], date_str, '', { pitchOnly: false }),
+            teamImgMod.generateTeamImage(totwFormationData[0], date_str, '', { pitchOnly: true })
           ]);
-          const dur = Date.now() - tTeamStart;
-          teamDurations.push(dur);
-          if (fullUrl) team.imageUrl = fullUrl;
-          if (pitchUrl) team.pitchImageUrl = pitchUrl;
-          console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
-        } catch (eImg) {
-          console.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
+          const dur = Date.now() - t0;
+          teamDurations['totw'] = dur;
+          if (fullUrl) totwFormationData[0].imageUrl = fullUrl;
+          if (pitchUrl) totwFormationData[0].pitchImageUrl = pitchUrl;
+          console.log(`  TOTW                       Full+Pitch: ${dur} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
+        } catch (e) {
+          console.warn(`  TOTW ❌ image failed: ${e.message}`);
         }
-      }));
-      const tImgWallClock = Date.now() - tImgStart;
-      const tImgSum = teamDurations.reduce((a, b) => a + b, 0);
-      console.log(`------------------------------------------------------`);
-      console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
-      console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
-      console.log(`======================================================\n`);
-      const tFlexStart = Date.now();
-      formationBubbles = flex.buildFormationFlex(
-        formationData.formationsData, formationData.theme,
-        formationData.dateStr, formationData.timeRange,
-        formationData.weekDate, formationData.weekId
-      );
-      console.log(`  Flex JSON Builder                          : ${Date.now() - tFlexStart} ms`);
-
-      }
-    } catch (eFormation) {
-      console.warn('[MatchWeek] Could not build formation bubbles:', eFormation.message);
+      })());
     }
+
+    if (formationData && formationData.formationsData && formationData.formationsData.length > 0) {
+      for (const team of formationData.formationsData) {
+        imgTasks.push((async (t) => {
+          const t0 = Date.now();
+          try {
+            const [fullUrl, pitchUrl] = await Promise.all([
+              teamImgMod.generateTeamImage(t, formationData.dateStr, formationData.timeRange, { pitchOnly: false }),
+              teamImgMod.generateTeamImage(t, formationData.dateStr, formationData.timeRange, { pitchOnly: true })
+            ]);
+            const dur = Date.now() - t0;
+            teamDurations[t.teamId] = dur;
+            if (fullUrl) t.imageUrl = fullUrl;
+            if (pitchUrl) t.pitchImageUrl = pitchUrl;
+            console.log(`  Team ${t.teamId} (${t.teamColor || '-'})   Full+Pitch: ${dur} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
+          } catch (e) {
+            console.warn(`  Team ${t.teamId} ❌ image failed: ${e.message}`);
+          }
+        })(team));
+      }
+    }
+
+    await Promise.all(imgTasks);
+
+    const tImgWallClock = Date.now() - tImgStart;
+    const tImgSum = Object.values(teamDurations).reduce((a, b) => a + b, 0);
+    console.log(`------------------------------------------------------`);
+    console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
+    console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
+    console.log(`======================================================\n`);
+
+    // Step 3: build flex bubbles (CPU only, fast)
+    if (totwFormationData) {
+      try {
+        const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, '', res[0].date, res[0].id);
+        if (totwBubbles && totwBubbles.length > 0) totwBubble = totwBubbles[0];
+      } catch (e) {
+        console.warn('[MatchWeek] TOTW flex build failed:', e.message);
+      }
+    }
+
+    if (formationData && formationData.formationsData && formationData.formationsData.length > 0) {
+      try {
+        const tFlexStart = Date.now();
+        formationBubbles = flex.buildFormationFlex(
+          formationData.formationsData, formationData.theme,
+          formationData.dateStr, formationData.timeRange,
+          formationData.weekDate, formationData.weekId
+        );
+        console.log(`  Flex JSON Builder                          : ${Date.now() - tFlexStart} ms`);
+      } catch (e) {
+        console.warn('[MatchWeek] Formation flex build failed:', e.message);
+      }
+    }
+
 
     return flex.buildMatchWeekMessages({
       dateStr: date_str,
