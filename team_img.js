@@ -663,7 +663,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           ${momStatsSvg}
 
           <!-- Rating Box -->
-          <rect x="810" y="45" width="150" height="90" rx="14" fill="#231602" stroke="#F59E0B" stroke-width="2"/>
+          <rect x="815" y="45" width="150" height="90" rx="14" fill="#231602" stroke="#F59E0B" stroke-width="2"/>
           <g transform="translate(850, 90) scale(2.5)">${starBigSvg}</g>
           <text x="900" y="103" font-size="32" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FDE047" text-anchor="middle">${escapeXml(momRatingVal)}</text>
         </g>
