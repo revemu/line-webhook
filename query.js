@@ -2631,6 +2631,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
       if (formationData && formationData.formationsData && formationData.formationsData.length > 0) {
         const teamImgMod = require('./team_img');
       const tImgStart = Date.now();
+      const teamDurations = [];
       console.log(`\n======================================================`);
       console.log(`⏱️ [/matchweek Formation Image Generation]`);
       console.log(`======================================================`);
@@ -2641,17 +2642,20 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: false }),
             teamImgMod.generateTeamImage(team, formationData.dateStr, formationData.timeRange, { pitchOnly: true })
           ]);
-          const tTeamDone = Date.now();
+          const dur = Date.now() - tTeamStart;
+          teamDurations.push(dur);
           if (fullUrl) team.imageUrl = fullUrl;
           if (pitchUrl) team.pitchImageUrl = pitchUrl;
-          console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${tTeamDone - tTeamStart} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
+          console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
         } catch (eImg) {
           console.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
         }
       }));
-      const tImgTotal = Date.now() - tImgStart;
+      const tImgWallClock = Date.now() - tImgStart;
+      const tImgSum = teamDurations.reduce((a, b) => a + b, 0);
       console.log(`------------------------------------------------------`);
-      console.log(`  🖼️  Total Image Generation (${formationData.formationsData.length} teams)    : ${tImgTotal} ms`);
+      console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
+      console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
       console.log(`======================================================\n`);
       const tFlexStart = Date.now();
       formationBubbles = flex.buildFormationFlex(
@@ -2660,6 +2664,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         formationData.weekDate, formationData.weekId
       );
       console.log(`  Flex JSON Builder                          : ${Date.now() - tFlexStart} ms`);
+
       }
     } catch (eFormation) {
       console.warn('[MatchWeek] Could not build formation bubbles:', eFormation.message);
@@ -5482,6 +5487,7 @@ async function getTeamFormation(param = '', groupId = null) {
 
   // Pre-generate high-res tactical formation images in parallel (Full for zoom/export, Pitch-Only for Flex body)
   const tImgStart = Date.now();
+  const teamDurations = [];
   console.log(`\n======================================================`);
   console.log(`⏱️ [/formation Image Generation Performance]`);
   console.log(`======================================================`);
@@ -5490,15 +5496,15 @@ async function getTeamFormation(param = '', groupId = null) {
     await Promise.all(data.formationsData.map(async (team) => {
       const tTeamStart = Date.now();
       try {
-        const tFullStart = Date.now();
         const [fullUrl, pitchUrl] = await Promise.all([
           teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: false }),
           teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: true })
         ]);
-        const tTeamDone = Date.now();
+        const dur = Date.now() - tTeamStart;
+        teamDurations.push(dur);
         if (fullUrl) team.imageUrl = fullUrl;
         if (pitchUrl) team.pitchImageUrl = pitchUrl;
-        console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${tTeamDone - tTeamStart} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
+        console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${fullUrl ? '✅' : '❌'}  pitch=${pitchUrl ? '✅' : '❌'}`);
       } catch (eImg) {
         console.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
       }
@@ -5506,9 +5512,11 @@ async function getTeamFormation(param = '', groupId = null) {
   } catch (err) {
     console.warn('[getTeamFormation] team_img module error:', err.message);
   }
-  const tImgTotal = Date.now() - tImgStart;
+  const tImgWallClock = Date.now() - tImgStart;
+  const tImgSum = teamDurations.reduce((a, b) => a + b, 0);
   console.log(`------------------------------------------------------`);
-  console.log(`  🖼️  Total Image Generation (${data.formationsData.length} teams)    : ${tImgTotal} ms`);
+  console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
+  console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
 
   const tFlexStart = Date.now();
   const flexMsg = flex.buildFormationFlex(data.formationsData, data.theme, data.dateStr, data.timeRange, data.weekDate, data.weekId);
