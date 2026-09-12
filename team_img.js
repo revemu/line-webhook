@@ -657,13 +657,13 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           ${momAvatarSvg}
 
           <!-- Crown SVG (inlined paths, 512x512 viewBox scaled to 90px) -->
-          <g transform="translate(52, 0) scale(0.126)">${CROWN_PATHS}</g>
+          <g transform="translate(54, 0) scale(0.126)">${CROWN_PATHS}</g>
           <text x="155" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
-          <text x="300" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
+          <text x="300" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF"> • ${escapeXml(momName)}</text>
           ${momStatsSvg}
 
           <!-- Rating Box -->
-          <rect x="810" y="48" width="150" height="90" rx="14" fill="#231602" stroke="#F59E0B" stroke-width="2"/>
+          <rect x="810" y="45" width="150" height="90" rx="14" fill="#231602" stroke="#F59E0B" stroke-width="2"/>
           <g transform="translate(850, 93) scale(2.5)">${starBigSvg}</g>
           <text x="900" y="103" font-size="32" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FDE047" text-anchor="middle">${escapeXml(momRatingVal)}</text>
         </g>
