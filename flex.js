@@ -1568,13 +1568,17 @@ function makeTwoColumnMemberRows(list, colors) {
   return rows;
 }
 
-function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, imageUrl, theme, autoRegCount = 0, timeRange = '17:30-20:00') {
+function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, theme, autoRegCount = 0, timeRange = '17:30-20:00') {
   const bodyContents = [];
-  let finalImageUrl = imageUrl;
-  if (!finalImageUrl) {
-    finalImageUrl = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuyGBcXBYCphjV9yKqgZyNEWCvdbbLtn6ILg&s';
+  let actualTheme = theme;
+  let actualAutoRegCount = autoRegCount;
+  let actualTimeRange = timeRange;
+  if (typeof theme === 'string' && (theme.startsWith('http') || theme.toLowerCase() === 'none')) {
+    actualTheme = autoRegCount;
+    actualAutoRegCount = timeRange || 0;
+    actualTimeRange = arguments[9] || '17:30-20:00';
   }
-  const colors = getThemeColors(theme);
+  const colors = getThemeColors(actualTheme);
 
   // ── Premium Body Header ──
   const headerSubContents = [];
@@ -1852,24 +1856,6 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       contents: bodyContents
     }
   };
-
-  if (finalImageUrl && finalImageUrl.toLowerCase() !== 'none') {
-    bubble.header = {
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: colors.bgHeader,
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: finalImageUrl,
-          size: 'full',
-          aspectRatio: '20:5',
-          aspectMode: 'cover'
-        }
-      ]
-    };
-  }
 
   return bubble;
 }
@@ -2946,7 +2932,7 @@ function buildMemberStatsFlex(data, theme) {
   return bubble;
 }
 
-function buildRegisterClosedFlex(theme, imageUrl = null) {
+function buildRegisterClosedFlex(theme) {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
 
@@ -3046,24 +3032,6 @@ function buildRegisterClosedFlex(theme, imageUrl = null) {
       ]
     }
   };
-
-  const headerUrl = imageUrl || 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
-  if (headerUrl && headerUrl.toLowerCase() !== 'none') {
-    bubble.header = {
-      type: 'box',
-      layout: 'vertical',
-      paddingAll: 'none',
-      contents: [
-        {
-          type: 'image',
-          url: headerUrl,
-          size: 'full',
-          aspectRatio: '20:10',
-          aspectMode: 'cover'
-        }
-      ]
-    };
-  }
 
   return bubble;
 }

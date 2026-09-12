@@ -178,9 +178,7 @@ const COMMAND_REGISTRY = {
             const weekDate = new Date(`${dateStr}T19:00:00+07:00`);
             if (new Date() >= weekDate) {
                 const theme = await db.getTheme();
-                const registerTpl = await db.getTemplate('register', 'header');
-                const registerImageUrl = registerTpl ? registerTpl.url : null;
-                msg = flex.buildRegisterClosedFlex(theme, registerImageUrl);
+                msg = flex.buildRegisterClosedFlex(theme);
                 altText = "ระบบปิดรับลงชื่อแล้ว";
                 return { type: 'flex', altText, contents: msg };
             }
@@ -196,6 +194,7 @@ const COMMAND_REGISTRY = {
         [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId, member_id);
 
         if (is_flex && typeof msg === 'object') {
+            if (msg.header) delete msg.header;
             return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg };
         } else {
             if (noticeText) {

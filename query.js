@@ -2934,13 +2934,10 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
           }
         }
 
-        const imgTpl = await getTemplate('register', 'header');
-        const imageUrl = imgTpl ? imgTpl.url : null;
-
         const theme = await getTheme();
         const autoRegCount = await getAutoRegCount(groupId);
 
-        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, imageUrl, theme, autoRegCount, time_range);
+        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, theme, autoRegCount, time_range);
         let altHeader = `+${players.length}`;
         if (reserves.length > 0) altHeader += `(${reserves.length})`;
         if (goalies.length > 0) altHeader += `(${goalies.length})`;
