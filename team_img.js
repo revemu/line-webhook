@@ -41,6 +41,17 @@ try {
   console.warn('[TeamImg] Could not load icon_assist.png:', e.message);
 }
 
+// Pre-load crown SVG as Base64 Data URI
+let crownSvgDataUri = '';
+try {
+  const crownPath = path.join(__dirname, 'assets', 'crown.svg');
+  if (fs.existsSync(crownPath)) {
+    crownSvgDataUri = `data:image/svg+xml;base64,${fs.readFileSync(crownPath).toString('base64')}`;
+  }
+} catch (e) {
+  console.warn('[TeamImg] Could not load crown.svg:', e.message);
+}
+
 /**
  * Clean up old team images older than 2 hours.
  */
@@ -430,12 +441,11 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     ` : '';
 
     // 4. Name & Position Label Underneath Avatar (Enlarged)
-    const crownSvg = isMom ? `
-      <g transform="translate(-14, -66)">
-        <polygon points="0,14 7,0 14,9 21,0 28,14" fill="#F59E0B" stroke="#78350F" stroke-width="1.2"/>
-        <rect x="0" y="14" width="28" height="4" fill="#D97706"/>
-      </g>
-    ` : '';
+    const crownSvg = isMom ? (
+      crownSvgDataUri
+        ? `<image href="${crownSvgDataUri}" xlink:href="${crownSvgDataUri}" x="-27" y="-82" width="54" height="54" preserveAspectRatio="xMidYMid meet"/>`
+        : `<g transform="translate(-14, -66)"><polygon points="0,14 7,0 14,9 21,0 28,14" fill="#F59E0B" stroke="#78350F" stroke-width="1.2"/><rect x="0" y="14" width="28" height="4" fill="#D97706"/></g>`
+    ) : '';
 
     // Calculate visual character width
     const visualLength = pName.replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, '').length;
@@ -612,10 +622,11 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           <circle cx="85" cy="95" r="50" fill="none" stroke="#F59E0B" stroke-width="3.5"/>
           ${momAvatarSvg}
 
-          <!-- Crown Vector -->
-          <g transform="translate(63, 18) scale(2.5)">
-            <polygon points="0,12 4,2 9,8 14,2 18,12" fill="#F59E0B" stroke="#78350F" stroke-width="1"/>
-          </g>
+          <!-- Crown SVG -->
+          ${crownSvgDataUri
+            ? `<image href="${crownSvgDataUri}" xlink:href="${crownSvgDataUri}" x="40" y="10" width="90" height="90" preserveAspectRatio="xMidYMid meet"/>`
+            : `<g transform="translate(63, 18) scale(2.5)"><polygon points="0,12 4,2 9,8 14,2 18,12" fill="#F59E0B" stroke="#78350F" stroke-width="1"/></g>`
+          }
           <text x="155" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FCD34D">${isTotw ? 'WEEK MVP' : 'TEAM MVP'}</text>
           <text x="300" y="89" font-size="30" font-family="Sarabun, sans-serif" font-weight="bold" fill="#FFFFFF">• ${escapeXml(momName)}</text>
           <text x="155" y="130" font-size="30" font-family="Sarabun, sans-serif" fill="#CBD5E1">${escapeXml(momStatsDesc)}</text>
