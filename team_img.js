@@ -608,7 +608,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
         }
         if (momAssists > 0) {
           if (momGoals > 0) {
-            momStatsSvg += `<text x="${sx}" y="132" font-size="28" font-family="Sarabun, sans-serif" fill="#94A3B8">  •  </text>`;
+            momStatsSvg += `<text x="${sx}" y="132" font-size="28" font-family="Sarabun, sans-serif" fill="#94A3B8"> - </text>`;
             sx += 36;
           }
           if (assistIconDataUri) {
