@@ -4256,10 +4256,10 @@ async function updateHof() {
     await syncHofRecords('scorer', currentYear, topScorers);
     await syncHofRecords('assist', currentYear, topAssists);
     await syncHofRecords('own_goal', currentYear, topOwnGoals);
-    await syncHofRecords('most_pts', currentYear, topPlayers);
+    //await syncHofRecords('most_pts', currentYear, topPlayers);
     await syncHofRecords('avg_pts', currentYear, topAvgPts);
     await syncHofRecords('most_mvp', currentYear, topMvpCounts);
-    await syncHofRecords('bottom', currentYear, topBottom);
+    //await syncHofRecords('bottom', currentYear, topBottom);
     await syncHofRecords('best_mvp', currentYear, topBestMvp);
 
     console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top Avg Pts: ${topAvgPts.join(', ')}, Top MVP Count: ${topMvpCounts.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
