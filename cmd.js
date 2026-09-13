@@ -561,15 +561,39 @@ const COMMAND_REGISTRY = {
         const { param, groupId } = context;
         const limit = (param && !isNaN(Number(param))) ? Number(param) : 30;
         await db.updateHof();
-        const stats = await Promise.all([
+        const currentYear = new Date().getFullYear();
+
+        const [statScorers, statAssists, statAvgPts, statMvpCount] = await Promise.all([
             db.getTopStat(limit, 0, groupId), // Top Scorers
             db.getTopStat(limit, 1, groupId), // Top Assists
-            db.getTopStat(limit, 4, groupId), // Most Pts (Accumulative Raw Pts)
-            db.getTopStat(limit, 6, groupId)  // Lucky Colors
+            db.getTopStat(limit, 4, groupId), // Avg Pts (Team Points / Total Matches)
+            db.getTopStat(limit, 7, groupId)  // Most MVP Count (Weekly MVP Wins)
         ]);
-        const carousel = JSON.parse(JSON.stringify(flex.tpl_carousel));
-        carousel.contents = stats.filter(x => x !== null && x !== undefined);
-        return { type: 'flex', altText: `ทำเนียบอันดับประจำปี (${new Date().getFullYear()})`, contents: carousel };
+
+        const group1 = [statScorers, statAssists].filter(x => x !== null && x !== undefined);
+        const group2 = [statAvgPts, statMvpCount].filter(x => x !== null && x !== undefined);
+
+        const replyMessages = [];
+
+        if (group1.length > 0) {
+            replyMessages.push({
+                type: 'flex',
+                altText: `ทำเนียบอันดับประจำปี (${currentYear}) - ดาวซัลโว & แอสซิสต์`,
+                contents: group1.length === 1 ? group1[0] : { type: 'carousel', contents: group1 }
+            });
+        }
+
+        if (group2.length > 0) {
+            replyMessages.push({
+                type: 'flex',
+                altText: `ทำเนียบอันดับประจำปี (${currentYear}) - คะแนนเฉลี่ย & MVP`,
+                contents: group2.length === 1 ? group2[0] : { type: 'carousel', contents: group2 }
+            });
+        }
+
+        if (replyMessages.length === 1) return replyMessages[0];
+        if (replyMessages.length > 1) return replyMessages;
+        return { type: 'text', text: "ยังไม่มีข้อมูลสถิติสำหรับปีนี้" };
     },
     'topstat': async (context) => COMMAND_REGISTRY['top'](context),
     'menu': async (context) => {

@@ -164,8 +164,8 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     const badgesWithId = [];
     for (const awardType of memberAwards) {
       let badge = hofBadge[awardType];
-      if (!badge && (awardType === 'best_mvp' || awardType === 'mvp')) {
-        badge = hofBadge['best_mvp'] || hofBadge['mvp'] || hofBadge['top_mvp'];
+      if (!badge && (awardType === 'best_mvp' || awardType === 'mvp' || awardType === 'most_mvp' || awardType === 'mvp_count' || awardType === 'top_mvp')) {
+        badge = hofBadge['best_mvp'] || hofBadge['most_mvp'] || hofBadge['mvp_count'] || hofBadge['mvp'] || hofBadge['top_mvp'];
       }
       if (!badge && (awardType === 'most_pts' || awardType === 'avg_pts')) {
         badge = hofBadge['most_pts'] || hofBadge['avg_pts'];
@@ -3228,6 +3228,36 @@ function buildGoalQuery(statusCondition, year, limit = null) {
   return sql;
 }
 
+function buildAvgMvpPtsQuery(year, limit = null) {
+  let sql = `SELECT 
+    member_tbl.id,
+    member_tbl.name, 
+    member_tbl.alias, 
+    member_tbl.rank,
+    member_tbl.donate,
+    member_tbl.picture_url,
+    member_tbl.line_user_id,
+    ROUND(
+      SUM(CASE WHEN m.rating > 0 THEN m.rating ELSE (CASE WHEN mtw.rating > 0 THEN mtw.rating ELSE 0 END) END)
+      / SUM(tw.w + tw.d + tw.l),
+      2
+    ) as goal,
+    SUM(tw.w + tw.d + tw.l) as matches
+    FROM member_team_week_tbl mtw
+    JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
+    JOIN member_tbl ON mtw.member_id = member_tbl.id
+    JOIN week_tbl w ON mtw.week_id = w.id
+    LEFT JOIN mvp_week_tbl m ON mtw.week_id = m.week_id AND mtw.member_id = m.member_id
+    WHERE (w.year = ${year} OR YEAR(w.date) = ${year})
+      AND member_tbl.id <> 121 AND member_tbl.id <> 169
+      AND member_tbl.team_id <> 101
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    HAVING matches > 0 AND goal > 0
+    ORDER BY goal DESC`;
+  if (limit) sql += ` LIMIT ${limit}`;
+  return sql;
+}
+
 function buildMvpCountQuery(year, limit = null) {
   let sql = `SELECT 
     member_tbl.id,
@@ -3237,13 +3267,23 @@ function buildMvpCountQuery(year, limit = null) {
     member_tbl.donate,
     member_tbl.picture_url,
     member_tbl.line_user_id,
-    ROUND(SUM(CASE WHEN m.rating > 0 THEN m.rating ELSE 0 END), 2) as goal
+    COUNT(*) as goal
     FROM mvp_week_tbl m
+    JOIN week_tbl w ON m.week_id = w.id
     JOIN member_tbl ON m.member_id = member_tbl.id
-    JOIN week_tbl ON m.week_id = week_tbl.id
-    WHERE (week_tbl.year = ${year} OR YEAR(week_tbl.date) = ${year})
+    WHERE (w.year = ${year} OR YEAR(w.date) = ${year})
+      AND m.raw_score > 0
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
+      AND m.raw_score = (
+        SELECT MAX(m2.raw_score)
+        FROM mvp_week_tbl m2
+        WHERE m2.week_id = m.week_id
+          AND m2.member_id > 0
+          AND m2.member_name NOT LIKE '@team%'
+          AND m2.member_name NOT LIKE '+team%'
+          AND m2.member_name NOT LIKE 'team%'
+      )
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
     HAVING goal > 0
     ORDER BY goal DESC`;
@@ -3284,6 +3324,11 @@ function buildAvgPtsQuery(year, limit = null) {
     member_tbl.donate,
     member_tbl.picture_url,
     member_tbl.line_user_id,
+    ROUND(
+      SUM(table_week_tbl.pts) 
+      / SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l),
+      2
+    ) AS goal,
     SUM(table_week_tbl.pts) 
         / SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS pts,
     SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS m
@@ -3291,16 +3336,16 @@ function buildAvgPtsQuery(year, limit = null) {
     JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
     JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
     JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
-    WHERE week_tbl.year = ${year}
+    WHERE (week_tbl.year = ${year} OR YEAR(week_tbl.date) = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
     HAVING COUNT(table_week_tbl.id) > (
         SELECT COUNT(*) * 0.6
         FROM week_tbl
-        WHERE week_tbl.year = ${year}
+        WHERE (week_tbl.year = ${year} OR YEAR(week_tbl.date) = ${year})
     )
-    ORDER BY pts DESC`;
+    ORDER BY goal DESC, pts DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
 }
@@ -3391,10 +3436,14 @@ async function getTopStat(limit = 10, type = 0, groupId = null) {
     header = `สปายฝั่งตรงข้าม`;
     icon = "🥅";
     query = buildGoalQuery(status, currentYear, limit);
+  } else if (type == 3) {
+    header = `Top ${limit} Avg MVP`;
+    icon = "⭐";
+    query = buildAvgMvpPtsQuery(currentYear, limit);
   } else if (type == 4) {
-    header = `Top ${limit} Most Pts`;
-    icon = "🏆";
-    query = buildMostPtsQuery(currentYear, limit);
+    header = `Top ${limit} Avg Pts`;
+    icon = "📊";
+    query = buildAvgPtsQuery(currentYear, limit);
   } else if (type == 5) {
     header = `ซึมเศร้าสะสม`;
     icon = "📉";
@@ -3403,6 +3452,10 @@ async function getTopStat(limit = 10, type = 0, groupId = null) {
     header = `Lucky Colors`;
     icon = "🎨";
     query = buildLuckyColorQuery(currentYear);
+  } else if (type == 7) {
+    header = `Top ${limit} Most MVP`;
+    icon = "👑";
+    query = buildMvpCountQuery(currentYear, limit);
   }
 
   const result = await executeQuery(query);
@@ -4102,6 +4155,7 @@ async function updateHof() {
     const ownGoals = await executeQuery(buildGoalQuery('= 2', currentYear));
     const players = await executeQuery(buildMostPtsQuery(currentYear));
     const bottomList = await executeQuery(buildBottomQuery(currentYear));
+    const mvpCountList = await executeQuery(buildMvpCountQuery(currentYear));
 
     // Find max counts and filter — shared queries return 'goal' column for counts, 'id' for member
     let topScorers = [];
@@ -4151,6 +4205,14 @@ async function updateHof() {
       }
     }
 
+    let topMvpCounts = [];
+    if (mvpCountList && mvpCountList.length > 0) {
+      const maxMvpCount = Math.max(...mvpCountList.map(m => m.goal));
+      if (maxMvpCount > 0) {
+        topMvpCounts = mvpCountList.filter(m => m.goal === maxMvpCount).map(m => m.id);
+      }
+    }
+
     // Sync best MVP of current year into hof_tbl
     const bestMvpRes = await executeQuery(`
       SELECT m.member_id, m.raw_score
@@ -4174,10 +4236,11 @@ async function updateHof() {
     await syncHofRecords('own_goal', currentYear, topOwnGoals);
     await syncHofRecords('most_pts', currentYear, topPlayers);
     await syncHofRecords('avg_pts', currentYear, []);
+    await syncHofRecords('most_mvp', currentYear, topMvpCounts);
     await syncHofRecords('bottom', currentYear, topBottom);
     await syncHofRecords('best_mvp', currentYear, topBestMvp);
 
-    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
+    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top MVP Count: ${topMvpCounts.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
   } catch (err) {
     console.error('Error updating HOF records:', err.message);
   }

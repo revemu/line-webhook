@@ -4343,7 +4343,7 @@ function buildTableWeekFlex(dateStr, weekTables, teamColors) {
 }
 
 /**
- * Build Flex bubble for /top (stat ranking tables for scorers, assists, most pts, bottom, lucky colors).
+ * Build Flex bubble for /top (stat ranking tables for scorers, assists, avg pts, mvp count, bottom, lucky colors).
  */
 function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, resolveInfoFn) {
   const colors = getThemeColors(theme);
@@ -4404,9 +4404,9 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       });
     } else {
       const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
-      if (type == 4) {
-        const num = parseFloat(member.goal || 0);
-        valText = Number.isInteger(num) ? `${num}` : `${num.toFixed(1)}`;
+      if (type == 3 || type == 4) {
+        const num = parseFloat(member.goal !== undefined ? member.goal : (member.pts || 0));
+        valText = `${num.toFixed(2)}`;
       } else {
         valText = `${member.goal}`;
       }
