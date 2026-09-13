@@ -4408,8 +4408,8 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
         const avg = parseFloat(member.goal !== undefined ? member.goal : (member.pts || 0)).toFixed(2);
         const total = parseFloat(member.total_raw || 0);
         const totalStr = Number.isInteger(total) ? `${total}` : `${total.toFixed(1)}`;
-        const matches = Number(member.m || member.matches || 0);
-        valText = matches > 0 ? `${avg} (${totalStr}/${matches})` : `${avg}`;
+        const weeks = Number(member.weeks || member.m || 0);
+        valText = weeks > 0 ? `${avg} (${totalStr}/${weeks})` : `${avg}`;
       } else if (type == 3) {
         const num = parseFloat(member.goal !== undefined ? member.goal : (member.pts || 0));
         valText = `${num.toFixed(2)}`;

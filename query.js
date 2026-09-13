@@ -3326,11 +3326,12 @@ function buildAvgPtsQuery(year, limit = null) {
     member_tbl.line_user_id,
     ROUND(
       SUM(CASE WHEN m.raw_score > 0 THEN m.raw_score ELSE 0 END)
-      / SUM(tw.w + tw.d + tw.l),
+      / COUNT(DISTINCT mtw.week_id),
       2
     ) AS goal,
     SUM(CASE WHEN m.raw_score > 0 THEN m.raw_score ELSE 0 END) AS total_raw,
-    SUM(tw.w + tw.d + tw.l) AS m
+    COUNT(DISTINCT mtw.week_id) AS weeks,
+    COUNT(DISTINCT mtw.week_id) AS m
     FROM member_team_week_tbl mtw
     JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
     JOIN member_tbl ON mtw.member_id = member_tbl.id
@@ -3340,7 +3341,7 @@ function buildAvgPtsQuery(year, limit = null) {
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
-    HAVING m > 0 AND goal > 0
+    HAVING weeks > 0 AND goal > 0
     ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;

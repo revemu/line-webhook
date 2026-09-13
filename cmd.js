@@ -566,7 +566,7 @@ const COMMAND_REGISTRY = {
         const [statScorers, statAssists, statAvgPts, statMvpCount] = await Promise.all([
             db.getTopStat(limit, 0, groupId), // Top Scorers
             db.getTopStat(limit, 1, groupId), // Top Assists
-            db.getTopStat(limit, 4, groupId), // Avg Pts (Team Points / Total Matches)
+            db.getTopStat(limit, 4, groupId), // Avg Pts (Raw MVP Pts / Total Weeks)
             db.getTopStat(limit, 7, groupId)  // Most MVP Count (Weekly MVP Wins)
         ]);
 
