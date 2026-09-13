@@ -4255,7 +4255,7 @@ async function updateHof() {
     // Sync HOF records instead of deleting and recreating
     await syncHofRecords('scorer', currentYear, topScorers);
     await syncHofRecords('assist', currentYear, topAssists);
-    await syncHofRecords('own_goal', currentYear, topOwnGoals);
+    //await syncHofRecords('own_goal', currentYear, topOwnGoals);
     //await syncHofRecords('most_pts', currentYear, topPlayers);
     await syncHofRecords('avg_pts', currentYear, topAvgPts);
     await syncHofRecords('most_mvp', currentYear, topMvpCounts);
