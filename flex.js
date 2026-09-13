@@ -4404,7 +4404,13 @@ function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, r
       });
     } else {
       const info = resolveInfoFn ? resolveInfoFn(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards) : member;
-      if (type == 3 || type == 4) {
+      if (type == 4) {
+        const avg = parseFloat(member.goal !== undefined ? member.goal : (member.pts || 0)).toFixed(2);
+        const total = parseFloat(member.total_raw || 0);
+        const totalStr = Number.isInteger(total) ? `${total}` : `${total.toFixed(1)}`;
+        const matches = Number(member.m || member.matches || 0);
+        valText = matches > 0 ? `${avg} (${totalStr}/${matches})` : `${avg}`;
+      } else if (type == 3) {
         const num = parseFloat(member.goal !== undefined ? member.goal : (member.pts || 0));
         valText = `${num.toFixed(2)}`;
       } else {
