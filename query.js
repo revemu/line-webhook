@@ -3325,27 +3325,23 @@ function buildAvgPtsQuery(year, limit = null) {
     member_tbl.picture_url,
     member_tbl.line_user_id,
     ROUND(
-      SUM(table_week_tbl.pts) 
-      / SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l),
+      SUM(CASE WHEN m.raw_score > 0 THEN m.raw_score ELSE 0 END)
+      / SUM(tw.w + tw.d + tw.l),
       2
     ) AS goal,
-    SUM(table_week_tbl.pts) 
-        / SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS pts,
-    SUM(table_week_tbl.w + table_week_tbl.d + table_week_tbl.l) AS m
-    FROM member_team_week_tbl
-    JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
-    JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
-    JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
-    WHERE (week_tbl.year = ${year} OR YEAR(week_tbl.date) = ${year})
+    SUM(CASE WHEN m.raw_score > 0 THEN m.raw_score ELSE 0 END) AS total_raw,
+    SUM(tw.w + tw.d + tw.l) AS m
+    FROM member_team_week_tbl mtw
+    JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
+    JOIN member_tbl ON mtw.member_id = member_tbl.id
+    JOIN week_tbl w ON mtw.week_id = w.id
+    LEFT JOIN mvp_week_tbl m ON mtw.week_id = m.week_id AND mtw.member_id = m.member_id
+    WHERE (w.year = ${year} OR YEAR(w.date) = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
-    HAVING COUNT(table_week_tbl.id) > (
-        SELECT COUNT(*) * 0.6
-        FROM week_tbl
-        WHERE (week_tbl.year = ${year} OR YEAR(week_tbl.date) = ${year})
-    )
-    ORDER BY goal DESC, pts DESC`;
+    HAVING m > 0 AND goal > 0
+    ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
 }
