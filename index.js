@@ -14,6 +14,7 @@ const cmd = require('./cmd');
 const slipService = require('./slip');
 const lineClient = require('./lineClient');
 const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
+const { spamProtector } = require('./utils/spamProtection');
 
 const execPromise = util.promisify(exec);
 
@@ -382,11 +383,35 @@ async function handleTextMessage(event, member) {
     const isCmd = ['/', 'x', '+', '-'].includes(op) || !source.groupId;
 
     if (isCmd) {
-        console.log(`${member.name} [CMD]: ${message.text}`);
         const cmd_str = op === '/' ? text.substring(1) : text;
-        const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
-        if (replyMessages) {
-            await replyMessage(replyToken, replyMessages);
+        const userId = source.userId || (member && (member.line_user_id || member.id));
+        const groupId = source.groupId || null;
+
+        const spamCheck = spamProtector.acquire(userId, groupId, cmd_str);
+        if (!spamCheck.allowed) {
+            console.warn(`[SPAM BLOCKED] Duplicate command '${message.text}' from ${member ? member.name : userId} ignored (only 1st is processed)`);
+            if (spamCheck.shouldWarn) {
+                const displayName = member && member.name ? member.name.replace('@', '') : 'คุณ';
+                const replyMsg = {
+                    type: 'text',
+                    text: `ขออภัย ${displayName} เพิ่งส่งคำสั่งนี้ไปแล้ว กรุณารอสักครู่ครับ ⏳`
+                };
+                if (message.quoteToken) {
+                    replyMsg.quoteToken = message.quoteToken;
+                }
+                await replyMessage(replyToken, replyMsg);
+            }
+            return;
+        }
+
+        try {
+            console.log(`${member.name} [CMD]: ${message.text}`);
+            const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
+            if (replyMessages) {
+                await replyMessage(replyToken, replyMessages);
+            }
+        } finally {
+            spamProtector.release(userId, groupId, cmd_str);
         }
     } else {
         console.log(`${member.name}: ${message.text}`);
