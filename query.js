@@ -4156,6 +4156,7 @@ async function updateHof() {
     const assists = await executeQuery(buildGoalQuery('= 3', currentYear));
     const ownGoals = await executeQuery(buildGoalQuery('= 2', currentYear));
     const players = await executeQuery(buildMostPtsQuery(currentYear));
+    const avgPtsList = await executeQuery(buildAvgPtsQuery(currentYear));
     const bottomList = await executeQuery(buildBottomQuery(currentYear));
     const mvpCountList = await executeQuery(buildMvpCountQuery(currentYear));
 
@@ -4199,6 +4200,21 @@ async function updateHof() {
       }
     }
 
+    let topAvgPts = [];
+    if (avgPtsList && avgPtsList.length > 0) {
+      const validAvgPts = avgPtsList.map(p => ({
+        id: p.id,
+        pts: parseFloat(p.goal !== undefined ? p.goal : 0)
+      })).filter(p => !isNaN(p.pts));
+
+      if (validAvgPts.length > 0) {
+        const maxAvgPts = Math.max(...validAvgPts.map(p => p.pts));
+        if (maxAvgPts > 0) {
+          topAvgPts = validAvgPts.filter(p => p.pts === maxAvgPts).map(p => p.id);
+        }
+      }
+    }
+
     let topBottom = [];
     if (bottomList && bottomList.length > 0) {
       const maxBottom = Math.max(...bottomList.map(b => b.goal));
@@ -4237,12 +4253,12 @@ async function updateHof() {
     await syncHofRecords('assist', currentYear, topAssists);
     await syncHofRecords('own_goal', currentYear, topOwnGoals);
     await syncHofRecords('most_pts', currentYear, topPlayers);
-    await syncHofRecords('avg_pts', currentYear, []);
+    await syncHofRecords('avg_pts', currentYear, topAvgPts);
     await syncHofRecords('most_mvp', currentYear, topMvpCounts);
     await syncHofRecords('bottom', currentYear, topBottom);
     await syncHofRecords('best_mvp', currentYear, topBestMvp);
 
-    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top MVP Count: ${topMvpCounts.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
+    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top Avg Pts: ${topAvgPts.join(', ')}, Top MVP Count: ${topMvpCounts.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
   } catch (err) {
     console.error('Error updating HOF records:', err.message);
   }
