@@ -167,6 +167,9 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
       if (!badge && (awardType === 'best_mvp' || awardType === 'mvp')) {
         badge = hofBadge['best_mvp'] || hofBadge['mvp'] || hofBadge['top_mvp'];
       }
+      if (!badge && (awardType === 'most_pts' || awardType === 'avg_pts')) {
+        badge = hofBadge['most_pts'] || hofBadge['avg_pts'];
+      }
       if (!badge) {
         badge = hofBadge['default'] || Object.values(hofBadge)[0] || { id: 0, url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
       }
@@ -3248,6 +3251,30 @@ function buildMvpCountQuery(year, limit = null) {
   return sql;
 }
 
+function buildMostPtsQuery(year, limit = null) {
+  let sql = `SELECT 
+    member_tbl.id,
+    member_tbl.name, 
+    member_tbl.alias, 
+    member_tbl.rank,
+    member_tbl.donate,
+    member_tbl.picture_url,
+    member_tbl.line_user_id,
+    SUM(table_week_tbl.pts) as goal
+    FROM member_team_week_tbl
+    JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
+    JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
+    JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
+    WHERE (week_tbl.year = ${year} OR YEAR(week_tbl.date) = ${year})
+      AND member_tbl.id <> 121 AND member_tbl.id <> 169
+      AND member_tbl.team_id <> 101
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    HAVING goal > 0
+    ORDER BY goal DESC`;
+  if (limit) sql += ` LIMIT ${limit}`;
+  return sql;
+}
+
 function buildAvgPtsQuery(year, limit = null) {
   let sql = `SELECT 
     member_tbl.id,
@@ -3365,9 +3392,9 @@ async function getTopStat(limit = 10, type = 0, groupId = null) {
     icon = "🥅";
     query = buildGoalQuery(status, currentYear, limit);
   } else if (type == 4) {
-    header = `Top ${limit} MVP`;
-    icon = "👑";
-    query = buildMvpCountQuery(currentYear, limit);
+    header = `Top ${limit} Most Pts`;
+    icon = "🏆";
+    query = buildMostPtsQuery(currentYear, limit);
   } else if (type == 5) {
     header = `ซึมเศร้าสะสม`;
     icon = "📉";
@@ -4073,7 +4100,7 @@ async function updateHof() {
     const scorers = await executeQuery(buildGoalQuery('< 2', currentYear));
     const assists = await executeQuery(buildGoalQuery('= 3', currentYear));
     const ownGoals = await executeQuery(buildGoalQuery('= 2', currentYear));
-    const players = await executeQuery(buildAvgPtsQuery(currentYear));
+    const players = await executeQuery(buildMostPtsQuery(currentYear));
     const bottomList = await executeQuery(buildBottomQuery(currentYear));
 
     // Find max counts and filter — shared queries return 'goal' column for counts, 'id' for member
@@ -4105,12 +4132,14 @@ async function updateHof() {
     if (players && players.length > 0) {
       const validPlayers = players.map(p => ({
         id: p.id,
-        pts: parseFloat(p.pts)
+        pts: parseFloat(p.goal !== undefined ? p.goal : p.pts)
       })).filter(p => !isNaN(p.pts));
 
       if (validPlayers.length > 0) {
         const maxPts = Math.max(...validPlayers.map(p => p.pts));
-        topPlayers = validPlayers.filter(p => p.pts === maxPts).map(p => p.id);
+        if (maxPts > 0) {
+          topPlayers = validPlayers.filter(p => p.pts === maxPts).map(p => p.id);
+        }
       }
     }
 
@@ -4143,11 +4172,12 @@ async function updateHof() {
     await syncHofRecords('scorer', currentYear, topScorers);
     await syncHofRecords('assist', currentYear, topAssists);
     await syncHofRecords('own_goal', currentYear, topOwnGoals);
-    await syncHofRecords('avg_pts', currentYear, topPlayers);
+    await syncHofRecords('most_pts', currentYear, topPlayers);
+    await syncHofRecords('avg_pts', currentYear, []);
     await syncHofRecords('bottom', currentYear, topBottom);
     await syncHofRecords('best_mvp', currentYear, topBestMvp);
 
-    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Avg Pts): ${topPlayers.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
+    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
   } catch (err) {
     console.error('Error updating HOF records:', err.message);
   }

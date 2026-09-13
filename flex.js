@@ -4343,7 +4343,7 @@ function buildTableWeekFlex(dateStr, weekTables, teamColors) {
 }
 
 /**
- * Build Flex bubble for /top (stat ranking tables for scorers, assists, avg pts, bottom, lucky colors).
+ * Build Flex bubble for /top (stat ranking tables for scorers, assists, most pts, bottom, lucky colors).
  */
 function buildTopStatFlex(result, type, header, icon, url, theme, assets = {}, resolveInfoFn) {
   const colors = getThemeColors(theme);

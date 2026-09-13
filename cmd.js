@@ -564,8 +564,8 @@ const COMMAND_REGISTRY = {
         const stats = await Promise.all([
             db.getTopStat(limit, 0, groupId), // Top Scorers
             db.getTopStat(limit, 1, groupId), // Top Assists
-            db.getTopStat(limit, 4, groupId), // Most MVP Count
-            db.getTopStat(limit, 6, groupId)  // Own Goals / Spy
+            db.getTopStat(limit, 4, groupId), // Most Pts (Accumulative Raw Pts)
+            db.getTopStat(limit, 6, groupId)  // Lucky Colors
         ]);
         const carousel = JSON.parse(JSON.stringify(flex.tpl_carousel));
         carousel.contents = stats.filter(x => x !== null && x !== undefined);
