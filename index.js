@@ -392,13 +392,12 @@ async function handleTextMessage(event, member) {
             console.warn(`[SPAM BLOCKED] Duplicate command '${message.text}' from ${member ? member.name : userId} ignored (only 1st is processed)`);
             if (spamCheck.shouldWarn) {
                 const displayName = member && member.name ? member.name.replace('@', '') : 'คุณ';
-                const replyMsg = {
-                    type: 'text',
-                    text: `ขออภัย ${displayName} เพิ่งส่งคำสั่งนี้ไปแล้ว กรุณารอสักครู่ครับ ⏳`
-                };
-                if (message.quoteToken) {
-                    replyMsg.quoteToken = message.quoteToken;
-                }
+                const replyMsg = [
+                    {
+                        type: 'text',
+                        text: `ขออภัย ${displayName} เพิ่งส่งคำสั่งนี้ไปแล้ว กรุณารอสักครู่ครับ ⏳`
+                    }
+                ];
                 await replyMessage(replyToken, replyMsg);
             }
             return;
