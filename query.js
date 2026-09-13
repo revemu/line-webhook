@@ -162,6 +162,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
 
   if (memberAwards.length > 0) {
     const badgesWithId = [];
+    const seenUrls = new Set();
     for (const awardType of memberAwards) {
       let badge = hofBadge[awardType];
       if (!badge && (awardType === 'best_mvp' || awardType === 'mvp' || awardType === 'most_mvp' || awardType === 'mvp_count' || awardType === 'top_mvp')) {
@@ -184,7 +185,10 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
         if (bUrl.startsWith('http://')) {
           bUrl = bUrl.replace('http://', 'https://');
         }
-        badgesWithId.push({ id: bId, url: bUrl, size: bSize });
+        if (!seenUrls.has(bUrl)) {
+          seenUrls.add(bUrl);
+          badgesWithId.push({ id: bId, url: bUrl, size: bSize });
+        }
       }
     }
     badgesWithId.sort((a, b) => a.id - b.id);

@@ -197,13 +197,18 @@ const COMMAND_REGISTRY = {
             if (msg.header) delete msg.header;
             return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg };
         } else {
+            const hasSub = sub && typeof sub === 'object' && Object.keys(sub).length > 0;
             if (noticeText) {
                 return [
                     { type: 'text', quoteToken: quoteToken, text: noticeText },
-                    { type: 'textV2', quoteToken: quoteToken, text: msg, substitution: sub }
+                    hasSub
+                        ? { type: 'textV2', quoteToken: quoteToken, text: msg, substitution: sub }
+                        : { type: 'text', quoteToken: quoteToken, text: msg }
                 ];
             }
-            return { type: 'textV2', quoteToken, text: msg, substitution: sub };
+            return hasSub
+                ? { type: 'textV2', quoteToken, text: msg, substitution: sub }
+                : { type: 'text', quoteToken, text: msg };
         }
     },
     '-1': async (context) => {
@@ -219,7 +224,10 @@ const COMMAND_REGISTRY = {
         if (is_flex && typeof msg === 'object') {
             return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg };
         } else {
-            return { type: 'textV2', text: msg, substitution: sub };
+            const hasSub = sub && typeof sub === 'object' && Object.keys(sub).length > 0;
+            return hasSub
+                ? { type: 'textV2', text: msg, substitution: sub }
+                : { type: 'text', text: msg };
         }
     },
     '+pay2': async (context) => {

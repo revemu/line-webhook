@@ -1308,6 +1308,7 @@ function buildLiveFlex(matchInfo, theme) {
 
 function makeBoxButton(label, text, color, flexVal = 1, size = 'sm', wrap = false) {
   const safeColor = color && typeof color === 'string' && /^[0-9a-fA-F]{3,8}$/.test(color) ? `#${color}` : color;
+  const actionLabel = typeof label === 'string' ? label.slice(0, 20) : label;
   return {
     type: 'box',
     layout: 'vertical',
@@ -1317,7 +1318,7 @@ function makeBoxButton(label, text, color, flexVal = 1, size = 'sm', wrap = fals
     paddingBottom: 'sm',
     action: {
       type: 'message',
-      label: label,
+      label: actionLabel,
       text: text
     },
     contents: [
@@ -1446,7 +1447,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
   }
 
   if (p.hofBadges && p.hofBadges.length > 0) {
-    for (const hb of p.hofBadges) {
+    for (const hb of p.hofBadges.slice(0, 1)) {
       contents.push({
         type: 'box',
         layout: 'vertical',
@@ -2187,7 +2188,7 @@ function buildRegisterFlex(dateStr, currentCount, maxPlayers, theme, imageUrl = 
           type: 'button',
           action: {
             type: 'message',
-            label: '👍 ลงชื่อเข้าเล่น (+1)',
+            label: '👍 ลงชื่อ (+1)',
             text: '+1'
           },
           style: 'primary',
@@ -3025,8 +3026,8 @@ function buildRegisterClosedFlex(theme) {
           layout: 'horizontal',
           spacing: 'sm',
           contents: [
-            makeBoxButton('📋 ดูสมาชิกที่ลงชื่อ', '/register', buttonColor, 1, 'xs', true),
-            makeBoxButton('👤 รายชื่อลงทะเบียนอัตโนมัติ', '/autoreglist', isWhite ? '#64748b' : '#334155', 1, 'xs', true)
+            makeBoxButton('📋 ดูสมาชิก', '/register', buttonColor, 1, 'xs', true),
+            makeBoxButton('👤 รายชื่อ Auto Reg', '/autoreglist', isWhite ? '#64748b' : '#334155', 1, 'xs', true)
           ]
         }
       ]
