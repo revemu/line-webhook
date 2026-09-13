@@ -3341,7 +3341,12 @@ function buildAvgPtsQuery(year, limit = null) {
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
-    HAVING weeks > 0 AND goal > 0
+    HAVING weeks > (
+        SELECT COUNT(*) * 0.5
+        FROM week_tbl
+        WHERE (week_tbl.year = ${year} OR YEAR(week_tbl.date) = ${year})
+    )
+    AND goal > 0
     ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
