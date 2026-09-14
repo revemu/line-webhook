@@ -3197,7 +3197,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
 
       str = `${header} ${str}`;
       //console.log(sub) ;
-      return [str, sub, merber_count];
+      return [str, sub, merber_count, (res && res[0] && res[0].cost) ? res[0].cost : 0];
     } else {
       if (type == 0) {
         header = `จ่ายครบหมดแล้ว เสาร์ที่ ${await getFormatDate(date)}`;
@@ -3206,10 +3206,10 @@ async function getMemberWeek2(type = 0, useMention = true) {
       }
       //return header ;
       //console.log(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
-      return [header, sub, merber_count];
+      return [header, sub, merber_count, (res && res[0] && res[0].cost) ? res[0].cost : 0];
     }
   }
-
+  return ['', {}, 0, 0];
 }
 
 // ── Shared query builders (used by both getTopStat and updateHof) ──
@@ -3491,6 +3491,8 @@ async function getDebtList(type = 0) {
   let debt_count = 0;
   let sub = {};
   let proceed = false;
+  let debt_val = 0;
+  let debt_members = [];
 
   if (type == 0) {
     const debt_call = `SELECT value from template_tpl where name = 'call'`;
@@ -3509,6 +3511,7 @@ async function getDebtList(type = 0) {
     const check_res = await executeQuery(check);
 
     if (check_res.length > 0) {
+      debt_members = check_res;
       for (const member of check_res) {
         debt_count++;
         let name = member.name;
@@ -3531,12 +3534,14 @@ async function getDebtList(type = 0) {
       if (type == 0) {
         await updateAlertCall(1);
       }
+      const uniqueDebts = [...new Set(check_res.map(m => Number(m.debt)).filter(d => d > 0))];
+      debt_val = uniqueDebts.length > 0 ? uniqueDebts[0] : 0;
     }
 
   }
   debt_str += "** ข้อความแจ้งเตือนวันละครั้ง **\n";
   debt_str += "สมาชิกจะยังลงชื่อไม่ได้ในสัปดาห์นี้ และจะไม่ถูกเพิ่มจากการลงทะเบียนอัตโนมัติ ถ้ามีการเปิดสัปดาห์ใหม่";
-  return [debt_str, sub, debt_count, proceed];
+  return [debt_str, sub, debt_count, proceed, debt_val, debt_members];
 
 }
 

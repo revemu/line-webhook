@@ -11,6 +11,7 @@ const http = require('http');
 const db = require('./query');
 const flex = require('./flex');
 const cmd = require('./cmd');
+const qrGen = require('./qr_gen');
 const slipService = require('./slip');
 const lineClient = require('./lineClient');
 const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
@@ -417,14 +418,37 @@ async function handleTextMessage(event, member) {
         const h = new Date().getHours();
         const dow = new Date().getDay();
         if (dow > 0 && dow < 6 && h > 10 && h < 20 && source.groupId) {
-            const [debt_str, sub, debt_count, proceed] = await db.getDebtList(0);
+            const [debt_str, sub, debt_count, proceed, debt_val, debt_members] = await db.getDebtList(0);
             if (proceed && debt_count > 0) {
                 console.log(`once a day debt call!`);
-                await replyMessage(replyToken, {
-                    type: 'textV2',
-                    text: debt_str,
-                    substitution: sub
-                });
+                const replyMsgs = [
+                    {
+                        type: 'textV2',
+                        text: debt_str,
+                        substitution: sub
+                    }
+                ];
+
+                try {
+                    const debts = (debt_members || []).map(m => Number(m.debt)).filter(d => d > 0);
+                    const uniqueDebts = debts.length > 0 ? [...new Set(debts)] : (debt_val > 0 ? [debt_val] : []);
+                    let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+                    if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
+
+                    for (const amount of uniqueDebts.slice(0, 4)) {
+                        const filename = await qrGen.generateQrCode(amount, '006660080321320');
+                        const localQrUrl = qrGen.getQrImageUrl(filename, baseUrl);
+                        replyMsgs.push({
+                            type: 'image',
+                            originalContentUrl: localQrUrl,
+                            previewImageUrl: localQrUrl
+                        });
+                    }
+                } catch (qrErr) {
+                    console.error('Error generating QR code for debt call:', qrErr);
+                }
+
+                await replyMessage(replyToken, replyMsgs);
             }
         }
     }

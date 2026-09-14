@@ -1,6 +1,7 @@
 const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
+const qrGen = require('./qr_gen');
 
 const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
 
@@ -363,20 +364,46 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         }
 
         if (showUnpaid) {
-            const [msg, sub, count] = await db.getMemberWeek2(0, true);
+            const [msg, sub, count, weekCost] = await db.getMemberWeek2(0, true);
+            let firstMsg;
             if (count === 0 || count > 20 || !sub || Object.keys(sub).length === 0) {
-                replyMessages = [{
+                firstMsg = {
                     type: 'text',
                     quoteToken: message.quoteToken,
                     text: header + msg
-                }];
+                };
             } else {
-                replyMessages = {
+                firstMsg = {
                     type: 'textV2',
                     quoteToken: message.quoteToken,
                     text: header + msg,
                     substitution: sub
                 };
+            }
+
+            replyMessages = [firstMsg];
+
+            if (count > 0) {
+                try {
+                    let cost = Number(weekCost) || 0;
+                    if (cost <= 0) {
+                        const weekInfo = await db.queryWeekID(0);
+                        if (weekInfo && weekInfo.length > 0 && weekInfo[0].cost > 0) {
+                            cost = Number(weekInfo[0].cost);
+                        }
+                    }
+                    const filename = await qrGen.generateQrCode(cost, '006660080321320');
+                    let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+                    if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
+                    const localQrUrl = qrGen.getQrImageUrl(filename, baseUrl);
+                    replyMessages.push({
+                        type: 'image',
+                        originalContentUrl: localQrUrl,
+                        previewImageUrl: localQrUrl
+                    });
+                } catch (qrErr) {
+                    console.error('[slip] Error generating QR code for unpaid week members:', qrErr);
+                }
             }
         } else {
             replyMessages = [{

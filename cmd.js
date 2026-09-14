@@ -159,8 +159,29 @@ const COMMAND_REGISTRY = {
         return [{ type: 'text', text: msg }];
     },
     '+2': async (context) => {
-        const [msg, sub] = await db.getDebtList(0);
-        return { type: 'textV2', text: msg, substitution: sub };
+        const [msg, sub, debt_count, proceed, debt_val, debt_members] = await db.getDebtList(0);
+        const replyMsgs = [{ type: 'textV2', text: msg, substitution: sub }];
+        if (debt_members && debt_members.length > 0) {
+            try {
+                const debts = debt_members.map(m => Number(m.debt)).filter(d => d > 0);
+                const uniqueDebts = debts.length > 0 ? [...new Set(debts)] : (debt_val > 0 ? [debt_val] : []);
+                let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+                if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
+
+                for (const amount of uniqueDebts.slice(0, 4)) {
+                    const filename = await qrGen.generateQrCode(amount, '006660080321320');
+                    const localQrUrl = qrGen.getQrImageUrl(filename, baseUrl);
+                    replyMsgs.push({
+                        type: 'image',
+                        originalContentUrl: localQrUrl,
+                        previewImageUrl: localQrUrl
+                    });
+                }
+            } catch (qrErr) {
+                console.error('Error generating QR code for +2 cmd:', qrErr);
+            }
+        }
+        return replyMsgs;
     },
     '+1': async (context) => {
         const { member_id, member_name, is_flex, groupId, quoteToken } = context;
