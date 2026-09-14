@@ -392,15 +392,21 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
                             cost = Number(weekInfo[0].cost);
                         }
                     }
-                    const filename = await qrGen.generateQrCode(cost, '006660080321320');
-                    let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-                    if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
-                    const localQrUrl = qrGen.getQrImageUrl(filename, baseUrl);
-                    replyMessages.push({
-                        type: 'image',
-                        originalContentUrl: localQrUrl,
-                        previewImageUrl: localQrUrl
-                    });
+                    console.log(`[slip] Unpaid week members count: ${count}, cost: ${cost}`);
+                    if (cost > 0) {
+                        const filename = await qrGen.generateQrCode(cost, '006660080321320');
+                        let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+                        if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
+                        const localQrUrl = qrGen.getQrImageUrl(filename, baseUrl);
+                        console.log(`[slip] Generated QR for unpaid week members: ${filename} -> ${localQrUrl}`);
+                        replyMessages.push({
+                            type: 'image',
+                            originalContentUrl: localQrUrl,
+                            previewImageUrl: localQrUrl
+                        });
+                    } else {
+                        console.warn(`[slip] Skipping QR generation for unpaid week members because cost is <= 0 (${cost})`);
+                    }
                 } catch (qrErr) {
                     console.error('[slip] Error generating QR code for unpaid week members:', qrErr);
                 }

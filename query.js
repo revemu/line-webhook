@@ -3487,6 +3487,7 @@ async function checkDebtCall() {
 }
 
 async function getDebtList(type = 0) {
+  console.log(`[getDebtList] Called with type = ${type} (0=daily auto, 1=manual)`);
   let debt_str = "=== สมาชิกที่มียอดค้าง ===\n\n";
   let debt_count = 0;
   let sub = {};
@@ -3497,18 +3498,25 @@ async function getDebtList(type = 0) {
   if (type == 0) {
     const debt_call = `SELECT value from template_tpl where name = 'call'`;
     const debt_call_res = await executeQuery(debt_call);
+    console.log(`[getDebtList] template_tpl 'call' query result:`, debt_call_res);
     if (debt_call_res.length > 0) {
       if (debt_call_res[0].value == 0) {
         proceed = true;
+      } else {
+        console.log(`[getDebtList] proceed=false because call value is ${debt_call_res[0].value} (already alerted today)`);
       }
+    } else {
+      console.warn(`[getDebtList] template_tpl 'call' row not found in DB`);
     }
   } else {
     proceed = true;
+    console.log(`[getDebtList] proceed=true (type != 0, manual request)`);
   }
 
   if (proceed) {
     const check = `SELECT * from member_tbl where debt > 0`;
     const check_res = await executeQuery(check);
+    console.log(`[getDebtList] Query 'member_tbl where debt > 0' returned ${check_res.length} row(s)`);
 
     if (check_res.length > 0) {
       debt_members = check_res;
@@ -3516,7 +3524,8 @@ async function getDebtList(type = 0) {
         debt_count++;
         let name = member.name;
         let line_id = member.line_user_id;
-        if (line_id != null && line_id != "") {
+        const currentSubCount = Object.keys(sub).length;
+        if (line_id != null && line_id !== "" && currentSubCount < 20) {
           name = `user${debt_count}`;
           debt_str += `${debt_count}. {${name}} - ${member.debt} บาท\n`;
           sub[name] = {
@@ -3530,17 +3539,26 @@ async function getDebtList(type = 0) {
         } else {
           debt_str += `${debt_count}. ${name} - ${member.debt} บาท\n`;
         }
+        console.log(`[getDebtList] Member #${debt_count}: id=${member.id}, name=${member.name}, debt=${member.debt}, line_id=${line_id || 'none'}, mentionUsed=${name.startsWith('user')}`);
       }
       if (type == 0) {
+        console.log(`[getDebtList] Updating template_tpl 'call' value to 1 (daily alert flag)`);
         await updateAlertCall(1);
       }
-      const uniqueDebts = [...new Set(check_res.map(m => Number(m.debt)).filter(d => d > 0))];
+      const uniqueDebts = [...new Set(check_res.map(m => Number(m.debt)).filter(d => !isNaN(d) && d > 0))];
       debt_val = uniqueDebts.length > 0 ? uniqueDebts[0] : 0;
+      console.log(`[getDebtList] Calculated uniqueDebts:`, uniqueDebts, `debt_val:`, debt_val);
+    } else {
+      console.log(`[getDebtList] No members found with debt > 0`);
+      if (type != 0) {
+        debt_str += "ไม่มีสมาชิกค้างชำระ 🎉\n\n";
+      }
     }
-
   }
+
   debt_str += "** ข้อความแจ้งเตือนวันละครั้ง **\n";
   debt_str += "สมาชิกจะยังลงชื่อไม่ได้ในสัปดาห์นี้ และจะไม่ถูกเพิ่มจากการลงทะเบียนอัตโนมัติ ถ้ามีการเปิดสัปดาห์ใหม่";
+  console.log(`[getDebtList] Finished. Summary: proceed=${proceed}, debt_count=${debt_count}, debt_val=${debt_val}, debt_members=${debt_members.length}, subKeys=${Object.keys(sub).length}`);
   return [debt_str, sub, debt_count, proceed, debt_val, debt_members];
 
 }

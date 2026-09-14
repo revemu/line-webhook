@@ -159,18 +159,34 @@ const COMMAND_REGISTRY = {
         return [{ type: 'text', text: msg }];
     },
     '+2': async (context) => {
-        const [msg, sub, debt_count, proceed, debt_val, debt_members] = await db.getDebtList(0);
-        const replyMsgs = [{ type: 'textV2', text: msg, substitution: sub }];
+        console.log(`[+2 CMD] Manual debt list command called by ${context.member_name}`);
+        const [msg, sub, debt_count, proceed, debt_val, debt_members] = await db.getDebtList(1);
+        console.log(`[+2 CMD] getDebtList(1) returned: debt_count=${debt_count}, proceed=${proceed}, debt_val=${debt_val}, members=${debt_members ? debt_members.length : 0}, subKeys=${sub ? Object.keys(sub).length : 0}`);
+
+        const hasSub = sub && typeof sub === 'object' && Object.keys(sub).length > 0 && Object.keys(sub).length <= 20;
+        const firstMsg = hasSub
+            ? { type: 'textV2', text: msg, substitution: sub }
+            : { type: 'text', text: msg };
+        const replyMsgs = [firstMsg];
+
         if (debt_members && debt_members.length > 0) {
             try {
-                const debts = debt_members.map(m => Number(m.debt)).filter(d => d > 0);
+                const rawDebts = debt_members.map(m => Number(m.debt));
+                const debts = rawDebts.filter(d => !isNaN(d) && d > 0);
                 const uniqueDebts = debts.length > 0 ? [...new Set(debts)] : (debt_val > 0 ? [debt_val] : []);
+                console.log(`[+2 CMD] Debts - raw:`, rawDebts, `filtered (>0):`, debts, `uniqueDebts:`, uniqueDebts);
                 let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
                 if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
 
                 for (const amount of uniqueDebts.slice(0, 4)) {
+                    if (!amount || isNaN(amount) || amount <= 0) {
+                        console.warn(`[+2 CMD] Skipping QR generation for invalid/zero debt amount: ${amount}`);
+                        continue;
+                    }
+                    console.log(`[+2 CMD] Generating QR for amount: ${amount}...`);
                     const filename = await qrGen.generateQrCode(amount, '006660080321320');
                     const localQrUrl = qrGen.getQrImageUrl(filename, baseUrl);
+                    console.log(`[+2 CMD] Generated QR: ${filename} -> ${localQrUrl}`);
                     replyMsgs.push({
                         type: 'image',
                         originalContentUrl: localQrUrl,
@@ -178,8 +194,10 @@ const COMMAND_REGISTRY = {
                     });
                 }
             } catch (qrErr) {
-                console.error('Error generating QR code for +2 cmd:', qrErr);
+                console.error('[+2 CMD] Error generating QR code for +2 cmd:', qrErr);
             }
+        } else {
+            console.log(`[+2 CMD] No debt members to generate QR codes for.`);
         }
         return replyMsgs;
     },

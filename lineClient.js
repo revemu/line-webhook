@@ -67,7 +67,12 @@ async function replyMessage(replyToken, messages) {
   }
 
   try {
-    return await client.replyMessage(replyToken, messages);
+    const msgCount = Array.isArray(messages) ? messages.length : 1;
+    const msgTypes = Array.isArray(messages) ? messages.map(m => m.type).join(', ') : messages.type;
+    console.log(`[lineClient] Replying with ${msgCount} message(s) [types: ${msgTypes}] to token ${replyToken ? replyToken.substring(0, 10) + '...' : 'none'}`);
+    const result = await client.replyMessage(replyToken, messages);
+    console.log(`[lineClient] replyMessage succeeded`);
+    return result;
   } catch (error) {
     let details = null;
     if (error.response && error.response.data) {
