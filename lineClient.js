@@ -91,9 +91,58 @@ async function replyMessage(replyToken, messages) {
   }
 }
 
+/**
+ * Pushes messages to a LINE user, group, or room.
+ * @param {string} to - LINE User ID, Group ID, or Room ID
+ * @param {Object|Array} messages 
+ * @returns {Promise<Object>}
+ */
+async function pushMessage(to, messages) {
+  const client = getLineClient();
+  if (!to) {
+    console.warn('[lineClient] pushMessage aborted: recipient ID (to) is empty or null');
+    return null;
+  }
+
+  try {
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    fs.writeFileSync(path.join(tempDir, 'latest_push_flex.json'), JSON.stringify(messages, null, 2), 'utf8');
+  } catch (fsErr) {
+    console.error('Error saving latest push json in pushMessage:', fsErr.message);
+  }
+
+  try {
+    const msgCount = Array.isArray(messages) ? messages.length : 1;
+    const msgTypes = Array.isArray(messages) ? messages.map(m => m.type).join(', ') : messages.type;
+    console.log(`[lineClient] Pushing ${msgCount} message(s) [types: ${msgTypes}] to ${to ? to.substring(0, 10) + '...' : 'none'}`);
+    const result = await client.pushMessage(to, messages);
+    console.log(`[lineClient] pushMessage succeeded`);
+    return result;
+  } catch (error) {
+    let details = null;
+    if (error.response && error.response.data) {
+      details = error.response.data;
+    } else if (error.originalError && error.originalError.response && error.originalError.response.data) {
+      details = error.originalError.response.data;
+    } else if (error.data) {
+      details = error.data;
+    }
+    if (details) {
+      console.error('LINE API Error Details (pushMessage):', JSON.stringify(details, null, 2));
+    } else {
+      console.error('LINE API Error Details (pushMessage):', JSON.stringify({ message: error.message || String(error) }, null, 2));
+    }
+    return null;
+  }
+}
+
 module.exports = {
   config,
   getLineClient,
   fetchUserProfile,
-  replyMessage
+  replyMessage,
+  pushMessage
 };

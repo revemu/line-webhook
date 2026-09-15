@@ -16,6 +16,7 @@ const slipService = require('./slip');
 const lineClient = require('./lineClient');
 const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
 const { spamProtector } = require('./utils/spamProtection');
+const { initScheduler, notifyActiveGroup } = require('./scheduler');
 
 const execPromise = util.promisify(exec);
 
@@ -84,6 +85,10 @@ app.post('/webhook', async (req, res) => {
 // Handle incoming webhook events
 async function handleEvent(event) {
     try {
+        if (event.source && event.source.groupId) {
+            console.log(`[Group: ${event.source.groupId}] Incoming event: ${event.type}`);
+            notifyActiveGroup(event.source.groupId);
+        }
         if (event.type === 'message') {
             await handleMessage(event);
         } else if (event.type === 'memberJoined') {
@@ -332,8 +337,9 @@ async function handleMessage(event) {
 
 async function handleImageMessage(event, member) {
     const { replyToken, message, source } = event;
+    const groupTag = source.groupId ? ` [Group: ${source.groupId}]` : ' [Direct]';
     try {
-        console.log(`${member.name}: sent image! need processing...`);
+        console.log(`${member.name}${groupTag}: sent image! need processing...`);
         const startTime = Date.now();
         const imageBuffer = await getImageAxios(message.id);
         const tDownload = Date.now() - startTime;
@@ -404,8 +410,9 @@ async function handleTextMessage(event, member) {
             return;
         }
 
+        const groupTag = source.groupId ? ` [Group: ${source.groupId}]` : ' [Direct]';
         try {
-            console.log(`${member.name} [CMD]: ${message.text}`);
+            console.log(`${member.name}${groupTag} [CMD]: ${message.text}`);
             const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
             if (replyMessages) {
                 await replyMessage(replyToken, replyMessages);
@@ -414,79 +421,15 @@ async function handleTextMessage(event, member) {
             spamProtector.release(userId, groupId, cmd_str);
         }
     } else {
-        console.log(`${member.name}: ${message.text}`);
-        const h = new Date().getHours();
-        const dow = new Date().getDay();
-        const isWeekday = dow > 0 && dow < 6;
-        const isTimeWindow = h > 10 && h < 20;
-        const isGroup = Boolean(source.groupId);
-
-        console.log(`[DebtListCheck] Incoming non-cmd message from ${member.name} in group: ${source.groupId || 'none'} | dow: ${dow} (weekday: ${isWeekday}), hour: ${h} (window 11-19: ${isTimeWindow})`);
-
-        if (isWeekday && isTimeWindow && isGroup) {
-            console.log(`[DebtListCheck] Conditions met (weekday, 11-19, in group). Calling db.getDebtList(0)...`);
-            const [debt_str, sub, debt_count, proceed, debt_val, debt_members] = await db.getDebtList(0);
-            console.log(`[DebtListCheck] getDebtList(0) result: proceed=${proceed}, debt_count=${debt_count}, debt_val=${debt_val}, debt_members=${debt_members ? debt_members.length : 0}, subKeys=${sub ? Object.keys(sub).length : 0}`);
-
-            if (proceed && debt_count > 0) {
-                console.log(`[DebtListCheck] Once a day debt call triggering!`);
-                const hasSub = sub && typeof sub === 'object' && Object.keys(sub).length > 0 && Object.keys(sub).length <= 20;
-                const firstMsg = hasSub
-                    ? {
-                        type: 'textV2',
-                        text: debt_str,
-                        substitution: sub
-                    }
-                    : {
-                        type: 'text',
-                        text: debt_str
-                    };
-                const replyMsgs = [firstMsg];
-                console.log(`[DebtListCheck] First message formatted: type=${firstMsg.type}, hasSub=${hasSub}, subKeys=${sub ? Object.keys(sub).length : 0}`);
-
-                try {
-                    const rawDebts = (debt_members || []).map(m => Number(m.debt));
-                    const debts = rawDebts.filter(d => !isNaN(d) && d > 0);
-                    const uniqueDebts = debts.length > 0 ? [...new Set(debts)] : (debt_val > 0 ? [debt_val] : []);
-                    console.log(`[DebtListCheck] Debt amounts - raw:`, rawDebts, `filtered (>0):`, debts, `uniqueDebts:`, uniqueDebts);
-                    let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-                    if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
-
-                    for (const amount of uniqueDebts.slice(0, 4)) {
-                        if (!amount || isNaN(amount) || amount <= 0) {
-                            console.warn(`[DebtListCheck] Skipping QR generation for invalid/zero debt amount: ${amount}`);
-                            continue;
-                        }
-                        console.log(`[DebtListCheck] Generating QR for debt amount: ${amount}...`);
-                        const filename = await qrGen.generateQrCode(amount, '006660080321320');
-                        const localQrUrl = qrGen.getQrImageUrl(filename, baseUrl);
-                        console.log(`[DebtListCheck] Generated QR: ${filename} -> ${localQrUrl}`);
-                        replyMsgs.push({
-                            type: 'image',
-                            originalContentUrl: localQrUrl,
-                            previewImageUrl: localQrUrl
-                        });
-                    }
-                } catch (qrErr) {
-                    console.error('[DebtListCheck] Error generating QR code for debt call:', qrErr);
-                }
-
-                console.log(`[DebtListCheck] Sending replyMessage with ${replyMsgs.length} message(s)`);
-                await replyMessage(replyToken, replyMsgs);
-                console.log(`[DebtListCheck] replyMessage completed`);
-            } else {
-                if (!proceed) console.log(`[DebtListCheck] Skipped debt call: proceed=false (already alerted today or template_tpl call != 0)`);
-                if (debt_count <= 0) console.log(`[DebtListCheck] Skipped debt call: debt_count=0 (no members with debt > 0)`);
-            }
-        } else {
-            console.log(`[DebtListCheck] Skipped: not in group or not weekday 11:00-19:59 (isWeekday=${isWeekday}, isTimeWindow=${isTimeWindow}, isGroup=${isGroup})`);
-        }
+        const groupTag = source.groupId ? ` [Group: ${source.groupId}]` : ' [Direct]';
+        console.log(`${member.name}${groupTag}: ${message.text}`);
     }
 }
 
 function handleStickerMessage(event, member) {
     const keywords = event.message.keywords;
-    console.log(`${member.name}: sent sticker ${randomItem(keywords || ['unknown'])}`);
+    const groupTag = event.source && event.source.groupId ? ` [Group: ${event.source.groupId}]` : ' [Direct]';
+    console.log(`${member.name}${groupTag}: sent sticker ${randomItem(keywords || ['unknown'])}`);
 }
 
 function randomItem(items) {
@@ -523,6 +466,9 @@ app.listen(3001, async () => {
     } else {
         console.warn('⚠️  zbarimg CLI not found. Using zxing-wasm (WebAssembly) & jsQR engines.');
     }
+
+    // Initialize in-process scheduler worker thread
+    initScheduler();
 });
 
 module.exports = app;

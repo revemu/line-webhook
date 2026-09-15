@@ -6136,6 +6136,40 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   };
 }
 
+async function saveActiveGroupId(groupId) {
+  if (!groupId || typeof groupId !== 'string') return;
+  lastGroupId = groupId;
+  try {
+    const existing = await executeQuery("SELECT id FROM template_tpl WHERE name = 'active_group_id'");
+    if (existing.length > 0) {
+      await executeQuery("UPDATE template_tpl SET value = ? WHERE name = 'active_group_id'", [groupId]);
+    } else {
+      await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, 'active_group_id', ?)", [groupId]);
+    }
+  } catch (err) {
+    console.error('Error saving active_group_id in template_tpl:', err.message);
+  }
+}
+
+async function getActiveGroupId() {
+  if (process.env.LINE_GROUP_ID) {
+    return process.env.LINE_GROUP_ID;
+  }
+  if (lastGroupId) {
+    return lastGroupId;
+  }
+  try {
+    const res = await executeQuery("SELECT value FROM template_tpl WHERE name = 'active_group_id'");
+    if (res.length > 0 && res[0].value) {
+      lastGroupId = res[0].value;
+      return res[0].value;
+    }
+  } catch (err) {
+    console.error('Error querying active_group_id from template_tpl:', err.message);
+  }
+  return null;
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -6209,5 +6243,7 @@ module.exports = {
   allocateFormationSlots,
   getTeamFormationData,
   getTeamFormation,
-  randomTeamByPosition
+  randomTeamByPosition,
+  saveActiveGroupId,
+  getActiveGroupId
 };
