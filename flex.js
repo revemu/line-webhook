@@ -171,12 +171,10 @@ const getThemeColors = (themeName, teamColorMap = {}) => {
   }
 };
 
+const { getBaseUrl: getBaseUrlUtil } = require('./utils/url');
+
 const getBaseUrl = () => {
-  let url = global.baseWebhookUrl || 'https://api.revemu.org';
-  if (url.startsWith('http://')) {
-    url = url.replace('http://', 'https://');
-  }
-  return url;
+  return getBaseUrlUtil();
 };
 
 /**

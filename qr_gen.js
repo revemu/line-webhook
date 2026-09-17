@@ -184,8 +184,10 @@ async function generateQrCode(amount, promptPayNumber = '0850705894') {
   });
 }
 
-function getQrImageUrl(filename, baseUrl = null) {
-  let base = baseUrl || global.baseWebhookUrl || "https://api.revemu.org";
+const { getBaseUrl } = require('./utils/url');
+
+function getQrImageUrl(filename, customBaseUrl = null) {
+  let base = customBaseUrl || getBaseUrl();
   if (base.startsWith('http://')) base = base.replace('http://', 'https://');
   return `${base}/img/qr/${filename}`;
 }
@@ -194,4 +196,5 @@ module.exports = {
   generateQrCode,
   getQrImageUrl
 };
+
 

@@ -830,8 +830,10 @@ function computeFormationMetadataHash(team, dateStr = '', timeRange = '', option
   return crypto.createHash('md5').update(JSON.stringify(metadata)).digest('hex').substring(0, 16);
 }
 
+const { getBaseUrl } = require('./utils/url');
+
 function getPublicImageUrl(filename) {
-  let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
+  let baseUrl = getBaseUrl();
   if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
   return `${baseUrl}/img/team/${filename}`;
 }

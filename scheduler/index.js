@@ -1,9 +1,11 @@
 const { Worker } = require('worker_threads');
 const path = require('path');
 const db = require('../query');
+const { getBaseUrl, setBaseUrl } = require('../utils/url');
 
 let worker = null;
 let currentGroupId = null;
+let currentBaseUrl = null;
 let isShuttingDown = false;
 
 /**
@@ -18,9 +20,12 @@ function initScheduler() {
   const workerPath = path.join(__dirname, 'worker.js');
   console.log(`[SchedulerSupervisor] Spawning scheduler worker thread from ${workerPath}...`);
 
+  const effectiveBaseUrl = currentBaseUrl || getBaseUrl();
+
   worker = new Worker(workerPath, {
     workerData: {
-      initialGroupId: currentGroupId
+      initialGroupId: currentGroupId,
+      baseUrl: effectiveBaseUrl
     }
   });
 
@@ -72,6 +77,23 @@ function notifyActiveGroup(groupId) {
 }
 
 /**
+ * Notifies the scheduler of the dynamic base webhook URL.
+ * @param {string} baseUrl 
+ */
+function notifyBaseUrl(baseUrl) {
+  if (!baseUrl || typeof baseUrl !== 'string') return;
+  currentBaseUrl = baseUrl;
+  setBaseUrl(baseUrl);
+
+  if (worker) {
+    worker.postMessage({
+      type: 'UPDATE_BASE_URL',
+      baseUrl
+    });
+  }
+}
+
+/**
  * Triggers a registered task immediately for testing or admin commands.
  * @param {string} taskId 
  */
@@ -103,6 +125,7 @@ process.on('SIGTERM', () => { isShuttingDown = true; });
 module.exports = {
   initScheduler,
   notifyActiveGroup,
+  notifyBaseUrl,
   triggerTask,
   reloadTasks
 };

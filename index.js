@@ -16,7 +16,8 @@ const slipService = require('./slip');
 const lineClient = require('./lineClient');
 const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
 const { spamProtector } = require('./utils/spamProtection');
-const { initScheduler } = require('./scheduler');
+const { initScheduler, notifyBaseUrl } = require('./scheduler');
+const { setBaseUrl } = require('./utils/url');
 
 const execPromise = util.promisify(exec);
 
@@ -59,7 +60,10 @@ const replyMessage = lineClient.replyMessage;
 app.use((req, res, next) => {
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.headers['host'] || req.get('host');
-    global.baseWebhookUrl = `${proto}://${host}`;
+    const baseUrl = `${proto}://${host}`;
+    global.baseWebhookUrl = baseUrl;
+    setBaseUrl(baseUrl);
+    notifyBaseUrl(baseUrl);
     next();
 });
 

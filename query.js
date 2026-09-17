@@ -104,19 +104,7 @@ async function executeQuery(query, params = []) {
 }
 
 
-function getFullUrl(url) {
-  if (!url || typeof url !== 'string') return null;
-  let u = url.trim();
-  if (u === '' || u.toLowerCase() === 'none' || u.toLowerCase() === 'null') return null;
-  if (!u.startsWith('http://') && !u.startsWith('https://')) {
-    const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-    u = u.startsWith('/') ? `${baseUrl}${u}` : `${baseUrl}/${u}`;
-  }
-  if (u.startsWith('http://')) {
-    u = u.replace('http://', 'https://');
-  }
-  return u;
-}
+const { getBaseUrl, getFullUrl } = require('./utils/url');
 
 async function getAdminCommands() {
   const results = await executeQuery("SELECT cmd FROM admin_cmd_tbl");
@@ -131,13 +119,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
   let badgeUrl = badgeInfo ? badgeInfo.url : null;
   const badgeSize = badgeInfo ? (badgeInfo.size || '20px') : '20px';
   if (badgeUrl) {
-    if (!badgeUrl.startsWith('http://') && !badgeUrl.startsWith('https://')) {
-      const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-      badgeUrl = badgeUrl.startsWith('/') ? `${baseUrl}${badgeUrl}` : `${baseUrl}/${badgeUrl}`;
-    }
-    if (badgeUrl.startsWith('http://')) {
-      badgeUrl = badgeUrl.replace('http://', 'https://');
-    }
+    badgeUrl = getFullUrl(badgeUrl);
   }
 
   let nameColor = null;
@@ -178,13 +160,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
       let bSize = badge.size || '20px';
       let bId = badge.id || 0;
       if (bUrl && bUrl.toLowerCase() !== 'none' && bUrl !== '') {
-        if (!bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
-          const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-          bUrl = bUrl.startsWith('/') ? `${baseUrl}${bUrl}` : `${baseUrl}/${bUrl}`;
-        }
-        if (bUrl.startsWith('http://')) {
-          bUrl = bUrl.replace('http://', 'https://');
-        }
+        bUrl = getFullUrl(bUrl);
         if (!seenUrls.has(bUrl)) {
           seenUrls.add(bUrl);
           badgesWithId.push({ id: bId, url: bUrl, size: bSize });
@@ -197,13 +173,7 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
     let badge = hofBadge['default'] || Object.values(hofBadge)[0] || { url: 'https://bearbit.org/pic/crown.gif', size: '20px' };
     let bUrl = badge.url ? badge.url.trim() : null;
     if (bUrl && bUrl.toLowerCase() !== 'none' && bUrl !== '') {
-      if (!bUrl.startsWith('http://') && !bUrl.startsWith('https://')) {
-        const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-        bUrl = bUrl.startsWith('/') ? `${baseUrl}${bUrl}` : `${baseUrl}/${bUrl}`;
-      }
-      if (bUrl.startsWith('http://')) {
-        bUrl = bUrl.replace('http://', 'https://');
-      }
+      bUrl = getFullUrl(bUrl);
       hofBadges.push({ url: bUrl, size: badge.size || '20px' });
     }
   }
@@ -219,12 +189,8 @@ function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBa
 
   let hofBadgeUrl = selectedHofBadge ? selectedHofBadge.url : (hofCount > 0 ? 'https://bearbit.org/pic/crown.gif' : null);
   let hofBadgeSize = selectedHofBadge ? (selectedHofBadge.size || '20px') : '20px';
-  if (hofBadgeUrl && !hofBadgeUrl.startsWith('http://') && !hofBadgeUrl.startsWith('https://')) {
-    const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-    hofBadgeUrl = hofBadgeUrl.startsWith('/') ? `${baseUrl}${hofBadgeUrl}` : `${baseUrl}/${hofBadgeUrl}`;
-  }
-  if (hofBadgeUrl && hofBadgeUrl.startsWith('http://')) {
-    hofBadgeUrl = hofBadgeUrl.replace('http://', 'https://');
+  if (hofBadgeUrl) {
+    hofBadgeUrl = getFullUrl(hofBadgeUrl);
   }
 
   let rawPic = member.picture_url || member.pictureUrl;
@@ -974,7 +940,6 @@ async function queryMemberbyName(name) {
 async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
   let status;
   let icon = "";
-  const baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
   if (goal_status == 0) {
     status = " <= 2";
     icon = "⚽";
@@ -3409,20 +3374,7 @@ async function getTopStat(limit = 10, type = 0, groupId = null) {
   const res = await getTemplate('top', type);
   let url = res ? res.url : '';
   if (url) {
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      const getBaseUrl = () => {
-        let u = global.baseWebhookUrl || 'https://api.revemu.org';
-        if (u.startsWith('http://')) {
-          u = u.replace('http://', 'https://');
-        }
-        return u;
-      };
-      const baseUrl = getBaseUrl();
-      url = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
-    }
-    if (url.startsWith('http://')) {
-      url = url.replace('http://', 'https://');
-    }
+    url = getFullUrl(url);
   }
 
   const currentYear = new Date().getFullYear();
@@ -4895,14 +4847,7 @@ async function getMvpList(targetYear = null, groupId = null) {
   if (assets.hofBadge) {
     const badgeObj = assets.hofBadge['best_mvp'] || assets.hofBadge['mvp'] || assets.hofBadge['top_mvp'] || assets.hofBadge['default'] || Object.values(assets.hofBadge)[0];
     if (badgeObj && badgeObj.url && badgeObj.url.toLowerCase() !== 'none') {
-      bestMvpBadgeUrl = badgeObj.url.trim();
-      if (!bestMvpBadgeUrl.startsWith('http://') && !bestMvpBadgeUrl.startsWith('https://')) {
-        const baseUrl = global.baseWebhookUrl || 'https://api.revemu.org';
-        bestMvpBadgeUrl = bestMvpBadgeUrl.startsWith('/') ? `${baseUrl}${bestMvpBadgeUrl}` : `${baseUrl}/${bestMvpBadgeUrl}`;
-      }
-      if (bestMvpBadgeUrl.startsWith('http://')) {
-        bestMvpBadgeUrl = bestMvpBadgeUrl.replace('http://', 'https://');
-      }
+      bestMvpBadgeUrl = getFullUrl(badgeObj.url.trim());
     }
   }
   if (!bestMvpBadgeUrl || !bestMvpBadgeUrl.startsWith('https://')) {

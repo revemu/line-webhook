@@ -395,9 +395,7 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
                     console.log(`[slip] Unpaid week members count: ${count}, cost: ${cost}`);
                     if (cost > 0) {
                         const filename = await qrGen.generateQrCode(cost, '006660080321320');
-                        let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-                        if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
-                        const localQrUrl = qrGen.getQrImageUrl(filename, baseUrl);
+                        const localQrUrl = qrGen.getQrImageUrl(filename);
                         console.log(`[slip] Generated QR for unpaid week members: ${filename} -> ${localQrUrl}`);
                         replyMessages.push({
                             type: 'image',

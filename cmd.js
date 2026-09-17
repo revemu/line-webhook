@@ -322,10 +322,6 @@ const COMMAND_REGISTRY = {
                 const rawDebts = debt_members.map(m => Number(m.debt));
                 const debts = rawDebts.filter(d => !isNaN(d) && d > 0);
                 const uniqueDebts = debts.length > 0 ? [...new Set(debts)] : (debt_val > 0 ? [debt_val] : []);
-                console.log(`[+2 CMD] Debts - raw:`, rawDebts, `filtered (>0):`, debts, `uniqueDebts:`, uniqueDebts);
-                let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-                if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
-
                 for (const amount of uniqueDebts.slice(0, 4)) {
                     if (!amount || isNaN(amount) || amount <= 0) {
                         console.warn(`[+2 CMD] Skipping QR generation for invalid/zero debt amount: ${amount}`);
@@ -333,7 +329,7 @@ const COMMAND_REGISTRY = {
                     }
                     console.log(`[+2 CMD] Generating QR for amount: ${amount}...`);
                     const filename = await qrGen.generateQrCode(amount, '006660080321320');
-                    const localQrUrl = qrGen.getQrImageUrl(filename, baseUrl);
+                    const localQrUrl = qrGen.getQrImageUrl(filename);
                     console.log(`[+2 CMD] Generated QR: ${filename} -> ${localQrUrl}`);
                     replyMsgs.push({
                         type: 'image',
@@ -668,9 +664,7 @@ const COMMAND_REGISTRY = {
             //g-wallet
             //006990146713367
             const filename = await qrGen.generateQrCode(amount, '006660080321320');
-            let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-            if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
-            const localQrUrl = `${baseUrl}/img/qr/${filename}`;
+            const localQrUrl = qrGen.getQrImageUrl(filename);
 
             if (isFlex) {
                 const theme = await db.getTheme();

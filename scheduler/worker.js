@@ -3,8 +3,12 @@ const db = require('../query');
 const lineClient = require('../lineClient');
 const cmd = require('../cmd');
 const taskRegistry = require('./taskRegistry');
+const { setBaseUrl } = require('../utils/url');
 
 let activeGroupId = (workerData && workerData.initialGroupId) || null;
+if (workerData && workerData.baseUrl) {
+  setBaseUrl(workerData.baseUrl);
+}
 let isExecuting = false;
 let lastDbReloadTime = 0;
 const DB_RELOAD_INTERVAL_MS = 5 * 60 * 1000; // Reload tasks from DB every 5 mins
@@ -167,6 +171,13 @@ if (parentPort) {
         if (message.groupId && message.groupId !== activeGroupId) {
           activeGroupId = message.groupId;
           console.log(`[SchedulerWorker] Updated active groupId from main thread: ${activeGroupId}`);
+        }
+        break;
+
+      case 'UPDATE_BASE_URL':
+        if (message.baseUrl) {
+          setBaseUrl(message.baseUrl);
+          console.log(`[SchedulerWorker] Updated dynamic baseUrl from main thread: ${message.baseUrl}`);
         }
         break;
 
