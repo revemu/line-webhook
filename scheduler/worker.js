@@ -3,17 +3,19 @@ const db = require('../query');
 const lineClient = require('../lineClient');
 const cmd = require('../cmd');
 const taskRegistry = require('./taskRegistry');
+const logger = require('../utils/logger');
 const { setBaseUrl } = require('../utils/url');
 
 let activeGroupId = (workerData && workerData.initialGroupId) || null;
-if (workerData && workerData.baseUrl) {
-  setBaseUrl(workerData.baseUrl);
+let currentBaseUrl = (workerData && workerData.baseUrl) || null;
+if (currentBaseUrl) {
+  setBaseUrl(currentBaseUrl);
 }
 let isExecuting = false;
 let lastDbReloadTime = 0;
 const DB_RELOAD_INTERVAL_MS = 5 * 60 * 1000; // Reload tasks from DB every 5 mins
 
-console.log('[SchedulerWorker] Starting background scheduler worker thread...');
+logger.info('[SchedulerWorker] Starting background scheduler worker thread...');
 
 // 1. Initial task discovery & active group resolution
 (async () => {
@@ -21,26 +23,27 @@ console.log('[SchedulerWorker] Starting background scheduler worker thread...');
     await taskRegistry.loadTasks();
     lastDbReloadTime = Date.now();
   } catch (err) {
-    console.error('[SchedulerWorker] Initial task loading error:', err.message);
+    logger.error('[SchedulerWorker] Initial task loading error:', err.message);
   }
 
   try {
     if (!activeGroupId) {
       activeGroupId = await db.getActiveGroupId();
     }
-    console.log(`[SchedulerWorker] Initial active groupId: ${activeGroupId || 'none (will resolve on demand)'}`);
+    logger.info(`[SchedulerWorker] Initial active groupId: ${activeGroupId || 'none (will resolve on demand)'}`);
   } catch (err) {
-    console.error('[SchedulerWorker] Failed to resolve initial active groupId:', err.message);
+    logger.error('[SchedulerWorker] Failed to resolve initial active groupId:', err.message);
   }
 
   try {
     const dbBaseUrl = await db.getBaseUrlFromDb();
-    if (dbBaseUrl) {
+    if (dbBaseUrl && dbBaseUrl !== currentBaseUrl) {
+      currentBaseUrl = dbBaseUrl;
       setBaseUrl(dbBaseUrl);
-      console.log(`[SchedulerWorker] Loaded base URL from database: ${dbBaseUrl}`);
+      logger.info(`[SchedulerWorker] Loaded base URL from database: ${dbBaseUrl}`);
     }
   } catch (err) {
-    console.error('[SchedulerWorker] Failed to load base URL from DB:', err.message);
+    logger.error('[SchedulerWorker] Failed to load base URL from DB:', err.message);
   }
 })();
 
@@ -182,14 +185,15 @@ if (parentPort) {
       case 'UPDATE_GROUP_ID':
         if (message.groupId && message.groupId !== activeGroupId) {
           activeGroupId = message.groupId;
-          console.log(`[SchedulerWorker] Updated active groupId from main thread: ${activeGroupId}`);
+          logger.info(`[SchedulerWorker] Updated active groupId from main thread: ${activeGroupId}`);
         }
         break;
 
       case 'UPDATE_BASE_URL':
-        if (message.baseUrl) {
+        if (message.baseUrl && message.baseUrl !== currentBaseUrl) {
+          currentBaseUrl = message.baseUrl;
           setBaseUrl(message.baseUrl);
-          console.log(`[SchedulerWorker] Updated dynamic baseUrl from main thread: ${message.baseUrl}`);
+          logger.info(`[SchedulerWorker] Updated dynamic baseUrl from main thread: ${message.baseUrl}`);
         }
         break;
 
@@ -203,16 +207,16 @@ if (parentPort) {
           }
 
           if (task) {
-            console.log(`[SchedulerWorker] Manual trigger received for task: ${message.taskId}`);
+            logger.info(`[SchedulerWorker] Manual trigger received for task: ${message.taskId}`);
             await runTask(task, 'manual_ipc');
           } else {
-            console.warn(`[SchedulerWorker] Cannot trigger unknown task: ${message.taskId}`);
+            logger.warn(`[SchedulerWorker] Cannot trigger unknown task: ${message.taskId}`);
           }
         }
         break;
 
       case 'RELOAD_TASKS':
-        console.log('[SchedulerWorker] Reloading tasks from DB upon main thread request...');
+        logger.info('[SchedulerWorker] Reloading tasks from DB upon main thread request...');
         await taskRegistry.loadTasks();
         lastDbReloadTime = Date.now();
         break;

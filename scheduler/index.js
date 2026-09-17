@@ -1,6 +1,7 @@
 const { Worker } = require('worker_threads');
 const path = require('path');
 const db = require('../query');
+const logger = require('../utils/logger');
 const { getBaseUrl, setBaseUrl } = require('../utils/url');
 
 let worker = null;
@@ -13,12 +14,12 @@ let isShuttingDown = false;
  */
 function initScheduler() {
   if (worker) {
-    console.log('[SchedulerSupervisor] Worker thread is already active.');
+    logger.debug('[SchedulerSupervisor] Worker thread is already active.');
     return;
   }
 
   const workerPath = path.join(__dirname, 'worker.js');
-  console.log(`[SchedulerSupervisor] Spawning scheduler worker thread from ${workerPath}...`);
+  logger.info(`[SchedulerSupervisor] Spawning scheduler worker thread from ${workerPath}...`);
 
   const effectiveBaseUrl = currentBaseUrl || getBaseUrl();
 
@@ -31,26 +32,26 @@ function initScheduler() {
 
   worker.on('message', (msg) => {
     if (msg.type === 'TASK_COMPLETED') {
-      console.log(`[SchedulerSupervisor] Worker notification: Task '${msg.taskId}' completed (success: ${msg.success}) at ${msg.timestamp}`);
+      logger.info(`[SchedulerSupervisor] Worker notification: Task '${msg.taskId}' completed (success: ${msg.success}) at ${msg.timestamp}`);
     } else if (msg.type === 'TASK_ERROR') {
-      console.error(`[SchedulerSupervisor] Worker notification: Task '${msg.taskId}' failed with error: ${msg.error}`);
+      logger.error(`[SchedulerSupervisor] Worker notification: Task '${msg.taskId}' failed with error: ${msg.error}`);
     }
   });
 
   worker.on('error', (err) => {
-    console.error('[SchedulerSupervisor] Worker thread encountered an error:', err);
+    logger.error('[SchedulerSupervisor] Worker thread encountered an error:', err);
   });
 
   worker.on('exit', (code) => {
-    console.warn(`[SchedulerSupervisor] Worker thread exited with code ${code}`);
+    logger.warn(`[SchedulerSupervisor] Worker thread exited with code ${code}`);
     worker = null;
     if (!isShuttingDown && code !== 0) {
-      console.log('[SchedulerSupervisor] Respawning worker thread in 5 seconds...');
+      logger.info('[SchedulerSupervisor] Respawning worker thread in 5 seconds...');
       setTimeout(initScheduler, 5000);
     }
   });
 
-  console.log('[SchedulerSupervisor] Scheduler worker thread spawned successfully.');
+  logger.info('[SchedulerSupervisor] Scheduler worker thread spawned successfully.');
 }
 
 /**
@@ -60,11 +61,12 @@ function initScheduler() {
  */
 function notifyActiveGroup(groupId) {
   if (!groupId || typeof groupId !== 'string') return;
+  if (groupId === currentGroupId) return;
   currentGroupId = groupId;
 
   // Persist to DB asynchronously
   db.saveActiveGroupId(groupId).catch(err => {
-    console.error('[SchedulerSupervisor] Failed to persist active groupId to DB:', err.message);
+    logger.error('[SchedulerSupervisor] Failed to persist active groupId to DB:', err.message);
   });
 
   // Notify worker thread via IPC
@@ -82,6 +84,7 @@ function notifyActiveGroup(groupId) {
  */
 function notifyBaseUrl(baseUrl) {
   if (!baseUrl || typeof baseUrl !== 'string') return;
+  if (baseUrl === currentBaseUrl) return;
   currentBaseUrl = baseUrl;
   setBaseUrl(baseUrl);
 

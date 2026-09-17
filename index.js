@@ -62,12 +62,14 @@ app.use((req, res, next) => {
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.headers['host'] || req.get('host');
     const baseUrl = `${proto}://${host}`;
-    global.baseWebhookUrl = baseUrl;
-    setBaseUrl(baseUrl);
-    notifyBaseUrl(baseUrl);
-    db.saveBaseUrl(baseUrl).catch(err => {
-        logger.error('Error persisting base URL to DB:', err.message);
-    });
+    if (baseUrl && baseUrl !== global.baseWebhookUrl) {
+        global.baseWebhookUrl = baseUrl;
+        setBaseUrl(baseUrl);
+        notifyBaseUrl(baseUrl);
+        db.saveBaseUrl(baseUrl).catch(err => {
+            logger.error('Error persisting base URL to DB:', err.message);
+        });
+    }
     next();
 });
 
