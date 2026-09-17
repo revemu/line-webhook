@@ -341,7 +341,7 @@ async function resetMemberTeam() {
 }
 
 async function newMember(lineID, name, pictureUrl = null) {
-  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_id, picture_url) values(?, 0, 0, 0, ?, ?, NULL, ?)";
+  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_ids, picture_url) values(?, 0, 0, 0, ?, ?, NULL, ?)";
   const res = await executeQuery(query, [name, name.replace('@', ''), lineID, pictureUrl]);
   return res;
 }
@@ -888,7 +888,7 @@ async function IsMemberWeek(member_id) {
 
 async function registerNY(member_id) {
 
-  const query = `update member_tbl set avoid_id='1' where id=${member_id}`;
+  const query = `update member_tbl set avoid_ids='1' where id=${member_id}`;
 
   //console.log(query) ;
   const reg_res = await executeQuery(query);
@@ -2781,7 +2781,7 @@ async function getMemberNY() {
   let body = "";
   let query = "";
 
-  query = `SELECT * from member_tbl where avoid_id = '1' or avoid_id = 1`;
+  query = `SELECT * from member_tbl where avoid_ids = '1' or avoid_ids = 1`;
   header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 20 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: มูนเทอร์เรซ ห้อง M5 นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานลงชื่อด้วยนะครับ\n\n";
 
 
@@ -2853,7 +2853,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     const date = new Date(res[0].date);
     const time_range = res[0].time_range || '17:30-20:00';
 
-    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
@@ -2982,7 +2982,7 @@ async function getMemberWeek(type = 0) {
 
   if (res.length > 0) {
     const week_id = res[0].id;
-    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_id, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
@@ -3076,7 +3076,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
   if (res.length > 0) {
     const week_id = res[0].id;
     const date = new Date(res[0].date);
-    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.avoid_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.avoid_ids FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
@@ -5704,7 +5704,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       m.rank,
       m.picture_url,
       m.line_user_id,
-      m.avoid_id,
+      m.avoid_ids,
       m.priority as member_priority,
       COALESCE(NULLIF(mtw.priority, 0), m.priority, 0) as priority,
       m.team_id as member_team_id,
@@ -5761,8 +5761,8 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   for (const m of registeredMembers) {
     const mId = Number(m.member_id || m.id);
     if (!avoidMap.has(mId)) avoidMap.set(mId, new Set());
-    if (m.avoid_id !== null && m.avoid_id !== undefined && String(m.avoid_id).trim() !== '') {
-      const raw = String(m.avoid_id);
+    if (m.avoid_ids !== null && m.avoid_ids !== undefined && String(m.avoid_ids).trim() !== '') {
+      const raw = String(m.avoid_ids);
       const targetIds = raw.split(/[,;\s]+/).map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0 && n !== mId);
       for (const targetId of targetIds) {
         avoidMap.get(mId).add(targetId);
