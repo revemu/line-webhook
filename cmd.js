@@ -87,6 +87,154 @@ function buildReply({ type, text, quoteToken, substitution, altText, contents })
 // Handlers should return a reply (array/object) when they want to short-circuit,
 // or `undefined` to allow the legacy switch-based fallback to run.
 const COMMAND_REGISTRY = {
+    'tasks': async (context) => {
+        const { quoteToken } = context;
+        const tasks = await db.getScheduledTasks(false);
+        if (!tasks || tasks.length === 0) {
+            return [{
+                type: 'text',
+                quoteToken,
+                text: '📋 ยังไม่มีการตั้งค่างานอัตโนมัติในระบบ (scheduled_task_tbl)'
+            }];
+        }
+
+        let lines = ['⏰ รายการงานอัตโนมัติ (Scheduled Tasks):\n'];
+        tasks.forEach((t, idx) => {
+            const status = t.enabled ? '🟢 [เปิด]' : '🔴 [ปิด]';
+            const typeStr = t.task_type === 'command' ? `คำสั่ง: /${t.command}` : `ข้อความ: "${(t.text_message || '').substring(0, 30)}${(t.text_message || '').length > 30 ? '...' : ''}"`;
+            const lastRun = t.last_run_date ? `ล่าสุด: ${t.last_run_date}` : 'ยังไม่เคยรัน';
+            lines.push(`${idx + 1}. ${status} ${t.task_key}`);
+            lines.push(`   📌 ${t.task_name}`);
+            lines.push(`   📅 วัน: ${t.schedule_days} เวลา: ${t.schedule_time} น.`);
+            lines.push(`   ⚙️ ${typeStr}`);
+            lines.push(`   🕒 ${lastRun}\n`);
+        });
+
+        lines.push('💡 คำสั่งจัดการ:');
+        lines.push('• /runtask <key> (สั่งทำงานทันที)');
+        lines.push('• /toggletask <key> (เปิด/ปิดงาน)');
+        lines.push('• /addtask <type> <days> <time> <cmd_or_text>');
+        lines.push('• /deltask <key> (ลบงาน)');
+        lines.push('• /reloadtasks (รีโหลดจาก DB)');
+
+        return [{
+            type: 'text',
+            quoteToken,
+            text: lines.join('\n')
+        }];
+    },
+    'tasklist': async (context) => COMMAND_REGISTRY['tasks'](context),
+    'schedules': async (context) => COMMAND_REGISTRY['tasks'](context),
+    'runtask': async (context) => {
+        const { param, quoteToken } = context;
+        if (!param) {
+            return [{ type: 'text', quoteToken, text: 'กรุณาระบุ key ของงาน: /runtask <task_key>' }];
+        }
+        const taskKey = param.trim();
+        const task = await db.getScheduledTaskByKey(taskKey);
+        if (!task) {
+            return [{ type: 'text', quoteToken, text: `ไม่พบงาน '${taskKey}' ในระบบ` }];
+        }
+
+        const scheduler = require('./scheduler');
+        scheduler.triggerTask(task.task_key || String(task.id));
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `🚀 ส่งคำสั่งรันงาน '${task.task_name || taskKey}' ให้ Worker เรียบร้อยแล้ว`
+        }];
+    },
+    'toggletask': async (context) => {
+        const { param, quoteToken } = context;
+        if (!param) {
+            return [{ type: 'text', quoteToken, text: 'กรุณาระบุ key ของงาน: /toggletask <task_key>' }];
+        }
+        const taskKey = param.trim();
+        const newStatus = await db.toggleScheduledTask(taskKey);
+        if (newStatus === null) {
+            return [{ type: 'text', quoteToken, text: `ไม่พบงาน '${taskKey}' ในระบบ` }];
+        }
+
+        const scheduler = require('./scheduler');
+        scheduler.reloadTasks();
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `${newStatus ? '🟢 เปิดการทำงาน' : '🔴 ปิดการทำงาน'} งาน '${taskKey}' แล้ว`
+        }];
+    },
+    'addtask': async (context) => {
+        const { param, quoteToken } = context;
+        const parts = (param || '').trim().split(/\s+/);
+        if (parts.length < 4) {
+            return [{
+                type: 'text',
+                quoteToken,
+                text: 'รูปแบบคำสั่ง:\n/addtask <command|text> <days> <time> <cmd_or_text>\n\nตัวอย่าง:\n/addtask command fri 20:00 randomteam\n/addtask text mon-fri 16:00 {all} เตะบอล #weekdate เวลา #timerange'
+            }];
+        }
+
+        const type = parts[0].toLowerCase();
+        if (type !== 'command' && type !== 'text') {
+            return [{ type: 'text', quoteToken, text: 'ประเภทงานต้องเป็น "command" หรือ "text"' }];
+        }
+
+        const days = parts[1];
+        const time = parts[2];
+        const payload = parts.slice(3).join(' ');
+
+        const autoKey = `${type}_${days}_${time.replace(':', '')}_${Date.now().toString().slice(-4)}`;
+        const taskName = type === 'command' ? `Auto Run /${payload}` : `Auto Message (${days} ${time})`;
+
+        await db.addScheduledTask({
+            task_key: autoKey,
+            task_name: taskName,
+            task_type: type,
+            command: type === 'command' ? payload : null,
+            text_message: type === 'text' ? payload : null,
+            schedule_days: days,
+            schedule_time: time,
+            enabled: 1
+        });
+
+        const scheduler = require('./scheduler');
+        scheduler.reloadTasks();
+
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `✅ เพิ่มงานอัตโนมัติสำเร็จ!\n• Key: ${autoKey}\n• Type: ${type}\n• วัน: ${days} เวลา: ${time}\n• รายละเอียด: ${payload}`
+        }];
+    },
+    'deltask': async (context) => {
+        const { param, quoteToken } = context;
+        if (!param) {
+            return [{ type: 'text', quoteToken, text: 'กรุณาระบุ key ของงาน: /deltask <task_key>' }];
+        }
+        const taskKey = param.trim();
+        const deleted = await db.deleteScheduledTask(taskKey);
+        if (!deleted) {
+            return [{ type: 'text', quoteToken, text: `ไม่พบงาน '${taskKey}' หรือลบไม่สำเร็จ` }];
+        }
+
+        const scheduler = require('./scheduler');
+        scheduler.reloadTasks();
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `🗑️ ลบงาน '${taskKey}' เรียบร้อยแล้ว`
+        }];
+    },
+    'reloadtasks': async (context) => {
+        const { quoteToken } = context;
+        const scheduler = require('./scheduler');
+        scheduler.reloadTasks();
+        return [{
+            type: 'text',
+            quoteToken,
+            text: '🔄 สั่งรีโหลดงานจากฐานข้อมูล (scheduled_task_tbl) เรียบร้อยแล้ว'
+        }];
+    },
     // Example scaffolding (fill in handlers as we convert cases):
     // 'setmaxweek': async (context) => { /* ... */ },
     'setmaxweek': async (context) => {

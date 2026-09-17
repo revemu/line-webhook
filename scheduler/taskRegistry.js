@@ -1,5 +1,4 @@
-const fs = require('fs');
-const path = require('path');
+const db = require('../query');
 
 const DAY_MAP = {
   sun: 0, sunday: 0,
@@ -13,7 +12,7 @@ const DAY_MAP = {
 
 /**
  * Checks if targetDays specification matches the current day of the week.
- * Supports '*', 'weekdays', 'weekends', [1,2,3,4,5], '1-5', '1,2,3,4,5', 'mon-fri', etc.
+ * Supports '*', 'weekdays', 'weekends', [1,2,3,4,5], '1-5', '1,2,3,4,5', 'mon-fri', 'fri', etc.
  * @param {Array|string|number} targetDays 
  * @param {number} currentDow - 0 (Sun) .. 6 (Sat)
  * @returns {boolean}
@@ -45,6 +44,11 @@ function matchesDay(targetDays, currentDow) {
     if (s === 'weekdays' || s === 'mon-fri' || s === '1-5') return currentDow >= 1 && currentDow <= 5;
     if (s === 'weekends' || s === 'sat-sun' || s === '6,0' || s === '0,6') return currentDow === 0 || currentDow === 6;
 
+    // Handle single day name e.g. "fri"
+    if (DAY_MAP[s] !== undefined) {
+      return DAY_MAP[s] === currentDow;
+    }
+
     // Handle range e.g. "1-5" or "mon-fri"
     const rangeMatch = s.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
     if (rangeMatch) {
@@ -74,38 +78,54 @@ class TaskRegistry {
   constructor() {
     this.tasks = new Map();
     this.lastExecution = new Map(); // taskId -> 'YYYY-MM-DD'
+    this.isLoaded = false;
   }
 
   /**
-   * Scans and loads all .js task modules from the tasks/ directory.
+   * Loads scheduled tasks from scheduled_task_tbl in database.
    */
-  loadTasks() {
-    const tasksDir = path.join(__dirname, 'tasks');
-    if (!fs.existsSync(tasksDir)) {
-      console.warn(`[TaskRegistry] Tasks directory not found at: ${tasksDir}`);
-      return;
-    }
+  async loadTasks() {
+    try {
+      console.log('[TaskRegistry] Loading scheduled tasks from database (scheduled_task_tbl)...');
+      const rows = await db.getScheduledTasks(false);
 
-    const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.js'));
-    for (const file of files) {
-      try {
-        const filePath = path.join(tasksDir, file);
-        // Clear require cache to support hot reload if ever required
-        delete require.cache[require.resolve(filePath)];
-        const task = require(filePath);
+      this.tasks.clear();
 
-        if (!task || !task.id || typeof task.execute !== 'function') {
-          console.warn(`[TaskRegistry] Invalid task structure in ${file}, skipping.`);
-          continue;
+      if (rows && rows.length > 0) {
+        for (const row of rows) {
+          const taskId = row.task_key || String(row.id);
+          const taskObj = {
+            id: taskId,
+            dbId: row.id,
+            name: row.task_name || taskId,
+            type: row.task_type || 'command',
+            command: row.command || null,
+            text_message: row.text_message || null,
+            groupId: row.group_id || null,
+            enabled: row.enabled === 1 || row.enabled === true,
+            schedule: {
+              days: row.schedule_days || '*',
+              time: row.schedule_time || '20:00'
+            },
+            last_run_date: row.last_run_date || null
+          };
+
+          this.tasks.set(taskId, taskObj);
+          if (row.last_run_date) {
+            this.lastExecution.set(taskId, row.last_run_date);
+          }
+
+          console.log(`[TaskRegistry] Registered task: ${taskId} (${taskObj.name}) | Type: ${taskObj.type} | Schedule: ${taskObj.schedule.days} @ ${taskObj.schedule.time} | Enabled: ${taskObj.enabled}`);
         }
-
-        this.tasks.set(task.id, task);
-        console.log(`[TaskRegistry] Registered task: ${task.id} (${task.name || 'Unnamed'}) | Schedule: ${JSON.stringify(task.schedule)}`);
-      } catch (err) {
-        console.error(`[TaskRegistry] Failed to load task file ${file}:`, err.message);
+      } else {
+        console.log('[TaskRegistry] No tasks found in scheduled_task_tbl.');
       }
+
+      this.isLoaded = true;
+      console.log(`[TaskRegistry] Total tasks registered: ${this.tasks.size}`);
+    } catch (err) {
+      console.error('[TaskRegistry] Failed to load tasks from DB:', err.message);
     }
-    console.log(`[TaskRegistry] Total tasks registered: ${this.tasks.size}`);
   }
 
   /**
@@ -150,16 +170,28 @@ class TaskRegistry {
 
   /**
    * Marks a task as successfully run for the given date.
+   * Updates memory map and persists to scheduled_task_tbl.
    * @param {string} taskId 
    * @param {Date} [date=new Date()] 
    */
-  markTaskExecuted(taskId, date = new Date()) {
+  async markTaskExecuted(taskId, date = new Date()) {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     this.lastExecution.set(taskId, dateStr);
+
+    const task = this.tasks.get(taskId);
+    if (task) {
+      task.last_run_date = dateStr;
+    }
+
+    try {
+      await db.setScheduledTaskLastRun(taskId, dateStr);
+    } catch (err) {
+      console.error(`[TaskRegistry] Failed to persist last_run_date for task '${taskId}':`, err.message);
+    }
   }
 
   /**
-   * Retrieves a registered task by its ID.
+   * Retrieves a registered task by its ID or key.
    * @param {string} taskId 
    * @returns {Object|null}
    */

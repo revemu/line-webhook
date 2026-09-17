@@ -6212,6 +6212,231 @@ async function saveTaskGroupId(taskId, groupId) {
   }
 }
 
+/**
+ * Retrieves scheduled tasks from scheduled_task_tbl.
+ * @param {boolean} [onlyEnabled=false] 
+ * @returns {Promise<Array<Object>>}
+ */
+async function getScheduledTasks(onlyEnabled = false) {
+  try {
+    const sql = onlyEnabled
+      ? "SELECT * FROM scheduled_task_tbl WHERE enabled = 1 ORDER BY id ASC"
+      : "SELECT * FROM scheduled_task_tbl ORDER BY id ASC";
+    return await executeQuery(sql);
+  } catch (err) {
+    console.error('Error querying scheduled_task_tbl:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Retrieves a scheduled task by ID or task_key.
+ * @param {string|number} keyOrId 
+ * @returns {Promise<Object|null>}
+ */
+async function getScheduledTaskByKey(keyOrId) {
+  if (!keyOrId) return null;
+  try {
+    const res = await executeQuery(
+      "SELECT * FROM scheduled_task_tbl WHERE task_key = ? OR id = ? LIMIT 1",
+      [String(keyOrId), isNaN(Number(keyOrId)) ? -1 : Number(keyOrId)]
+    );
+    return res.length > 0 ? res[0] : null;
+  } catch (err) {
+    console.error(`Error querying scheduled task '${keyOrId}':`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Adds a new scheduled task to scheduled_task_tbl.
+ * @param {Object} taskData 
+ * @returns {Promise<Object>}
+ */
+async function addScheduledTask(taskData) {
+  const {
+    task_key,
+    task_name,
+    task_type = 'command',
+    command = null,
+    text_message = null,
+    schedule_days = '*',
+    schedule_time = '20:00',
+    group_id = null,
+    enabled = 1
+  } = taskData;
+
+  const sql = `
+    INSERT INTO scheduled_task_tbl 
+      (task_key, task_name, task_type, command, text_message, schedule_days, schedule_time, group_id, enabled)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  const result = await executeQuery(sql, [
+    task_key,
+    task_name || task_key,
+    task_type,
+    command,
+    text_message,
+    schedule_days,
+    schedule_time,
+    group_id,
+    enabled ? 1 : 0
+  ]);
+  return { success: true, insertId: result.insertId };
+}
+
+/**
+ * Updates a scheduled task by ID or task_key.
+ * @param {string|number} keyOrId 
+ * @param {Object} taskData 
+ * @returns {Promise<boolean>}
+ */
+async function updateScheduledTask(keyOrId, taskData) {
+  if (!keyOrId || !taskData || typeof taskData !== 'object') return false;
+  const fields = [];
+  const values = [];
+
+  const allowedCols = ['task_key', 'task_name', 'task_type', 'command', 'text_message', 'schedule_days', 'schedule_time', 'group_id', 'enabled', 'last_run_date'];
+  for (const col of allowedCols) {
+    if (taskData[col] !== undefined) {
+      fields.push(`\`${col}\` = ?`);
+      values.push(taskData[col]);
+    }
+  }
+
+  if (fields.length === 0) return false;
+
+  values.push(String(keyOrId));
+  values.push(isNaN(Number(keyOrId)) ? -1 : Number(keyOrId));
+
+  const sql = `UPDATE scheduled_task_tbl SET ${fields.join(', ')} WHERE task_key = ? OR id = ?`;
+  await executeQuery(sql, values);
+  return true;
+}
+
+/**
+ * Deletes a scheduled task by ID or task_key.
+ * @param {string|number} keyOrId 
+ * @returns {Promise<boolean>}
+ */
+async function deleteScheduledTask(keyOrId) {
+  if (!keyOrId) return false;
+  const sql = "DELETE FROM scheduled_task_tbl WHERE task_key = ? OR id = ?";
+  const result = await executeQuery(sql, [String(keyOrId), isNaN(Number(keyOrId)) ? -1 : Number(keyOrId)]);
+  return result.affectedRows > 0;
+}
+
+/**
+ * Updates last_run_date for a scheduled task.
+ * @param {string|number} keyOrId 
+ * @param {string} dateStr - 'YYYY-MM-DD'
+ * @returns {Promise<boolean>}
+ */
+async function setScheduledTaskLastRun(keyOrId, dateStr) {
+  if (!keyOrId || !dateStr) return false;
+  const sql = "UPDATE scheduled_task_tbl SET last_run_date = ? WHERE task_key = ? OR id = ?";
+  await executeQuery(sql, [dateStr, String(keyOrId), isNaN(Number(keyOrId)) ? -1 : Number(keyOrId)]);
+  return true;
+}
+
+/**
+ * Toggles or sets enabled status for a scheduled task.
+ * @param {string|number} keyOrId 
+ * @param {boolean|number|null} [forcedStatus=null] 
+ * @returns {Promise<boolean|null>}
+ */
+async function toggleScheduledTask(keyOrId, forcedStatus = null) {
+  if (!keyOrId) return null;
+  const task = await getScheduledTaskByKey(keyOrId);
+  if (!task) return null;
+
+  const newStatus = forcedStatus !== null ? (forcedStatus ? 1 : 0) : (task.enabled ? 0 : 1);
+  await executeQuery(
+    "UPDATE scheduled_task_tbl SET enabled = ? WHERE id = ?",
+    [newStatus, task.id]
+  );
+  return Boolean(newStatus);
+}
+
+/**
+ * Resolves dynamic template tags (#weekdate, #timerange, #max, #registered, #remaining, {all})
+ * in text messages for scheduled text tasks.
+ * @param {string} templateText 
+ * @param {string|null} [groupId=null] 
+ * @returns {Promise<Object>} LINE message object ({ type: 'text'|'textV2', ... })
+ */
+async function resolveScheduleTemplateText(templateText, groupId = null) {
+  if (!templateText) {
+    return { type: 'text', text: '' };
+  }
+
+  let text = String(templateText);
+
+  // 1. Fetch current active week details
+  let dateStr = '';
+  let timeRange = '17:30-20:00';
+  let maxPlayers = 0;
+  let registeredFieldPlayers = 0;
+  let remaining = 0;
+
+  try {
+    const weekRes = await queryWeekID(0);
+    if (weekRes && weekRes.length > 0) {
+      const week = weekRes[0];
+      dateStr = week.date ? (await getFormatDate(week.date, 'short')) : '';
+      timeRange = week.time_range || '17:30-20:00';
+      maxPlayers = parseInt(week.max, 10) || 0;
+
+      const members = await executeQuery(
+        "SELECT member_id, team_id FROM member_team_week_tbl WHERE week_id = ?",
+        [week.id]
+      );
+      registeredFieldPlayers = (members || []).filter(m => m.team_id != 100).length;
+      remaining = Math.max(0, maxPlayers - registeredFieldPlayers);
+    }
+  } catch (err) {
+    console.error('Error resolving template variables for schedule text:', err.message);
+  }
+
+  // 2. Perform variable replacement
+  text = text
+    .replace(/#(weekdate|week_date|date)/gi, dateStr)
+    .replace(/\{(weekdate|week_date|date)\}/gi, dateStr)
+    .replace(/#(timerange|time_range|time)/gi, timeRange)
+    .replace(/\{(timerange|time_range|time)\}/gi, timeRange)
+    .replace(/#(max|maxplayers|capacity)/gi, String(maxPlayers))
+    .replace(/\{(max|maxplayers|capacity)\}/gi, String(maxPlayers))
+    .replace(/#(registered|players|count)/gi, String(registeredFieldPlayers))
+    .replace(/\{(registered|players|count)\}/gi, String(registeredFieldPlayers))
+    .replace(/#(remaining|remains|left)/gi, String(remaining))
+    .replace(/\{(remaining|remains|left)\}/gi, String(remaining));
+
+  // 3. Format LINE message payload (support {all} or #all for mentionee)
+  if (text.includes('#all')) {
+    text = text.replace(/#all/gi, '{all}');
+  }
+
+  if (text.includes('{all}')) {
+    return {
+      type: 'textV2',
+      text,
+      substitution: {
+        all: {
+          type: 'mention',
+          mentionee: {
+            type: 'all'
+          }
+        }
+      }
+    };
+  }
+
+  return {
+    type: 'text',
+    text
+  };
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -6289,5 +6514,13 @@ module.exports = {
   saveActiveGroupId,
   getActiveGroupId,
   getTaskGroupId,
-  saveTaskGroupId
+  saveTaskGroupId,
+  getScheduledTasks,
+  getScheduledTaskByKey,
+  addScheduledTask,
+  updateScheduledTask,
+  deleteScheduledTask,
+  setScheduledTaskLastRun,
+  toggleScheduledTask,
+  resolveScheduleTemplateText
 };
