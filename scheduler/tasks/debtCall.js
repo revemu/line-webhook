@@ -17,10 +17,7 @@ module.exports = {
 
   // Schedule definition: default Mon-Fri at 12:00 PM
   schedule: {
-    // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
-    days: process.env.DEBT_CALL_DAYS
-      ? (process.env.DEBT_CALL_DAYS === '*' ? '*' : process.env.DEBT_CALL_DAYS.split(',').map(d => parseInt(d.trim(), 10)))
-      : [1, 2, 3, 4, 5],
+    days: process.env.DEBT_CALL_DAYS || 'mon-fri', // 'mon-fri', [1,2,3,4,5], '*', 'sat,sun', etc.
     time: process.env.DEBT_CALL_TIME || '12:00'
   },
 

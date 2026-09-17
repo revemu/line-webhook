@@ -1,6 +1,75 @@
 const fs = require('fs');
 const path = require('path');
 
+const DAY_MAP = {
+  sun: 0, sunday: 0,
+  mon: 1, monday: 1,
+  tue: 2, tuesday: 2,
+  wed: 3, wednesday: 3,
+  thu: 4, thursday: 4,
+  fri: 5, friday: 5,
+  sat: 6, saturday: 6
+};
+
+/**
+ * Checks if targetDays specification matches the current day of the week.
+ * Supports '*', 'weekdays', 'weekends', [1,2,3,4,5], '1-5', '1,2,3,4,5', 'mon-fri', etc.
+ * @param {Array|string|number} targetDays 
+ * @param {number} currentDow - 0 (Sun) .. 6 (Sat)
+ * @returns {boolean}
+ */
+function matchesDay(targetDays, currentDow) {
+  if (targetDays === '*' || targetDays == null || targetDays === 'all' || targetDays === 'daily' || targetDays === 'everyday') {
+    return true;
+  }
+
+  // If array e.g. [1, 2, 3, 4, 5] or ['mon', 'fri']
+  if (Array.isArray(targetDays)) {
+    return targetDays.some(d => {
+      if (typeof d === 'number') return d === currentDow;
+      const str = String(d).toLowerCase().trim();
+      if (DAY_MAP[str] !== undefined) return DAY_MAP[str] === currentDow;
+      return parseInt(str, 10) === currentDow;
+    });
+  }
+
+  // If number e.g. 1
+  if (typeof targetDays === 'number') {
+    return targetDays === currentDow;
+  }
+
+  // If string
+  if (typeof targetDays === 'string') {
+    const s = targetDays.toLowerCase().trim();
+    if (s === '*' || s === 'all' || s === 'daily' || s === 'everyday') return true;
+    if (s === 'weekdays' || s === 'mon-fri' || s === '1-5') return currentDow >= 1 && currentDow <= 5;
+    if (s === 'weekends' || s === 'sat-sun' || s === '6,0' || s === '0,6') return currentDow === 0 || currentDow === 6;
+
+    // Handle range e.g. "1-5" or "mon-fri"
+    const rangeMatch = s.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
+    if (rangeMatch) {
+      const start = DAY_MAP[rangeMatch[1]] !== undefined ? DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
+      const end = DAY_MAP[rangeMatch[2]] !== undefined ? DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
+      if (!isNaN(start) && !isNaN(end)) {
+        if (start <= end) {
+          return currentDow >= start && currentDow <= end;
+        } else {
+          return currentDow >= start || currentDow <= end;
+        }
+      }
+    }
+
+    // Handle comma-separated list e.g. "1,2,3,4,5" or "mon,tue,wed,thu,fri"
+    const parts = s.split(',').map(p => p.trim());
+    return parts.some(p => {
+      if (DAY_MAP[p] !== undefined) return DAY_MAP[p] === currentDow;
+      return parseInt(p, 10) === currentDow;
+    });
+  }
+
+  return false;
+}
+
 class TaskRegistry {
   constructor() {
     this.tasks = new Map();
@@ -60,14 +129,7 @@ class TaskRegistry {
       const targetTime = schedule.time;
 
       // 1. Check day-of-week condition
-      let dayMatches = true;
-      if (Array.isArray(targetDays)) {
-        dayMatches = targetDays.includes(dow);
-      } else if (targetDays !== '*' && targetDays != null) {
-        dayMatches = Number(targetDays) === dow;
-      }
-
-      if (!dayMatches) continue;
+      if (!matchesDay(targetDays, dow)) continue;
 
       // 2. Check time condition (HH:mm)
       if (targetTime && targetTime !== currentTimeStr) {

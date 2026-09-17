@@ -23,10 +23,7 @@ module.exports = {
 
   // Schedule definition: everyday at 16:00
   schedule: {
-    // 0 = Sunday .. 6 = Saturday, '*' = Everyday
-    days: process.env.SCHEDULE_SUMMARY_DAYS
-      ? (process.env.SCHEDULE_SUMMARY_DAYS === '*' ? '*' : process.env.SCHEDULE_SUMMARY_DAYS.split(',').map(d => parseInt(d.trim(), 10)))
-      : '*',
+    days: process.env.SCHEDULE_SUMMARY_DAYS || 'mon-fri', // '*' = Everyday, or 'mon-fri', [1,2,3,4,5], 'sat,sun', etc.
     time: process.env.SCHEDULE_SUMMARY_TIME || '16:00'
   },
 
