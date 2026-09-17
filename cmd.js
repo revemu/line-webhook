@@ -346,25 +346,20 @@ const COMMAND_REGISTRY = {
         if (bubbles) {
             const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
             if (bubblesList.length > 0) {
-                const replyMessages = [];
-                for (let i = 0; i < bubblesList.length && replyMessages.length < 5; i++) {
-                    const bubble = bubblesList[i];
-                    let teamName = `ทีม ${i + 1}`;
-                    let dateStr = '';
-                    try {
-                        teamName = bubble.header?.contents?.[0]?.contents?.[1]?.text || teamName;
-                        const dateText = bubble.header?.contents?.[0]?.contents?.[2]?.text || '';
-                        dateStr = dateText.replace(/^📅\s*/, '').trim();
-                    } catch (e) { }
+                let dateStr = '';
+                try {
+                    const dateText = bubblesList[0]?.header?.contents?.[0]?.contents?.[2]?.text || '';
+                    dateStr = dateText.replace(/^📅\s*/, '').trim();
+                } catch (e) { }
+                const dateSuffix = dateStr ? ` - ${dateStr}` : '';
 
-                    const dateSuffix = dateStr ? ` - ${dateStr}` : '';
-                    replyMessages.push({
-                        type: 'flex',
-                        altText: `⚽ ผังการเล่น ${teamName}${dateSuffix}`,
-                        contents: bubble
-                    });
-                }
-                return replyMessages;
+                return [{
+                    type: 'flex',
+                    altText: `⚽ ผังทีมประจำสัปดาห์${dateSuffix}`,
+                    contents: bubblesList.length === 1
+                        ? bubblesList[0]
+                        : { type: 'carousel', contents: bubblesList }
+                }];
             }
         }
         if (randRes.alreadyAssigned) {
