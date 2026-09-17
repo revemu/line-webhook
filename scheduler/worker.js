@@ -199,11 +199,22 @@ if (parentPort) {
 
       case 'TRIGGER_TASK':
         if (message.taskId) {
-          // Check in registry or fetch from DB directly if not found
+          // Check in active registry or fetch from DB directly if not found (e.g. if disabled)
           let task = taskRegistry.getTaskById(message.taskId);
           if (!task) {
-            await taskRegistry.loadTasks();
-            task = taskRegistry.getTaskById(message.taskId);
+            const dbRow = await db.getScheduledTaskByKey(message.taskId);
+            if (dbRow) {
+              task = {
+                id: dbRow.task_key || String(dbRow.id),
+                dbId: dbRow.id,
+                name: dbRow.task_name || dbRow.task_key,
+                type: dbRow.task_type || 'command',
+                command: dbRow.command || null,
+                text_message: dbRow.text_message || null,
+                groupId: dbRow.group_id || null,
+                enabled: true
+              };
+            }
           }
 
           if (task) {
@@ -217,12 +228,12 @@ if (parentPort) {
 
       case 'RELOAD_TASKS':
         logger.info('[SchedulerWorker] Reloading tasks from DB upon main thread request...');
-        await taskRegistry.loadTasks();
+        await taskRegistry.loadTasks(true);
         lastDbReloadTime = Date.now();
         break;
 
       default:
-        console.log(`[SchedulerWorker] Unknown message type received: ${message.type}`);
+        logger.debug(`[SchedulerWorker] Unknown message type received: ${message.type}`);
     }
   });
 }

@@ -152,13 +152,14 @@ class TaskRegistry {
 
   /**
    * Loads scheduled tasks from scheduled_task_tbl in database.
+   * Only loads and registers enabled tasks (enabled = 1).
    * Compares payload hash to avoid reloading and logging when tasks are unchanged.
    * @param {boolean} [force=false]
    * @returns {Promise<boolean>} True if tasks were loaded or changed, false if unchanged.
    */
   async loadTasks(force = false) {
     try {
-      const rows = await db.getScheduledTasks(false);
+      const rows = await db.getScheduledTasks(true);
       const tasksHash = crypto.createHash('md5').update(JSON.stringify(rows || [])).digest('hex');
 
       if (!force && this.isLoaded && this.lastTasksHash === tasksHash) {
@@ -171,6 +172,9 @@ class TaskRegistry {
 
       if (rows && rows.length > 0) {
         for (const row of rows) {
+          const isEnabled = row.enabled === 1 || row.enabled === true;
+          if (!isEnabled) continue;
+
           const taskId = row.task_key || String(row.id);
           const taskObj = {
             id: taskId,
@@ -180,7 +184,7 @@ class TaskRegistry {
             command: row.command || null,
             text_message: row.text_message || null,
             groupId: row.group_id || null,
-            enabled: row.enabled === 1 || row.enabled === true,
+            enabled: true,
             schedule: {
               days: row.schedule_days || '*',
               time: normalizeTime(row.schedule_time || '20:00')
@@ -189,7 +193,7 @@ class TaskRegistry {
           };
 
           this.tasks.set(taskId, taskObj);
-          logger.debug(`[TaskRegistry] Registered task: ${taskId} (${taskObj.name}) | Type: ${taskObj.type} | Schedule: ${taskObj.schedule.days} @ ${taskObj.schedule.time} | Enabled: ${taskObj.enabled}`);
+          logger.debug(`[TaskRegistry] Registered task: ${taskId} (${taskObj.name}) | Type: ${taskObj.type} | Schedule: ${taskObj.schedule.days} @ ${taskObj.schedule.time}`);
         }
       }
 
@@ -197,9 +201,9 @@ class TaskRegistry {
       this.isLoaded = true;
 
       if (isInitial) {
-        logger.info(`[TaskRegistry] Initialized ${this.tasks.size} scheduled task(s) from database`);
+        logger.info(`[TaskRegistry] Initialized ${this.tasks.size} active scheduled task(s) from database`);
       } else {
-        logger.info(`[TaskRegistry] Scheduled tasks updated from database (${this.tasks.size} task(s))`);
+        logger.info(`[TaskRegistry] Scheduled tasks updated from database (${this.tasks.size} active task(s))`);
       }
 
       return true;
