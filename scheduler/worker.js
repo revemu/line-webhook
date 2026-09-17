@@ -146,9 +146,11 @@ async function tick() {
     }
 
     const dueTasks = taskRegistry.getDueTasks(now);
-
-    for (const task of dueTasks) {
-      await runTask(task, 'schedule');
+    if (dueTasks.length > 0) {
+      console.log(`[SchedulerWorker] Found ${dueTasks.length} due task(s) to execute.`);
+      for (const task of dueTasks) {
+        await runTask(task, 'schedule');
+      }
     }
   } catch (err) {
     console.error('[SchedulerWorker] Error in tick loop:', err.message);

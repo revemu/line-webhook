@@ -12,22 +12,52 @@ const DAY_MAP = {
 
 /**
  * Resolves current Date and Time in Asia/Bangkok (UTC+7) timezone.
- * Ensures schedule evaluation matches Thai local time regardless of server OS timezone.
+ * Uses Intl.DateTimeFormat formatToParts for 100% reliable timezone conversion.
  * @param {Date} [date=new Date()] 
- * @returns {Object} { dow, currentTimeStr, todayDateStr, h, m }
+ * @returns {Object} { dow, currentTimeStr, todayDateStr, currentMinuteKey, h, m, weekdayShort }
  */
 function getBangkokDateTime(date = new Date()) {
   const tz = process.env.TIMEZONE || process.env.TZ || 'Asia/Bangkok';
-  const dateStr = date.toLocaleString('en-US', { timeZone: tz });
-  const bDate = new Date(dateStr);
 
-  const dow = bDate.getDay();
-  const h = String(bDate.getHours()).padStart(2, '0');
-  const m = String(bDate.getMinutes()).padStart(2, '0');
-  const currentTimeStr = `${h}:${m}`;
-  const todayDateStr = `${bDate.getFullYear()}-${String(bDate.getMonth() + 1).padStart(2, '0')}-${String(bDate.getDate()).padStart(2, '0')}`;
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      weekday: 'short'
+    });
 
-  return { dow, currentTimeStr, todayDateStr, h, m };
+    const parts = formatter.formatToParts(date);
+    const map = {};
+    for (const p of parts) {
+      map[p.type] = p.value;
+    }
+
+    let h = map.hour === '24' ? '00' : String(map.hour).padStart(2, '0');
+    let m = String(map.minute).padStart(2, '0');
+    const currentTimeStr = `${h}:${m}`;
+    const todayDateStr = `${map.year}-${map.month}-${map.day}`;
+    const currentMinuteKey = `${todayDateStr} ${currentTimeStr}`;
+    const weekdayShort = (map.weekday || '').toLowerCase();
+    const dow = DAY_MAP[weekdayShort] !== undefined ? DAY_MAP[weekdayShort] : date.getDay();
+
+    return { dow, currentTimeStr, todayDateStr, currentMinuteKey, h, m, weekdayShort };
+  } catch (err) {
+    // Fallback in case of timezone formatting error
+    const d = new Date(date.getTime() + (7 * 3600 * 1000) + (date.getTimezoneOffset() * 60 * 1000));
+    const dow = d.getDay();
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    const currentTimeStr = `${h}:${m}`;
+    const todayDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const currentMinuteKey = `${todayDateStr} ${currentTimeStr}`;
+    return { dow, currentTimeStr, todayDateStr, currentMinuteKey, h, m, weekdayShort: Object.keys(DAY_MAP)[dow] };
+  }
 }
 
 /**
@@ -113,7 +143,7 @@ function matchesDay(targetDays, currentDow) {
 class TaskRegistry {
   constructor() {
     this.tasks = new Map();
-    this.lastExecution = new Map(); // taskId -> 'YYYY-MM-DD'
+    this.lastExecution = new Map(); // taskId -> 'YYYY-MM-DD HH:mm'
     this.isLoaded = false;
   }
 
@@ -147,9 +177,6 @@ class TaskRegistry {
           };
 
           this.tasks.set(taskId, taskObj);
-          if (row.last_run_date) {
-            this.lastExecution.set(taskId, row.last_run_date);
-          }
 
           console.log(`[TaskRegistry] Registered task: ${taskId} (${taskObj.name}) | Type: ${taskObj.type} | Schedule: ${taskObj.schedule.days} @ ${taskObj.schedule.time} | Enabled: ${taskObj.enabled}`);
         }
@@ -171,7 +198,7 @@ class TaskRegistry {
    */
   getDueTasks(now = new Date()) {
     const dueTasks = [];
-    const { dow, currentTimeStr, todayDateStr } = getBangkokDateTime(now);
+    const { dow, currentTimeStr, todayDateStr, currentMinuteKey, weekdayShort } = getBangkokDateTime(now);
 
     for (const [id, task] of this.tasks.entries()) {
       if (task.enabled === false) continue;
@@ -190,12 +217,13 @@ class TaskRegistry {
         continue;
       }
 
-      // 3. Ensure the task has not already executed today
-      const lastRun = this.lastExecution.get(id);
-      if (lastRun === todayDateStr) {
+      // 3. Ensure the task has not already executed during this exact minute
+      const lastRunMinute = this.lastExecution.get(id);
+      if (lastRunMinute === currentMinuteKey) {
         continue;
       }
 
+      console.log(`[TaskRegistry] Task '${id}' matched schedule (${weekdayShort} @ ${currentTimeStr})!`);
       dueTasks.push(task);
     }
 
@@ -203,14 +231,14 @@ class TaskRegistry {
   }
 
   /**
-   * Marks a task as successfully run for the given date.
+   * Marks a task as successfully run for the given date and minute.
    * Updates memory map and persists to scheduled_task_tbl.
    * @param {string} taskId 
    * @param {Date} [date=new Date()] 
    */
   async markTaskExecuted(taskId, date = new Date()) {
-    const { todayDateStr } = getBangkokDateTime(date);
-    this.lastExecution.set(taskId, todayDateStr);
+    const { todayDateStr, currentMinuteKey } = getBangkokDateTime(date);
+    this.lastExecution.set(taskId, currentMinuteKey);
 
     const task = this.tasks.get(taskId);
     if (task) {
@@ -243,3 +271,4 @@ class TaskRegistry {
 }
 
 module.exports = new TaskRegistry();
+module.exports.getBangkokDateTime = getBangkokDateTime;
