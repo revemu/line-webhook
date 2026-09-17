@@ -169,8 +169,8 @@ async function tick() {
   }
 }
 
-// 3. Start native timer loop (check every 30 seconds for precise minute matching)
-const TICK_INTERVAL_MS = 30 * 1000;
+// 3. Start native timer loop (check every 5 seconds for fast minute matching)
+const TICK_INTERVAL_MS = 5 * 1000;
 const timerInterval = setInterval(tick, TICK_INTERVAL_MS);
 
 // 4. Handle IPC messages from the main thread
