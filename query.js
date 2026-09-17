@@ -6349,7 +6349,79 @@ async function toggleScheduledTask(keyOrId, forcedStatus = null) {
 }
 
 /**
- * Resolves dynamic template tags (#weekdate, #timerange, #max, #registered, #remaining, {all})
+ * Evaluates a condition string against the template context.
+ * Supports binary comparisons (>=, <=, ==, !=, =, >, <) and single variable truthy checks.
+ * @param {string} exprStr 
+ * @param {Object} ctx 
+ * @returns {boolean}
+ */
+function evaluateCondition(exprStr, ctx) {
+  if (!exprStr) return false;
+  const expr = exprStr.trim();
+
+  // Try binary operators: >=, <=, ==, !=, =, >, <
+  const opMatch = expr.match(/^([a-zA-Z0-9_]+)\s*(>=|<=|==|!=|=|>|<)\s*([a-zA-Z0-9_]+)$/);
+  if (opMatch) {
+    const leftKey = opMatch[1].toLowerCase();
+    const op = opMatch[2];
+    const rightKey = opMatch[3].toLowerCase();
+
+    const leftVal = ctx.hasOwnProperty(leftKey) ? ctx[leftKey] : (!isNaN(Number(opMatch[1])) ? Number(opMatch[1]) : opMatch[1]);
+    const rightVal = ctx.hasOwnProperty(rightKey) ? ctx[rightKey] : (!isNaN(Number(opMatch[3])) ? Number(opMatch[3]) : opMatch[3]);
+
+    switch (op) {
+      case '>=': return leftVal >= rightVal;
+      case '<=': return leftVal <= rightVal;
+      case '==':
+      case '=':  return leftVal == rightVal;
+      case '!=': return leftVal != rightVal;
+      case '>':  return leftVal > rightVal;
+      case '<':  return leftVal < rightVal;
+    }
+  }
+
+  // Single truthy check (e.g. {{#if remaining}})
+  const singleKey = expr.toLowerCase();
+  if (ctx.hasOwnProperty(singleKey)) {
+    const val = ctx[singleKey];
+    if (typeof val === 'number') return val > 0;
+    return Boolean(val);
+  }
+
+  return false;
+}
+
+/**
+ * Processes conditional blocks ({{#if expr}}...{{else}}...{{/if}} and [if expr]...[else]...[/if])
+ * @param {string} template 
+ * @param {Object} ctx 
+ * @returns {string}
+ */
+function processTemplateConditionals(template, ctx) {
+  if (!template) return '';
+  let result = template;
+
+  // 1. Process {{#if expr}} ... {{else}} ... {{/if}}
+  const mustacheRegex = /\{\{#if\s+([^}]+)\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/gi;
+  result = result.replace(mustacheRegex, (match, expr, thenBranch, elseBranch) => {
+    const isTrue = evaluateCondition(expr, ctx);
+    return isTrue ? (thenBranch || '') : (elseBranch || '');
+  });
+
+  // 2. Process [if expr] ... [else] ... [/if]
+  const bracketRegex = /\[if\s+([^\]]+)\]([\s\S]*?)(?:\[else\]([\s\S]*?))?\[\/if\]/gi;
+  result = result.replace(bracketRegex, (match, expr, thenBranch, elseBranch) => {
+    const isTrue = evaluateCondition(expr, ctx);
+    return isTrue ? (thenBranch || '') : (elseBranch || '');
+  });
+
+  // Clean up excess newlines created by stripped blocks
+  result = result.replace(/(\r?\n){3,}/g, '\n\n');
+  return result.trim();
+}
+
+/**
+ * Resolves dynamic template tags and conditionals ({{#if ...}}, #weekdate, #timerange, #max, #registered, #remaining, {all})
  * in text messages for scheduled text tasks.
  * @param {string} templateText 
  * @param {string|null} [groupId=null] 
@@ -6388,7 +6460,29 @@ async function resolveScheduleTemplateText(templateText, groupId = null) {
     console.error('Error resolving template variables for schedule text:', err.message);
   }
 
-  // 2. Perform variable replacement
+  // 2. Build template context for conditionals and replacement
+  const ctx = {
+    remaining,
+    remains: remaining,
+    left: remaining,
+    registered: registeredFieldPlayers,
+    players: registeredFieldPlayers,
+    count: registeredFieldPlayers,
+    max: maxPlayers,
+    maxplayers: maxPlayers,
+    capacity: maxPlayers,
+    date: dateStr,
+    weekdate: dateStr,
+    week_date: dateStr,
+    timerange: timeRange,
+    time_range: timeRange,
+    time: timeRange
+  };
+
+  // 3. Process conditional blocks ({{#if ...}} ... {{/if}})
+  text = processTemplateConditionals(text, ctx);
+
+  // 4. Perform variable replacement
   text = text
     .replace(/#(weekdate|week_date|date)/gi, dateStr)
     .replace(/\{(weekdate|week_date|date)\}/gi, dateStr)
@@ -6401,7 +6495,7 @@ async function resolveScheduleTemplateText(templateText, groupId = null) {
     .replace(/#(remaining|remains|left)/gi, String(remaining))
     .replace(/\{(remaining|remains|left)\}/gi, String(remaining));
 
-  // 3. Format LINE message payload (support {all} or #all for mentionee)
+  // 5. Format LINE message payload (support {all} or #all for mentionee)
   if (text.includes('#all')) {
     text = text.replace(/#all/gi, '{all}');
   }
