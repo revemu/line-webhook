@@ -341,7 +341,7 @@ async function resetMemberTeam() {
 }
 
 async function newMember(lineID, name, pictureUrl = null) {
-  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, no_team, picture_url) values(?, 0, 0, 0, ?, ?, 0, ?)";
+  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_id, picture_url) values(?, 0, 0, 0, ?, ?, NULL, ?)";
   const res = await executeQuery(query, [name, name.replace('@', ''), lineID, pictureUrl]);
   return res;
 }
@@ -888,7 +888,7 @@ async function IsMemberWeek(member_id) {
 
 async function registerNY(member_id) {
 
-  const query = `update member_tbl set no_team=1 where id=${member_id}`;
+  const query = `update member_tbl set avoid_id='1' where id=${member_id}`;
 
   //console.log(query) ;
   const reg_res = await executeQuery(query);
@@ -2781,7 +2781,7 @@ async function getMemberNY() {
   let body = "";
   let query = "";
 
-  query = `SELECT * from member_tbl where no_team = 1`;
+  query = `SELECT * from member_tbl where avoid_id = '1' or avoid_id = 1`;
   header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 20 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: มูนเทอร์เรซ ห้อง M5 นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานลงชื่อด้วยนะครับ\n\n";
 
 
@@ -2853,7 +2853,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     const date = new Date(res[0].date);
     const time_range = res[0].time_range || '17:30-20:00';
 
-    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.no_team, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_id, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
@@ -2982,7 +2982,7 @@ async function getMemberWeek(type = 0) {
 
   if (res.length > 0) {
     const week_id = res[0].id;
-    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.no_team, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_id, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
@@ -3076,7 +3076,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
   if (res.length > 0) {
     const week_id = res[0].id;
     const date = new Date(res[0].date);
-    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.no_team FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.avoid_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
@@ -5704,6 +5704,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       m.rank,
       m.picture_url,
       m.line_user_id,
+      m.avoid_id,
       m.priority as member_priority,
       COALESCE(NULLIF(mtw.priority, 0), m.priority, 0) as priority,
       m.team_id as member_team_id,
@@ -5754,6 +5755,46 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       totalPlayers: N
     };
   }
+
+  // 1.5 Build bidirectional avoidMap for multi-player conflict avoidance (supports single ID, '12', or comma-separated '12,25,38')
+  const avoidMap = new Map();
+  for (const m of registeredMembers) {
+    const mId = Number(m.member_id || m.id);
+    if (!avoidMap.has(mId)) avoidMap.set(mId, new Set());
+    if (m.avoid_id !== null && m.avoid_id !== undefined && String(m.avoid_id).trim() !== '') {
+      const raw = String(m.avoid_id);
+      const targetIds = raw.split(/[,;\s]+/).map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0 && n !== mId);
+      for (const targetId of targetIds) {
+        avoidMap.get(mId).add(targetId);
+        if (!avoidMap.has(targetId)) avoidMap.set(targetId, new Set());
+        avoidMap.get(targetId).add(mId);
+      }
+    }
+  }
+
+  const countAvoidConflicts = (team, group) => {
+    let conflicts = 0;
+    const players = Array.isArray(group) ? group : [group];
+    for (const p of players) {
+      const pId = Number(p.member_id || p.id);
+      const pAvoids = avoidMap.get(pId);
+      if (!pAvoids || pAvoids.size === 0) continue;
+      for (const tm of team.members) {
+        const tmId = Number(tm.member_id || tm.id);
+        if (pAvoids.has(tmId)) conflicts++;
+      }
+    }
+    return conflicts;
+  };
+
+  const hasAvoidRule = (playerOrGroup) => {
+    const players = Array.isArray(playerOrGroup) ? playerOrGroup : [playerOrGroup];
+    return players.some(p => {
+      const pId = Number(p.member_id || p.id);
+      const pAvoids = avoidMap.get(pId);
+      return pAvoids && pAvoids.size > 0;
+    });
+  };
 
   // 2. Ensure team colors for this week (K teams)
   await addTeamColorWeek(K, weekId);
@@ -5911,7 +5952,6 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   };
 
   // 5. Priority Tier Distribution: Tier 1 (priority === 1) and Tier 2 (priority === 2)
-  // When a priority player is placed, any strict teammates (matching team > 0) are placed into the SAME team with them
   const distributePriorityTier = (tierNum) => {
     const tierPlayers = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id) && getMemberPriority(m) === tierNum);
     const byPos = {};
@@ -5921,7 +5961,14 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     }
 
     for (const pos of Object.keys(byPos)) {
-      const pList = shuffleArray([...byPos[pos]]);
+      // Sort avoid rules first within priority tiers to ensure separate team placement
+      const pList = [...byPos[pos]].sort((a, b) => {
+        const aAvoid = hasAvoidRule(a) ? 1 : 0;
+        const bAvoid = hasAvoidRule(b) ? 1 : 0;
+        if (bAvoid !== aAvoid) return bAvoid - aAvoid;
+        return 0;
+      });
+
       for (const player of pList) {
         if (assignedMemberIds.has(player.member_id)) continue;
         const group = getUnassignedGroup(player);
@@ -5938,10 +5985,21 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
           const teamsWithoutSameTierAndPos = poolWithPosRoom.filter(t =>
             !t.members.some(m => getMemberPriority(m) === tierNum && tierPositionsInGroup.has(m.posCode))
           );
-          const pool = teamsWithoutSameTierAndPos.length > 0 ? teamsWithoutSameTierAndPos : poolWithPosRoom;
+          let pool = teamsWithoutSameTierAndPos.length > 0 ? teamsWithoutSameTierAndPos : poolWithPosRoom;
+
+          // Filter out teams with avoid conflicts
+          if (hasAvoidRule(group)) {
+            const minConflicts = Math.min(...pool.map(t => countAvoidConflicts(t, group)));
+            const zeroConflictPool = pool.filter(t => countAvoidConflicts(t, group) === minConflicts);
+            if (zeroConflictPool.length > 0) {
+              pool = zeroConflictPool;
+            }
+          }
 
           const shuffledPool = shuffleArray([...pool]);
           shuffledPool.sort((a, b) => {
+            const conflictDiff = countAvoidConflicts(a, group) - countAvoidConflicts(b, group);
+            if (conflictDiff !== 0) return conflictDiff;
             const countDiff = a.members.length - b.members.length;
             if (countDiff !== 0) return countDiff;
             const posDiff = (a.positionCounts[player.posCode] || 0) - (b.positionCounts[player.posCode] || 0);
@@ -5982,8 +6040,19 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
 
     const candidateTeams = findCandidateTeamsForGroup(group.length);
     if (candidateTeams.length > 0) {
-      const shuffledPool = shuffleArray([...candidateTeams]);
+      let pool = candidateTeams;
+      if (hasAvoidRule(group)) {
+        const minConflicts = Math.min(...pool.map(t => countAvoidConflicts(t, group)));
+        const zeroConflictPool = pool.filter(t => countAvoidConflicts(t, group) === minConflicts);
+        if (zeroConflictPool.length > 0) {
+          pool = zeroConflictPool;
+        }
+      }
+
+      const shuffledPool = shuffleArray([...pool]);
       shuffledPool.sort((a, b) => {
+        const conflictDiff = countAvoidConflicts(a, group) - countAvoidConflicts(b, group);
+        if (conflictDiff !== 0) return conflictDiff;
         const countDiff = a.members.length - b.members.length;
         if (countDiff !== 0) return countDiff;
         return a.ratingSum - b.ratingSum;
@@ -6008,8 +6077,11 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     const playersInPos = regularByPos[pos] || [];
     if (playersInPos.length === 0) continue;
 
-    // Sort players by rating with slight jitter for equal/close ratings
+    // Sort players: avoid rules evaluated first, then by rating with slight jitter
     playersInPos.sort((a, b) => {
+      const aAvoid = hasAvoidRule(a) ? 1 : 0;
+      const bAvoid = hasAvoidRule(b) ? 1 : 0;
+      if (bAvoid !== aAvoid) return bAvoid - aAvoid;
       const diff = b.rating - a.rating;
       if (Math.abs(diff) < 0.2) return Math.random() - 0.5;
       return diff;
@@ -6024,10 +6096,21 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       if (candidateTeams.length > 0) {
         // Prioritize teams that haven't reached max capacity for this position
         const teamsUnderPosMax = candidateTeams.filter(t => (t.positionCounts[pos] || 0) < getTeamPosLimit(t, pos).max);
-        const pool = teamsUnderPosMax.length > 0 ? teamsUnderPosMax : candidateTeams;
+        let pool = teamsUnderPosMax.length > 0 ? teamsUnderPosMax : candidateTeams;
+
+        // Filter out teams with avoid conflicts
+        if (hasAvoidRule(group)) {
+          const minConflicts = Math.min(...pool.map(t => countAvoidConflicts(t, group)));
+          const zeroConflictPool = pool.filter(t => countAvoidConflicts(t, group) === minConflicts);
+          if (zeroConflictPool.length > 0) {
+            pool = zeroConflictPool;
+          }
+        }
 
         const shuffledTeams = shuffleArray([...pool]);
         shuffledTeams.sort((a, b) => {
+          const conflictDiff = countAvoidConflicts(a, group) - countAvoidConflicts(b, group);
+          if (conflictDiff !== 0) return conflictDiff;
           const posCountDiff = (a.positionCounts[pos] || 0) - (b.positionCounts[pos] || 0);
           if (posCountDiff !== 0) return posCountDiff;
           const countDiff = a.members.length - b.members.length;
@@ -6048,8 +6131,19 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       const group = getUnassignedGroup(player);
       if (group.length === 0) continue;
       const candidateTeams = findCandidateTeamsForGroup(group.length);
-      const pool = candidateTeams.length > 0 ? candidateTeams : teams;
-      pool.sort((a, b) => a.members.length - b.members.length);
+      let pool = candidateTeams.length > 0 ? candidateTeams : teams;
+      if (hasAvoidRule(group)) {
+        const minConflicts = Math.min(...pool.map(t => countAvoidConflicts(t, group)));
+        const zeroConflictPool = pool.filter(t => countAvoidConflicts(t, group) === minConflicts);
+        if (zeroConflictPool.length > 0) {
+          pool = zeroConflictPool;
+        }
+      }
+      pool.sort((a, b) => {
+        const conflictDiff = countAvoidConflicts(a, group) - countAvoidConflicts(b, group);
+        if (conflictDiff !== 0) return conflictDiff;
+        return a.members.length - b.members.length;
+      });
       placeGroupIntoTeam(group, pool[0]);
     }
   }
