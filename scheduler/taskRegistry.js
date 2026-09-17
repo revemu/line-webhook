@@ -1,4 +1,6 @@
+const crypto = require('crypto');
 const db = require('../query');
+const logger = require('../utils/logger');
 
 const DAY_MAP = {
   sun: 0, sunday: 0,
@@ -144,17 +146,27 @@ class TaskRegistry {
   constructor() {
     this.tasks = new Map();
     this.lastExecution = new Map(); // taskId -> 'YYYY-MM-DD HH:mm'
+    this.lastTasksHash = null;
     this.isLoaded = false;
   }
 
   /**
    * Loads scheduled tasks from scheduled_task_tbl in database.
+   * Compares payload hash to avoid reloading and logging when tasks are unchanged.
+   * @param {boolean} [force=false]
+   * @returns {Promise<boolean>} True if tasks were loaded or changed, false if unchanged.
    */
-  async loadTasks() {
+  async loadTasks(force = false) {
     try {
-      console.log('[TaskRegistry] Loading scheduled tasks from database (scheduled_task_tbl)...');
       const rows = await db.getScheduledTasks(false);
+      const tasksHash = crypto.createHash('md5').update(JSON.stringify(rows || [])).digest('hex');
 
+      if (!force && this.isLoaded && this.lastTasksHash === tasksHash) {
+        // Tasks in DB are identical, no need to reload or log
+        return false;
+      }
+
+      const isInitial = !this.isLoaded;
       this.tasks.clear();
 
       if (rows && rows.length > 0) {
@@ -177,17 +189,23 @@ class TaskRegistry {
           };
 
           this.tasks.set(taskId, taskObj);
-
-          console.log(`[TaskRegistry] Registered task: ${taskId} (${taskObj.name}) | Type: ${taskObj.type} | Schedule: ${taskObj.schedule.days} @ ${taskObj.schedule.time} | Enabled: ${taskObj.enabled}`);
+          logger.debug(`[TaskRegistry] Registered task: ${taskId} (${taskObj.name}) | Type: ${taskObj.type} | Schedule: ${taskObj.schedule.days} @ ${taskObj.schedule.time} | Enabled: ${taskObj.enabled}`);
         }
-      } else {
-        console.log('[TaskRegistry] No tasks found in scheduled_task_tbl.');
       }
 
+      this.lastTasksHash = tasksHash;
       this.isLoaded = true;
-      console.log(`[TaskRegistry] Total tasks registered: ${this.tasks.size}`);
+
+      if (isInitial) {
+        logger.info(`[TaskRegistry] Initialized ${this.tasks.size} scheduled task(s) from database`);
+      } else {
+        logger.info(`[TaskRegistry] Scheduled tasks updated from database (${this.tasks.size} task(s))`);
+      }
+
+      return true;
     } catch (err) {
-      console.error('[TaskRegistry] Failed to load tasks from DB:', err.message);
+      logger.error('[TaskRegistry] Failed to load tasks from DB:', err.message);
+      return false;
     }
   }
 
@@ -223,7 +241,7 @@ class TaskRegistry {
         continue;
       }
 
-      console.log(`[TaskRegistry] Task '${id}' matched schedule (${weekdayShort} @ ${currentTimeStr})!`);
+      logger.info(`[TaskRegistry] Task '${id}' matched schedule (${weekdayShort} @ ${currentTimeStr})!`);
       dueTasks.push(task);
     }
 
@@ -248,7 +266,7 @@ class TaskRegistry {
     try {
       await db.setScheduledTaskLastRun(taskId, todayDateStr);
     } catch (err) {
-      console.error(`[TaskRegistry] Failed to persist last_run_date for task '${taskId}':`, err.message);
+      logger.error(`[TaskRegistry] Failed to persist last_run_date for task '${taskId}':`, err.message);
     }
   }
 

@@ -54,7 +54,7 @@ logger.info('[SchedulerWorker] Starting background scheduler worker thread...');
  * @param {string} triggerSource 
  */
 async function runTask(task, triggerSource = 'schedule') {
-  console.log(`[SchedulerWorker] Starting execution of task '${task.id}' (${task.name}) [type: ${task.type}, source: ${triggerSource}]`);
+  logger.info(`[SchedulerWorker] Starting execution of task '${task.id}' (${task.name}) [type: ${task.type}, source: ${triggerSource}]`);
   const now = new Date();
   try {
     let targetGroupId = task.groupId || null;
@@ -70,7 +70,7 @@ async function runTask(task, triggerSource = 'schedule') {
     }
 
     if (!targetGroupId) {
-      console.warn(`[SchedulerWorker] Execution aborted for task '${task.id}': No target groupId available`);
+      logger.warn(`[SchedulerWorker] Execution aborted for task '${task.id}': No target groupId available`);
       return;
     }
 
@@ -79,12 +79,12 @@ async function runTask(task, triggerSource = 'schedule') {
     if (task.type === 'command') {
       const rawCmd = (task.command || '').trim();
       if (!rawCmd) {
-        console.warn(`[SchedulerWorker] Command task '${task.id}' has empty command, skipping.`);
+        logger.warn(`[SchedulerWorker] Command task '${task.id}' has empty command, skipping.`);
         return;
       }
 
       const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
-      console.log(`[SchedulerWorker] Running command: "${cleanCmd}" for group: ${targetGroupId}`);
+      logger.info(`[SchedulerWorker] Running command: "${cleanCmd}" for group: ${targetGroupId}`);
 
       const botMember = {
         id: 0,
@@ -97,29 +97,29 @@ async function runTask(task, triggerSource = 'schedule') {
       const reply = await cmd.process_cmd(cleanCmd, botMember, null, targetGroupId);
       if (reply) {
         const msgs = Array.isArray(reply) ? reply : [reply];
-        console.log(`[SchedulerWorker] Pushing command response (${msgs.length} message(s)) to group ${targetGroupId}...`);
+        logger.info(`[SchedulerWorker] Pushing command response (${msgs.length} message(s)) to group ${targetGroupId}...`);
         pushResult = await lineClient.pushMessage(targetGroupId, msgs);
       } else {
-        console.log(`[SchedulerWorker] Command '${cleanCmd}' completed without reply message.`);
+        logger.info(`[SchedulerWorker] Command '${cleanCmd}' completed without reply message.`);
         pushResult = true;
       }
     } else if (task.type === 'text') {
       const textMsg = (task.text_message || '').trim();
       if (!textMsg) {
-        console.warn(`[SchedulerWorker] Text task '${task.id}' has empty text_message, skipping.`);
+        logger.warn(`[SchedulerWorker] Text task '${task.id}' has empty text_message, skipping.`);
         return;
       }
 
-      console.log(`[SchedulerWorker] Resolving and sending text task for group: ${targetGroupId}`);
+      logger.info(`[SchedulerWorker] Resolving and sending text task for group: ${targetGroupId}`);
       const pushMsg = await db.resolveScheduleTemplateText(textMsg, targetGroupId);
       pushResult = await lineClient.pushMessage(targetGroupId, [pushMsg]);
     } else {
-      console.warn(`[SchedulerWorker] Unknown task type '${task.type}' for task '${task.id}'`);
+      logger.warn(`[SchedulerWorker] Unknown task type '${task.type}' for task '${task.id}'`);
       return;
     }
 
     await taskRegistry.markTaskExecuted(task.id, now);
-    console.log(`[SchedulerWorker] Task '${task.id}' executed successfully. Push result:`, pushResult ? 'SUCCESS' : 'FAILED');
+    logger.info(`[SchedulerWorker] Task '${task.id}' executed successfully. Push result:`, pushResult ? 'SUCCESS' : 'FAILED');
 
     if (parentPort) {
       parentPort.postMessage({
@@ -130,7 +130,7 @@ async function runTask(task, triggerSource = 'schedule') {
       });
     }
   } catch (err) {
-    console.error(`[SchedulerWorker] Error executing task '${task.id}':`, err);
+    logger.error(`[SchedulerWorker] Error executing task '${task.id}':`, err);
     if (parentPort) {
       parentPort.postMessage({
         type: 'TASK_ERROR',
@@ -152,7 +152,7 @@ async function tick() {
   try {
     const now = new Date();
 
-    // Auto-refresh tasks from DB every DB_RELOAD_INTERVAL_MS
+    // Auto-refresh tasks from DB every DB_RELOAD_INTERVAL_MS (only updates/logs if DB rows changed)
     if (!taskRegistry.isLoaded || (Date.now() - lastDbReloadTime > DB_RELOAD_INTERVAL_MS)) {
       await taskRegistry.loadTasks();
       lastDbReloadTime = Date.now();
@@ -160,13 +160,13 @@ async function tick() {
 
     const dueTasks = taskRegistry.getDueTasks(now);
     if (dueTasks.length > 0) {
-      console.log(`[SchedulerWorker] Found ${dueTasks.length} due task(s) to execute.`);
+      logger.info(`[SchedulerWorker] Found ${dueTasks.length} due task(s) to execute.`);
       for (const task of dueTasks) {
         await runTask(task, 'schedule');
       }
     }
   } catch (err) {
-    console.error('[SchedulerWorker] Error in tick loop:', err.message);
+    logger.error('[SchedulerWorker] Error in tick loop:', err.message);
   } finally {
     isExecuting = false;
   }

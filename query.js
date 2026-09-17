@@ -2,6 +2,7 @@ const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const logger = require('./utils/logger');
 require('dotenv').config({ quiet: true });
 const flex = require('./flex');
 const lineClient = require('./lineClient');
@@ -6308,7 +6309,7 @@ async function getScheduledTasks(onlyEnabled = false) {
       : "SELECT * FROM scheduled_task_tbl ORDER BY id ASC";
     return await executeQuery(sql);
   } catch (err) {
-    console.error('Error querying scheduled_task_tbl:', err.message);
+    logger.error('Error querying scheduled_task_tbl:', err.message);
     return [];
   }
 }
@@ -6327,7 +6328,7 @@ async function getScheduledTaskByKey(keyOrId) {
     );
     return res.length > 0 ? res[0] : null;
   } catch (err) {
-    console.error(`Error querying scheduled task '${keyOrId}':`, err.message);
+    logger.error(`Error querying scheduled task '${keyOrId}':`, err.message);
     return null;
   }
 }
