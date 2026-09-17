@@ -6170,6 +6170,48 @@ async function getActiveGroupId() {
   return null;
 }
 
+async function getTaskGroupId(taskId) {
+  if (!taskId || typeof taskId !== 'string') return null;
+
+  // 1. Check environment variables (e.g. GROUP_ID_DEBT_CALL or DEBT_CALL_GROUP_ID)
+  const normalized = taskId.toUpperCase();
+  if (process.env[`GROUP_ID_${normalized}`]) return process.env[`GROUP_ID_${normalized}`];
+  if (process.env[`${normalized}_GROUP_ID`]) return process.env[`${normalized}_GROUP_ID`];
+
+  // 2. Query template_tpl by task identifier keys
+  const key1 = `group_id_${taskId.toLowerCase()}`;
+  const key2 = `${taskId.toLowerCase()}_group_id`;
+  const key3 = taskId.toLowerCase();
+
+  try {
+    const res = await executeQuery(
+      "SELECT value FROM template_tpl WHERE name IN (?, ?, ?) ORDER BY FIELD(name, ?, ?, ?) LIMIT 1",
+      [key1, key2, key3, key1, key2, key3]
+    );
+    if (res.length > 0 && res[0].value) {
+      return res[0].value;
+    }
+  } catch (err) {
+    console.error(`Error querying task group_id for '${taskId}' from template_tpl:`, err.message);
+  }
+  return null;
+}
+
+async function saveTaskGroupId(taskId, groupId) {
+  if (!taskId || !groupId || typeof groupId !== 'string') return;
+  const key = `group_id_${taskId.toLowerCase()}`;
+  try {
+    const existing = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
+    if (existing.length > 0) {
+      await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [groupId, key]);
+    } else {
+      await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, ?, ?)", [key, groupId]);
+    }
+  } catch (err) {
+    console.error(`Error saving ${key} in template_tpl:`, err.message);
+  }
+}
+
 module.exports = {
   updateHof,
   testConnection,
@@ -6245,5 +6287,7 @@ module.exports = {
   getTeamFormation,
   randomTeamByPosition,
   saveActiveGroupId,
-  getActiveGroupId
+  getActiveGroupId,
+  getTaskGroupId,
+  saveTaskGroupId
 };

@@ -32,7 +32,23 @@ async function runTask(task, triggerSource = 'schedule') {
   console.log(`[SchedulerWorker] Starting execution of task '${task.id}' [source: ${triggerSource}]`);
   const now = new Date();
   try {
-    const targetGroupId = activeGroupId || (await db.getActiveGroupId());
+    let targetGroupId = null;
+    if (typeof task.groupId === 'function') {
+      targetGroupId = await task.groupId({ db });
+    } else if (task.groupId) {
+      targetGroupId = task.groupId;
+    }
+
+    // If no static/function groupId is set on task, look up task-specific groupId from DB (template_tpl)
+    if (!targetGroupId) {
+      targetGroupId = await db.getTaskGroupId(task.id);
+    }
+
+    // Fallback to activeGroupId or general DB active_group_id
+    if (!targetGroupId) {
+      targetGroupId = activeGroupId || (await db.getActiveGroupId());
+    }
+
     const result = await task.execute({
       groupId: targetGroupId,
       lineClient,

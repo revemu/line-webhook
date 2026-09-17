@@ -16,7 +16,7 @@ const slipService = require('./slip');
 const lineClient = require('./lineClient');
 const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
 const { spamProtector } = require('./utils/spamProtection');
-const { initScheduler, notifyActiveGroup } = require('./scheduler');
+const { initScheduler } = require('./scheduler');
 
 const execPromise = util.promisify(exec);
 
@@ -87,7 +87,6 @@ async function handleEvent(event) {
     try {
         if (event.source && event.source.groupId) {
             console.log(`[Group: ${event.source.groupId}] Incoming event: ${event.type}`);
-            notifyActiveGroup(event.source.groupId);
         }
         if (event.type === 'message') {
             await handleMessage(event);

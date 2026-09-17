@@ -13,6 +13,7 @@ module.exports = {
   id: 'debt_call',
   name: 'Daily Debt Call Reminder',
   enabled: process.env.DEBT_CALL_ENABLED !== 'false',
+  groupId: process.env.DEBT_CALL_GROUP_ID || null, // Optional explicit override; if null, fetches from DB template_tpl (e.g. name = 'group_id_debt_call') or default active group
 
   // Schedule definition: default Mon-Fri at 12:00 PM
   schedule: {
