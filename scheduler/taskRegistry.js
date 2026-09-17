@@ -11,8 +11,44 @@ const DAY_MAP = {
 };
 
 /**
+ * Resolves current Date and Time in Asia/Bangkok (UTC+7) timezone.
+ * Ensures schedule evaluation matches Thai local time regardless of server OS timezone.
+ * @param {Date} [date=new Date()] 
+ * @returns {Object} { dow, currentTimeStr, todayDateStr, h, m }
+ */
+function getBangkokDateTime(date = new Date()) {
+  const tz = process.env.TIMEZONE || process.env.TZ || 'Asia/Bangkok';
+  const dateStr = date.toLocaleString('en-US', { timeZone: tz });
+  const bDate = new Date(dateStr);
+
+  const dow = bDate.getDay();
+  const h = String(bDate.getHours()).padStart(2, '0');
+  const m = String(bDate.getMinutes()).padStart(2, '0');
+  const currentTimeStr = `${h}:${m}`;
+  const todayDateStr = `${bDate.getFullYear()}-${String(bDate.getMonth() + 1).padStart(2, '0')}-${String(bDate.getDate()).padStart(2, '0')}`;
+
+  return { dow, currentTimeStr, todayDateStr, h, m };
+}
+
+/**
+ * Normalizes HH:mm time string (e.g. "17:26:00" -> "17:26", "7:5" -> "07:05").
+ * @param {string} timeStr 
+ * @returns {string}
+ */
+function normalizeTime(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return '';
+  const parts = timeStr.trim().split(':');
+  if (parts.length >= 2) {
+    const h = parts[0].padStart(2, '0');
+    const m = parts[1].padStart(2, '0');
+    return `${h}:${m}`;
+  }
+  return timeStr.trim();
+}
+
+/**
  * Checks if targetDays specification matches the current day of the week.
- * Supports '*', 'weekdays', 'weekends', [1,2,3,4,5], '1-5', '1,2,3,4,5', 'mon-fri', 'fri', etc.
+ * Supports '*', 'weekdays', 'weekends', [1,2,3,4,5], '1-5', '1,2,3,4,5', 'mon-fri', 'fri', 'thu', etc.
  * @param {Array|string|number} targetDays 
  * @param {number} currentDow - 0 (Sun) .. 6 (Sat)
  * @returns {boolean}
@@ -44,7 +80,7 @@ function matchesDay(targetDays, currentDow) {
     if (s === 'weekdays' || s === 'mon-fri' || s === '1-5') return currentDow >= 1 && currentDow <= 5;
     if (s === 'weekends' || s === 'sat-sun' || s === '6,0' || s === '0,6') return currentDow === 0 || currentDow === 6;
 
-    // Handle single day name e.g. "fri"
+    // Handle single day name e.g. "fri", "thu"
     if (DAY_MAP[s] !== undefined) {
       return DAY_MAP[s] === currentDow;
     }
@@ -105,7 +141,7 @@ class TaskRegistry {
             enabled: row.enabled === 1 || row.enabled === true,
             schedule: {
               days: row.schedule_days || '*',
-              time: row.schedule_time || '20:00'
+              time: normalizeTime(row.schedule_time || '20:00')
             },
             last_run_date: row.last_run_date || null
           };
@@ -129,27 +165,25 @@ class TaskRegistry {
   }
 
   /**
-   * Evaluates registered tasks against the current date & time.
+   * Evaluates registered tasks against current date & time (Bangkok timezone).
    * @param {Date} [now=new Date()]
    * @returns {Array<Object>} List of tasks that should execute now
    */
   getDueTasks(now = new Date()) {
     const dueTasks = [];
-    const dow = now.getDay(); // 0 = Sun .. 6 = Sat
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    const currentTimeStr = `${h}:${m}`;
-    const todayDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const { dow, currentTimeStr, todayDateStr } = getBangkokDateTime(now);
 
     for (const [id, task] of this.tasks.entries()) {
       if (task.enabled === false) continue;
 
       const schedule = task.schedule || {};
       const targetDays = schedule.days;
-      const targetTime = schedule.time;
+      const targetTime = normalizeTime(schedule.time);
 
       // 1. Check day-of-week condition
-      if (!matchesDay(targetDays, dow)) continue;
+      if (!matchesDay(targetDays, dow)) {
+        continue;
+      }
 
       // 2. Check time condition (HH:mm)
       if (targetTime && targetTime !== currentTimeStr) {
@@ -175,16 +209,16 @@ class TaskRegistry {
    * @param {Date} [date=new Date()] 
    */
   async markTaskExecuted(taskId, date = new Date()) {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    this.lastExecution.set(taskId, dateStr);
+    const { todayDateStr } = getBangkokDateTime(date);
+    this.lastExecution.set(taskId, todayDateStr);
 
     const task = this.tasks.get(taskId);
     if (task) {
-      task.last_run_date = dateStr;
+      task.last_run_date = todayDateStr;
     }
 
     try {
-      await db.setScheduledTaskLastRun(taskId, dateStr);
+      await db.setScheduledTaskLastRun(taskId, todayDateStr);
     } catch (err) {
       console.error(`[TaskRegistry] Failed to persist last_run_date for task '${taskId}':`, err.message);
     }
