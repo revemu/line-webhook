@@ -7,14 +7,14 @@ require('dotenv').config({ quiet: true });
  * @returns {string}
  */
 function getBaseUrl() {
-  let url = global.baseWebhookUrl || process.env.BASE_WEBHOOK_URL || process.env.BASE_URL || 'https://api.revemu.org';
+  let url = global.baseWebhookUrl || process.env.BASE_WEBHOOK_URL || process.env.BASE_URL || '';
   if (url && typeof url === 'string') {
     url = url.trim().replace(/\/+$/, '');
     if (url.startsWith('http://')) {
       url = url.replace(/^http:\/\//i, 'https://');
     }
   }
-  return url || 'https://api.revemu.org';
+  return url;
 }
 
 /**
