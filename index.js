@@ -64,6 +64,9 @@ app.use((req, res, next) => {
     global.baseWebhookUrl = baseUrl;
     setBaseUrl(baseUrl);
     notifyBaseUrl(baseUrl);
+    db.saveBaseUrl(baseUrl).catch(err => {
+        console.error('Error persisting base URL to DB:', err.message);
+    });
     next();
 });
 

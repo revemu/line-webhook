@@ -32,6 +32,16 @@ console.log('[SchedulerWorker] Starting background scheduler worker thread...');
   } catch (err) {
     console.error('[SchedulerWorker] Failed to resolve initial active groupId:', err.message);
   }
+
+  try {
+    const dbBaseUrl = await db.getBaseUrlFromDb();
+    if (dbBaseUrl) {
+      setBaseUrl(dbBaseUrl);
+      console.log(`[SchedulerWorker] Loaded base URL from database: ${dbBaseUrl}`);
+    }
+  } catch (err) {
+    console.error('[SchedulerWorker] Failed to load base URL from DB:', err.message);
+  }
 })();
 
 /**

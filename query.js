@@ -6115,6 +6115,51 @@ async function getActiveGroupId() {
   return null;
 }
 
+let lastPersistedBaseUrl = null;
+
+async function saveBaseUrl(baseUrl) {
+  if (!baseUrl || typeof baseUrl !== 'string') return;
+  let clean = baseUrl.trim().replace(/\/+$/, '');
+  if (clean.startsWith('http://')) {
+    clean = clean.replace(/^http:\/\//i, 'https://');
+  }
+  if (lastPersistedBaseUrl === clean) return;
+  lastPersistedBaseUrl = clean;
+
+  try {
+    const existing = await executeQuery("SELECT id FROM template_tpl WHERE name = 'base_webhook_url'");
+    if (existing.length > 0) {
+      await executeQuery("UPDATE template_tpl SET value = ? WHERE name = 'base_webhook_url'", [clean]);
+    } else {
+      await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, 'base_webhook_url', ?)", [clean]);
+    }
+  } catch (err) {
+    console.error('Error saving base_webhook_url in template_tpl:', err.message);
+  }
+}
+
+async function getBaseUrlFromDb() {
+  if (global.baseWebhookUrl) {
+    return global.baseWebhookUrl;
+  }
+  if (process.env.BASE_WEBHOOK_URL) {
+    return process.env.BASE_WEBHOOK_URL;
+  }
+  if (lastPersistedBaseUrl) {
+    return lastPersistedBaseUrl;
+  }
+  try {
+    const res = await executeQuery("SELECT value FROM template_tpl WHERE name = 'base_webhook_url'");
+    if (res.length > 0 && res[0].value) {
+      lastPersistedBaseUrl = res[0].value;
+      return res[0].value;
+    }
+  } catch (err) {
+    console.error('Error querying base_webhook_url from template_tpl:', err.message);
+  }
+  return null;
+}
+
 async function getTaskGroupId(taskId) {
   if (!taskId || typeof taskId !== 'string') return null;
 
@@ -6458,6 +6503,8 @@ module.exports = {
   randomTeamByPosition,
   saveActiveGroupId,
   getActiveGroupId,
+  saveBaseUrl,
+  getBaseUrlFromDb,
   getTaskGroupId,
   saveTaskGroupId,
   getScheduledTasks,

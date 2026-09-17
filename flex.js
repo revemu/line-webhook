@@ -171,7 +171,7 @@ const getThemeColors = (themeName, teamColorMap = {}) => {
   }
 };
 
-const { getBaseUrl: getBaseUrlUtil } = require('./utils/url');
+const { getBaseUrl: getBaseUrlUtil, getFullUrl } = require('./utils/url');
 
 const getBaseUrl = () => {
   return getBaseUrlUtil();
@@ -5741,6 +5741,23 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
       bodyContents.push(mvpCard);
     }
 
+    const rawFullImgUrl = team.imageUrl || team.pitchImageUrl;
+    const fullImgUrl = rawFullImgUrl ? getFullUrl(rawFullImgUrl) : null;
+    const pitchImgUrl = team.pitchImageUrl ? getFullUrl(team.pitchImageUrl) : null;
+    const mainImgUrl = team.imageUrl ? getFullUrl(team.imageUrl) : null;
+
+    const actionObj = (fullImgUrl && fullImgUrl.startsWith('http')) ? {
+      type: 'uri',
+      label: 'ดูรูปเต็ม',
+      uri: fullImgUrl
+    } : {
+      type: 'message',
+      label: 'รูปภาพ',
+      text: isTotw
+        ? `/totwimg ${exportDateArg}`.trim()
+        : `/teamimg ${team.teamId || team.teamColor || ''} ${exportDateArg}`.trim()
+    };
+
     return {
       type: 'bubble',
       size: 'giga',
@@ -5783,17 +5800,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
                 paddingBottom: '2px',
                 margin: 'sm',
                 flex: 0,
-                action: (team.imageUrl || team.pitchImageUrl) ? {
-                  type: 'uri',
-                  label: 'ดูรูปเต็ม',
-                  uri: team.imageUrl || team.pitchImageUrl
-                } : {
-                  type: 'message',
-                  label: 'รูปภาพ',
-                  text: isTotw
-                    ? `/totwimg ${exportDateArg}`.trim()
-                    : `/teamimg ${team.teamId || team.teamColor || ''} ${exportDateArg}`.trim()
-                },
+                action: actionObj,
                 contents: [
                   {
                     type: 'text',
@@ -5847,7 +5854,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
           }
         ]
       },
-      body: team.pitchImageUrl ? {
+      body: pitchImgUrl ? {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'none',
@@ -5855,15 +5862,15 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
         contents: [
           {
             type: 'image',
-            url: team.pitchImageUrl,
+            url: pitchImgUrl,
             size: 'full',
             aspectRatio: '1080:1310',
             aspectMode: 'cover',
-            action: {
+            action: (fullImgUrl && fullImgUrl.startsWith('http')) ? {
               type: 'uri',
               label: 'ดูรูปเต็ม',
-              uri: team.imageUrl || team.pitchImageUrl
-            }
+              uri: fullImgUrl
+            } : undefined
           },
           ...(mvpCard ? [{
             type: 'box',
@@ -5874,7 +5881,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
             contents: [mvpCard]
           }] : [])
         ]
-      } : (team.imageUrl ? {
+      } : (mainImgUrl ? {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'none',
@@ -5882,15 +5889,15 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
         contents: [
           {
             type: 'image',
-            url: team.imageUrl,
+            url: mainImgUrl,
             size: 'full',
             aspectRatio: '1080:1630',
             aspectMode: 'cover',
-            action: {
+            action: (mainImgUrl && mainImgUrl.startsWith('http')) ? {
               type: 'uri',
               label: 'ดูรูปเต็ม',
-              uri: team.imageUrl
-            }
+              uri: mainImgUrl
+            } : undefined
           }
         ]
       } : {
