@@ -14,6 +14,7 @@ const cmd = require('./cmd');
 const qrGen = require('./qr_gen');
 const slipService = require('./slip');
 const lineClient = require('./lineClient');
+const logger = require('./utils/logger');
 const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
 const { spamProtector } = require('./utils/spamProtection');
 const { initScheduler, notifyBaseUrl } = require('./scheduler');
@@ -37,7 +38,7 @@ try {
         setZXingModuleOverrides({ wasmBinary });
     }
 } catch (wasmErr) {
-    console.warn('⚠️ Could not load local WASM binary for zxing-wasm:', wasmErr.message);
+    logger.warn('⚠️ Could not load local WASM binary for zxing-wasm:', wasmErr.message);
 }
 
 require('dotenv').config({ quiet: true });
@@ -65,7 +66,7 @@ app.use((req, res, next) => {
     setBaseUrl(baseUrl);
     notifyBaseUrl(baseUrl);
     db.saveBaseUrl(baseUrl).catch(err => {
-        console.error('Error persisting base URL to DB:', err.message);
+        logger.error('Error persisting base URL to DB:', err.message);
     });
     next();
 });
@@ -84,7 +85,7 @@ app.post('/webhook', async (req, res) => {
             }
         }
     } catch (error) {
-        console.error('Error processing webhook events:', error);
+        logger.error('Error processing webhook events:', error);
         res.status(500).send('Internal Server Error');
     }
 });
@@ -93,17 +94,17 @@ app.post('/webhook', async (req, res) => {
 async function handleEvent(event) {
     try {
         if (event.source && event.source.groupId) {
-            console.log(`[Group: ${event.source.groupId}] Incoming event: ${event.type}`);
+            logger.debug(`[Group: ${event.source.groupId}] Incoming event: ${event.type}`);
         }
         if (event.type === 'message') {
             await handleMessage(event);
         } else if (event.type === 'memberJoined') {
             await handleJoinedMember(event);
         } else {
-            console.log('Received unhandled event type:', event.type, event);
+            logger.debug('Received unhandled event type:', event.type, event);
         }
     } catch (error) {
-        console.error('Error processing event:', error.message || error);
+        logger.error('Error processing event:', error.message || error);
     }
 }
 
@@ -135,7 +136,7 @@ async function getImageAxios(messageId) {
             return Buffer.from(response.data);
         } catch (error) {
             retries++;
-            console.error(`Error getting image content (attempt ${retries}/${maxRetries}):`, error.message || error);
+            logger.error(`Error getting image content (attempt ${retries}/${maxRetries}):`, error.message || error);
             if (retries > maxRetries)
                 throw error;
             else await new Promise(resolve => setTimeout(resolve, 1000));
@@ -166,7 +167,7 @@ async function readQRCode(imageBuffer) {
             return results.map(r => ({ type: r.format || 'QR-Code', data: r.text }));
         }
     } catch (zxingErr) {
-        console.warn('[readQRCode] Primary zxing-wasm decoder warning:', zxingErr.message || zxingErr);
+        logger.warn('[readQRCode] Primary zxing-wasm decoder warning:', zxingErr.message || zxingErr);
     }*/
 
     // 2. Secondary Pass: zbarimg CLI (Native C scanner fallback)
@@ -237,15 +238,15 @@ async function checkZbarimgInstalled() {
 
 async function handleJoinedMember(event) {
     try {
-        console.log(event);
+        logger.debug('Joined event:', event);
         const { replyToken, source } = event;
         for (let member of event.joined.members) {
             if (member.type === "user") {
-                console.log(`Member ${member.userId} joined group`);
+                logger.info(`Member ${member.userId} joined group`);
                 const res = await lineClient.fetchUserProfile(member.userId, source.groupId);
                 if (res && res.displayName) {
                     const line_name = `@${res.displayName}`;
-                    console.log(`add new member ${member.userId}: ${line_name}`);
+                    logger.info(`add new member ${member.userId}: ${line_name}`);
                     await db.newMember(member.userId, line_name, res.pictureUrl);
                     const theme = await db.getTheme();
                     const week = await db.queryWeekID(0);
@@ -265,7 +266,7 @@ async function handleJoinedMember(event) {
             }
         }
     } catch (error) {
-        console.error('Error add joined member:', error);
+        logger.error('Error add joined member:', error);
     }
 }
 
@@ -295,14 +296,14 @@ async function manageMember(source, member, line_name, pictureUrl) {
         if (isNameChanged || isPicChanged) {
             const finalName = isNameChanged ? line_name : currentMember.name;
             const finalPic = isPicChanged ? pictureUrl : existingPic;
-            console.log(`update existing member info ${source.userId}: ${currentMember.name} => ${finalName}, pic update: ${isPicChanged}`);
+            logger.info(`update existing member info ${source.userId}: ${currentMember.name} => ${finalName}, pic update: ${isPicChanged}`);
             await db.updateMemberInfo(currentMember.id, finalName, finalPic);
             currentMember.name = finalName;
             currentMember.picture_url = finalPic;
             currentMember.pictureUrl = finalPic;
         }
     } else {
-        console.log(`add new member ${source.userId}: ${line_name}`);
+        logger.info(`add new member ${source.userId}: ${line_name}`);
         await db.newMember(source.userId, line_name, pictureUrl);
     }
 }
@@ -325,7 +326,7 @@ async function handleMessage(event) {
     }
 
     if (member.length === 0) {
-        console.warn(`[handleMessage] Skipping message: Unable to register member for userId: ${userId}`);
+        logger.warn(`[handleMessage] Skipping message: Unable to register member for userId: ${userId}`);
         return;
     }
 
@@ -337,7 +338,7 @@ async function handleMessage(event) {
         case 'sticker':
             return handleStickerMessage(event, member[0]);
         default:
-            console.log(`Received message type: ${message.type}`);
+            logger.debug(`Received message type: ${message.type}`);
     }
 }
 
@@ -345,7 +346,7 @@ async function handleImageMessage(event, member) {
     const { replyToken, message, source } = event;
     const groupTag = source.groupId ? ` [Group: ${source.groupId}]` : ' [Direct]';
     try {
-        console.log(`${member.name}${groupTag}: sent image! need processing...`);
+        logger.info(`${member.name}${groupTag}: sent image! need processing...`);
         const startTime = Date.now();
         const imageBuffer = await getImageAxios(message.id);
         const tDownload = Date.now() - startTime;
@@ -353,11 +354,11 @@ async function handleImageMessage(event, member) {
         const tQrStart = Date.now();
         const codes = await readQRCode(imageBuffer);
         const tQr = Date.now() - tQrStart;
-        //console.log(`Time processed image download + QR scan: ${Date.now() - startTime} ms`);
+        logger.debug(`Time processed image download + QR scan: ${Date.now() - startTime} ms`);
 
         if (codes && codes.length > 0) {
             const qrCode = codes[0].data;
-            //console.log('QR code detected:', qrCode);
+            logger.debug('QR code detected:', qrCode);
 
             const handledAsSlip = await slipService.processPaymentSlip({
                 event,
@@ -376,9 +377,9 @@ async function handleImageMessage(event, member) {
         }
 
         // --- Handle other non-payment image types here ---
-        console.log(`[handleImageMessage] Image is not a payment slip. Skipping or handling custom image logic...`);
+        logger.debug(`[handleImageMessage] Image is not a payment slip. Skipping or handling custom image logic...`);
     } catch (error) {
-        console.error('Error processing image!,', error);
+        logger.error('Error processing image!,', error);
         /*const date = new Date();
         if (date.getDay() === 6 && date.getHours() > 19) {
             await replyMessage(replyToken, [{
@@ -402,7 +403,7 @@ async function handleTextMessage(event, member) {
 
         const spamCheck = spamProtector.acquire(userId, groupId, cmd_str);
         if (!spamCheck.allowed) {
-            console.warn(`[SPAM BLOCKED] Duplicate command '${message.text}' from ${member ? member.name : userId} ignored (only 1st is processed)`);
+            logger.warn(`[SPAM BLOCKED] Duplicate command '${message.text}' from ${member ? member.name : userId} ignored (only 1st is processed)`);
             if (spamCheck.shouldWarn) {
                 const displayName = member && member.name ? member.name.replace('@', '') : 'คุณ';
                 const replyMsg = [
@@ -418,7 +419,7 @@ async function handleTextMessage(event, member) {
 
         const groupTag = source.groupId ? ` [Group: ${source.groupId}]` : ' [Direct]';
         try {
-            console.log(`${member.name}${groupTag} [CMD]: ${message.text}`);
+            logger.info(`${member.name}${groupTag} [CMD]: ${message.text}`);
             const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
             if (replyMessages) {
                 await replyMessage(replyToken, replyMessages);
@@ -428,14 +429,14 @@ async function handleTextMessage(event, member) {
         }
     } else {
         const groupTag = source.groupId ? ` [Group: ${source.groupId}]` : ' [Direct]';
-        console.log(`${member.name}${groupTag}: ${message.text}`);
+        logger.info(`${member.name}${groupTag}: ${message.text}`);
     }
 }
 
 function handleStickerMessage(event, member) {
     const keywords = event.message.keywords;
     const groupTag = event.source && event.source.groupId ? ` [Group: ${event.source.groupId}]` : ' [Direct]';
-    console.log(`${member.name}${groupTag}: sent sticker ${randomItem(keywords || ['unknown'])}`);
+    logger.debug(`${member.name}${groupTag}: sent sticker ${randomItem(keywords || ['unknown'])}`);
 }
 
 function randomItem(items) {
@@ -444,33 +445,32 @@ function randomItem(items) {
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-    console.error('Server error:', error);
+    logger.error('Server error:', error);
     res.status(500).send('Internal Server Error');
 });
 
 // Start server
 app.listen(3001, async () => {
-    //console.log(`LINE Webhook server running on port ${PORT}`);
-    //console.log(`Webhook URL: http://localhost:${PORT}/webhook`);
+    //logger.info(`LINE Webhook server running on port ${PORT}`);
+    //logger.info(`Webhook URL: http://localhost:${PORT}/webhook`);
 
     // Check if environment variables are set
     if (!config.channelSecret || !config.channelAccessToken) {
-        console.warn('⚠️  Warning: LINE_CHANNEL_SECRET and LINE_CHANNEL_ACCESS_TOKEN environment variables are not set');
-        console.log('Please set these environment variables before using the bot');
+        logger.warn('⚠️  Warning: LINE_CHANNEL_SECRET and LINE_CHANNEL_ACCESS_TOKEN environment variables are not set');
+        logger.info('Please set these environment variables before using the bot');
     } else {
-        console.log('✅ LINE Bot credentials loaded successfully');
+        logger.info('✅ LINE Bot credentials loaded successfully');
     }
 
     await db.testConnection();
     //const res = await db.getMemberWeek() ;
 
-    //console.log(db_test);
     // Check if zbarimg is installed
     const zbarimgInstalled = await checkZbarimgInstalled();
     if (zbarimgInstalled) {
-        console.log('✅ zbarimg command line tool is available');
+        logger.info('✅ zbarimg command line tool is available');
     } else {
-        console.warn('⚠️  zbarimg CLI not found. Using zxing-wasm (WebAssembly) & jsQR engines.');
+        logger.warn('⚠️  zbarimg CLI not found. Using zxing-wasm (WebAssembly) & jsQR engines.');
     }
 
     // Initialize in-process scheduler worker thread

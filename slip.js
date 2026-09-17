@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const qrGen = require('./qr_gen');
+const logger = require('./utils/logger');
 
 const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
 
@@ -24,10 +25,10 @@ async function verifyEasySlipByPayload(payload) {
         return response.data;
     } catch (error) {
         if (error.response && error.response.data) {
-            console.error('[EasySlip] Payload verification response:', error.response.data);
+            logger.error('[EasySlip] Payload verification response:', error.response.data);
             return error.response.data;
         }
-        console.error('[EasySlip] Payload verification error:', error.message);
+        logger.error('[EasySlip] Payload verification error:', error.message);
         return null;
     }
 }
@@ -51,10 +52,10 @@ async function verifyEasySlipByImage(imageBuffer) {
         return response.data;
     } catch (error) {
         if (error.response && error.response.data) {
-            console.error('[EasySlip] Image verification response:', error.response.data);
+            logger.error('[EasySlip] Image verification response:', error.response.data);
             return error.response.data;
         }
-        console.error('[EasySlip] Image verification error:', error.message);
+        logger.error('[EasySlip] Image verification error:', error.message);
         return null;
     }
 }
@@ -236,22 +237,22 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     const tEasySlipStart = Date.now();
     if (cachedSlip) {
         if (cachedSlip.data) {
-            console.log('[EasySlip] Slip verified from cache (duplicate)');
+            logger.debug('[EasySlip] Slip verified from cache (duplicate)');
             slipData = cachedSlip.data;
             isSlipValid = true;
             isDuplicate = true;
         } else {
-            console.log('[EasySlip] Slip found in cache but no JSON data, re-verifying via API...');
+            logger.debug('[EasySlip] Slip found in cache but no JSON data, re-verifying via API...');
             cachedSlipId = cachedSlip.id;
             const easySlipRes = await verifyEasySlipByPayload(qrCode);
             if (easySlipRes && easySlipRes.success === true) {
-                console.log('[EasySlip] Re-verification successful, updating existing record');
+                logger.debug('[EasySlip] Re-verification successful, updating existing record');
                 slipData = easySlipRes.data;
                 isSlipValid = true;
                 isDuplicate = true;
             } else {
                 if (easySlipRes && easySlipRes.error) {
-                    console.warn(`[EasySlip] Re-verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
+                    logger.warn(`[EasySlip] Re-verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
                 }
                 isSlipValid = true;
                 isDuplicate = true;
@@ -262,16 +263,16 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         const easySlipRes = await verifyEasySlipByPayload(qrCode);
         tEasySlip = Date.now() - tEasySlipStart;
         if (easySlipRes && easySlipRes.success === true) {
-            //console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
+            logger.debug('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
             slipData = easySlipRes.data;
             isSlipValid = true;
         } else {
             if (easySlipRes && easySlipRes.error) {
-                console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
+                logger.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
             }
             if (!isSlipValid) {
                 if (qrCode.includes("60000010103")) {
-                    console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
+                    logger.info('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
                     isSlipValid = true;
                 }
             }
@@ -300,22 +301,21 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     });
     const { details, slipToMe, logStatus, header } = processed;
     if (details) {
-        //console.log('[EasySlip] Slip data:', slipData?.rawSlip?.receiver);
-        console.log('[EasySlip] Recipient:', details.recipient);
-        console.log('[EasySlip] Recipient TH:', details.recipient_th);
-        console.log('[EasySlip] Account:', details.account);
+        logger.debug('[EasySlip] Recipient:', details.recipient);
+        logger.debug('[EasySlip] Recipient TH:', details.recipient_th);
+        logger.debug('[EasySlip] Account:', details.account);
     }
 
     if (isDuplicate) {
         if (cachedSlipId && slipData) {
             await db.updateSlipLog(cachedSlipId, logStatus, slipData);
-            console.log(`[EasySlip] Updated existing slip log (id: ${cachedSlipId}) with new API data`);
+            logger.debug(`[EasySlip] Updated existing slip log (id: ${cachedSlipId}) with new API data`);
         }
         try {
             await fs.unlink(slipFilePath);
-            console.log(`Deleted duplicate slip image: ${slipFilePath}`);
+            logger.debug(`Deleted duplicate slip image: ${slipFilePath}`);
         } catch (e) {
-            console.error('Error deleting duplicate slip image:', e);
+            logger.error('Error deleting duplicate slip image:', e);
         }
     } else {
         await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, qrCode, slipData);
@@ -392,21 +392,21 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
                             cost = Number(weekInfo[0].cost);
                         }
                     }
-                    console.log(`[slip] Unpaid week members count: ${count}, cost: ${cost}`);
+                    logger.debug(`[slip] Unpaid week members count: ${count}, cost: ${cost}`);
                     if (cost > 0) {
                         const filename = await qrGen.generateQrCode(cost, '006660080321320');
                         const localQrUrl = qrGen.getQrImageUrl(filename);
-                        console.log(`[slip] Generated QR for unpaid week members: ${filename} -> ${localQrUrl}`);
+                        logger.info(`[slip] Generated QR for unpaid week members: ${filename} -> ${localQrUrl}`);
                         replyMessages.push({
                             type: 'image',
                             originalContentUrl: localQrUrl,
                             previewImageUrl: localQrUrl
                         });
                     } else {
-                        console.warn(`[slip] Skipping QR generation for unpaid week members because cost is <= 0 (${cost})`);
+                        logger.warn(`[slip] Skipping QR generation for unpaid week members because cost is <= 0 (${cost})`);
                     }
                 } catch (qrErr) {
-                    console.error('[slip] Error generating QR code for unpaid week members:', qrErr);
+                    logger.error('[slip] Error generating QR code for unpaid week members:', qrErr);
                 }
             }
         } else {
@@ -430,24 +430,25 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     await replyMessage(replyToken, replyMessages);
     const tReply = Date.now() - tReplyStart;
 
-    // Overall Total Breakdown Output
-    const tDownload = timing.tDownload || 0;
-    const tQr = timing.tQr || 0;
-    const tTotal = tDownload + tQr + tDbCache + tEasySlip + tSave + tDbWeek + tReply;
+    // Overall Total Breakdown Output (Printed only in DEBUG mode)
+    if (logger.isDebugEnabled()) {
+        const tDownload = timing.tDownload || 0;
+        const tQr = timing.tQr || 0;
+        const tTotal = tDownload + tQr + tDbCache + tEasySlip + tSave + tDbWeek + tReply;
+        const pct = (ms) => tTotal > 0 ? ((ms / tTotal) * 100).toFixed(1).padStart(5, ' ') : '  0.0';
 
-    const pct = (ms) => tTotal > 0 ? ((ms / tTotal) * 100).toFixed(1).padStart(5, ' ') : '  0.0';
-
-    console.log(`\n==================== ⏱️ IMAGE PROCESSING BREAKDOWN ====================`);
-    console.log(`📥 1. Download Image (LINE Server API) : ${String(tDownload).padStart(4, ' ')} ms (${pct(tDownload)}%)`);
-    console.log(`🔍 2. QR Code Scanner (readQRCode)     : ${String(tQr).padStart(4, ' ')} ms (${pct(tQr)}%)`);
-    console.log(`🗄️ 3. DB Cache Check                   : ${String(tDbCache).padStart(4, ' ')} ms (${pct(tDbCache)}%)`);
-    console.log(`🌐 4. EasySlip Bank API Check          : ${String(tEasySlip).padStart(4, ' ')} ms (${pct(tEasySlip)}%)`);
-    console.log(`💾 5. Save Slip File & DB Log          : ${String(tSave).padStart(4, ' ')} ms (${pct(tSave)}%)`);
-    console.log(`📊 6. DB Payment Week Query            : ${String(tDbWeek).padStart(4, ' ')} ms (${pct(tDbWeek)}%)`);
-    console.log(`💬 7. LINE Reply Message API           : ${String(tReply).padStart(4, ' ')} ms (${pct(tReply)}%)`);
-    console.log(`----------------------------------------------------------------------`);
-    console.log(`🏁 TOTAL PIPELINE TIME                 : ${String(tTotal).padStart(4, ' ')} ms (100.0%)`);
-    console.log(`======================================================================\n`);
+        logger.debug(`\n==================== ⏱️ IMAGE PROCESSING BREAKDOWN ====================`);
+        logger.debug(`📥 1. Download Image (LINE Server API) : ${String(tDownload).padStart(4, ' ')} ms (${pct(tDownload)}%)`);
+        logger.debug(`🔍 2. QR Code Scanner (readQRCode)     : ${String(tQr).padStart(4, ' ')} ms (${pct(tQr)}%)`);
+        logger.debug(`🗄️ 3. DB Cache Check                   : ${String(tDbCache).padStart(4, ' ')} ms (${pct(tDbCache)}%)`);
+        logger.debug(`🌐 4. EasySlip Bank API Check          : ${String(tEasySlip).padStart(4, ' ')} ms (${pct(tEasySlip)}%)`);
+        logger.debug(`💾 5. Save Slip File & DB Log          : ${String(tSave).padStart(4, ' ')} ms (${pct(tSave)}%)`);
+        logger.debug(`📊 6. DB Payment Week Query            : ${String(tDbWeek).padStart(4, ' ')} ms (${pct(tDbWeek)}%)`);
+        logger.debug(`💬 7. LINE Reply Message API           : ${String(tReply).padStart(4, ' ')} ms (${pct(tReply)}%)`);
+        logger.debug(`----------------------------------------------------------------------`);
+        logger.debug(`🏁 TOTAL PIPELINE TIME                 : ${String(tTotal).padStart(4, ' ')} ms (100.0%)`);
+        logger.debug(`======================================================================\n`);
+    }
 
     return true;
 }

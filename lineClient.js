@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('@line/bot-sdk');
+const logger = require('./utils/logger');
 require('dotenv').config({ quiet: true });
 
 const config = {
@@ -35,14 +36,14 @@ async function fetchUserProfile(userId, groupId = null) {
     try {
       return await client.getGroupMemberProfile(groupId, userId);
     } catch (groupErr) {
-      console.warn(`[lineClient] getGroupMemberProfile failed for ${userId} in group ${groupId}: ${groupErr.message}. Trying direct profile...`);
+      logger.warn(`[lineClient] getGroupMemberProfile failed for ${userId} in group ${groupId}: ${groupErr.message}. Trying direct profile...`);
     }
   }
 
   try {
     return await client.getProfile(userId);
   } catch (err) {
-    console.error(`[lineClient] getProfile failed for ${userId}:`, err.message);
+    logger.error(`[lineClient] getProfile failed for ${userId}:`, err.message);
     return null;
   }
 }
@@ -63,15 +64,15 @@ async function replyMessage(replyToken, messages) {
     fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(messages, null, 2), 'utf8');
     fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(messages, null, 2), 'utf8');
   } catch (fsErr) {
-    console.error('Error saving latest flex json in replyMessage:', fsErr.message);
+    logger.error('Error saving latest flex json in replyMessage:', fsErr.message);
   }
 
   try {
     const msgCount = Array.isArray(messages) ? messages.length : 1;
     const msgTypes = Array.isArray(messages) ? messages.map(m => m.type).join(', ') : messages.type;
-    console.log(`[lineClient] Replying with ${msgCount} message(s) [types: ${msgTypes}] to token ${replyToken ? replyToken.substring(0, 10) + '...' : 'none'}`);
+    logger.debug(`[lineClient] Replying with ${msgCount} message(s) [types: ${msgTypes}] to token ${replyToken ? replyToken.substring(0, 10) + '...' : 'none'}`);
     const result = await client.replyMessage(replyToken, messages);
-    console.log(`[lineClient] replyMessage succeeded`);
+    logger.debug(`[lineClient] replyMessage succeeded`);
     return result;
   } catch (error) {
     let details = null;
@@ -83,9 +84,9 @@ async function replyMessage(replyToken, messages) {
       details = error.data;
     }
     if (details) {
-      console.error('LINE API Error Details:', JSON.stringify(details, null, 2));
+      logger.error('LINE API Error Details:', JSON.stringify(details, null, 2));
     } else {
-      console.error('LINE API Error Details:', JSON.stringify({ message: error.message || String(error) }, null, 2));
+      logger.error('LINE API Error Details:', JSON.stringify({ message: error.message || String(error) }, null, 2));
     }
     return null;
   }
@@ -100,7 +101,7 @@ async function replyMessage(replyToken, messages) {
 async function pushMessage(to, messages) {
   const client = getLineClient();
   if (!to) {
-    console.warn('[lineClient] pushMessage aborted: recipient ID (to) is empty or null');
+    logger.warn('[lineClient] pushMessage aborted: recipient ID (to) is empty or null');
     return null;
   }
 
@@ -111,15 +112,15 @@ async function pushMessage(to, messages) {
     }
     fs.writeFileSync(path.join(tempDir, 'latest_push_flex.json'), JSON.stringify(messages, null, 2), 'utf8');
   } catch (fsErr) {
-    console.error('Error saving latest push json in pushMessage:', fsErr.message);
+    logger.error('Error saving latest push json in pushMessage:', fsErr.message);
   }
 
   try {
     const msgCount = Array.isArray(messages) ? messages.length : 1;
     const msgTypes = Array.isArray(messages) ? messages.map(m => m.type).join(', ') : messages.type;
-    console.log(`[lineClient] Pushing ${msgCount} message(s) [types: ${msgTypes}] to ${to ? to.substring(0, 10) + '...' : 'none'}`);
+    logger.debug(`[lineClient] Pushing ${msgCount} message(s) [types: ${msgTypes}] to ${to ? to.substring(0, 10) + '...' : 'none'}`);
     const result = await client.pushMessage(to, messages);
-    console.log(`[lineClient] pushMessage succeeded`);
+    logger.debug(`[lineClient] pushMessage succeeded`);
     return result;
   } catch (error) {
     let details = null;
@@ -131,9 +132,9 @@ async function pushMessage(to, messages) {
       details = error.data;
     }
     if (details) {
-      console.error('LINE API Error Details (pushMessage):', JSON.stringify(details, null, 2));
+      logger.error('LINE API Error Details (pushMessage):', JSON.stringify(details, null, 2));
     } else {
-      console.error('LINE API Error Details (pushMessage):', JSON.stringify({ message: error.message || String(error) }, null, 2));
+      logger.error('LINE API Error Details (pushMessage):', JSON.stringify({ message: error.message || String(error) }, null, 2));
     }
     return null;
   }
