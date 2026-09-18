@@ -63,7 +63,9 @@ async function runTask(task, triggerSource = 'schedule') {
       targetGroupId = await db.resolveLineGroupId(targetGroupId);
     }
 
-    if (!targetGroupId) {
+    const isLogOnly = task.deliveryMode === 'log_only';
+
+    if (!isLogOnly && !targetGroupId) {
       logger.warn(`[SchedulerWorker] Execution aborted for task '${task.id}': No target groupId available`);
       return;
     }
@@ -78,7 +80,8 @@ async function runTask(task, triggerSource = 'schedule') {
       }
 
       const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
-      logger.info(`[SchedulerWorker] Running command: "${cleanCmd}" for group:${db.getGroupTag(targetGroupId)}`);
+      const groupTag = targetGroupId ? db.getGroupTag(targetGroupId) : '[System/LogOnly]';
+      logger.info(`[SchedulerWorker] Running command: "${cleanCmd}" for ${groupTag} [mode: ${task.deliveryMode || 'push'}]`);
 
       const botMember = {
         id: 0,
@@ -89,13 +92,24 @@ async function runTask(task, triggerSource = 'schedule') {
       };
 
       const reply = await cmd.process_cmd(cleanCmd, botMember, null, targetGroupId);
-      if (reply) {
-        const msgs = Array.isArray(reply) ? reply : [reply];
-        logger.info(`[SchedulerWorker] Pushing command response (${msgs.length} message(s)) to group:${db.getGroupTag(targetGroupId)}...`);
-        pushResult = await lineClient.pushMessage(targetGroupId, msgs);
-      } else {
-        logger.info(`[SchedulerWorker] Command '${cleanCmd}' completed without reply message.`);
+      if (isLogOnly) {
+        if (reply) {
+          const msgs = Array.isArray(reply) ? reply : [reply];
+          const logText = msgs.map(m => m.text || JSON.stringify(m)).join('\n');
+          logger.info(`[SchedulerWorker] [LOG_ONLY] Command '${cleanCmd}' output:\n${logText}`);
+        } else {
+          logger.info(`[SchedulerWorker] [LOG_ONLY] Command '${cleanCmd}' executed with no output.`);
+        }
         pushResult = true;
+      } else {
+        if (reply) {
+          const msgs = Array.isArray(reply) ? reply : [reply];
+          logger.info(`[SchedulerWorker] Pushing command response (${msgs.length} message(s)) to group:${groupTag}...`);
+          pushResult = await lineClient.pushMessage(targetGroupId, msgs);
+        } else {
+          logger.info(`[SchedulerWorker] Command '${cleanCmd}' completed without reply message.`);
+          pushResult = true;
+        }
       }
     } else if (task.type === 'text') {
       const textMsg = (task.text_message || '').trim();
@@ -104,9 +118,16 @@ async function runTask(task, triggerSource = 'schedule') {
         return;
       }
 
-      logger.info(`[SchedulerWorker] Resolving and sending text task for group:${db.getGroupTag(targetGroupId)}`);
+      const groupTag = targetGroupId ? db.getGroupTag(targetGroupId) : '[System/LogOnly]';
+      logger.info(`[SchedulerWorker] Resolving text task for ${groupTag} [mode: ${task.deliveryMode || 'push'}]`);
       const pushMsg = await db.resolveScheduleTemplateText(textMsg, targetGroupId);
-      pushResult = await lineClient.pushMessage(targetGroupId, [pushMsg]);
+
+      if (isLogOnly) {
+        logger.info(`[SchedulerWorker] [LOG_ONLY] Text task output:\n${pushMsg ? (pushMsg.text || JSON.stringify(pushMsg)) : textMsg}`);
+        pushResult = true;
+      } else {
+        pushResult = await lineClient.pushMessage(targetGroupId, [pushMsg]);
+      }
     } else {
       logger.warn(`[SchedulerWorker] Unknown task type '${task.type}' for task '${task.id}'`);
       return;

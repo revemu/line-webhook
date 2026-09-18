@@ -160,23 +160,25 @@ async function ensureScheduledTaskTable() {
         schedule_days VARCHAR(100) NOT NULL DEFAULT '*',
         schedule_time VARCHAR(10) NOT NULL DEFAULT '20:00',
         group_id VARCHAR(100) NULL,
-        delivery_mode ENUM('push', 'reply_on_chat') NOT NULL DEFAULT 'push',
+        delivery_mode ENUM('push', 'reply_on_chat', 'log_only') NOT NULL DEFAULT 'push',
         expire_minutes INT NULL DEFAULT 60,
         enabled TINYINT(1) NOT NULL DEFAULT 1,
-        last_run_date VARCHAR(20) NULL,
+        last_run_date VARCHAR(30) NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `;
     await executeQuery(sql);
 
-    // Ensure delivery_mode column exists for existing tables
+    // Ensure delivery_mode column exists and includes 'log_only'
     try {
-      const colCheck = await executeQuery("SHOW COLUMNS FROM scheduled_task_tbl LIKE 'delivery_mode'");
-      if (!colCheck || colCheck.length === 0) {
-        await executeQuery("ALTER TABLE scheduled_task_tbl ADD COLUMN delivery_mode ENUM('push', 'reply_on_chat') NOT NULL DEFAULT 'push' AFTER group_id");
-      }
+      await executeQuery("ALTER TABLE scheduled_task_tbl MODIFY COLUMN delivery_mode ENUM('push', 'reply_on_chat', 'log_only') NOT NULL DEFAULT 'push'");
     } catch (colErr) { }
+
+    // Ensure last_run_date column supports full datetime string
+    try {
+      await executeQuery("ALTER TABLE scheduled_task_tbl MODIFY COLUMN last_run_date VARCHAR(30) NULL");
+    } catch (colErr3) { }
 
     // Ensure expire_minutes column exists for existing tables
     try {
@@ -6672,15 +6674,16 @@ async function deleteScheduledTask(keyOrId) {
 }
 
 /**
- * Updates last_run_date for a scheduled task.
+ * Updates last_run_date for a scheduled task with full datetime (YYYY-MM-DD HH:mm:ss).
  * @param {string|number} keyOrId 
- * @param {string} dateStr - 'YYYY-MM-DD'
+ * @param {string|null} [dateOrDateTimeStr=null] - Optional datetime string, defaults to Bangkok current datetime
  * @returns {Promise<boolean>}
  */
-async function setScheduledTaskLastRun(keyOrId, dateStr) {
-  if (!keyOrId || !dateStr) return false;
+async function setScheduledTaskLastRun(keyOrId, dateOrDateTimeStr = null) {
+  if (!keyOrId) return false;
+  const val = dateOrDateTimeStr || getBangkokCurrent().currentDateTimeStr;
   const sql = "UPDATE scheduled_task_tbl SET last_run_date = ? WHERE task_key = ? OR id = ?";
-  await executeQuery(sql, [dateStr, String(keyOrId), isNaN(Number(keyOrId)) ? -1 : Number(keyOrId)]);
+  await executeQuery(sql, [val, String(keyOrId), isNaN(Number(keyOrId)) ? -1 : Number(keyOrId)]);
   return true;
 }
 
@@ -6759,19 +6762,24 @@ function getBangkokCurrent() {
     for (const p of parts) map[p.type] = p.value;
     let h = map.hour === '24' ? '00' : String(map.hour).padStart(2, '0');
     let m = String(map.minute).padStart(2, '0');
+    let s = String(map.second || '00').padStart(2, '0');
     const currentTimeStr = `${h}:${m}`;
     const todayDateStr = `${map.year}-${map.month}-${map.day}`;
+    const currentDateTimeStr = `${todayDateStr} ${h}:${m}:${s}`;
     const weekdayShort = (map.weekday || '').toLowerCase();
     const dow = SCHEDULE_DAY_MAP[weekdayShort] !== undefined ? SCHEDULE_DAY_MAP[weekdayShort] : (new Date()).getDay();
-    return { dow, currentTimeStr, todayDateStr };
+    return { dow, currentTimeStr, todayDateStr, currentDateTimeStr };
   } catch (e) {
     const d = new Date(Date.now() + (7 * 3600 * 1000) + (new Date().getTimezoneOffset() * 60 * 1000));
     const h = String(d.getHours()).padStart(2, '0');
     const m = String(d.getMinutes()).padStart(2, '0');
+    const s = String(d.getSeconds()).padStart(2, '0');
+    const todayDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     return {
       dow: d.getDay(),
       currentTimeStr: `${h}:${m}`,
-      todayDateStr: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      todayDateStr,
+      currentDateTimeStr: `${todayDateStr} ${h}:${m}:${s}`
     };
   }
 }
@@ -6786,13 +6794,13 @@ function getBangkokCurrent() {
 async function getPendingReplyTasks(groupId) {
   if (!groupId) return [];
   try {
-    const { dow, currentTimeStr, todayDateStr } = getBangkokCurrent();
+    const { dow, currentTimeStr, todayDateStr, currentDateTimeStr } = getBangkokCurrent();
     const tasks = await getScheduledTasks(true);
 
     const pending = [];
     for (const t of tasks) {
       if (t.delivery_mode !== 'reply_on_chat') continue;
-      if (t.last_run_date === todayDateStr) continue; // Already executed today
+      if (t.last_run_date && String(t.last_run_date).startsWith(todayDateStr)) continue; // Already executed today
 
       // Check day matching
       if (!matchesScheduleDay(t.schedule_days, dow)) continue;
@@ -6815,7 +6823,7 @@ async function getPendingReplyTasks(groupId) {
         const expireAtMinutes = schedMinutes + expireMinutes;
         if (currentMinutes > expireAtMinutes) {
           // Task has expired without chat activity; mark as executed for today so it won't check again
-          await setScheduledTaskLastRun(t.id, todayDateStr);
+          await setScheduledTaskLastRun(t.id, currentDateTimeStr);
           continue;
         }
       }
@@ -6837,7 +6845,7 @@ async function getPendingReplyTasks(groupId) {
  * Resolves and formats all pending reply_on_chat scheduled tasks for a group.
  * Each task generates its own separate message object (up to LINE's 5-message limit per reply request),
  * sent together in a single API call with zero push quota consumed.
- * Marks the tasks as executed for today.
+ * Marks the tasks as executed for today with full datetime.
  * @param {string} groupId 
  * @param {Object} [botMember] 
  * @returns {Promise<Array<Object>>} Array of message objects to send via replyMessage
@@ -6847,7 +6855,7 @@ async function dispatchPendingReplyTasks(groupId, botMember = null) {
   const pendingTasks = await getPendingReplyTasks(groupId);
   if (pendingTasks.length === 0) return [];
 
-  const { todayDateStr } = getBangkokCurrent();
+  const { currentDateTimeStr } = getBangkokCurrent();
   const finalMessages = [];
   const defaultBotMember = botMember || {
     id: 0,
@@ -6890,8 +6898,8 @@ async function dispatchPendingReplyTasks(groupId, botMember = null) {
         }
       }
 
-      // Mark executed in DB
-      await setScheduledTaskLastRun(task.id, todayDateStr);
+      // Mark executed in DB with datetime
+      await setScheduledTaskLastRun(task.id, currentDateTimeStr);
     } catch (taskErr) {
       console.error(`Error resolving pending scheduled task '${task.id}':`, taskErr.message);
     }

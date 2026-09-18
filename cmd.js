@@ -101,12 +101,14 @@ const COMMAND_REGISTRY = {
         let lines = ['⏰ รายการงานอัตโนมัติ (Scheduled Tasks):\n'];
         tasks.forEach((t, idx) => {
             const status = t.enabled ? '🟢 [เปิด]' : '🔴 [ปิด]';
+            const modeStr = t.delivery_mode === 'reply_on_chat' ? '💬 ตอบกลับในแชท' : (t.delivery_mode === 'log_only' ? '📝 บันทึก Log เท่านั้น' : '📢 Push แจ้งเตือน');
             const typeStr = t.task_type === 'command' ? `คำสั่ง: /${t.command}` : `ข้อความ: "${(t.text_message || '').substring(0, 30)}${(t.text_message || '').length > 30 ? '...' : ''}"`;
             const lastRun = t.last_run_date ? `ล่าสุด: ${t.last_run_date}` : 'ยังไม่เคยรัน';
             lines.push(`${idx + 1}. ${status} ${t.task_key}`);
             lines.push(`   📌 ${t.task_name}`);
             lines.push(`   📅 วัน: ${t.schedule_days} เวลา: ${t.schedule_time} น.`);
             lines.push(`   ⚙️ ${typeStr}`);
+            lines.push(`   📡 โหมด: ${modeStr}`);
             lines.push(`   🕒 ${lastRun}\n`);
         });
 

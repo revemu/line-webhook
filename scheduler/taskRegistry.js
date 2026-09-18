@@ -42,23 +42,27 @@ function getBangkokDateTime(date = new Date()) {
 
     let h = map.hour === '24' ? '00' : String(map.hour).padStart(2, '0');
     let m = String(map.minute).padStart(2, '0');
+    let s = String(map.second || '00').padStart(2, '0');
     const currentTimeStr = `${h}:${m}`;
     const todayDateStr = `${map.year}-${map.month}-${map.day}`;
+    const currentDateTimeStr = `${todayDateStr} ${h}:${m}:${s}`;
     const currentMinuteKey = `${todayDateStr} ${currentTimeStr}`;
     const weekdayShort = (map.weekday || '').toLowerCase();
     const dow = DAY_MAP[weekdayShort] !== undefined ? DAY_MAP[weekdayShort] : date.getDay();
 
-    return { dow, currentTimeStr, todayDateStr, currentMinuteKey, h, m, weekdayShort };
+    return { dow, currentTimeStr, todayDateStr, currentDateTimeStr, currentMinuteKey, h, m, s, weekdayShort };
   } catch (err) {
     // Fallback in case of timezone formatting error
     const d = new Date(date.getTime() + (7 * 3600 * 1000) + (date.getTimezoneOffset() * 60 * 1000));
     const dow = d.getDay();
     const h = String(d.getHours()).padStart(2, '0');
     const m = String(d.getMinutes()).padStart(2, '0');
+    const s = String(d.getSeconds()).padStart(2, '0');
     const currentTimeStr = `${h}:${m}`;
     const todayDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const currentDateTimeStr = `${todayDateStr} ${h}:${m}:${s}`;
     const currentMinuteKey = `${todayDateStr} ${currentTimeStr}`;
-    return { dow, currentTimeStr, todayDateStr, currentMinuteKey, h, m, weekdayShort: Object.keys(DAY_MAP)[dow] };
+    return { dow, currentTimeStr, todayDateStr, currentDateTimeStr, currentMinuteKey, h, m, s, weekdayShort: Object.keys(DAY_MAP)[dow] };
   }
 }
 
@@ -268,21 +272,21 @@ class TaskRegistry {
 
   /**
    * Marks a task as successfully run for the given date and minute.
-   * Updates memory map and persists to scheduled_task_tbl.
+   * Updates memory map and persists full datetime string to scheduled_task_tbl.
    * @param {string} taskId 
    * @param {Date} [date=new Date()] 
    */
   async markTaskExecuted(taskId, date = new Date()) {
-    const { todayDateStr, currentMinuteKey } = getBangkokDateTime(date);
+    const { currentDateTimeStr, currentMinuteKey } = getBangkokDateTime(date);
     this.lastExecution.set(taskId, currentMinuteKey);
 
     const task = this.tasks.get(taskId);
     if (task) {
-      task.last_run_date = todayDateStr;
+      task.last_run_date = currentDateTimeStr;
     }
 
     try {
-      await db.setScheduledTaskLastRun(taskId, todayDateStr);
+      await db.setScheduledTaskLastRun(taskId, currentDateTimeStr);
     } catch (err) {
       logger.error(`[TaskRegistry] Failed to persist last_run_date for task '${taskId}':`, err.message);
     }

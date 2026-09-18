@@ -12,10 +12,10 @@ CREATE TABLE IF NOT EXISTS `scheduled_task_tbl` (
   `schedule_days` VARCHAR(100) NOT NULL DEFAULT '*',
   `schedule_time` VARCHAR(10) NOT NULL DEFAULT '20:00',
   `group_id` VARCHAR(100) NULL,
-  `delivery_mode` ENUM('push', 'reply_on_chat') NOT NULL DEFAULT 'push',
+  `delivery_mode` ENUM('push', 'reply_on_chat', 'log_only') NOT NULL DEFAULT 'push',
   `expire_minutes` INT NULL DEFAULT 60,
   `enabled` TINYINT(1) NOT NULL DEFAULT 1,
-  `last_run_date` VARCHAR(20) NULL,
+  `last_run_date` VARCHAR(30) NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
