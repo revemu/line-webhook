@@ -8,7 +8,7 @@ const axios = require('axios');
 const slipService = require('./slip');
 const { getNextSaturday } = require('./utils/date');
 
-const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify']);
+const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
 const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my']);
 const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek']);
 
@@ -235,6 +235,57 @@ const COMMAND_REGISTRY = {
             text: '🔄 สั่งรีโหลดงานจากฐานข้อมูล (scheduled_task_tbl) เรียบร้อยแล้ว'
         }];
     },
+    'prune': async (context) => {
+        const { param, quoteToken } = context;
+        const parts = (param || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+        let days = 30;
+        let isDryRun = false;
+        let includeAvatars = false;
+
+        for (const p of parts) {
+            const num = parseInt(p.replace(/[^0-9]/g, ''), 10);
+            if (!isNaN(num) && num > 0) {
+                days = num;
+            } else if (p === 'dry' || p === 'dryrun' || p === '--dry-run') {
+                isDryRun = true;
+            } else if (p === 'avatar' || p === 'avatars' || p === '--include-avatars') {
+                includeAvatars = true;
+            }
+        }
+
+        const { pruneImages } = require('./prune_images');
+        const result = pruneImages({
+            retentionDays: days,
+            isDryRun,
+            includeAvatars
+        });
+
+        const lines = [
+            isDryRun ? '🔍 [Dry Run] ตรวจสอบไฟล์เก่าที่หมดอายุ:' : '🧹 ล้างไฟล์รูปภาพเก่าเรียบร้อยแล้ว:',
+            `• เก็บไฟล์ไว้: ${result.retentionDays} วัน`,
+            `• ตรวจสอบทั้งหมด: ${result.totalScanned} ไฟล์`,
+            `• ${isDryRun ? 'ไฟล์ที่ลบได้' : 'ลบไฟล์สำเร็จ'}: ${result.totalDeleted} ไฟล์`,
+            `• คืนพื้นที่ดิสก์: ${result.totalFreedMb} MB`
+        ];
+
+        if (result.details.team.deleted > 0) {
+            lines.push(`  - รูปทีม/TOTW: ${result.details.team.deleted} ไฟล์`);
+        }
+        if (result.details.qr.deleted > 0) {
+            lines.push(`  - QR Code: ${result.details.qr.deleted} ไฟล์`);
+        }
+        if (result.details.avatar.deleted > 0) {
+            lines.push(`  - Avatar: ${result.details.avatar.deleted} ไฟล์`);
+        }
+
+        return [{
+            type: 'text',
+            quoteToken,
+            text: lines.join('\n')
+        }];
+    },
+    'pruneimages': async (context) => COMMAND_REGISTRY['prune'](context),
+    'cleanup': async (context) => COMMAND_REGISTRY['prune'](context),
     // Example scaffolding (fill in handlers as we convert cases):
     // 'setmaxweek': async (context) => { /* ... */ },
     'setmaxweek': async (context) => {
