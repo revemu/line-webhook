@@ -6140,8 +6140,8 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   for (const tier of remainingTiers) {
     const positionsInTier = shuffleArray([...posOrder]);
     for (const pos of positionsInTier) {
-      const playersInTier = registeredMembers.filter(m => 
-        !assignedMemberIds.has(m.member_id) && 
+      const playersInTier = registeredMembers.filter(m =>
+        !assignedMemberIds.has(m.member_id) &&
         (tier === 0 ? (getMemberPriority(m) !== 1 && getMemberPriority(m) !== 2) : getMemberPriority(m) === tier) &&
         m.posCode === pos
       );
@@ -6455,7 +6455,7 @@ function getGroupTag(groupId, maxLength = 18) {
     if (name.length > maxLength) {
       name = name.substring(0, maxLength - 1) + '…';
     }
-    return ` [Group: ${name}]`;
+    return ` [${name}]`;
   }
 
   // Fallback to shortened group ID if group name not cached yet
@@ -6680,10 +6680,10 @@ function evaluateCondition(exprStr, ctx) {
       case '>=': return leftVal >= rightVal;
       case '<=': return leftVal <= rightVal;
       case '==':
-      case '=':  return leftVal == rightVal;
+      case '=': return leftVal == rightVal;
       case '!=': return leftVal != rightVal;
-      case '>':  return leftVal > rightVal;
-      case '<':  return leftVal < rightVal;
+      case '>': return leftVal > rightVal;
+      case '<': return leftVal < rightVal;
     }
   }
 

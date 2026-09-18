@@ -431,7 +431,7 @@ async function handleTextMessage(event, member) {
 
         const groupTag = db.getGroupTag(source.groupId);
         try {
-            logger.info(`${member.name}${groupTag} [CMD]: ${message.text}`);
+            logger.info(`${groupTag} ${member.name} [CMD]: ${message.text}`);
             const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
             if (replyMessages) {
                 await replyMessage(replyToken, replyMessages);
@@ -441,14 +441,14 @@ async function handleTextMessage(event, member) {
         }
     } else {
         const groupTag = db.getGroupTag(source.groupId);
-        logger.info(`${member.name}${groupTag}: ${message.text}`);
+        logger.info(`${groupTag} ${member.name}: ${message.text}`);
     }
 }
 
 function handleStickerMessage(event, member) {
     const keywords = event.message.keywords;
     const groupTag = db.getGroupTag(event.source && event.source.groupId);
-    logger.debug(`${member.name}${groupTag}: sent sticker ${randomItem(keywords || ['unknown'])}`);
+    logger.debug(`${groupTag} ${member.name}: sent sticker ${randomItem(keywords || ['unknown'])}`);
 }
 
 function randomItem(items) {
