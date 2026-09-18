@@ -185,6 +185,7 @@ class TaskRegistry {
             text_message: row.text_message || null,
             groupId: row.group_id || null,
             deliveryMode: row.delivery_mode || 'push',
+            expireMinutes: row.expire_minutes !== undefined && row.expire_minutes !== null ? parseInt(row.expire_minutes, 10) : 60,
             enabled: true,
             schedule: {
               days: row.schedule_days || '*',
@@ -251,6 +252,16 @@ class TaskRegistry {
     }
 
     return dueTasks;
+  }
+
+  /**
+   * Marks that a task's schedule match was logged for the current minute without updating DB last_run_date.
+   * @param {string} taskId 
+   * @param {Date} [date=new Date()] 
+   */
+  markMinuteLogged(taskId, date = new Date()) {
+    const { currentMinuteKey } = getBangkokDateTime(date);
+    this.lastExecution.set(taskId, currentMinuteKey);
   }
 
   /**

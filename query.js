@@ -161,6 +161,7 @@ async function ensureScheduledTaskTable() {
         schedule_time VARCHAR(10) NOT NULL DEFAULT '20:00',
         group_id VARCHAR(100) NULL,
         delivery_mode ENUM('push', 'reply_on_chat') NOT NULL DEFAULT 'push',
+        expire_minutes INT NULL DEFAULT 60,
         enabled TINYINT(1) NOT NULL DEFAULT 1,
         last_run_date VARCHAR(20) NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -176,6 +177,14 @@ async function ensureScheduledTaskTable() {
         await executeQuery("ALTER TABLE scheduled_task_tbl ADD COLUMN delivery_mode ENUM('push', 'reply_on_chat') NOT NULL DEFAULT 'push' AFTER group_id");
       }
     } catch (colErr) { }
+
+    // Ensure expire_minutes column exists for existing tables
+    try {
+      const colCheck2 = await executeQuery("SHOW COLUMNS FROM scheduled_task_tbl LIKE 'expire_minutes'");
+      if (!colCheck2 || colCheck2.length === 0) {
+        await executeQuery("ALTER TABLE scheduled_task_tbl ADD COLUMN expire_minutes INT NULL DEFAULT 60 AFTER delivery_mode");
+      }
+    } catch (colErr2) { }
   } catch (err) {
     console.error('Error ensuring scheduled_task_tbl:', err.message);
   }
@@ -6596,13 +6605,14 @@ async function addScheduledTask(taskData) {
     schedule_time = '20:00',
     group_id = null,
     delivery_mode = 'push',
+    expire_minutes = 60,
     enabled = 1
   } = taskData;
 
   const sql = `
     INSERT INTO scheduled_task_tbl 
-      (task_key, task_name, task_type, command, text_message, schedule_days, schedule_time, group_id, delivery_mode, enabled)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (task_key, task_name, task_type, command, text_message, schedule_days, schedule_time, group_id, delivery_mode, expire_minutes, enabled)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   const result = await executeQuery(sql, [
     task_key,
@@ -6614,6 +6624,7 @@ async function addScheduledTask(taskData) {
     schedule_time,
     group_id,
     delivery_mode || 'push',
+    expire_minutes !== undefined ? expire_minutes : 60,
     enabled ? 1 : 0
   ]);
   return { success: true, insertId: result.insertId };
@@ -6630,7 +6641,7 @@ async function updateScheduledTask(keyOrId, taskData) {
   const fields = [];
   const values = [];
 
-  const allowedCols = ['task_key', 'task_name', 'task_type', 'command', 'text_message', 'schedule_days', 'schedule_time', 'group_id', 'delivery_mode', 'enabled', 'last_run_date'];
+  const allowedCols = ['task_key', 'task_name', 'task_type', 'command', 'text_message', 'schedule_days', 'schedule_time', 'group_id', 'delivery_mode', 'expire_minutes', 'enabled', 'last_run_date'];
   for (const col of allowedCols) {
     if (taskData[col] !== undefined) {
       fields.push(`\`${col}\` = ?`);
@@ -6768,6 +6779,7 @@ function getBangkokCurrent() {
 /**
  * Retrieves scheduled tasks whose delivery_mode = 'reply_on_chat' that are due today
  * and waiting to be sent using the next chat replyToken in the group.
+ * Checks expire_minutes to skip and mark stale tasks as completed.
  * @param {string} groupId 
  * @returns {Promise<Array<Object>>}
  */
@@ -6785,9 +6797,28 @@ async function getPendingReplyTasks(groupId) {
       // Check day matching
       if (!matchesScheduleDay(t.schedule_days, dow)) continue;
 
-      // Check if scheduled time has arrived or passed (HH:mm <= currentTimeStr)
+      // Check if scheduled time has arrived (schedMinutes <= currentMinutes)
       const schedTime = (t.schedule_time || '20:00').substring(0, 5);
-      if (schedTime > currentTimeStr) continue; // Not due yet
+      const [sH, sM] = schedTime.split(':').map(Number);
+      const [cH, cM] = currentTimeStr.split(':').map(Number);
+      const schedMinutes = (sH || 0) * 60 + (sM || 0);
+      const currentMinutes = (cH || 0) * 60 + (cM || 0);
+
+      if (schedMinutes > currentMinutes) continue; // Not due yet
+
+      // Check if task has expired (validity window)
+      const expireMinutes = (t.expire_minutes !== null && t.expire_minutes !== undefined && Number(t.expire_minutes) > 0)
+        ? parseInt(t.expire_minutes, 10)
+        : null;
+
+      if (expireMinutes !== null) {
+        const expireAtMinutes = schedMinutes + expireMinutes;
+        if (currentMinutes > expireAtMinutes) {
+          // Task has expired without chat activity; mark as executed for today so it won't check again
+          await setScheduledTaskLastRun(t.id, todayDateStr);
+          continue;
+        }
+      }
 
       // Check group matching (if task specified a group, must match; if empty, matches active group)
       const targetGid = t.group_id ? await resolveLineGroupId(t.group_id) : null;

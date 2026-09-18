@@ -156,7 +156,8 @@ async function tick() {
     if (dueTasks.length > 0) {
       for (const task of dueTasks) {
         if (task.deliveryMode === 'reply_on_chat') {
-          logger.info(`[SchedulerWorker] Task '${task.id}' is due (mode: reply_on_chat). Waiting for next chat in target group to reply (0 push quota).`);
+          taskRegistry.markMinuteLogged(task.id, now);
+          logger.info(`[SchedulerWorker] Task '${task.id}' is due (mode: reply_on_chat). Waiting for next chat in target group to reply (0 push quota). Expires in ${task.expireMinutes || 60}m.`);
         } else {
           await runTask(task, 'schedule');
         }

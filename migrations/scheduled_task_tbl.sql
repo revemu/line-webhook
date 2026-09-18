@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS `scheduled_task_tbl` (
   `schedule_time` VARCHAR(10) NOT NULL DEFAULT '20:00',
   `group_id` VARCHAR(100) NULL,
   `delivery_mode` ENUM('push', 'reply_on_chat') NOT NULL DEFAULT 'push',
+  `expire_minutes` INT NULL DEFAULT 60,
   `enabled` TINYINT(1) NOT NULL DEFAULT 1,
   `last_run_date` VARCHAR(20) NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
