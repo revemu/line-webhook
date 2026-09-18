@@ -141,8 +141,43 @@ async function testConnection() {
     console.log('✅ Connected to MySQL database successfully');
     connection.release();
     await ensureLineGroupTable();
+    await ensureScheduledTaskTable();
   } catch (error) {
     console.error('❌ Error connecting to MySQL database:', error.message);
+  }
+}
+
+async function ensureScheduledTaskTable() {
+  try {
+    const sql = `
+      CREATE TABLE IF NOT EXISTS scheduled_task_tbl (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        task_key VARCHAR(100) NOT NULL UNIQUE,
+        task_name VARCHAR(255) NOT NULL,
+        task_type ENUM('command', 'text') NOT NULL DEFAULT 'command',
+        command VARCHAR(255) NULL,
+        text_message TEXT NULL,
+        schedule_days VARCHAR(100) NOT NULL DEFAULT '*',
+        schedule_time VARCHAR(10) NOT NULL DEFAULT '20:00',
+        group_id VARCHAR(100) NULL,
+        delivery_mode ENUM('push', 'reply_on_chat') NOT NULL DEFAULT 'push',
+        enabled TINYINT(1) NOT NULL DEFAULT 1,
+        last_run_date VARCHAR(20) NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `;
+    await executeQuery(sql);
+
+    // Ensure delivery_mode column exists for existing tables
+    try {
+      const colCheck = await executeQuery("SHOW COLUMNS FROM scheduled_task_tbl LIKE 'delivery_mode'");
+      if (!colCheck || colCheck.length === 0) {
+        await executeQuery("ALTER TABLE scheduled_task_tbl ADD COLUMN delivery_mode ENUM('push', 'reply_on_chat') NOT NULL DEFAULT 'push' AFTER group_id");
+      }
+    } catch (colErr) { }
+  } catch (err) {
+    console.error('Error ensuring scheduled_task_tbl:', err.message);
   }
 }
 
@@ -6560,13 +6595,14 @@ async function addScheduledTask(taskData) {
     schedule_days = '*',
     schedule_time = '20:00',
     group_id = null,
+    delivery_mode = 'push',
     enabled = 1
   } = taskData;
 
   const sql = `
     INSERT INTO scheduled_task_tbl 
-      (task_key, task_name, task_type, command, text_message, schedule_days, schedule_time, group_id, enabled)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (task_key, task_name, task_type, command, text_message, schedule_days, schedule_time, group_id, delivery_mode, enabled)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   const result = await executeQuery(sql, [
     task_key,
@@ -6577,6 +6613,7 @@ async function addScheduledTask(taskData) {
     schedule_days,
     schedule_time,
     group_id,
+    delivery_mode || 'push',
     enabled ? 1 : 0
   ]);
   return { success: true, insertId: result.insertId };
@@ -6593,7 +6630,7 @@ async function updateScheduledTask(keyOrId, taskData) {
   const fields = [];
   const values = [];
 
-  const allowedCols = ['task_key', 'task_name', 'task_type', 'command', 'text_message', 'schedule_days', 'schedule_time', 'group_id', 'enabled', 'last_run_date'];
+  const allowedCols = ['task_key', 'task_name', 'task_type', 'command', 'text_message', 'schedule_days', 'schedule_time', 'group_id', 'delivery_mode', 'enabled', 'last_run_date'];
   for (const col of allowedCols) {
     if (taskData[col] !== undefined) {
       fields.push(`\`${col}\` = ?`);
@@ -6653,6 +6690,187 @@ async function toggleScheduledTask(keyOrId, forcedStatus = null) {
     [newStatus, task.id]
   );
   return Boolean(newStatus);
+}
+
+const SCHEDULE_DAY_MAP = {
+  sun: 0, sunday: 0,
+  mon: 1, monday: 1,
+  tue: 2, tuesday: 2,
+  wed: 3, wednesday: 3,
+  thu: 4, thursday: 4,
+  fri: 5, friday: 5,
+  sat: 6, saturday: 6
+};
+
+function matchesScheduleDay(scheduleDays, currentDow) {
+  if (!scheduleDays || scheduleDays === '*' || scheduleDays === 'all' || scheduleDays === 'daily') {
+    return true;
+  }
+  const spec = String(scheduleDays).trim().toLowerCase();
+  if (spec === 'mon-fri' || spec === '1-5' || spec === 'weekday' || spec === 'weekdays') {
+    return currentDow >= 1 && currentDow <= 5;
+  }
+  if (spec === 'sat-sun' || spec === 'weekend' || spec === 'weekends' || spec === '6-0' || spec === '0,6') {
+    return currentDow === 0 || currentDow === 6;
+  }
+  const rangeMatch = spec.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
+  if (rangeMatch) {
+    const start = SCHEDULE_DAY_MAP[rangeMatch[1]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
+    const end = SCHEDULE_DAY_MAP[rangeMatch[2]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
+    if (!isNaN(start) && !isNaN(end)) {
+      if (start <= end) return currentDow >= start && currentDow <= end;
+      else return currentDow >= start || currentDow <= end;
+    }
+  }
+  const parts = spec.split(',').map(p => p.trim());
+  return parts.some(p => {
+    if (SCHEDULE_DAY_MAP[p] !== undefined) return SCHEDULE_DAY_MAP[p] === currentDow;
+    return parseInt(p, 10) === currentDow;
+  });
+}
+
+function getBangkokCurrent() {
+  const tz = process.env.TIMEZONE || process.env.TZ || 'Asia/Bangkok';
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      weekday: 'short'
+    });
+    const parts = formatter.formatToParts(new Date());
+    const map = {};
+    for (const p of parts) map[p.type] = p.value;
+    let h = map.hour === '24' ? '00' : String(map.hour).padStart(2, '0');
+    let m = String(map.minute).padStart(2, '0');
+    const currentTimeStr = `${h}:${m}`;
+    const todayDateStr = `${map.year}-${map.month}-${map.day}`;
+    const weekdayShort = (map.weekday || '').toLowerCase();
+    const dow = SCHEDULE_DAY_MAP[weekdayShort] !== undefined ? SCHEDULE_DAY_MAP[weekdayShort] : (new Date()).getDay();
+    return { dow, currentTimeStr, todayDateStr };
+  } catch (e) {
+    const d = new Date(Date.now() + (7 * 3600 * 1000) + (new Date().getTimezoneOffset() * 60 * 1000));
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return {
+      dow: d.getDay(),
+      currentTimeStr: `${h}:${m}`,
+      todayDateStr: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    };
+  }
+}
+
+/**
+ * Retrieves scheduled tasks whose delivery_mode = 'reply_on_chat' that are due today
+ * and waiting to be sent using the next chat replyToken in the group.
+ * @param {string} groupId 
+ * @returns {Promise<Array<Object>>}
+ */
+async function getPendingReplyTasks(groupId) {
+  if (!groupId) return [];
+  try {
+    const { dow, currentTimeStr, todayDateStr } = getBangkokCurrent();
+    const tasks = await getScheduledTasks(true);
+
+    const pending = [];
+    for (const t of tasks) {
+      if (t.delivery_mode !== 'reply_on_chat') continue;
+      if (t.last_run_date === todayDateStr) continue; // Already executed today
+
+      // Check day matching
+      if (!matchesScheduleDay(t.schedule_days, dow)) continue;
+
+      // Check if scheduled time has arrived or passed (HH:mm <= currentTimeStr)
+      const schedTime = (t.schedule_time || '20:00').substring(0, 5);
+      if (schedTime > currentTimeStr) continue; // Not due yet
+
+      // Check group matching (if task specified a group, must match; if empty, matches active group)
+      const targetGid = t.group_id ? await resolveLineGroupId(t.group_id) : null;
+      if (targetGid && targetGid !== groupId) continue;
+
+      pending.push(t);
+    }
+    return pending;
+  } catch (err) {
+    console.error('Error fetching pending reply tasks:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Resolves and formats all pending reply_on_chat scheduled tasks for a group.
+ * Each task generates its own separate message object (up to LINE's 5-message limit per reply request),
+ * sent together in a single API call with zero push quota consumed.
+ * Marks the tasks as executed for today.
+ * @param {string} groupId 
+ * @param {Object} [botMember] 
+ * @returns {Promise<Array<Object>>} Array of message objects to send via replyMessage
+ */
+async function dispatchPendingReplyTasks(groupId, botMember = null) {
+  if (!groupId) return [];
+  const pendingTasks = await getPendingReplyTasks(groupId);
+  if (pendingTasks.length === 0) return [];
+
+  const { todayDateStr } = getBangkokCurrent();
+  const finalMessages = [];
+  const defaultBotMember = botMember || {
+    id: 0,
+    line_user_id: 'SYSTEM_BOT',
+    name: 'System',
+    admin: 1,
+    debt: 0
+  };
+
+  const executedTaskIds = [];
+
+  for (const task of pendingTasks) {
+    try {
+      if (task.task_type === 'command') {
+        const cmdModule = require('./cmd');
+        const rawCmd = (task.command || '').trim();
+        const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
+        if (cleanCmd) {
+          const res = await cmdModule.process_cmd(cleanCmd, defaultBotMember, null, groupId);
+          if (res) {
+            const list = Array.isArray(res) ? res : [res];
+            for (const item of list) {
+              if (finalMessages.length < 5) {
+                finalMessages.push(item);
+              }
+            }
+          }
+          executedTaskIds.push(task.id);
+        }
+      } else if (task.task_type === 'text') {
+        const textMsg = (task.text_message || '').trim();
+        if (textMsg) {
+          const resolvedObj = await resolveScheduleTemplateText(textMsg, groupId);
+          if (resolvedObj && (resolvedObj.text || resolvedObj.contents)) {
+            if (finalMessages.length < 5) {
+              finalMessages.push(resolvedObj);
+            }
+          }
+          executedTaskIds.push(task.id);
+        }
+      }
+
+      // Mark executed in DB
+      await setScheduledTaskLastRun(task.id, todayDateStr);
+    } catch (taskErr) {
+      console.error(`Error resolving pending scheduled task '${task.id}':`, taskErr.message);
+    }
+  }
+
+  if (executedTaskIds.length > 0) {
+    console.log(`[Scheduler] Prepared ${executedTaskIds.length} pending reply_on_chat task(s) [${executedTaskIds.join(', ')}] as ${finalMessages.length} separate message(s) in a single reply request for group ${groupId} (0 push quota used)`);
+  }
+
+  return finalMessages;
 }
 
 /**
@@ -6917,9 +7135,12 @@ module.exports = {
   toggleScheduledTask,
   resolveScheduleTemplateText,
   ensureLineGroupTable,
+  ensureScheduledTaskTable,
   saveGroupProfile,
   getGroupProfile,
   resolveLineGroupId,
   getGroupTag,
-  syncGroupProfile
+  syncGroupProfile,
+  getPendingReplyTasks,
+  dispatchPendingReplyTasks
 };

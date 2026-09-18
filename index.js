@@ -347,7 +347,7 @@ async function handleMessage(event) {
         case 'text':
             return await handleTextMessage(event, member[0]);
         case 'sticker':
-            return handleStickerMessage(event, member[0]);
+            return await handleStickerMessage(event, member[0]);
         default:
             logger.debug(`Received message type: ${message.type}`);
     }
@@ -389,6 +389,17 @@ async function handleImageMessage(event, member) {
 
         // --- Handle other non-payment image types here ---
         logger.debug(`[handleImageMessage] Image is not a payment slip. Skipping or handling custom image logic...`);
+
+        if (source && source.groupId) {
+            try {
+                const pendingMsgs = await db.dispatchPendingReplyTasks(source.groupId, member);
+                if (pendingMsgs && pendingMsgs.length > 0) {
+                    await replyMessage(replyToken, pendingMsgs.slice(0, 5));
+                }
+            } catch (taskErr) {
+                logger.error(`[handleImageMessage] Error checking pending reply tasks:`, taskErr.message || taskErr);
+            }
+        }
     } catch (error) {
         logger.error('Error processing image!,', error);
         /*const date = new Date();
@@ -432,8 +443,31 @@ async function handleTextMessage(event, member) {
         try {
             logger.info(`${groupTag} ${member.name} [CMD]: ${message.text}`);
             const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
+
+            let pendingMsgs = [];
+            if (source.groupId) {
+                try {
+                    pendingMsgs = await db.dispatchPendingReplyTasks(source.groupId, member);
+                } catch (taskErr) {
+                    logger.error(`[handleTextMessage] Error checking pending reply tasks:`, taskErr.message || taskErr);
+                }
+            }
+
+            let combinedMessages = [];
             if (replyMessages) {
-                await replyMessage(replyToken, replyMessages);
+                if (Array.isArray(replyMessages)) {
+                    combinedMessages.push(...replyMessages);
+                } else {
+                    combinedMessages.push(replyMessages);
+                }
+            }
+            if (pendingMsgs && pendingMsgs.length > 0) {
+                combinedMessages.push(...pendingMsgs);
+            }
+
+            if (combinedMessages.length > 0) {
+                if (combinedMessages.length > 5) combinedMessages = combinedMessages.slice(0, 5);
+                await replyMessage(replyToken, combinedMessages);
             }
         } finally {
             spamProtector.release(userId, groupId, cmd_str);
@@ -441,13 +475,36 @@ async function handleTextMessage(event, member) {
     } else {
         const groupTag = db.getGroupTag(source.groupId);
         logger.info(`${groupTag} ${member.name}: ${message.text}`);
+
+        if (source.groupId) {
+            try {
+                const pendingMsgs = await db.dispatchPendingReplyTasks(source.groupId, member);
+                if (pendingMsgs && pendingMsgs.length > 0) {
+                    await replyMessage(replyToken, pendingMsgs.slice(0, 5));
+                }
+            } catch (taskErr) {
+                logger.error(`[handleTextMessage] Error checking pending reply tasks:`, taskErr.message || taskErr);
+            }
+        }
     }
 }
 
-function handleStickerMessage(event, member) {
-    const keywords = event.message.keywords;
-    const groupTag = db.getGroupTag(event.source && event.source.groupId);
+async function handleStickerMessage(event, member) {
+    const { replyToken, source } = event;
+    const keywords = event.message && event.message.keywords;
+    const groupTag = db.getGroupTag(source && source.groupId);
     logger.debug(`${groupTag} ${member.name}: sent sticker ${randomItem(keywords || ['unknown'])}`);
+
+    if (source && source.groupId) {
+        try {
+            const pendingMsgs = await db.dispatchPendingReplyTasks(source.groupId, member);
+            if (pendingMsgs && pendingMsgs.length > 0) {
+                await replyMessage(replyToken, pendingMsgs.slice(0, 5));
+            }
+        } catch (taskErr) {
+            logger.error(`[handleStickerMessage] Error checking pending reply tasks:`, taskErr.message || taskErr);
+        }
+    }
 }
 
 function randomItem(items) {

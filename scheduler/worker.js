@@ -154,9 +154,12 @@ async function tick() {
 
     const dueTasks = taskRegistry.getDueTasks(now);
     if (dueTasks.length > 0) {
-      logger.info(`[SchedulerWorker] Found ${dueTasks.length} due task(s) to execute.`);
       for (const task of dueTasks) {
-        await runTask(task, 'schedule');
+        if (task.deliveryMode === 'reply_on_chat') {
+          logger.info(`[SchedulerWorker] Task '${task.id}' is due (mode: reply_on_chat). Waiting for next chat in target group to reply (0 push quota).`);
+        } else {
+          await runTask(task, 'schedule');
+        }
       }
     }
   } catch (err) {

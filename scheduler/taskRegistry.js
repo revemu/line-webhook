@@ -184,6 +184,7 @@ class TaskRegistry {
             command: row.command || null,
             text_message: row.text_message || null,
             groupId: row.group_id || null,
+            deliveryMode: row.delivery_mode || 'push',
             enabled: true,
             schedule: {
               days: row.schedule_days || '*',

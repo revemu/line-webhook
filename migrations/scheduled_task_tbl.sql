@@ -12,11 +12,12 @@ CREATE TABLE IF NOT EXISTS `scheduled_task_tbl` (
   `schedule_days` VARCHAR(100) NOT NULL DEFAULT '*',
   `schedule_time` VARCHAR(10) NOT NULL DEFAULT '20:00',
   `group_id` VARCHAR(100) NULL,
+  `delivery_mode` ENUM('push', 'reply_on_chat') NOT NULL DEFAULT 'push',
   `enabled` TINYINT(1) NOT NULL DEFAULT 1,
   `last_run_date` VARCHAR(20) NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Initial default tasks
 INSERT INTO `scheduled_task_tbl` (`task_key`, `task_name`, `task_type`, `command`, `text_message`, `schedule_days`, `schedule_time`, `enabled`)
