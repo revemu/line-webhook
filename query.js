@@ -113,9 +113,16 @@ async function ensureLineGroupTable() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_line_group_id (line_group_id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `;
     await executeQuery(sql);
+
+    // Auto-align table collation if existing table was created with unicode collation
+    try {
+      await executeQuery("ALTER TABLE line_group_id_tbl CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
+    } catch (alterErr) {
+      // Ignore if table is already converted or insufficient alter permissions
+    }
 
     // Load existing groups into memory cache
     const rows = await executeQuery("SELECT id, line_group_id, group_name, member_count, picture_url FROM line_group_id_tbl");
@@ -6519,21 +6526,15 @@ async function syncGroupProfile(lineGroupId, lineClient, force = false) {
 async function getScheduledTasks(onlyEnabled = false) {
   try {
     const sql = onlyEnabled
-      ? `SELECT st.*, lg.line_group_id AS resolved_group_id, lg.group_name 
-         FROM scheduled_task_tbl st 
-         LEFT JOIN line_group_id_tbl lg ON (st.group_id = CAST(lg.id AS CHAR) OR st.group_id = lg.line_group_id)
-         WHERE st.enabled = 1 ORDER BY st.id ASC`
-      : `SELECT st.*, lg.line_group_id AS resolved_group_id, lg.group_name 
-         FROM scheduled_task_tbl st 
-         LEFT JOIN line_group_id_tbl lg ON (st.group_id = CAST(lg.id AS CHAR) OR st.group_id = lg.line_group_id)
-         ORDER BY st.id ASC`;
+      ? "SELECT * FROM scheduled_task_tbl WHERE enabled = 1 ORDER BY id ASC"
+      : "SELECT * FROM scheduled_task_tbl ORDER BY id ASC";
     const tasks = await executeQuery(sql);
-    return tasks.map(t => {
-      if (t.resolved_group_id) {
-        t.group_id = t.resolved_group_id;
+    for (const t of tasks) {
+      if (t.group_id) {
+        t.group_id = await resolveLineGroupId(t.group_id);
       }
-      return t;
-    });
+    }
+    return tasks;
   } catch (err) {
     logger.error('Error querying scheduled_task_tbl:', err.message);
     return [];
@@ -6549,21 +6550,15 @@ async function getScheduledTasks(onlyEnabled = false) {
 async function getScheduledTaskByKey(keyOrId) {
   if (!keyOrId) return null;
   try {
-    const sql = `
-      SELECT st.*, lg.line_group_id AS resolved_group_id, lg.group_name 
-      FROM scheduled_task_tbl st 
-      LEFT JOIN line_group_id_tbl lg ON (st.group_id = CAST(lg.id AS CHAR) OR st.group_id = lg.line_group_id)
-      WHERE st.task_key = ? OR st.id = ? 
-      LIMIT 1
-    `;
+    const sql = "SELECT * FROM scheduled_task_tbl WHERE task_key = ? OR id = ? LIMIT 1";
     const rows = await executeQuery(
       sql,
       [String(keyOrId), isNaN(Number(keyOrId)) ? -1 : Number(keyOrId)]
     );
     if (rows.length > 0) {
       const task = rows[0];
-      if (task.resolved_group_id) {
-        task.group_id = task.resolved_group_id;
+      if (task.group_id) {
+        task.group_id = await resolveLineGroupId(task.group_id);
       }
       return task;
     }
