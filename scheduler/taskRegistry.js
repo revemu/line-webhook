@@ -230,8 +230,6 @@ class TaskRegistry {
 
     for (const [id, task] of this.tasks.entries()) {
       if (task.enabled === false) continue;
-      // reply_on_chat tasks are dispatched on-demand when chat messages arrive in the group; skip them in background worker to stay silent
-      if (task.deliveryMode === 'reply_on_chat') continue;
 
       const schedule = task.schedule || {};
       const targetDays = schedule.days;
@@ -250,6 +248,16 @@ class TaskRegistry {
       // 3. Ensure the task has not already executed during this exact minute
       const lastRunMinute = this.lastExecution.get(id);
       if (lastRunMinute === currentMinuteKey) {
+        continue;
+      }
+
+      // reply_on_chat tasks: log schedule trigger & pending status, then mark minute logged so worker waits for incoming chat
+      if (task.deliveryMode === 'reply_on_chat') {
+        const isRunToday = task.last_run_date && String(task.last_run_date).startsWith(todayDateStr);
+        if (!isRunToday) {
+          logger.info(`[SchedulerWorker] Task '${id}' (${task.name}) matched schedule (${weekdayShort} @ ${currentTimeStr}) [mode: reply_on_chat] -> Status: PENDING (Waiting for next chat message in group to reply)`);
+        }
+        this.lastExecution.set(id, currentMinuteKey);
         continue;
       }
 

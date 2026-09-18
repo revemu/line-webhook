@@ -7221,5 +7221,7 @@ module.exports = {
   getGroupTag,
   syncGroupProfile,
   getPendingReplyTasks,
-  dispatchPendingReplyTasks
+  dispatchPendingReplyTasks,
+  matchesScheduleDay,
+  getBangkokCurrent
 };

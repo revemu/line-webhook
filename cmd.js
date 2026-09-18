@@ -99,8 +99,25 @@ const COMMAND_REGISTRY = {
         }
 
         let lines = ['⏰ รายการงานอัตโนมัติ (Scheduled Tasks):\n'];
+        const timeInfo = db.getBangkokCurrent ? db.getBangkokCurrent() : { dow: new Date().getDay(), currentTimeStr: '00:00', todayDateStr: '' };
         tasks.forEach((t, idx) => {
-            const status = t.enabled ? '🟢 [เปิด]' : '🔴 [ปิด]';
+            let status = t.enabled ? '🟢 [เปิด]' : '🔴 [ปิด]';
+            const isRunToday = t.last_run_date && String(t.last_run_date).startsWith(timeInfo.todayDateStr);
+            if (t.enabled && t.delivery_mode === 'reply_on_chat') {
+                if (isRunToday) {
+                    status = '✅ [ส่งในแชทแล้ววันนี้]';
+                } else if (db.matchesScheduleDay && db.matchesScheduleDay(t.schedule_days, timeInfo.dow)) {
+                    const schedTime = (t.schedule_time || '20:00').substring(0, 5);
+                    if (schedTime <= timeInfo.currentTimeStr) {
+                        status = '⏳ [รอแชทเข้า (Pending)]';
+                    } else {
+                        status = `⏰ [รอถึงเวลา ${schedTime} น.]`;
+                    }
+                }
+            } else if (t.enabled && isRunToday) {
+                status = '✅ [รันแล้ววันนี้]';
+            }
+
             const modeStr = t.delivery_mode === 'reply_on_chat' ? '💬 ตอบกลับในแชท' : (t.delivery_mode === 'log_only' ? '📝 บันทึก Log เท่านั้น' : '📢 Push แจ้งเตือน');
             const typeStr = t.task_type === 'command' ? `คำสั่ง: /${t.command}` : `ข้อความ: "${(t.text_message || '').substring(0, 30)}${(t.text_message || '').length > 30 ? '...' : ''}"`;
             const lastRun = t.last_run_date ? `ล่าสุด: ${t.last_run_date}` : 'ยังไม่เคยรัน';
