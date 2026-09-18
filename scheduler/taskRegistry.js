@@ -226,6 +226,8 @@ class TaskRegistry {
 
     for (const [id, task] of this.tasks.entries()) {
       if (task.enabled === false) continue;
+      // reply_on_chat tasks are dispatched on-demand when chat messages arrive in the group; skip them in background worker to stay silent
+      if (task.deliveryMode === 'reply_on_chat') continue;
 
       const schedule = task.schedule || {};
       const targetDays = schedule.days;
