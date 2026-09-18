@@ -190,10 +190,16 @@ if (parentPort) {
         break;
 
       case 'UPDATE_BASE_URL':
-        if (message.baseUrl && message.baseUrl !== currentBaseUrl) {
-          currentBaseUrl = message.baseUrl;
-          setBaseUrl(message.baseUrl);
-          logger.info(`[SchedulerWorker] Updated dynamic baseUrl from main thread: ${message.baseUrl}`);
+        if (message.baseUrl) {
+          let cleanUrl = message.baseUrl.trim().replace(/\/+$/, '');
+          if (cleanUrl.startsWith('http://') && !cleanUrl.includes('localhost') && !cleanUrl.includes('127.0.0.1')) {
+            cleanUrl = cleanUrl.replace(/^http:\/\//i, 'https://');
+          }
+          if (cleanUrl !== currentBaseUrl) {
+            currentBaseUrl = cleanUrl;
+            setBaseUrl(cleanUrl);
+            logger.info(`[SchedulerWorker] Updated dynamic baseUrl from main thread: ${cleanUrl}`);
+          }
         }
         break;
 

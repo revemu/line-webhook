@@ -48,6 +48,7 @@ const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 50, keepAliveMse
 const lineDataAxios = axios.create({ httpsAgent, httpAgent, timeout: 10000 });
 
 const app = express();
+app.set('trust proxy', true);
 const config = lineClient.config;
 
 function getFormatDate(date, format = 'short') {
@@ -61,7 +62,11 @@ const replyMessage = lineClient.replyMessage;
 app.use((req, res, next) => {
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.headers['host'] || req.get('host');
-    const baseUrl = `${proto}://${host}`;
+    let baseUrl = `${proto}://${host}`.trim().replace(/\/+$/, '');
+    if (baseUrl.startsWith('http://') && !baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1')) {
+        baseUrl = baseUrl.replace(/^http:\/\//i, 'https://');
+    }
+
     if (baseUrl && baseUrl !== global.baseWebhookUrl) {
         global.baseWebhookUrl = baseUrl;
         setBaseUrl(baseUrl);

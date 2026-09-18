@@ -84,14 +84,18 @@ function notifyActiveGroup(groupId) {
  */
 function notifyBaseUrl(baseUrl) {
   if (!baseUrl || typeof baseUrl !== 'string') return;
-  if (baseUrl === currentBaseUrl) return;
-  currentBaseUrl = baseUrl;
-  setBaseUrl(baseUrl);
+  let clean = baseUrl.trim().replace(/\/+$/, '');
+  if (clean.startsWith('http://') && !clean.includes('localhost') && !clean.includes('127.0.0.1')) {
+    clean = clean.replace(/^http:\/\//i, 'https://');
+  }
+  if (clean === currentBaseUrl) return;
+  currentBaseUrl = clean;
+  setBaseUrl(clean);
 
   if (worker) {
     worker.postMessage({
       type: 'UPDATE_BASE_URL',
-      baseUrl
+      baseUrl: clean
     });
   }
 }
