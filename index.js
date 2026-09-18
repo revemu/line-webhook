@@ -17,7 +17,7 @@ const lineClient = require('./lineClient');
 const logger = require('./utils/logger');
 const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
 const { spamProtector } = require('./utils/spamProtection');
-const { initScheduler, notifyBaseUrl } = require('./scheduler');
+const { initScheduler, notifyBaseUrl, notifyActiveGroup } = require('./scheduler');
 const { setBaseUrl } = require('./utils/url');
 
 const execPromise = util.promisify(exec);
@@ -101,7 +101,12 @@ app.post('/webhook', async (req, res) => {
 async function handleEvent(event) {
     try {
         if (event.source && event.source.groupId) {
-            logger.debug(`[Group: ${event.source.groupId}] Incoming event: ${event.type}`);
+            const gid = event.source.groupId;
+            logger.debug(`${db.getGroupTag(gid)} Incoming event: ${event.type}`);
+            notifyActiveGroup(gid);
+            db.syncGroupProfile(gid, lineClient).catch(err => {
+                logger.debug('Error syncing group profile in background:', err.message);
+            });
         }
         if (event.type === 'message') {
             await handleMessage(event);
@@ -351,7 +356,7 @@ async function handleMessage(event) {
 
 async function handleImageMessage(event, member) {
     const { replyToken, message, source } = event;
-    const groupTag = source.groupId ? ` [Group: ${source.groupId}]` : ' [Direct]';
+    const groupTag = db.getGroupTag(source.groupId);
     try {
         logger.info(`${member.name}${groupTag}: sent image! need processing...`);
         const startTime = Date.now();
@@ -424,7 +429,7 @@ async function handleTextMessage(event, member) {
             return;
         }
 
-        const groupTag = source.groupId ? ` [Group: ${source.groupId}]` : ' [Direct]';
+        const groupTag = db.getGroupTag(source.groupId);
         try {
             logger.info(`${member.name}${groupTag} [CMD]: ${message.text}`);
             const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
@@ -435,14 +440,14 @@ async function handleTextMessage(event, member) {
             spamProtector.release(userId, groupId, cmd_str);
         }
     } else {
-        const groupTag = source.groupId ? ` [Group: ${source.groupId}]` : ' [Direct]';
+        const groupTag = db.getGroupTag(source.groupId);
         logger.info(`${member.name}${groupTag}: ${message.text}`);
     }
 }
 
 function handleStickerMessage(event, member) {
     const keywords = event.message.keywords;
-    const groupTag = event.source && event.source.groupId ? ` [Group: ${event.source.groupId}]` : ' [Direct]';
+    const groupTag = db.getGroupTag(event.source && event.source.groupId);
     logger.debug(`${member.name}${groupTag}: sent sticker ${randomItem(keywords || ['unknown'])}`);
 }
 

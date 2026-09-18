@@ -81,12 +81,59 @@ const dbConfig = {
 // Create connection pool
 const pool = mysql.createPool(dbConfig)
 
+// In-memory cache for fast, zero-latency group tag formatting in logs
+const groupCache = new Map();
+const lastGroupSync = new Map();
+const GROUP_SYNC_INTERVAL_MS = 60 * 60 * 1000; // Throttle LINE API sync to once per hour
+
+function updateGroupCache(record) {
+  if (!record || !record.line_group_id) return;
+  const item = {
+    id: record.id,
+    line_group_id: record.line_group_id,
+    group_name: record.group_name || null,
+    member_count: record.member_count !== undefined ? record.member_count : null,
+    picture_url: record.picture_url || null
+  };
+  groupCache.set(record.line_group_id, item);
+  if (record.id) {
+    groupCache.set(String(record.id), item);
+  }
+}
+
+async function ensureLineGroupTable() {
+  try {
+    const sql = `
+      CREATE TABLE IF NOT EXISTS line_group_id_tbl (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        line_group_id VARCHAR(64) NOT NULL UNIQUE,
+        group_name VARCHAR(255) NULL,
+        member_count INT NULL DEFAULT 0,
+        picture_url VARCHAR(500) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_line_group_id (line_group_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `;
+    await executeQuery(sql);
+
+    // Load existing groups into memory cache
+    const rows = await executeQuery("SELECT id, line_group_id, group_name, member_count, picture_url FROM line_group_id_tbl");
+    for (const row of rows) {
+      updateGroupCache(row);
+    }
+  } catch (err) {
+    console.error('Error ensuring line_group_id_tbl:', err.message);
+  }
+}
+
 // Test database connection
 async function testConnection() {
   try {
     const connection = await pool.getConnection();
     console.log('✅ Connected to MySQL database successfully');
     connection.release();
+    await ensureLineGroupTable();
   } catch (error) {
     console.error('❌ Error connecting to MySQL database:', error.message);
   }
@@ -6260,8 +6307,8 @@ async function getTaskGroupId(taskId) {
 
   // 1. Check environment variables (e.g. GROUP_ID_DEBT_CALL or DEBT_CALL_GROUP_ID)
   const normalized = taskId.toUpperCase();
-  if (process.env[`GROUP_ID_${normalized}`]) return process.env[`GROUP_ID_${normalized}`];
-  if (process.env[`${normalized}_GROUP_ID`]) return process.env[`${normalized}_GROUP_ID`];
+  if (process.env[`GROUP_ID_${normalized}`]) return await resolveLineGroupId(process.env[`GROUP_ID_${normalized}`]);
+  if (process.env[`${normalized}_GROUP_ID`]) return await resolveLineGroupId(process.env[`${normalized}_GROUP_ID`]);
 
   // 2. Query template_tpl by task identifier keys
   const key1 = `group_id_${taskId.toLowerCase()}`;
@@ -6274,7 +6321,7 @@ async function getTaskGroupId(taskId) {
       [key1, key2, key3, key1, key2, key3]
     );
     if (res.length > 0 && res[0].value) {
-      return res[0].value;
+      return await resolveLineGroupId(res[0].value);
     }
   } catch (err) {
     console.error(`Error querying task group_id for '${taskId}' from template_tpl:`, err.message);
@@ -6298,16 +6345,195 @@ async function saveTaskGroupId(taskId, groupId) {
 }
 
 /**
+ * Saves or updates a LINE group profile in line_group_id_tbl.
+ * @param {string} lineGroupId 
+ * @param {string|null} [groupName=null] 
+ * @param {number|null} [memberCount=null] 
+ * @param {string|null} [pictureUrl=null] 
+ * @returns {Promise<Object|null>}
+ */
+async function saveGroupProfile(lineGroupId, groupName = null, memberCount = null, pictureUrl = null) {
+  if (!lineGroupId || typeof lineGroupId !== 'string') return null;
+  const cleanId = lineGroupId.trim();
+  if (!cleanId) return null;
+  const cleanName = (groupName && typeof groupName === 'string') ? groupName.trim() : null;
+  const cleanCount = typeof memberCount === 'number' ? memberCount : null;
+  const cleanPic = (pictureUrl && typeof pictureUrl === 'string') ? pictureUrl.trim() : null;
+
+  // Optimistically update in-memory cache immediately
+  const existing = groupCache.get(cleanId);
+  updateGroupCache({
+    id: existing ? existing.id : undefined,
+    line_group_id: cleanId,
+    group_name: cleanName || (existing ? existing.group_name : null),
+    member_count: cleanCount !== null ? cleanCount : (existing ? existing.member_count : null),
+    picture_url: cleanPic || (existing ? existing.picture_url : null)
+  });
+
+  try {
+    const sql = `
+      INSERT INTO line_group_id_tbl (line_group_id, group_name, member_count, picture_url)
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        group_name = COALESCE(VALUES(group_name), group_name),
+        member_count = COALESCE(VALUES(member_count), member_count),
+        picture_url = COALESCE(VALUES(picture_url), picture_url),
+        updated_at = CURRENT_TIMESTAMP
+    `;
+    await executeQuery(sql, [cleanId, cleanName, cleanCount, cleanPic]);
+
+    const rows = await executeQuery("SELECT * FROM line_group_id_tbl WHERE line_group_id = ?", [cleanId]);
+    if (rows.length > 0) {
+      const record = rows[0];
+      updateGroupCache(record);
+      return record;
+    }
+  } catch (err) {
+    console.error(`Error saving group profile for ${cleanId}:`, err.message);
+  }
+  return null;
+}
+
+/**
+ * Gets a group profile by line_group_id or numeric line_group_id_tbl.id.
+ * @param {string|number} groupIdOrId 
+ * @returns {Promise<Object|null>}
+ */
+async function getGroupProfile(groupIdOrId) {
+  if (!groupIdOrId) return null;
+  const key = String(groupIdOrId).trim();
+  if (groupCache.has(key)) {
+    return groupCache.get(key);
+  }
+
+  try {
+    if (/^\d+$/.test(key)) {
+      const rows = await executeQuery("SELECT * FROM line_group_id_tbl WHERE id = ?", [parseInt(key, 10)]);
+      if (rows.length > 0) {
+        updateGroupCache(rows[0]);
+        return rows[0];
+      }
+    }
+    const rows = await executeQuery("SELECT * FROM line_group_id_tbl WHERE line_group_id = ?", [key]);
+    if (rows.length > 0) {
+      updateGroupCache(rows[0]);
+      return rows[0];
+    }
+  } catch (err) {
+    console.error(`Error fetching group profile for ${groupIdOrId}:`, err.message);
+  }
+  return null;
+}
+
+/**
+ * Resolves a group identifier (which may be a numeric line_group_id_tbl.id or a raw line_group_id string)
+ * to the actual LINE group ID string.
+ * @param {string|number} groupIdOrId 
+ * @returns {Promise<string|null>}
+ */
+async function resolveLineGroupId(groupIdOrId) {
+  if (!groupIdOrId) return null;
+  const key = String(groupIdOrId).trim();
+  if (groupCache.has(key)) {
+    return groupCache.get(key).line_group_id;
+  }
+
+  try {
+    if (/^\d+$/.test(key)) {
+      const rows = await executeQuery("SELECT line_group_id FROM line_group_id_tbl WHERE id = ?", [parseInt(key, 10)]);
+      if (rows.length > 0 && rows[0].line_group_id) {
+        return rows[0].line_group_id;
+      }
+    }
+    const rows = await executeQuery("SELECT line_group_id FROM line_group_id_tbl WHERE line_group_id = ?", [key]);
+    if (rows.length > 0 && rows[0].line_group_id) {
+      return rows[0].line_group_id;
+    }
+  } catch (err) {
+    console.error(`Error resolving line_group_id for ${groupIdOrId}:`, err.message);
+  }
+  return key;
+}
+
+/**
+ * Returns a formatted group tag for logging with automatic group name truncation.
+ * Example: ' [Group: บอลเสาร์-อาทิต...]' or ' [Direct]'
+ * @param {string|number} [groupId] 
+ * @param {number} [maxLength=18] 
+ * @returns {string}
+ */
+function getGroupTag(groupId, maxLength = 18) {
+  if (!groupId) return ' [Direct]';
+  const key = String(groupId).trim();
+  const cached = groupCache.get(key);
+
+  if (cached && cached.group_name) {
+    let name = cached.group_name.trim();
+    if (name.length > maxLength) {
+      name = name.substring(0, maxLength - 1) + '…';
+    }
+    return ` [Group: ${name}]`;
+  }
+
+  // Fallback to shortened group ID if group name not cached yet
+  if (key.length > 12) {
+    const shortId = `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+    return ` [Group: ${shortId}]`;
+  }
+  return ` [Group: ${key}]`;
+}
+
+/**
+ * Periodically or on-demand syncs group profile from LINE API and updates DB.
+ * @param {string} lineGroupId 
+ * @param {Object} lineClient 
+ * @param {boolean} [force=false] 
+ */
+async function syncGroupProfile(lineGroupId, lineClient, force = false) {
+  if (!lineGroupId || typeof lineGroupId !== 'string') return;
+  const cleanId = lineGroupId.trim();
+  if (!cleanId || cleanId.startsWith('U') || cleanId.startsWith('R')) return; // Ignore user IDs or room IDs
+
+  const now = Date.now();
+  const last = lastGroupSync.get(cleanId) || 0;
+  if (!force && (now - last < GROUP_SYNC_INTERVAL_MS)) return;
+  lastGroupSync.set(cleanId, now);
+
+  try {
+    if (!lineClient || typeof lineClient.fetchGroupProfile !== 'function') return;
+    const profile = await lineClient.fetchGroupProfile(cleanId);
+    if (profile && (profile.groupName || profile.memberCount !== null)) {
+      await saveGroupProfile(cleanId, profile.groupName, profile.memberCount, profile.pictureUrl);
+    }
+  } catch (err) {
+    console.error(`Error syncing group profile for ${cleanId}:`, err.message);
+  }
+}
+
+/**
  * Retrieves scheduled tasks from scheduled_task_tbl.
+ * Resolves group_id against line_group_id_tbl.id if numeric or mapped.
  * @param {boolean} [onlyEnabled=false] 
  * @returns {Promise<Array<Object>>}
  */
 async function getScheduledTasks(onlyEnabled = false) {
   try {
     const sql = onlyEnabled
-      ? "SELECT * FROM scheduled_task_tbl WHERE enabled = 1 ORDER BY id ASC"
-      : "SELECT * FROM scheduled_task_tbl ORDER BY id ASC";
-    return await executeQuery(sql);
+      ? `SELECT st.*, lg.line_group_id AS resolved_group_id, lg.group_name 
+         FROM scheduled_task_tbl st 
+         LEFT JOIN line_group_id_tbl lg ON (st.group_id = CAST(lg.id AS CHAR) OR st.group_id = lg.line_group_id)
+         WHERE st.enabled = 1 ORDER BY st.id ASC`
+      : `SELECT st.*, lg.line_group_id AS resolved_group_id, lg.group_name 
+         FROM scheduled_task_tbl st 
+         LEFT JOIN line_group_id_tbl lg ON (st.group_id = CAST(lg.id AS CHAR) OR st.group_id = lg.line_group_id)
+         ORDER BY st.id ASC`;
+    const tasks = await executeQuery(sql);
+    return tasks.map(t => {
+      if (t.resolved_group_id) {
+        t.group_id = t.resolved_group_id;
+      }
+      return t;
+    });
   } catch (err) {
     logger.error('Error querying scheduled_task_tbl:', err.message);
     return [];
@@ -6316,17 +6542,32 @@ async function getScheduledTasks(onlyEnabled = false) {
 
 /**
  * Retrieves a scheduled task by ID or task_key.
+ * Resolves group_id against line_group_id_tbl.id if numeric or mapped.
  * @param {string|number} keyOrId 
  * @returns {Promise<Object|null>}
  */
 async function getScheduledTaskByKey(keyOrId) {
   if (!keyOrId) return null;
   try {
-    const res = await executeQuery(
-      "SELECT * FROM scheduled_task_tbl WHERE task_key = ? OR id = ? LIMIT 1",
+    const sql = `
+      SELECT st.*, lg.line_group_id AS resolved_group_id, lg.group_name 
+      FROM scheduled_task_tbl st 
+      LEFT JOIN line_group_id_tbl lg ON (st.group_id = CAST(lg.id AS CHAR) OR st.group_id = lg.line_group_id)
+      WHERE st.task_key = ? OR st.id = ? 
+      LIMIT 1
+    `;
+    const rows = await executeQuery(
+      sql,
       [String(keyOrId), isNaN(Number(keyOrId)) ? -1 : Number(keyOrId)]
     );
-    return res.length > 0 ? res[0] : null;
+    if (rows.length > 0) {
+      const task = rows[0];
+      if (task.resolved_group_id) {
+        task.group_id = task.resolved_group_id;
+      }
+      return task;
+    }
+    return null;
   } catch (err) {
     logger.error(`Error querying scheduled task '${keyOrId}':`, err.message);
     return null;
@@ -6703,5 +6944,11 @@ module.exports = {
   deleteScheduledTask,
   setScheduledTaskLastRun,
   toggleScheduledTask,
-  resolveScheduleTemplateText
+  resolveScheduleTemplateText,
+  ensureLineGroupTable,
+  saveGroupProfile,
+  getGroupProfile,
+  resolveLineGroupId,
+  getGroupTag,
+  syncGroupProfile
 };

@@ -69,6 +69,10 @@ async function runTask(task, triggerSource = 'schedule') {
       targetGroupId = activeGroupId || (await db.getActiveGroupId());
     }
 
+    if (targetGroupId) {
+      targetGroupId = await db.resolveLineGroupId(targetGroupId);
+    }
+
     if (!targetGroupId) {
       logger.warn(`[SchedulerWorker] Execution aborted for task '${task.id}': No target groupId available`);
       return;
@@ -84,7 +88,7 @@ async function runTask(task, triggerSource = 'schedule') {
       }
 
       const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
-      logger.info(`[SchedulerWorker] Running command: "${cleanCmd}" for group: ${targetGroupId}`);
+      logger.info(`[SchedulerWorker] Running command: "${cleanCmd}" for group:${db.getGroupTag(targetGroupId)}`);
 
       const botMember = {
         id: 0,
@@ -97,7 +101,7 @@ async function runTask(task, triggerSource = 'schedule') {
       const reply = await cmd.process_cmd(cleanCmd, botMember, null, targetGroupId);
       if (reply) {
         const msgs = Array.isArray(reply) ? reply : [reply];
-        logger.info(`[SchedulerWorker] Pushing command response (${msgs.length} message(s)) to group ${targetGroupId}...`);
+        logger.info(`[SchedulerWorker] Pushing command response (${msgs.length} message(s)) to group:${db.getGroupTag(targetGroupId)}...`);
         pushResult = await lineClient.pushMessage(targetGroupId, msgs);
       } else {
         logger.info(`[SchedulerWorker] Command '${cleanCmd}' completed without reply message.`);
@@ -110,7 +114,7 @@ async function runTask(task, triggerSource = 'schedule') {
         return;
       }
 
-      logger.info(`[SchedulerWorker] Resolving and sending text task for group: ${targetGroupId}`);
+      logger.info(`[SchedulerWorker] Resolving and sending text task for group:${db.getGroupTag(targetGroupId)}`);
       const pushMsg = await db.resolveScheduleTemplateText(textMsg, targetGroupId);
       pushResult = await lineClient.pushMessage(targetGroupId, [pushMsg]);
     } else {

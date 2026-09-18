@@ -140,10 +140,72 @@ async function pushMessage(to, messages) {
   }
 }
 
+/**
+ * Fetches group summary (name, pictureUrl) from LINE API.
+ * @param {string} groupId - LINE Group ID
+ * @returns {Promise<{groupId: string, groupName: string, pictureUrl?: string}|null>}
+ */
+async function fetchGroupSummary(groupId) {
+  const client = getLineClient();
+  if (!groupId) return null;
+  try {
+    return await client.getGroupSummary(groupId);
+  } catch (err) {
+    logger.debug(`[lineClient] getGroupSummary failed for ${groupId}:`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Fetches total member count in a LINE group.
+ * @param {string} groupId - LINE Group ID
+ * @returns {Promise<number|null>}
+ */
+async function fetchGroupMembersCount(groupId) {
+  const client = getLineClient();
+  if (!groupId) return null;
+  try {
+    const res = await client.getGroupMembersCount(groupId);
+    return res && typeof res.count === 'number' ? res.count : null;
+  } catch (err) {
+    logger.debug(`[lineClient] getGroupMembersCount failed for ${groupId}:`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Fetches combined group profile (summary + member count) from LINE API.
+ * @param {string} groupId - LINE Group ID
+ * @returns {Promise<{groupId: string, groupName: string|null, memberCount: number|null, pictureUrl: string|null}|null>}
+ */
+async function fetchGroupProfile(groupId) {
+  if (!groupId) return null;
+  try {
+    const [summary, count] = await Promise.all([
+      fetchGroupSummary(groupId),
+      fetchGroupMembersCount(groupId)
+    ]);
+    if (!summary && count === null) return null;
+    return {
+      groupId,
+      groupName: summary ? summary.groupName : null,
+      memberCount: count !== null ? count : null,
+      pictureUrl: summary ? summary.pictureUrl || null : null
+    };
+  } catch (err) {
+    logger.error(`[lineClient] fetchGroupProfile error for ${groupId}:`, err.message);
+    return null;
+  }
+}
+
 module.exports = {
   config,
   getLineClient,
   fetchUserProfile,
+  fetchGroupSummary,
+  fetchGroupMembersCount,
+  fetchGroupProfile,
   replyMessage,
   pushMessage
 };
+
