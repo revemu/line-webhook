@@ -3617,16 +3617,36 @@ async function getDebtList(type = 0) {
 }
 
 
-async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 2, totalHours = 3, endTimeStr = null) {
+async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = null, totalHours = null, endTimeStr = null) {
   // Fetch current week team colors
   const week = await queryWeekID();
-  if (!week || week.length === 0) return 'ยังไม่มีข้อมูลสัปดาห์นี้';
+  if (!week || week.length === 0) return ['ยังไม่มีข้อมูลสัปดาห์นี้', null];
 
   const week_id = week[0].id;
   const team_colors = await getTeamColorWeek(week_id);
 
   if (!team_colors || team_colors.length < 2) {
-    return 'ยังไม่มีข้อมูลทีมในสัปดาห์นี้ (ใช้คำสั่ง randomteam ก่อน)';
+    return ['ยังไม่มีข้อมูลทีมในสัปดาห์นี้ (ใช้คำสั่ง randomteam ก่อน)', null];
+  }
+
+  // Parse default time_range from DB if not provided
+  let weekStartTime = '17:30';
+  let weekEndTime = '20:00';
+  if (week[0].time_range) {
+    const parts = week[0].time_range.split('-').map(s => s.trim().replace('.', ':'));
+    if (parts.length >= 2) {
+      weekStartTime = parts[0];
+      weekEndTime = parts[1];
+    } else if (parts.length === 1 && parts[0]) {
+      weekStartTime = parts[0];
+    }
+  }
+
+  if (!startTimeStr) {
+    startTimeStr = weekStartTime;
+  }
+  if (!endTimeStr && !totalHours) {
+    endTimeStr = weekEndTime;
   }
 
   // Shuffle a copy of the team colors to randomize starting team assignments and increase schedule variety
@@ -3637,9 +3657,9 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   const numTeams = teams.length;
 
   // Number of unique pairs in one round-robin cycle
-  const cycleLen = (numTeams * (numTeams - 1)) / 2; // = 6 for 4 teams
+  const cycleLen = (numTeams * (numTeams - 1)) / 2; // = 6 for 4 teams, 3 for 3 teams
 
-  // Parse start time and slot sizes (support both '17:30' and '17.30')
+  // Parse start time and calculate total time window
   const [startH, startM] = startTimeStr.replace('.', ':').split(':').map(Number);
   const startTotal = startH * 60 + (startM || 0);
 
@@ -3651,10 +3671,34 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
       endTotal += 1440; // wrap around midnight
     }
     calculatedTotalHours = (endTotal - startTotal) / 60;
+  } else if (!calculatedTotalHours) {
+    calculatedTotalHours = 2.5;
   }
 
-  const slotMin = matchMin + breakMin;
-  const maxMatches = Math.floor((calculatedTotalHours * 60) / slotMin);
+  const totalMinutes = calculatedTotalHours * 60;
+
+  // Dynamic match duration calculation based on team count and time range
+  if (!matchMin || isNaN(Number(matchMin)) || Number(matchMin) <= 0) {
+    if (numTeams >= 4) {
+      matchMin = calculatedTotalHours <= 2.5 ? 7 : 8;
+    } else {
+      // 3 teams
+      matchMin = 10;
+    }
+  } else {
+    matchMin = parseInt(matchMin, 10);
+  }
+
+  // Ensure every team has an equal number of matches:
+  // Each cycle of cycleLen matches gives every team an equal number of matches.
+  // Calculate how many full cycles fit into the available time.
+  const cyclePlayMinutes = cycleLen * matchMin;
+  let fullRounds = Math.floor(totalMinutes / cyclePlayMinutes);
+  if (fullRounds < 1) fullRounds = 1;
+
+  const maxMatches = fullRounds * cycleLen;
+  const actualSlotMin = totalMinutes / maxMatches;
+  const calculatedBreakMin = Math.max(0, actualSlotMin - matchMin);
 
   // Build pool using a rotating-anchor approach (matching the reference schedule).
   //
@@ -3911,20 +3955,17 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   const thaiMonthsShort = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
   const dateObj = new Date(week[0].date || Date.now());
   const dateStr = `${dateObj.getDate()} ${thaiMonthsShort[dateObj.getMonth()]} ${String(dateObj.getFullYear()).slice(-2)}`;
+  const displayEndTime = endTimeStr ? endTimeStr.replace('.', ':') : toTime(Math.round(startTotal + matchups.length * actualSlotMin));
 
   const lines = [];
   lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${dateStr}`);
-  lines.push(`🕐 เริ่ม ${startTimeStr} น. | ${matchMin} นาที/แมตช์`);
+  const breakInfo = calculatedBreakMin > 0 ? ` (พัก ~${calculatedBreakMin.toFixed(1).replace('.0', '')} นาที)` : '';
+  lines.push(`🕐 เริ่ม ${startTimeStr} น. - ${displayEndTime} น. | ${matchMin} นาที/แมตช์${breakInfo}`);
   const displayHours = Number(calculatedTotalHours.toFixed(2));
-  lines.push(`👥 ${numTeams} ทีม | ${matchups.length} แมตช์ (${totalRounds} รอบ) | ${displayHours} ชม.`);
+  const matchesPerTeam = Math.round((matchups.length * 2) / numTeams);
+  lines.push(`👥 ${numTeams} ทีม | ${matchups.length} แมตช์ (${totalRounds} รอบ • ทีมละ ${matchesPerTeam} แมตช์เท่ากัน) | ${displayHours} ชม.`);
   lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
   lines.push('─'.repeat(30));
-
-  let actualSlotMin = slotMin;
-  if (endTimeStr && matchups.length > 0) {
-    const totalMinutes = calculatedTotalHours * 60;
-    actualSlotMin = totalMinutes / matchups.length;
-  }
 
   matchups.forEach((m, i) => {
     // New round header every cycleLen matches
@@ -3938,7 +3979,6 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
   });
 
   lines.push('─'.repeat(30));
-  const displayEndTime = endTimeStr ? endTimeStr.replace('.', ':') : toTime(Math.round(startTotal + matchups.length * actualSlotMin));
   lines.push(`สิ้นสุด ${displayEndTime} น.`);
 
   // ── Build schedule JSON ──
@@ -3992,12 +4032,12 @@ async function getScheduleText(startTimeStr = '17:00', matchMin = 8, breakMin = 
     date: dateStr,
     startTime: startTimeStr,
     matchMinutes: matchMin,
-    breakMinutes: breakMin,
+    breakMinutes: Number(calculatedBreakMin.toFixed(1)),
     totalHours: Number(calculatedTotalHours.toFixed(2)),
     teams: teams,
     totalMatches: scheduleMatches.length,
     totalRounds: totalRounds,
-    endTime: endTimeStr ? endTimeStr.replace('.', ':') : toTime(startTotal + scheduleMatches.length * slotMin),
+    endTime: displayEndTime,
     currentMatch,
     nextMatch,
     imageUrl,

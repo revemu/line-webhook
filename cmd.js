@@ -896,22 +896,29 @@ const COMMAND_REGISTRY = {
     'setweektime': async (context) => COMMAND_REGISTRY['weektime'](context),
     'register': async (context) => { const { is_flex, groupId, member_id } = context; const [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId, member_id); if (is_flex && typeof msg === 'object') return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg }; return { type: 'textV2', text: msg, substitution: sub }; },
     'schedule': async (context) => {
-        const { param, groupId } = context;
+        const { param } = context;
         const theme = await db.getTheme();
-        const args = param.split(/\s+/).filter(Boolean);
-        let startTime = '17:00';
+        const args = (param || '').split(/\s+/).filter(Boolean);
+        let startTime = null;
         let endTime = null;
-        let matchDuration = 8;
-        if (args.length > 0) startTime = args[0];
-        if (args.length > 1) {
-            if (args[1].includes(':') || args[1].includes('.')) endTime = args[1];
-            else matchDuration = parseInt(args[1], 10) || 8;
+        let matchDuration = null;
+
+        for (const arg of args) {
+            if (arg.includes(':') || arg.includes('.')) {
+                if (!startTime) {
+                    startTime = arg;
+                } else if (!endTime) {
+                    endTime = arg;
+                }
+            } else {
+                const parsedNum = parseInt(arg, 10);
+                if (!isNaN(parsedNum) && parsedNum > 0) {
+                    matchDuration = parsedNum;
+                }
+            }
         }
-        if (args.length > 2) {
-            if (args[2].includes(':') || args[2].includes('.')) endTime = args[2];
-            else matchDuration = parseInt(args[2], 10) || 8;
-        }
-        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, 1, 3, endTime);
+
+        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime);
         if (schedJson) return { type: 'flex', altText: `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`, contents: flex.buildScheduleFlex(schedJson, theme) };
         return [{ type: 'text', text: schedText }];
     },
