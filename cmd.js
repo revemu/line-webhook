@@ -377,9 +377,16 @@ const COMMAND_REGISTRY = {
         return [{ type: 'text', text: msg }];
     },
     '+2': async (context) => {
-        console.log(`[+2 CMD] Manual debt list command called by ${context.member_name}`);
+        const isScheduledOrBot = !context.member || context.member.id === 0 || context.member.line_user_id === 'SYSTEM_BOT' || context.member_name === 'System';
+        console.log(`[+2 CMD] Debt list command called by ${context.member_name || 'System'} (isScheduled: ${isScheduledOrBot})`);
         const [msg, sub, debt_count, proceed, debt_val, debt_members] = await db.getDebtList(1);
         console.log(`[+2 CMD] getDebtList(1) returned: debt_count=${debt_count}, proceed=${proceed}, debt_val=${debt_val}, members=${debt_members ? debt_members.length : 0}, subKeys=${sub ? Object.keys(sub).length : 0}`);
+
+        // If run by schedule/bot and there is no debt, skip pushing response text
+        if (isScheduledOrBot && (!debt_count || debt_count === 0)) {
+            console.log('[+2 CMD] No debt members found for scheduled task. Skipping push/reply.');
+            return null;
+        }
 
         const hasSub = sub && typeof sub === 'object' && Object.keys(sub).length > 0 && Object.keys(sub).length <= 20;
         const firstMsg = hasSub

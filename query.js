@@ -6860,18 +6860,14 @@ async function getPendingReplyTasks(groupId) {
 
       if (schedMinutes > currentMinutes) continue; // Not due yet
 
-      // Check if task has expired (validity window)
+      // Check if task has expired (validity window: default 10 minutes if not specified)
       const expireMinutes = (t.expire_minutes !== null && t.expire_minutes !== undefined && Number(t.expire_minutes) > 0)
         ? parseInt(t.expire_minutes, 10)
-        : null;
+        : 10;
 
-      if (expireMinutes !== null) {
-        const expireAtMinutes = schedMinutes + expireMinutes;
-        if (currentMinutes > expireAtMinutes) {
-          // Task has expired without chat activity; mark as executed for today so it won't check again
-          await setScheduledTaskLastRun(t.id, currentDateTimeStr);
-          continue;
-        }
+      const expireAtMinutes = schedMinutes + expireMinutes;
+      if (currentMinutes > expireAtMinutes) {
+        continue; // Scheduled time window has passed, do not trigger
       }
 
       // Check group matching (if task specified a group, must match; if empty, matches active group)
@@ -6893,17 +6889,17 @@ async function getPendingReplyTasks(groupId) {
  * sent together in a single API call with zero push quota consumed.
  * Marks the tasks as executed for today with full datetime.
  * @param {string} groupId 
- * @param {Object} [botMember] 
+ * @param {Object} [triggeringMember] 
  * @returns {Promise<Array<Object>>} Array of message objects to send via replyMessage
  */
-async function dispatchPendingReplyTasks(groupId, botMember = null) {
+async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
   if (!groupId) return [];
   const pendingTasks = await getPendingReplyTasks(groupId);
   if (pendingTasks.length === 0) return [];
 
   const { currentDateTimeStr } = getBangkokCurrent();
   const finalMessages = [];
-  const defaultBotMember = botMember || {
+  const systemBotMember = {
     id: 0,
     line_user_id: 'SYSTEM_BOT',
     name: 'System',
@@ -6920,7 +6916,7 @@ async function dispatchPendingReplyTasks(groupId, botMember = null) {
         const rawCmd = (task.command || '').trim();
         const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
         if (cleanCmd) {
-          const res = await cmdModule.process_cmd(cleanCmd, defaultBotMember, null, groupId);
+          const res = await cmdModule.process_cmd(cleanCmd, systemBotMember, null, groupId);
           if (res) {
             const list = Array.isArray(res) ? res : [res];
             for (const item of list) {
