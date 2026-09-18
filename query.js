@@ -6455,7 +6455,7 @@ function getGroupTag(groupId, maxLength = 18) {
     if (name.length > maxLength) {
       name = name.substring(0, maxLength - 1) + '…';
     }
-    return ` [${name}]`;
+    return `[${name}]`;
   }
 
   // Fallback to shortened group ID if group name not cached yet

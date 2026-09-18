@@ -17,7 +17,7 @@ const lineClient = require('./lineClient');
 const logger = require('./utils/logger');
 const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
 const { spamProtector } = require('./utils/spamProtection');
-const { initScheduler, notifyBaseUrl, notifyActiveGroup } = require('./scheduler');
+const { initScheduler, notifyBaseUrl } = require('./scheduler');
 const { setBaseUrl } = require('./utils/url');
 
 const execPromise = util.promisify(exec);
@@ -103,7 +103,6 @@ async function handleEvent(event) {
         if (event.source && event.source.groupId) {
             const gid = event.source.groupId;
             logger.debug(`${db.getGroupTag(gid)} Incoming event: ${event.type}`);
-            notifyActiveGroup(gid);
             db.syncGroupProfile(gid, lineClient).catch(err => {
                 logger.debug('Error syncing group profile in background:', err.message);
             });

@@ -6,7 +6,6 @@ const taskRegistry = require('./taskRegistry');
 const logger = require('../utils/logger');
 const { setBaseUrl } = require('../utils/url');
 
-let activeGroupId = (workerData && workerData.initialGroupId) || null;
 let currentBaseUrl = (workerData && workerData.baseUrl) || null;
 if (currentBaseUrl) {
   setBaseUrl(currentBaseUrl);
@@ -17,22 +16,13 @@ const DB_RELOAD_INTERVAL_MS = 5 * 60 * 1000; // Reload tasks from DB every 5 min
 
 logger.info('[SchedulerWorker] Starting background scheduler worker thread...');
 
-// 1. Initial task discovery & active group resolution
+// 1. Initial task discovery
 (async () => {
   try {
     await taskRegistry.loadTasks();
     lastDbReloadTime = Date.now();
   } catch (err) {
     logger.error('[SchedulerWorker] Initial task loading error:', err.message);
-  }
-
-  try {
-    if (!activeGroupId) {
-      activeGroupId = await db.getActiveGroupId();
-    }
-    logger.info(`[SchedulerWorker] Initial active groupId: ${activeGroupId || 'none (will resolve on demand)'}`);
-  } catch (err) {
-    logger.error('[SchedulerWorker] Failed to resolve initial active groupId:', err.message);
   }
 
   try {
@@ -64,9 +54,9 @@ async function runTask(task, triggerSource = 'schedule') {
       targetGroupId = await db.getTaskGroupId(task.id);
     }
 
-    // Fallback to activeGroupId or general DB active_group_id
+    // Fallback to environment variable or DB active_group_id
     if (!targetGroupId) {
-      targetGroupId = activeGroupId || (await db.getActiveGroupId());
+      targetGroupId = process.env.LINE_GROUP_ID || (await db.getActiveGroupId());
     }
 
     if (targetGroupId) {
@@ -187,10 +177,7 @@ if (parentPort) {
 
     switch (message.type) {
       case 'UPDATE_GROUP_ID':
-        if (message.groupId && message.groupId !== activeGroupId) {
-          activeGroupId = message.groupId;
-          logger.info(`[SchedulerWorker] Updated active groupId from main thread: ${activeGroupId}`);
-        }
+        // No-op (group routing is managed via scheduled_task_tbl)
         break;
 
       case 'UPDATE_BASE_URL':
