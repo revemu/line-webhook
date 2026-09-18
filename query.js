@@ -6006,200 +6006,176 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     return candidateTeams;
   };
 
-  // 5. Priority Tier Distribution: Tier 1 (priority === 1) and Tier 2 (priority === 2)
-  const distributePriorityTier = (tierNum) => {
-    const tierPlayers = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id) && getMemberPriority(m) === tierNum);
-    const byPos = {};
-    for (const p of tierPlayers) {
-      if (!byPos[p.posCode]) byPos[p.posCode] = [];
-      byPos[p.posCode].push(p);
-    }
+  // Standard position order for distribution
+  const posOrder = ['GK', 'DF', 'DW', 'DM', 'MF', 'AM', 'CF'];
 
-    for (const pos of Object.keys(byPos)) {
-      // Sort avoid rules first within priority tiers to ensure separate team placement
-      const pList = [...byPos[pos]].sort((a, b) => {
-        const aAvoid = hasAvoidRule(a) ? 1 : 0;
-        const bAvoid = hasAvoidRule(b) ? 1 : 0;
-        if (bAvoid !== aAvoid) return bAvoid - aAvoid;
-        return 0;
-      });
+  // Helper to pick the best candidate team with balanced capacity, position room, zero avoid conflicts, and randomized tie-breaking
+  const pickBestTeam = (candidatePool, group, playerPos, isPriority1 = false) => {
+    if (!candidatePool || candidatePool.length === 0) return null;
 
-      for (const player of pList) {
-        if (assignedMemberIds.has(player.member_id)) continue;
-        const group = getUnassignedGroup(player);
-        if (group.length === 0) continue;
+    let pool = candidatePool;
 
-        const candidateTeams = findCandidateTeamsForGroup(group.length);
-        if (candidateTeams.length > 0) {
-          // Prioritize teams that haven't reached max capacity for this position
-          const teamsUnderPosMax = candidateTeams.filter(t => (t.positionCounts[player.posCode] || 0) < getTeamPosLimit(t, player.posCode).max);
-          const poolWithPosRoom = teamsUnderPosMax.length > 0 ? teamsUnderPosMax : candidateTeams;
-
-          // Exclude teams that already have a priority player of this SAME tier and SAME position
-          const tierPositionsInGroup = new Set(group.filter(m => getMemberPriority(m) === tierNum).map(m => m.posCode));
-          const teamsWithoutSameTierAndPos = poolWithPosRoom.filter(t =>
-            !t.members.some(m => getMemberPriority(m) === tierNum && tierPositionsInGroup.has(m.posCode))
-          );
-          let pool = teamsWithoutSameTierAndPos.length > 0 ? teamsWithoutSameTierAndPos : poolWithPosRoom;
-
-          // Filter out teams with avoid conflicts
-          if (hasAvoidRule(group)) {
-            const minConflicts = Math.min(...pool.map(t => countAvoidConflicts(t, group)));
-            const zeroConflictPool = pool.filter(t => countAvoidConflicts(t, group) === minConflicts);
-            if (zeroConflictPool.length > 0) {
-              pool = zeroConflictPool;
-            }
-          }
-
-          const shuffledPool = shuffleArray([...pool]);
-          shuffledPool.sort((a, b) => {
-            const conflictDiff = countAvoidConflicts(a, group) - countAvoidConflicts(b, group);
-            if (conflictDiff !== 0) return conflictDiff;
-            const countDiff = a.members.length - b.members.length;
-            if (countDiff !== 0) return countDiff;
-            const posDiff = (a.positionCounts[player.posCode] || 0) - (b.positionCounts[player.posCode] || 0);
-            if (posDiff !== 0) return posDiff;
-            const ratingDiff = a.ratingSum - b.ratingSum;
-            if (Math.abs(ratingDiff) > 1.0) return ratingDiff;
-            return 0;
-          });
-
-          placeGroupIntoTeam(group, shuffledPool[0]);
-        }
+    // Filter teams that have zero avoid conflicts
+    if (hasAvoidRule(group)) {
+      const minConflicts = Math.min(...pool.map(t => countAvoidConflicts(t, group)));
+      const zeroConflictPool = pool.filter(t => countAvoidConflicts(t, group) === minConflicts);
+      if (zeroConflictPool.length > 0) {
+        pool = zeroConflictPool;
       }
     }
+
+    // If Priority 1, prefer teams that do NOT already have a Priority 1 in this same position
+    if (isPriority1 && playerPos) {
+      const withoutP1InPos = pool.filter(t => !t.members.some(m => getMemberPriority(m) === 1 && m.posCode === playerPos));
+      if (withoutP1InPos.length > 0) {
+        pool = withoutP1InPos;
+      }
+    }
+
+    // Shuffle pool for high variance across runs
+    const shuffledPool = shuffleArray([...pool]);
+    shuffledPool.sort((a, b) => {
+      // 1. Conflict difference (fewest avoid conflicts)
+      const confDiff = countAvoidConflicts(a, group) - countAvoidConflicts(b, group);
+      if (confDiff !== 0) return confDiff;
+
+      // 2. Position count difference (balance position counts)
+      if (playerPos) {
+        const posDiff = (a.positionCounts[playerPos] || 0) - (b.positionCounts[playerPos] || 0);
+        if (posDiff !== 0) return posDiff;
+      }
+
+      // 3. Team member count difference (balance team sizes)
+      const countDiff = a.members.length - b.members.length;
+      if (countDiff !== 0) return countDiff;
+
+      // 4. Rating difference (balance overall skill)
+      const ratingDiff = a.ratingSum - b.ratingSum;
+      if (Math.abs(ratingDiff) > 1.2) return ratingDiff;
+
+      // 5. Random tie-break
+      return 0;
+    });
+
+    return shuffledPool[0];
   };
 
-  // Distribute Tier 1 priority players first, then Tier 2 priority players
-  distributePriorityTier(1);
-  distributePriorityTier(2);
-
-  // 6. Remaining Strict Bound Groups (for regular players with matching team > 0)
-  const remainingGroupsMap = {};
+  // =========================================================================
+  // Phase 1: Place Bound Groups First (member_team_week_tbl.team > 0)
+  // Members sharing the same team number must be placed on the same team
+  // =========================================================================
+  const boundGroupsMap = {};
   for (const m of registeredMembers) {
-    if (!assignedMemberIds.has(m.member_id)) {
-      const gNum = Number(m.week_team);
-      if (!isNaN(gNum) && gNum > 0) {
-        if (!remainingGroupsMap[gNum]) remainingGroupsMap[gNum] = [];
-        remainingGroupsMap[gNum].push(m);
-      }
+    const gNum = Number(m.week_team);
+    if (!isNaN(gNum) && gNum > 0) {
+      if (!boundGroupsMap[gNum]) boundGroupsMap[gNum] = [];
+      boundGroupsMap[gNum].push(m);
     }
   }
 
-  const remainingGroupNumbers = Object.keys(remainingGroupsMap).map(Number);
-  remainingGroupNumbers.sort((a, b) => remainingGroupsMap[b].length - remainingGroupsMap[a].length);
+  const boundGroupNums = shuffleArray(Object.keys(boundGroupsMap).map(Number));
+  // Sort descending by size so larger bound groups get placed first
+  boundGroupNums.sort((a, b) => boundGroupsMap[b].length - boundGroupsMap[a].length);
 
-  for (const gNum of remainingGroupNumbers) {
-    const group = remainingGroupsMap[gNum].filter(m => !assignedMemberIds.has(m.member_id));
+  for (const gNum of boundGroupNums) {
+    const group = boundGroupsMap[gNum].filter(m => !assignedMemberIds.has(m.member_id));
     if (group.length === 0) continue;
 
     const candidateTeams = findCandidateTeamsForGroup(group.length);
-    if (candidateTeams.length > 0) {
-      let pool = candidateTeams;
-      if (hasAvoidRule(group)) {
-        const minConflicts = Math.min(...pool.map(t => countAvoidConflicts(t, group)));
-        const zeroConflictPool = pool.filter(t => countAvoidConflicts(t, group) === minConflicts);
-        if (zeroConflictPool.length > 0) {
-          pool = zeroConflictPool;
-        }
-      }
-
-      const shuffledPool = shuffleArray([...pool]);
-      shuffledPool.sort((a, b) => {
-        const conflictDiff = countAvoidConflicts(a, group) - countAvoidConflicts(b, group);
-        if (conflictDiff !== 0) return conflictDiff;
-        const countDiff = a.members.length - b.members.length;
-        if (countDiff !== 0) return countDiff;
-        return a.ratingSum - b.ratingSum;
-      });
-
-      placeGroupIntoTeam(group, shuffledPool[0]);
+    const bestTeam = pickBestTeam(candidateTeams, group, group[0]?.posCode, false);
+    if (bestTeam) {
+      placeGroupIntoTeam(group, bestTeam);
     }
   }
 
-  // 7. Balanced Draft for Regular Players by Position with Randomization
-  const regularPlayers = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id) && getMemberPriority(m) !== 1 && getMemberPriority(m) !== 2);
-  const regularByPos = {};
-  const posOrder = ['GK', 'CF', 'AM', 'DM', 'DF', 'DW', 'MF'];
-  for (const p of regularPlayers) {
-    const code = p.posCode;
-    if (!regularByPos[code]) regularByPos[code] = [];
-    regularByPos[code].push(p);
-  }
+  // =========================================================================
+  // Phase 2: Place Priority 1 for each position
+  // =========================================================================
+  const allPositionsShuffled = shuffleArray([...posOrder]);
+  for (const pos of allPositionsShuffled) {
+    const p1InPos = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id) && getMemberPriority(m) === 1 && m.posCode === pos);
+    shuffleArray(p1InPos);
 
-  const allPosKeys = [...new Set([...posOrder, ...Object.keys(regularByPos)])];
-  for (const pos of allPosKeys) {
-    const playersInPos = regularByPos[pos] || [];
-    if (playersInPos.length === 0) continue;
-
-    // Sort players: avoid rules evaluated first, then by rating with slight jitter
-    playersInPos.sort((a, b) => {
-      const aAvoid = hasAvoidRule(a) ? 1 : 0;
-      const bAvoid = hasAvoidRule(b) ? 1 : 0;
-      if (bAvoid !== aAvoid) return bAvoid - aAvoid;
-      const diff = b.rating - a.rating;
-      if (Math.abs(diff) < 0.2) return Math.random() - 0.5;
-      return diff;
-    });
-
-    for (const player of playersInPos) {
+    for (const player of p1InPos) {
       if (assignedMemberIds.has(player.member_id)) continue;
       const group = getUnassignedGroup(player);
       if (group.length === 0) continue;
 
       const candidateTeams = findCandidateTeamsForGroup(group.length);
-      if (candidateTeams.length > 0) {
-        // Prioritize teams that haven't reached max capacity for this position
-        const teamsUnderPosMax = candidateTeams.filter(t => (t.positionCounts[pos] || 0) < getTeamPosLimit(t, pos).max);
-        let pool = teamsUnderPosMax.length > 0 ? teamsUnderPosMax : candidateTeams;
+      const teamsUnderPosMax = candidateTeams.filter(t => (t.positionCounts[pos] || 0) < getTeamPosLimit(t, pos).max);
+      const pool = teamsUnderPosMax.length > 0 ? teamsUnderPosMax : candidateTeams;
 
-        // Filter out teams with avoid conflicts
-        if (hasAvoidRule(group)) {
-          const minConflicts = Math.min(...pool.map(t => countAvoidConflicts(t, group)));
-          const zeroConflictPool = pool.filter(t => countAvoidConflicts(t, group) === minConflicts);
-          if (zeroConflictPool.length > 0) {
-            pool = zeroConflictPool;
-          }
-        }
-
-        const shuffledTeams = shuffleArray([...pool]);
-        shuffledTeams.sort((a, b) => {
-          const conflictDiff = countAvoidConflicts(a, group) - countAvoidConflicts(b, group);
-          if (conflictDiff !== 0) return conflictDiff;
-          const posCountDiff = (a.positionCounts[pos] || 0) - (b.positionCounts[pos] || 0);
-          if (posCountDiff !== 0) return posCountDiff;
-          const countDiff = a.members.length - b.members.length;
-          if (countDiff !== 0) return countDiff;
-          const ratingDiff = a.ratingSum - b.ratingSum;
-          if (Math.abs(ratingDiff) > 1.2) return ratingDiff;
-          return 0; // Keep random shuffle order for close ratings
-        });
-
-        placeGroupIntoTeam(group, shuffledTeams[0]);
+      const bestTeam = pickBestTeam(pool, group, pos, true);
+      if (bestTeam) {
+        placeGroupIntoTeam(group, bestTeam);
       }
     }
   }
 
-  // 8. Fallback for any remaining unassigned player
+  // =========================================================================
+  // Phase 3: Push avoid_ids (Players with conflict avoidance constraints)
+  // =========================================================================
+  const avoidPlayers = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id) && hasAvoidRule(m));
+  shuffleArray(avoidPlayers);
+
+  for (const player of avoidPlayers) {
+    if (assignedMemberIds.has(player.member_id)) continue;
+    const group = getUnassignedGroup(player);
+    if (group.length === 0) continue;
+
+    const candidateTeams = findCandidateTeamsForGroup(group.length);
+    const teamsUnderPosMax = candidateTeams.filter(t => (t.positionCounts[player.posCode] || 0) < getTeamPosLimit(t, player.posCode).max);
+    const pool = teamsUnderPosMax.length > 0 ? teamsUnderPosMax : candidateTeams;
+
+    const bestTeam = pickBestTeam(pool, group, player.posCode, false);
+    if (bestTeam) {
+      placeGroupIntoTeam(group, bestTeam);
+    }
+  }
+
+  // =========================================================================
+  // Phase 4: Push remaining members in positions by priority (Priority 2, then Priority 0/Regular)
+  // =========================================================================
+  const remainingTiers = [2, 0];
+  for (const tier of remainingTiers) {
+    const positionsInTier = shuffleArray([...posOrder]);
+    for (const pos of positionsInTier) {
+      const playersInTier = registeredMembers.filter(m => 
+        !assignedMemberIds.has(m.member_id) && 
+        (tier === 0 ? (getMemberPriority(m) !== 1 && getMemberPriority(m) !== 2) : getMemberPriority(m) === tier) &&
+        m.posCode === pos
+      );
+      shuffleArray(playersInTier);
+
+      for (const player of playersInTier) {
+        if (assignedMemberIds.has(player.member_id)) continue;
+        const group = getUnassignedGroup(player);
+        if (group.length === 0) continue;
+
+        const candidateTeams = findCandidateTeamsForGroup(group.length);
+        const teamsUnderPosMax = candidateTeams.filter(t => (t.positionCounts[pos] || 0) < getTeamPosLimit(t, pos).max);
+        const pool = teamsUnderPosMax.length > 0 ? teamsUnderPosMax : candidateTeams;
+
+        const bestTeam = pickBestTeam(pool, group, pos, false);
+        if (bestTeam) {
+          placeGroupIntoTeam(group, bestTeam);
+        }
+      }
+    }
+  }
+
+  // =========================================================================
+  // Phase 5: Fallback for any unassigned player
+  // =========================================================================
   for (const player of registeredMembers) {
     if (!assignedMemberIds.has(player.member_id)) {
       const group = getUnassignedGroup(player);
       if (group.length === 0) continue;
       const candidateTeams = findCandidateTeamsForGroup(group.length);
-      let pool = candidateTeams.length > 0 ? candidateTeams : teams;
-      if (hasAvoidRule(group)) {
-        const minConflicts = Math.min(...pool.map(t => countAvoidConflicts(t, group)));
-        const zeroConflictPool = pool.filter(t => countAvoidConflicts(t, group) === minConflicts);
-        if (zeroConflictPool.length > 0) {
-          pool = zeroConflictPool;
-        }
+      const bestTeam = pickBestTeam(candidateTeams.length > 0 ? candidateTeams : teams, group, player.posCode, false);
+      if (bestTeam) {
+        placeGroupIntoTeam(group, bestTeam);
       }
-      pool.sort((a, b) => {
-        const conflictDiff = countAvoidConflicts(a, group) - countAvoidConflicts(b, group);
-        if (conflictDiff !== 0) return conflictDiff;
-        return a.members.length - b.members.length;
-      });
-      placeGroupIntoTeam(group, pool[0]);
     }
   }
 
