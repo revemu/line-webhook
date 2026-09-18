@@ -171,6 +171,10 @@ class TaskRegistry {
         return false;
       }
 
+      if (force) {
+        this.lastExecution.clear();
+      }
+
       const isInitial = !this.isLoaded;
       this.tasks.clear();
 
@@ -253,10 +257,7 @@ class TaskRegistry {
 
       // reply_on_chat tasks: log schedule trigger & pending status, then mark minute logged so worker waits for incoming chat
       if (task.deliveryMode === 'reply_on_chat') {
-        const isRunToday = task.last_run_date && String(task.last_run_date).startsWith(todayDateStr);
-        if (!isRunToday) {
-          logger.info(`[SchedulerWorker] Task '${id}' (${task.name}) matched schedule (${weekdayShort} @ ${currentTimeStr}) [mode: reply_on_chat] -> Status: PENDING (Waiting for next chat message in group to reply)`);
-        }
+        logger.info(`[SchedulerWorker] Task '${id}' (${task.name}) matched schedule (${weekdayShort} @ ${currentTimeStr}) [mode: reply_on_chat] -> Status: PENDING (Waiting for next chat message in group to reply)`);
         this.lastExecution.set(id, currentMinuteKey);
         continue;
       }

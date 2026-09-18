@@ -6840,13 +6840,19 @@ async function getPendingReplyTasks(groupId) {
     const pending = [];
     for (const t of tasks) {
       if (t.delivery_mode !== 'reply_on_chat') continue;
-      if (t.last_run_date && String(t.last_run_date).startsWith(todayDateStr)) continue; // Already executed today
+      const schedTime = (t.schedule_time || '20:00').substring(0, 5);
+      // Check if already executed at or after today's scheduled time
+      if (t.last_run_date && String(t.last_run_date).startsWith(todayDateStr)) {
+        const lastRunTime = String(t.last_run_date).substring(11, 16);
+        if (lastRunTime >= schedTime) {
+          continue; // Already executed for this scheduled time today
+        }
+      }
 
       // Check day matching
       if (!matchesScheduleDay(t.schedule_days, dow)) continue;
 
       // Check if scheduled time has arrived (schedMinutes <= currentMinutes)
-      const schedTime = (t.schedule_time || '20:00').substring(0, 5);
       const [sH, sM] = schedTime.split(':').map(Number);
       const [cH, cM] = currentTimeStr.split(':').map(Number);
       const schedMinutes = (sH || 0) * 60 + (sM || 0);
