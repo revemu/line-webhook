@@ -1,112 +1,144 @@
 const express = require('express');
 const crypto = require('crypto');
-const { Client, middleware } = require('@line/bot-sdk');
+const { middleware } = require('@line/bot-sdk');
 const fs = require('fs').promises;
 const path = require('path');
 const { exec } = require('child_process');
 const util = require('util');
 const axios = require('axios');
+const https = require('https');
+const http = require('http');
 const db = require('./query');
 const flex = require('./flex');
 const cmd = require('./cmd');
+const qrGen = require('./qr_gen');
+const slipService = require('./slip');
+const lineClient = require('./lineClient');
+const logger = require('./utils/logger');
+const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date');
+const { spamProtector } = require('./utils/spamProtection');
+const { initScheduler, notifyBaseUrl } = require('./scheduler');
+const { setBaseUrl } = require('./utils/url');
 
 const execPromise = util.promisify(exec);
 
+const fsSync = require('fs');
+const { Jimp } = require('jimp');
+const jsQR = require('jsqr');
+const { readBarcodes, readBarcodesFromImageData, setZXingModuleOverrides } = require('zxing-wasm');
+
+// Configure zxing-wasm to load local .wasm binary from node_modules (prevents CDN fetch failures)
+try {
+    const fullWasmPath = path.join(__dirname, 'node_modules', 'zxing-wasm', 'dist', 'full', 'zxing_full.wasm');
+    const readerWasmPath = path.join(__dirname, 'node_modules', 'zxing-wasm', 'dist', 'reader', 'zxing_reader.wasm');
+    const targetWasmPath = fsSync.existsSync(fullWasmPath) ? fullWasmPath : (fsSync.existsSync(readerWasmPath) ? readerWasmPath : null);
+
+    if (targetWasmPath) {
+        const wasmBinary = fsSync.readFileSync(targetWasmPath);
+        setZXingModuleOverrides({ wasmBinary });
+    }
+} catch (wasmErr) {
+    logger.warn('⚠️ Could not load local WASM binary for zxing-wasm:', wasmErr.message);
+}
+
 require('dotenv').config({ quiet: true });
 
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 50, keepAliveMsecs: 30000 });
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 50, keepAliveMsecs: 30000 });
+const lineDataAxios = axios.create({ httpsAgent, httpAgent, timeout: 10000 });
+
 const app = express();
-
-// LINE Bot configuration
-const config = {
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-    channelSecret: process.env.LINE_CHANNEL_SECRET,
-};
-
-
-
-function formatDate(curDate) {
-    if (!curDate) return '';
-    const dObj = (curDate instanceof Date) ? curDate : new Date(curDate);
-    if (isNaN(dObj.getTime())) {
-        return typeof curDate === 'string' ? curDate : '';
-    }
-    const d = ('0' + dObj.getDate()).slice(-2);
-    const m = ('0' + (dObj.getMonth() + 1)).slice(-2);
-    const y = dObj.getFullYear();
-    const h = ('0' + dObj.getHours()).slice(-2);
-    const min = ('0' + dObj.getMinutes()).slice(-2);
-    const s = ('0' + dObj.getSeconds()).slice(-2);
-    return `${y}-${m}-${d} ${h}:${min}:${s}`;
-}
+app.set('trust proxy', true);
+const config = lineClient.config;
 
 function getFormatDate(date, format = 'short') {
-    if (!date) return '';
-    if (!(date instanceof Date)) {
-        date = new Date(date);
-    }
-    const thaiMonths = [
-        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-    ];
-    const thaiMonthsShort = [
-        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-    ];
-    //const d = ('0' + date.getDate()).slice(-2);
-    const d = date.getDate();
-    let y = (date.getFullYear() + 543).toString();
-    let month;
-    switch (format) {
-        case 'full':
-            month = thaiMonths[date.getMonth()];
-            break;
-        case 'short':
-            month = thaiMonthsShort[date.getMonth()];
-            y = `${y.slice(-2)}`;
-            break;
-    }
-
-    const h = ('0' + date.getHours()).slice(-2);
-    const min = ('0' + date.getMinutes()).slice(-2);
-    const s = ('0' + date.getSeconds()).slice(-2);
-
-    return `${d} ${month} ${y} ${h}:${min}:${s}`;
+    return getFormatDateUtil(date, format, { buddhistEra: true, includeTime: true });
 }
 
-
-// Create LINE SDK client
-const client = new Client(config);
+// Function to reply to LINE user using SDK
+const replyMessage = lineClient.replyMessage;
 
 // Middleware to dynamically capture base URL from request host (for Nginx proxy support)
 app.use((req, res, next) => {
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.headers['host'] || req.get('host');
-    global.baseWebhookUrl = `${proto}://${host}`;
+    let baseUrl = `${proto}://${host}`.trim().replace(/\/+$/, '');
+    if (baseUrl.startsWith('http://') && !baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1')) {
+        baseUrl = baseUrl.replace(/^http:\/\//i, 'https://');
+    }
+
+    if (baseUrl && baseUrl !== global.baseWebhookUrl) {
+        global.baseWebhookUrl = baseUrl;
+        setBaseUrl(baseUrl);
+        notifyBaseUrl(baseUrl);
+        db.saveBaseUrl(baseUrl).catch(err => {
+            logger.error('Error persisting base URL to DB:', err.message);
+        });
+    }
     next();
 });
 
 // Use LINE SDK middleware for webhook handling
 app.use('/webhook', middleware(config));
 
+// Webhook POST endpoint
+app.post('/webhook', async (req, res) => {
+    try {
+        const events = req.body.events;
+        res.status(200).send('OK');
+        if (Array.isArray(events)) {
+            for (const event of events) {
+                handleEvent(event);
+            }
+        }
+    } catch (error) {
+        logger.error('Error processing webhook events:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+// Handle incoming webhook events
+async function handleEvent(event) {
+    try {
+        if (event.source && event.source.groupId) {
+            const gid = event.source.groupId;
+            logger.debug(`${db.getGroupTag(gid)} Incoming event: ${event.type}`);
+            db.syncGroupProfile(gid, lineClient).catch(err => {
+                logger.debug('Error syncing group profile in background:', err.message);
+            });
+        }
+        if (event.type === 'message') {
+            await handleMessage(event);
+        } else if (event.type === 'memberJoined') {
+            await handleJoinedMember(event);
+        } else {
+            logger.debug('Received unhandled event type:', event.type, event);
+        }
+    } catch (error) {
+        logger.error('Error processing event:', error.message || error);
+    }
+}
+
 // Serve static assets from project directory and 'pic' folder
 app.use('/img/qr', express.static(path.join(__dirname, 'qr')));
+app.use('/img/team', express.static(path.join(__dirname, 'img', 'team')));
 app.use('/img', express.static(path.join(__dirname, 'img')));
 app.use(express.static(__dirname));
 
-// Serve green_dot.png static asset
-app.get('/img/green_dot.png', (req, res) => {
+// Serve green_dot.png static asset and fallback route aliases
+/*app.get(['/green_dot.png', '/img/green_dot.png', '/green_pulse_true.png', '/img/green_pulse_true.png'], (req, res) => {
     res.sendFile(path.join(__dirname, 'green_dot.png'));
-});
+});*/
 
 
-// Function to get image content from LINE
+// Function to get image content from LINE (Optimized: Axios with Keep-Alive Agent ~1.37ms/req)
 async function getImageAxios(messageId) {
-    let access_token = config.channelAccessToken;
+    const access_token = config.channelAccessToken;
     const maxRetries = 3;
     let retries = 0;
     while (retries <= maxRetries) {
         try {
-            const response = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+            const response = await lineDataAxios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
                 headers: {
                     'Authorization': `Bearer ${access_token}`
                 },
@@ -115,7 +147,7 @@ async function getImageAxios(messageId) {
             return Buffer.from(response.data);
         } catch (error) {
             retries++;
-            console.error(`Error getting image content, retried: ${retries}`);
+            logger.error(`Error getting image content (attempt ${retries}/${maxRetries}):`, error.message || error);
             if (retries > maxRetries)
                 throw error;
             else await new Promise(resolve => setTimeout(resolve, 1000));
@@ -126,78 +158,46 @@ async function getImageAxios(messageId) {
 
 
 // Function to verify bank slip via EasySlip API v2 using QR Code payload
-const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
-
-async function verifyEasySlipByPayload(payload) {
-    try {
-        const response = await axios.post('https://api.easyslip.com/v2/verify/bank', {
-            payload: payload
-        }, {
-            headers: {
-                'Authorization': `Bearer ${EASYSLIP_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 10000
-        });
-        return response.data;
-    } catch (error) {
-        if (error.response && error.response.data) {
-            console.error('[EasySlip] Payload verification response:', error.response.data);
-            return error.response.data;
-        }
-        console.error('[EasySlip] Payload verification error:', error.message);
-        return null;
-    }
-}
-
-async function verifyEasySlipByImage(imageBuffer) {
-    try {
-        const response = await axios.post('https://api.easyslip.com/v2/verify/bank', {
-            base64: imageBuffer.toString('base64')
-        }, {
-            headers: {
-                'Authorization': `Bearer ${EASYSLIP_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 20000
-        });
-        return response.data;
-    } catch (error) {
-        if (error.response && error.response.data) {
-            console.error('[EasySlip] Image verification response:', error.response.data);
-            return error.response.data;
-        }
-        console.error('[EasySlip] Image verification error:', error.message);
-        return null;
-    }
-}
-// Function to read QR code from image buffer using zbarimg CLI
+const verifyEasySlipByPayload = slipService.verifyEasySlipByPayload;
+const verifyEasySlipByImage = slipService.verifyEasySlipByImage;
+// Function to read QR code from image buffer (Primary: zxing-wasm in-memory ~6ms, Secondary: zbarimg CLI, Tertiary: jsQR)
 async function readQRCode(imageBuffer) {
+    let jimpImage = null;
+
+    // 1. Primary Pass: zxing-wasm (Fast WebAssembly scanner, in-memory)
+    /*try {
+        jimpImage = await Jimp.read(imageBuffer);
+        const imageData = {
+            data: new Uint8ClampedArray(jimpImage.bitmap.data),
+            width: jimpImage.bitmap.width,
+            height: jimpImage.bitmap.height
+        };
+        //const results = await readBarcodesFromImageData(imageData, { formats: ['QRCode'] });
+        const results = await readBarcodes(imageData, { formats: ['QRCode'] });
+        if (results && results.length > 0) {
+            return results.map(r => ({ type: r.format || 'QR-Code', data: r.text }));
+        }
+    } catch (zxingErr) {
+        logger.warn('[readQRCode] Primary zxing-wasm decoder warning:', zxingErr.message || zxingErr);
+    }*/
+
+    // 2. Secondary Pass: zbarimg CLI (Native C scanner fallback)
     let tempFilePath = null;
     try {
-        // Create temporary directory
-        const tempDir = "./temp/"
-        //await fs.mkdir(tempDir, { recursive: true });
+        const tempDir = "./temp/";
+        await fs.mkdir(tempDir, { recursive: true });
 
-        // Create temporary file with unique name
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substr(2, 9);
         tempFilePath = path.join(tempDir, `qr_${timestamp}_${randomStr}.jpg`);
-
-        // Write buffer to temporary file
         await fs.writeFile(tempFilePath, imageBuffer);
 
-        // Execute zbarimg command
-        const { stdout, stderr } = await execPromise(`zbarimg "${tempFilePath}"`);
-
-        // Clean up temporary file
+        const { stdout } = await execPromise(`zbarimg "${tempFilePath}"`);
         await fs.unlink(tempFilePath);
 
         if (stdout && stdout.trim()) {
-            // Parse zbarimg output
             const lines = stdout.trim().split('\n');
             const codes = lines.map(line => {
-                // zbarimg output format: "CODE-TYPE:data"
                 const colonIndex = line.indexOf(':');
                 if (colonIndex > 0) {
                     const type = line.substring(0, colonIndex);
@@ -205,31 +205,36 @@ async function readQRCode(imageBuffer) {
                     return { type, data };
                 }
                 return { type: 'UNKNOWN', data: line };
-            }).filter(code => code.data); // Filter out empty results
+            }).filter(code => code.data);
 
-            return codes.length > 0 ? codes : null;
-        }
-
-        return null;
-    } catch (error) {
-        // Clean up temporary file in case of error
-        if (tempFilePath) {
-            try {
-                await fs.unlink(tempFilePath);
-            } catch (unlinkError) {
-                console.error('Error cleaning up temp file:', unlinkError);
+            if (codes.length > 0) {
+                return codes;
             }
         }
-
-        // Check if error is due to no codes found (zbarimg exits with code 4)
-        if (error.code === 4) {
-            //console.log('No barcodes/QR codes found in image');
-            return null;
+    } catch (error) {
+        if (tempFilePath) {
+            try { await fs.unlink(tempFilePath); } catch (unlinkError) { }
         }
-
-        console.error('Error reading QR/barcode with zbarimg:', error.message);
-        return null;
     }
+    /*
+    // 3. Tertiary Fallback Pass: jsQR + Jimp in-memory
+    try {
+        if (!jimpImage) {
+            jimpImage = await Jimp.read(imageBuffer);
+        }
+        const qrCode = jsQR(
+            new Uint8ClampedArray(jimpImage.bitmap.data),
+            jimpImage.bitmap.width,
+            jimpImage.bitmap.height
+        );
+        if (qrCode && qrCode.data) {
+            return [{ type: 'QR-Code', data: qrCode.data }];
+        }
+    } catch (jsqrErr) {
+        console.warn('[readQRCode] Tertiary jsQR fallback warning:', jsqrErr.message);
+    }*/
+
+    return null;
 }
 
 // Function to check if zbarimg is installed
@@ -242,86 +247,18 @@ async function checkZbarimgInstalled() {
     }
 }
 
-// Function to reply to LINE user using SDK
-async function replyMessage(replyToken, messages) {
-    try {
-        await client.replyMessage(replyToken, messages);
-    } catch (error) {
-        console.error('Error replying message:', error);
-        let details = null;
-        if (error.response && error.response.data) {
-            details = error.response.data;
-        } else if (error.originalError && error.originalError.response && error.originalError.response.data) {
-            details = error.originalError.response.data;
-        } else if (error.data) {
-            details = error.data;
-        }
-        if (details) {
-            console.error('LINE API Error Details:', JSON.stringify(details, null, 2));
-        } else {
-            console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-        }
-        throw error;
-    }
-}
-
-// Webhook endpoint - LINE SDK middleware handles signature validation
-/*app.post('/webhook', (req, res) => {
-    const events = req.body.events;
-
-    // Process each event
-    Promise.all(events.map(handleEvent))
-        .then(() => res.status(200).send('OK'))
-        .catch((error) => {
-            console.error('Error processing events:', error);
-            res.status(500).send('Internal Server Error');
-        });
-});*/
-
-app.post('/webhook', async (req, res) => {
-    try {
-        const events = req.body.events;
-        res.status(200).send('OK');
-        for (const event of events) {
-            handleEvent(event);
-        }
-    } catch (error) {
-        console.error('Error processing events:', error);
-        res.status(500).send('Internal Server Error');
-    }
-});
-
-// Handle incoming events
-async function handleEvent(event) {
-    //console.log('Received event:', event.type);
-    try {
-        if (event.type === 'message') {
-            await handleMessage(event);
-        } else if (event.type === 'memberJoined') {
-            await handleJoinedMember(event);
-        } else {
-            console.log('Received event:', event.type);
-            console.log(event);
-        }
-    } catch (error) {
-        console.error('Error processing events', error);
-        //console.log(event) ;
-    }
-
-}
-
 async function handleJoinedMember(event) {
     try {
-        console.log(event);
+        logger.debug('Joined event:', event);
         const { replyToken, source } = event;
         for (let member of event.joined.members) {
             if (member.type === "user") {
-                console.log(`Member ${member.userId} joined group`);
-                const res = await client.getGroupMemberProfile(source.groupId, member.userId);
-                if (res.displayName != '') {
+                logger.info(`Member ${member.userId} joined group`);
+                const res = await lineClient.fetchUserProfile(member.userId, source.groupId);
+                if (res && res.displayName) {
                     const line_name = `@${res.displayName}`;
-                    console.log(`add new member ${member.userId}: ${line_name}`);
-                    await db.newMember(member.userId, line_name);
+                    logger.info(`add new member ${member.userId}: ${line_name}`);
+                    await db.newMember(member.userId, line_name, res.pictureUrl);
                     const theme = await db.getTheme();
                     const week = await db.queryWeekID(0);
                     const dateStr = week.length > 0 ? week[0].date : '';
@@ -340,55 +277,69 @@ async function handleJoinedMember(event) {
             }
         }
     } catch (error) {
-        console.error('Error add joined member:', error);
+        logger.error('Error add joined member:', error);
     }
+}
+
+function normalizeProfilePic(url) {
+    if (!url || typeof url !== 'string') return '';
+    let u = url.trim();
+    if (u === '' || u.toLowerCase() === 'none' || u.toLowerCase() === 'null') return '';
+    u = u.replace(/^http:\/\//i, 'https://');
+    u = u.replace(/https:\/\/sprofile\.line-scdn\.net\//i, 'https://profile.line-scdn.net/');
+    u = u.replace(/\/preview$/i, '').replace(/\/+$/, '');
+    return u;
 }
 
 async function manageMember(source, member, line_name, pictureUrl) {
-    line_name = `@${line_name}`;
+    line_name = `@${(line_name || '').trim()}`;
     if (member.length > 0) {
-        const existingPic = member[0].picture_url;
-        if (line_name !== member[0].name || (pictureUrl && pictureUrl !== existingPic)) {
-            console.log(`update existing member info ${source.userId}: ${member[0].name} => ${line_name}, pic update: ${pictureUrl !== existingPic}`);
-            await db.updateMemberInfo(member[0].id, line_name, pictureUrl);
+        const currentMember = member[0];
+        const existingName = (currentMember.name || '').trim();
+        const existingPic = currentMember.picture_url;
+
+        const normExistingPic = normalizeProfilePic(existingPic);
+        const normNewPic = normalizeProfilePic(pictureUrl);
+
+        const isNameChanged = line_name !== '' && line_name !== existingName;
+        const isPicChanged = Boolean(normNewPic && normNewPic !== normExistingPic);
+
+        if (isNameChanged || isPicChanged) {
+            const finalName = isNameChanged ? line_name : currentMember.name;
+            const finalPic = isPicChanged ? pictureUrl : existingPic;
+            logger.info(`update existing member info ${source.userId}: ${currentMember.name} => ${finalName}, pic update: ${isPicChanged}`);
+            await db.updateMemberInfo(currentMember.id, finalName, finalPic);
+            currentMember.name = finalName;
+            currentMember.picture_url = finalPic;
+            currentMember.pictureUrl = finalPic;
         }
     } else {
-        console.log(`add new member ${source.userId}: ${line_name}`);
+        logger.info(`add new member ${source.userId}: ${line_name}`);
         await db.newMember(source.userId, line_name, pictureUrl);
     }
-
 }
 
-// Handle incoming messages
 async function handleMessage(event) {
     const { source, message } = event;
     const { userId, groupId } = source;
 
-    //console.log(`[handleMessage] Querying LINE profile for userId: ${userId}, groupId: ${groupId || 'none'}`);
-    // Parallel fetch member and group profile if applicable
-    const [member, groupProfile] = await Promise.all([
+    // Parallel fetch member and group/user profile
+    let [member, profile] = await Promise.all([
         db.queryMemberbyLineID(userId),
-        groupId ? client.getGroupMemberProfile(groupId, userId).catch((err) => {
-            console.error(`[handleMessage] getGroupMemberProfile failed:`, err.message);
-            if (err.statusCode) {
-                console.error(`[handleMessage] LINE API Status Code: ${err.statusCode}`);
-            }
-            if (err.originalError && err.originalError.response) {
-                console.error(`[handleMessage] LINE API Response Data:`, JSON.stringify(err.originalError.response.data));
-            }
-            return null;
-        }) : null
+        lineClient.fetchUserProfile(userId, groupId)
     ]);
 
-    if (groupProfile) {
-        //console.log(`[handleMessage] Successfully fetched profile from LINE: displayName=${groupProfile.displayName}, pictureUrl=${groupProfile.pictureUrl}`);
+    if (profile && profile.displayName) {
+        await manageMember(source, member, profile.displayName, profile.pictureUrl);
+        if (member.length === 0) {
+            member = await db.queryMemberbyLineID(userId);
+        }
     }
 
-    if (groupId && groupProfile && groupProfile.displayName) {
-        await manageMember(source, member, groupProfile.displayName, groupProfile.pictureUrl);
+    if (member.length === 0) {
+        logger.warn(`[handleMessage] Skipping message: Unable to register member for userId: ${userId}`);
+        return;
     }
-
-    if (member.length === 0) return;
 
     switch (message.type) {
         case 'image':
@@ -396,268 +347,164 @@ async function handleMessage(event) {
         case 'text':
             return await handleTextMessage(event, member[0]);
         case 'sticker':
-            return handleStickerMessage(event, member[0]);
+            return await handleStickerMessage(event, member[0]);
         default:
-            console.log(`Received message type: ${message.type}`);
+            logger.debug(`Received message type: ${message.type}`);
     }
 }
 
 async function handleImageMessage(event, member) {
     const { replyToken, message, source } = event;
+    const groupTag = db.getGroupTag(source.groupId);
     try {
-        console.log(`${member.name}: sent image! need processing...`);
+        logger.info(`${member.name}${groupTag}: sent image! need processing...`);
         const startTime = Date.now();
         const imageBuffer = await getImageAxios(message.id);
+        const tDownload = Date.now() - startTime;
 
-        // Save image to img/slip/
-        const imgSlipDir = path.join(__dirname, 'img', 'slip');
-        try {
-            await fs.mkdir(imgSlipDir, { recursive: true });
-        } catch (e) { }
-        const slipFileName = `slip_${Date.now()}_${message.id}.jpg`;
-        const slipFilePath = path.join(imgSlipDir, slipFileName);
-        const relativeSlipPath = `/img/slip/${slipFileName}`;
-        await fs.writeFile(slipFilePath, imageBuffer);
-
+        const tQrStart = Date.now();
         const codes = await readQRCode(imageBuffer);
+        const tQr = Date.now() - tQrStart;
+        logger.debug(`Time processed image download + QR scan: ${Date.now() - startTime} ms`);
 
-        console.log(`Time processed image elapsed: ${Date.now() - startTime} ms`);
+        if (codes && codes.length > 0) {
+            const qrCode = codes[0].data;
+            logger.debug('QR code detected:', qrCode);
 
-        if (!codes || codes.length === 0) {
-            console.log('No QR code detected in image, skipping message.');
-            return;
-        }
+            const handledAsSlip = await slipService.processPaymentSlip({
+                event,
+                member,
+                imageBuffer,
+                qrCode,
+                db,
+                replyMessage,
+                getFormatDate,
+                timing: { tDownload, tQr }
+            });
 
-        const qrCode = codes[0].data;
-        console.log('QR code detected:', qrCode);
-
-        let isSlipValid = false;
-        let slipData = null;
-        let isDuplicate = false;
-        let cachedSlipId = null;
-
-        // Check for duplicate in DB
-        const cachedSlip = await db.getSlipByQRCode(qrCode);
-        if (cachedSlip) {
-            if (cachedSlip.data) {
-                // Cached with full JSON data - treat as duplicate
-                console.log('[EasySlip] Slip verified from cache (duplicate)');
-                slipData = cachedSlip.data;
-                isSlipValid = true;
-                isDuplicate = true;
-            } else {
-                // Cached but no JSON (previous API call failed) - re-verify via API
-                console.log('[EasySlip] Slip found in cache but no JSON data, re-verifying via API...');
-                cachedSlipId = cachedSlip.id;
-                const easySlipRes = await verifyEasySlipByPayload(qrCode);
-                if (easySlipRes && easySlipRes.success === true) {
-                    console.log('[EasySlip] Re-verification successful, updating existing record');
-                    slipData = easySlipRes.data;
-                    isSlipValid = true;
-                    isDuplicate = true;
-                } else {
-                    if (easySlipRes && easySlipRes.error) {
-                        console.warn(`[EasySlip] Re-verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
-                    }
-                    // Still treat as duplicate (slip exists in DB)
-                    isSlipValid = true;
-                    isDuplicate = true;
-                }
-            }
-        } else {
-            // Verify QR code with EasySlip API v2
-            const easySlipRes = await verifyEasySlipByPayload(qrCode);
-            if (easySlipRes && easySlipRes.success === true) {
-                console.log('[EasySlip] Slip verified successfully via payload:', easySlipRes.data);
-                slipData = easySlipRes.data;
-                isSlipValid = true;
-            } else {
-                //console.log('[EasySlip] Payload verification was not successful, trying to upload image instead...');
-                if (easySlipRes && easySlipRes.error) {
-                    console.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
-                }
-
-                /*const easySlipImgRes = await verifyEasySlipByImage(imageBuffer);
-                if (easySlipImgRes && easySlipImgRes.success === true) {
-                    console.log('[EasySlip] Slip verified successfully via image:', easySlipImgRes.data);
-                    slipData = easySlipImgRes.data;
-                    isSlipValid = true;
-                } else {
-                    if (easySlipImgRes && easySlipImgRes.error) {
-                        console.warn(`[EasySlip] Image verification failed: ${easySlipImgRes.error.code} - ${easySlipImgRes.error.message}`);
-                    }
-                }*/
-
-                if (!isSlipValid) {
-                    // Fallback check for PromptPay QR payload format
-                    if (qrCode.includes("60000010103")) {
-                        console.log('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
-                        isSlipValid = true;
-                    }
-                }
+            if (handledAsSlip) {
+                return; // Handled as payment slip
             }
         }
-        let slipToMe = false;
-        let logStatus = "success";
-        if (isSlipValid) {
-            let header;
-            if (slipData) {
-                console.log('[EasySlip] Slip data:', slipData.rawSlip?.receiver);
-                const recvDate = slipData.rawSlip?.transDate || slipData.rawSlip?.date;
 
-                const senderName = slipData.rawSlip?.sender?.account?.name?.th ||
-                    slipData.rawSlip?.sender?.account?.name?.en ||
-                    slipData.rawSlip?.sender?.name ||
-                    member.name;
-                const senderBank = slipData.rawSlip?.sender?.bank?.short;
-                const amount = slipData.amountInSlip ?? (slipData.rawSlip?.amount?.amount);
-                const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
-                const recipient = slipData.rawSlip?.receiver?.account?.name?.en ||
-                    slipData.rawSlip?.receiver?.account?.name?.th;
-                const recipient_th = slipData.rawSlip?.receiver?.account?.name?.th || '';
-                const account = slipData.rawSlip?.receiver?.account?.proxy?.account;
-                let recipientName = recipient;
-                console.log('[EasySlip] Recipient:', recipient);
-                console.log('[EasySlip] Recipient TH:', recipient_th);
-                console.log('[EasySlip] Account:', account);
-                if (account) {
-                    if (account.endsWith("5894") || ((account.startsWith("006") && account.endsWith("3367")))) {
-                        recipientName = "Kyne";
-                        slipToMe = true;
-                    } else if ((recipient_th.includes("เศรษฐ") || recipientName.toUpperCase().includes("KTB G")) && account.endsWith("3367")) {
-                        recipientName = "Kyne";
-                        slipToMe = true;
-                    }
-                }
-                if (recipientName.includes("เศรษฐ") || recipientName.toUpperCase().includes("SAGE") || recipientName.toUpperCase().includes("SETH")) {
-                    slipToMe = true;
-                    recipientName = "Kyne";
-                }
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว **💰 ${amountStr} บาท**`;
-                if (slipToMe) {
-                    if (isDuplicate) {
-                        header += `\n\n** สลิปนี้เคยส่งเข้ามาแล้ว **`;
-                        logStatus = "duplicate";
-                    } else {
-                        logStatus = "success";
-                    }
-                    if (amount !== undefined && member.debt !== undefined && Number(amount) > Number(member.debt)) {
-                        header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n`;
-                    }
-                } else {
-                    header += `\n\n**📝 ไม่เกี่ยวกับค่าสนามบอล **`;
-                    logStatus = "not_me";
-                }
-                header += `\n\n💰 ยอดเงิน: ** ${amountStr} บาท **\n💸 โอนจาก: ** ${senderName}. - ${senderBank} **\n💵 ให้กับ: ** ${recipientName} **\n📅 วันที่: ** ${getFormatDate(recvDate)} **\n`;
-            } else {
-                header = `🙏 ${member.name} ได้รับสลิปโอนแล้ว \n\n`;
-                header += `\n\n** 📝 ยังไม่พบข้อมูลการโอนในระบบที่เชื่อมกับธนาคาร \nระบบจะบันทึกสลิปนี้ไว้เพื่อตรวจสอบอีกครั้งครับ บางครั้งข้อมูลจะล่าช้าประมาณ 2-3 นาทีหลังโอน ทำให้ระบบอาจจะยังตรวจสอบไม่พบ \n\nสามารถตรวจสอบสถานะได้ด้วยตัวเองอีกครั้ง ด้วยคำสั่ง /slip **`;
-                slipToMe = true;
-                if (isDuplicate) {
-                    header += `⚠️ สลิปนี้ถูกส่งมาแล้ว \n\n`;
-                    logStatus = "duplicate";
-                } else {
-                    logStatus = "noticed";
-                }
-            }
-            if (isDuplicate) {
-                // Update existing record if we got new API data
-                if (cachedSlipId && slipData) {
-                    await db.updateSlipLog(cachedSlipId, logStatus, slipData);
-                    console.log(`[EasySlip] Updated existing slip log (id: ${cachedSlipId}) with new API data`);
-                }
-                try {
-                    await fs.unlink(slipFilePath);
-                    console.log(`Deleted duplicate slip image: ${slipFilePath}`);
-                } catch (e) {
-                    console.error('Error deleting duplicate slip image:', e);
-                }
-            } else {
-                await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, qrCode, slipData);
-            }
+        // --- Handle other non-payment image types here ---
+        logger.debug(`[handleImageMessage] Image is not a payment slip. Skipping or handling custom image logic...`);
 
-            const week = await db.queryWeekDate();
-            let payweek = true;
-            if (week.length > 0) {
-                const now = new Date();
-                if (now.getTime() < week[0].date.getTime()) {
-                    payweek = false;
+        if (source && source.groupId) {
+            try {
+                const pendingMsgs = await db.dispatchPendingReplyTasks(source.groupId, member);
+                if (pendingMsgs && pendingMsgs.length > 0) {
+                    await replyMessage(replyToken, pendingMsgs.slice(0, 5));
                 }
-                console.log(`week ${week[0].date} now ${now}`);
+            } catch (taskErr) {
+                logger.error(`[handleImageMessage] Error checking pending reply tasks:`, taskErr.message || taskErr);
             }
-
-            let replyMessages;
-            if (!payweek) {
-                if (slipToMe && !isDuplicate) await db.updateMemberDebt(member.id);
-                replyMessages = [{
-                    type: 'text',
-                    quoteToken: message.quoteToken,
-                    text: header
-                }];
-            } else {
-                if (slipToMe && !isDuplicate) await db.updateMemberWeek(member.id, 1, 0);
-                const [msg, sub, count] = await db.getMemberWeek2(0);
-                console.log(`user count: ${count}`);
-                if (count === 0 || count > 20) {
-                    replyMessages = [{
-                        type: 'text',
-                        quoteToken: message.quoteToken,
-                        text: header + msg
-                    }];
-                } else {
-                    replyMessages = {
-                        type: 'textV2',
-                        quoteToken: message.quoteToken,
-                        text: header + msg,
-                        substitution: sub
-                    };
-                }
-            }
-            await replyMessage(replyToken, replyMessages);
         }
     } catch (error) {
-        console.error('Error processing image!,', error);
-        const date = new Date();
+        logger.error('Error processing image!,', error);
+        /*const date = new Date();
         if (date.getDay() === 6 && date.getHours() > 19) {
             await replyMessage(replyToken, [{
                 type: 'text',
                 text: 'ไม่สามารถโหลดรูปจาก Line ได้'
             }]);
-        }
+        }*/
     }
 }
 
 async function handleTextMessage(event, member) {
     const { replyToken, message, source } = event;
-    console.log(`${member.name}: ${message.text}`);
     const text = message.text.trim();
     const op = text.substring(0, 1);
-    const index = (op === "/") ? 1 : 0;
+    const isCmd = ['/', 'x', '+', '-'].includes(op) || !source.groupId;
 
-    if (['/', 'x', '+', '-'].includes(op)) {
-        const cmd_str = text.substring(index);
-        const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
-        await replyMessage(replyToken, replyMessages);
+    if (isCmd) {
+        const cmd_str = op === '/' ? text.substring(1) : text;
+        const userId = source.userId || (member && (member.line_user_id || member.id));
+        const groupId = source.groupId || null;
+
+        const spamCheck = spamProtector.acquire(userId, groupId, cmd_str);
+        if (!spamCheck.allowed) {
+            logger.warn(`[SPAM BLOCKED] Duplicate command '${message.text}' from ${member ? member.name : userId} ignored (only 1st is processed)`);
+            if (spamCheck.shouldWarn) {
+                const displayName = member && member.name ? member.name.replace('@', '') : 'คุณ';
+                const replyMsg = [
+                    {
+                        type: 'text',
+                        text: `ขออภัย ${displayName} เพิ่งส่งคำสั่งนี้ไปแล้ว กรุณารอสักครู่ครับ ⏳`
+                    }
+                ];
+                await replyMessage(replyToken, replyMsg);
+            }
+            return;
+        }
+
+        const groupTag = db.getGroupTag(source.groupId);
+        try {
+            logger.info(`${groupTag} ${member.name} [CMD]: ${message.text}`);
+            const replyMessages = await cmd.process_cmd(cmd_str, member, message.quoteToken, source.groupId);
+
+            let pendingMsgs = [];
+            if (source.groupId) {
+                try {
+                    pendingMsgs = await db.dispatchPendingReplyTasks(source.groupId, member);
+                } catch (taskErr) {
+                    logger.error(`[handleTextMessage] Error checking pending reply tasks:`, taskErr.message || taskErr);
+                }
+            }
+
+            let combinedMessages = [];
+            if (replyMessages) {
+                if (Array.isArray(replyMessages)) {
+                    combinedMessages.push(...replyMessages);
+                } else {
+                    combinedMessages.push(replyMessages);
+                }
+            }
+            if (pendingMsgs && pendingMsgs.length > 0) {
+                combinedMessages.push(...pendingMsgs);
+            }
+
+            if (combinedMessages.length > 0) {
+                if (combinedMessages.length > 5) combinedMessages = combinedMessages.slice(0, 5);
+                await replyMessage(replyToken, combinedMessages);
+            }
+        } finally {
+            spamProtector.release(userId, groupId, cmd_str);
+        }
     } else {
-        const h = new Date().getHours();
-        const dow = new Date().getDay();
-        if (dow > 0 && h > 10 && h < 22 && source.groupId) {
-            const [debt_str, sub, debt_count, proceed] = await db.getDebtList(0);
-            if (proceed && debt_count > 0) {
-                console.log(`once a day debt call!`);
-                await replyMessage(replyToken, {
-                    type: 'textV2',
-                    text: debt_str,
-                    substitution: sub
-                });
+        const groupTag = db.getGroupTag(source.groupId);
+        logger.info(`${groupTag} ${member.name}: ${message.text}`);
+
+        if (source.groupId) {
+            try {
+                const pendingMsgs = await db.dispatchPendingReplyTasks(source.groupId, member);
+                if (pendingMsgs && pendingMsgs.length > 0) {
+                    await replyMessage(replyToken, pendingMsgs.slice(0, 5));
+                }
+            } catch (taskErr) {
+                logger.error(`[handleTextMessage] Error checking pending reply tasks:`, taskErr.message || taskErr);
             }
         }
     }
 }
 
-function handleStickerMessage(event, member) {
-    const keywords = event.message.keywords;
-    console.log(`${member.name}: sent sticker ${randomItem(keywords || ['unknown'])}`);
+async function handleStickerMessage(event, member) {
+    const { replyToken, source } = event;
+    const keywords = event.message && event.message.keywords;
+    const groupTag = db.getGroupTag(source && source.groupId);
+    logger.debug(`${groupTag} ${member.name}: sent sticker ${randomItem(keywords || ['unknown'])}`);
+
+    if (source && source.groupId) {
+        try {
+            const pendingMsgs = await db.dispatchPendingReplyTasks(source.groupId, member);
+            if (pendingMsgs && pendingMsgs.length > 0) {
+                await replyMessage(replyToken, pendingMsgs.slice(0, 5));
+            }
+        } catch (taskErr) {
+            logger.error(`[handleStickerMessage] Error checking pending reply tasks:`, taskErr.message || taskErr);
+        }
+    }
 }
 
 function randomItem(items) {
@@ -666,39 +513,36 @@ function randomItem(items) {
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-    console.error('Server error:', error);
+    logger.error('Server error:', error);
     res.status(500).send('Internal Server Error');
 });
 
 // Start server
 app.listen(3001, async () => {
-    //console.log(`LINE Webhook server running on port ${PORT}`);
-    //console.log(`Webhook URL: http://localhost:${PORT}/webhook`);
+    //logger.info(`LINE Webhook server running on port ${PORT}`);
+    //logger.info(`Webhook URL: http://localhost:${PORT}/webhook`);
 
     // Check if environment variables are set
     if (!config.channelSecret || !config.channelAccessToken) {
-        console.warn('⚠️  Warning: LINE_CHANNEL_SECRET and LINE_CHANNEL_ACCESS_TOKEN environment variables are not set');
-        console.log('Please set these environment variables before using the bot');
+        logger.warn('⚠️  Warning: LINE_CHANNEL_SECRET and LINE_CHANNEL_ACCESS_TOKEN environment variables are not set');
+        logger.info('Please set these environment variables before using the bot');
     } else {
-        console.log('✅ LINE Bot credentials loaded successfully');
+        logger.info('✅ LINE Bot credentials loaded successfully');
     }
 
     await db.testConnection();
     //const res = await db.getMemberWeek() ;
 
-    //console.log(db_test);
     // Check if zbarimg is installed
     const zbarimgInstalled = await checkZbarimgInstalled();
     if (zbarimgInstalled) {
-        console.log('✅ zbarimg command line tool is available');
+        logger.info('✅ zbarimg command line tool is available');
     } else {
-        console.warn('⚠️  Warning: zbarimg command line tool is not installed');
-        console.log('Please install zbar-tools package:');
-        console.log('  Ubuntu/Debian: sudo apt-get install zbar-tools');
-        console.log('  CentOS/RHEL: sudo yum install zbar');
-        console.log('  macOS: brew install zbar');
-        console.log('  Windows: Download from http://zbar.sourceforge.net/');
+        logger.warn('⚠️  zbarimg CLI not found. Using zxing-wasm (WebAssembly) & jsQR engines.');
     }
+
+    // Initialize in-process scheduler worker thread
+    initScheduler();
 });
 
 module.exports = app;

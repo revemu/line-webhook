@@ -1,897 +1,1395 @@
+const fs = require('fs');
+const path = require('path');
 const db = require('./query');
 const flex = require('./flex');
 const qrGen = require('./qr_gen');
+const teamImg = require('./team_img');
 const axios = require('axios');
+const slipService = require('./slip');
+const { getNextSaturday } = require('./utils/date');
 
-const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
+const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
+const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my']);
+const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek']);
 
-function getNextSaturday() {
-    const date = new Date();
-    date.setDate(date.getDate() + (6 - date.getDay() + 7) % 7 || 7);
-    const d = ('0' + date.getDate()).slice(-2);
-    const m = ('0' + (date.getMonth() + 1)).slice(-2);
-    const y = date.getFullYear();
-
-    return date;
+function parseCommandString(cmdStr) {
+    const pos = cmdStr.indexOf(' ');
+    return {
+        cmd: (pos > 0 ? cmdStr.substring(0, pos) : cmdStr).trim(),
+        param: (pos > 0 ? cmdStr.substring(pos) : '').trim()
+    };
 }
 
-async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
-    const pos = cmd_str.indexOf(" ");
-    const cmd = (pos > 0 ? cmd_str.substring(0, pos) : cmd_str).trim();
-    let param = (pos > 0 ? cmd_str.substring(pos) : "").trim();
-
-    if (member && member.debt > 0 && member.admin !== 1 && !['qr', 'slip', 'sliplist', 'verify'].includes(cmd)) {
-        const displayName = (member.name || '').replace('@', '');
-        return [{
-            type: 'text',
-            quoteToken: quoteToken,
-            text: `ขออภัย ${displayName} ยังมียอดค้างชำระ ${member.debt} บาท ไม่สามารถใช้งานคำสั่งได้`
-        }];
+function extractTrailingInt(param) {
+    const parts = param.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+        const possibleVal = parts.pop();
+        const parsed = parseInt(possibleVal, 10);
+        if (!Number.isNaN(parsed)) {
+            return { value: parsed, param: parts.join(' ').trim() };
+        }
     }
+    return { value: 0, param };
+}
 
+function formatTextReply(text, quoteToken) {
+    return [{
+        type: 'text',
+        quoteToken,
+        text
+    }];
+}
+
+function formatFlexReply(contents, altText) {
+    return {
+        type: 'flex',
+        altText,
+        contents
+    };
+}
+
+/**
+ * Builds the @ALL invite message sent after a new week is opened.
+ * Format:
+ *   @ALL
+ *   +x เปิดลงชื่อ เสาร์ที่ xxx
+ *   ยังลงได้อีก xx คนครับ
+ */
+async function buildNewWeekInviteMsg(groupId = null) {
     try {
-        const adminCmds = await db.getAdminCommands();
-        const adminCmdSet = new Set(adminCmds || []);
-        if (adminCmdSet.has(cmd)) {
-            if (!member || member.admin !== 1) {
-                return [{
-                    type: 'text',
-                    quoteToken: quoteToken,
-                    text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับผู้ดูแลระบบเท่านั้น)`
-                }];
+        const weekInfo = await db.queryWeekID(0);
+        if (!weekInfo || weekInfo.length === 0) return null;
+        const week = weekInfo[0];
+        const maxPlayers = Number(week.max) || 24;
+        const date = new Date(week.date);
+        const dateStr = await db.getFormatDate(date, 'short');
+        const autoRegCount = await db.getAutoRegCount(groupId);
+        const registered = Number(autoRegCount) || 0;
+        const remaining = Math.max(0, maxPlayers - registered);
+        const regStr = `+${registered}`;
+
+        const inviteText = `{all}\n${regStr} เปิดลงชื่อ เสาร์ที่ ${dateStr}\nยังลงได้อีก ${remaining} คนครับ`;
+        return {
+            type: 'textV2',
+            text: inviteText,
+            substitution: {
+                all: { type: 'mention', mentionee: { type: 'all' } }
             }
-        }
-    } catch (dbErr) {
-        console.error('⚠️ Failed to verify admin command from database:', dbErr.message);
+        };
+    } catch (e) {
+        return null;
     }
+}
 
-    let is_flex = true;
-    if (param.toLowerCase().includes('text')) {
-        is_flex = false;
-        param = param.replace(/text/gi, '').trim();
+function formatTextV2Reply(text, quoteToken, substitution) {
+    const payload = {
+        type: 'textV2',
+        quoteToken,
+        text
+    };
+    if (substitution) payload.substitution = substitution;
+    return payload;
+}
+
+function formatTextV2ReplyWithoutQuote(text, substitution) {
+    const payload = {
+        type: 'textV2',
+        text
+    };
+    if (substitution) payload.substitution = substitution;
+    return payload;
+}
+
+function buildReply({ type, text, quoteToken, substitution, altText, contents }) {
+    if (!text && !contents) return;
+    switch (type) {
+        case 0:
+            return formatTextReply(text, quoteToken);
+        case 1:
+            return formatFlexReply(contents, altText);
+        case 2:
+            return formatTextV2Reply(text, quoteToken, substitution);
+        case 3:
+            return formatTextV2ReplyWithoutQuote(text, substitution);
+        default:
+            return;
     }
+}
 
-    let rank_val = 0;
-    if (cmd === 'setrank') {
-        const parts = param.split(/\s+/).filter(Boolean);
-        if (parts.length > 1) {
-            const possibleVal = parts.pop();
-            const parsed = parseInt(possibleVal, 10);
-            if (!isNaN(parsed)) {
-                rank_val = parsed;
-                param = parts.join(' ').trim();
-            }
-        }
-    }
-
-    let debt_val = 0;
-    if (cmd === 'setdebt') {
-        const parts = param.split(/\s+/).filter(Boolean);
-        if (parts.length > 1) {
-            const possibleVal = parts.pop();
-            const parsed = parseInt(possibleVal, 10);
-            if (!isNaN(parsed)) {
-                debt_val = parsed;
-                param = parts.join(' ').trim();
-            }
-        }
-    }
-
-    let member_id = member.id;
-    let member_name = member.name;
-    let target_line_user_id = member.line_user_id;
-    const is_mention_cmd = ['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my'].includes(cmd);
-    let is_mention = false;
-
-    if (is_mention_cmd && param.startsWith('@')) {
-        const mention = await db.queryMemberbyName(param);
-        if (mention.length > 0) {
-            is_mention = true;
-            console.log(`mentioned member - ${param}, id: ${mention[0].id}`);
-            member_id = mention[0].id;
-            member_name = param;
-            target_line_user_id = mention[0].line_user_id;
-            if (cmd != '+1' && cmd != '-1' && cmd != 'autoreg' && cmd != '+autoreg' && cmd != '-autoreg' && cmd != 'stat' && cmd != 'mystat' && cmd != 'me' && cmd != 'my' && cmd != 'setrank' && cmd != 'setdebt') {
-                if (!await db.IsMemberWeek(member_id)) {
-                    return [{
-                        type: 'text',
-                        quoteToken: quoteToken,
-                        text: `สมาชิก ${param} ไม่ได้ลงชื่อในสัปดาห์นี้`
-                    }];
-                }
-            }
-        } else {
+// Command registry for incremental refactor: map command -> async handler(context)
+// Handlers should return a reply (array/object) when they want to short-circuit,
+// or `undefined` to allow the legacy switch-based fallback to run.
+const COMMAND_REGISTRY = {
+    'tasks': async (context) => {
+        const { quoteToken } = context;
+        const tasks = await db.getScheduledTasks(false);
+        if (!tasks || tasks.length === 0) {
             return [{
                 type: 'text',
-                quoteToken: quoteToken,
-                text: `ไม่พบสมาชิก ${param}`
+                quoteToken,
+                text: '📋 ยังไม่มีการตั้งค่างานอัตโนมัติในระบบ (scheduled_task_tbl)'
             }];
         }
-    }
-    let chat_type = "[cmd] -";
-    console.log(`${chat_type} command: ${cmd} - param: ${param}`);
-    let replyMessages;
-    let msg = "";
-    let sub = null;
 
-    var altText;
-    let msg_type = 0;
-    let obj;
-    let week;
-    switch (cmd) {
-        case 'setmaxweek':
-            if (param == "") {
-                msg = "Please enter max number";
-                msg_type = 0;
-                break;
-            }
-            await db.updateMaxNumberWeek(Number(param));
-
-            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
-            if (is_flex && typeof msg === 'object') {
-                msg_type = 1;
-                altText = altText || "ลงชื่อเตะบอล";
-            } else {
-                msg_type = 2;
-            }
-            break;
-        case 'removereserve':
-        case 'delreserve': {
-            const result = await db.removeReserveMembers();
-            if (result.success) {
-                const infoText = result.count > 0
-                    ? `ลบรายชื่อสำรองสำเร็จ! (${result.count} คน: ${result.names.join(', ')})`
-                    : `ไม่มีรายชื่อสำรองในสัปดาห์นี้ครับ`;
-
-                const [flexMsg, sub, altTextStr] = await db.getMemberWeek0(1, is_flex, groupId);
-                if (is_flex && typeof flexMsg === 'object') {
-                    return [
-                        {
-                            type: 'text',
-                            quoteToken: quoteToken,
-                            text: infoText
-                        },
-                        {
-                            type: 'flex',
-                            altText: altTextStr || "ลงชื่อเตะบอล",
-                            contents: flexMsg
-                        }
-                    ];
-                } else {
-                    return [
-                        {
-                            type: 'text',
-                            quoteToken: quoteToken,
-                            text: infoText
-                        },
-                        {
-                            type: 'text',
-                            quoteToken: quoteToken,
-                            text: flexMsg
-                        }
-                    ];
+        let lines = ['⏰ รายการงานอัตโนมัติ (Scheduled Tasks):\n'];
+        const timeInfo = db.getBangkokCurrent ? db.getBangkokCurrent() : { dow: new Date().getDay(), currentTimeStr: '00:00', todayDateStr: '' };
+        tasks.forEach((t, idx) => {
+            let status = t.enabled ? '🟢 [เปิด]' : '🔴 [ปิด]';
+            const isRunToday = t.last_run_date && String(t.last_run_date).startsWith(timeInfo.todayDateStr);
+            if (t.enabled && t.delivery_mode === 'reply_on_chat') {
+                if (isRunToday) {
+                    status = '✅ [ส่งในแชทแล้ววันนี้]';
+                } else if (db.matchesScheduleDay && db.matchesScheduleDay(t.schedule_days, timeInfo.dow)) {
+                    const schedTime = (t.schedule_time || '20:00').substring(0, 5);
+                    if (schedTime <= timeInfo.currentTimeStr) {
+                        status = '⏳ [รอแชทเข้า (Pending)]';
+                    } else {
+                        status = `⏰ [รอถึงเวลา ${schedTime} น.]`;
+                    }
                 }
-            } else {
-                msg = `เกิดข้อผิดพลาด: ${result.message}`;
-                msg_type = 0;
-            }
-            break;
-        }
-        case 'x1':
-            await db.registerNY(member_id);
-            msg = await db.getMemberNY();
-            break;
-        case '+2':
-            [msg, sub] = await db.getDebtList(0);
-            console.log(sub);
-            msg_type = 3;
-            //msg = await db.getMemberWeek(1);
-            break;
-        case '+1': {
-            const activeWeek = await db.queryWeekDate(0);
-            if (activeWeek && activeWeek.length > 0) {
-                const rawDate = new Date(activeWeek[0].date);
-                const y = rawDate.getFullYear();
-                const m = ('0' + (rawDate.getMonth() + 1)).slice(-2);
-                const d = ('0' + rawDate.getDate()).slice(-2);
-                const dateStr = `${y}-${m}-${d}`;
-                const weekDate = new Date(`${dateStr}T19:00:00+07:00`);
-                if (new Date() >= weekDate) {
-                    const theme = await db.getTheme();
-                    const registerTpl = await db.getTemplate('register', 'header');
-                    const registerImageUrl = registerTpl ? registerTpl.url : null;
-                    msg = flex.buildRegisterClosedFlex(theme, registerImageUrl);
-                    altText = "ระบบปิดรับลงชื่อแล้ว";
-                    msg_type = 1;
-                    break;
-                }
+            } else if (t.enabled && isRunToday) {
+                status = '✅ [รันแล้ววันนี้]';
             }
 
-            const reg_res2 = await db.registerMember(member_id, member_name);
-            if (reg_res2 == 1) {
-                console.log(`${chat_type} ${member_name} ลงทะเบียนไปแล้ว!`);
-            } else if (reg_res2 > 1) {
-                console.log(`${chat_type} ${member_name} ยังมียอดค้าง ${reg_res2}บาท!`);
-                msg = `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res2}บาท!`;
-                msg_type = 0;
-                break;
-            }
-            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
-            if (is_flex && typeof msg === 'object') {
-                msg_type = 1;
-                altText = altText || "ลงชื่อเตะบอล";
-            } else {
-                msg_type = 2;
-            }
-            break;
+            const modeStr = t.delivery_mode === 'reply_on_chat' ? '💬 ตอบกลับในแชท' : (t.delivery_mode === 'log_only' ? '📝 บันทึก Log เท่านั้น' : '📢 Push แจ้งเตือน');
+            const typeStr = t.task_type === 'command' ? `คำสั่ง: /${t.command}` : `ข้อความ: "${(t.text_message || '').substring(0, 30)}${(t.text_message || '').length > 30 ? '...' : ''}"`;
+            const lastRun = t.last_run_date ? `ล่าสุด: ${t.last_run_date}` : 'ยังไม่เคยรัน';
+            lines.push(`${idx + 1}. ${status} ${t.task_key}`);
+            lines.push(`   📌 ${t.task_name}`);
+            lines.push(`   📅 วัน: ${t.schedule_days} เวลา: ${t.schedule_time} น.`);
+            lines.push(`   ⚙️ ${typeStr}`);
+            lines.push(`   📡 โหมด: ${modeStr}`);
+            lines.push(`   🕒 ${lastRun}\n`);
+        });
+
+        lines.push('💡 คำสั่งจัดการ:');
+        lines.push('• /runtask <key> (สั่งทำงานทันที)');
+        lines.push('• /toggletask <key> (เปิด/ปิดงาน)');
+        lines.push('• /addtask <type> <days> <time> <cmd_or_text>');
+        lines.push('• /deltask <key> (ลบงาน)');
+        lines.push('• /reloadtasks (รีโหลดจาก DB)');
+
+        return [{
+            type: 'text',
+            quoteToken,
+            text: lines.join('\n')
+        }];
+    },
+    'tasklist': async (context) => COMMAND_REGISTRY['tasks'](context),
+    'schedules': async (context) => COMMAND_REGISTRY['tasks'](context),
+    'runtask': async (context) => {
+        const { param, quoteToken } = context;
+        if (!param) {
+            return [{ type: 'text', quoteToken, text: 'กรุณาระบุ key ของงาน: /runtask <task_key>' }];
         }
-        case '-1': {
-            const unregResult = await db.unregisterMember(member_id);
+        const taskKey = param.trim();
+        const task = await db.getScheduledTaskByKey(taskKey);
+        if (!task) {
+            return [{ type: 'text', quoteToken, text: `ไม่พบงาน '${taskKey}' ในระบบ` }];
+        }
+
+        const scheduler = require('./scheduler');
+        scheduler.triggerTask(task.task_key || String(task.id));
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `🚀 ส่งคำสั่งรันงาน '${task.task_name || taskKey}' ให้ Worker เรียบร้อยแล้ว`
+        }];
+    },
+    'toggletask': async (context) => {
+        const { param, quoteToken } = context;
+        if (!param) {
+            return [{ type: 'text', quoteToken, text: 'กรุณาระบุ key ของงาน: /toggletask <task_key>' }];
+        }
+        const taskKey = param.trim();
+        const newStatus = await db.toggleScheduledTask(taskKey);
+        if (newStatus === null) {
+            return [{ type: 'text', quoteToken, text: `ไม่พบงาน '${taskKey}' ในระบบ` }];
+        }
+
+        const scheduler = require('./scheduler');
+        scheduler.reloadTasks();
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `${newStatus ? '🟢 เปิดการทำงาน' : '🔴 ปิดการทำงาน'} งาน '${taskKey}' แล้ว`
+        }];
+    },
+    'addtask': async (context) => {
+        const { param, quoteToken } = context;
+        const parts = (param || '').trim().split(/\s+/);
+        if (parts.length < 4) {
+            return [{
+                type: 'text',
+                quoteToken,
+                text: 'รูปแบบคำสั่ง:\n/addtask <command|text> <days> <time> <cmd_or_text>\n\nตัวอย่าง:\n/addtask command fri 20:00 randomteam\n/addtask text mon-fri 16:00 {all} เตะบอล #weekdate เวลา #timerange'
+            }];
+        }
+
+        const type = parts[0].toLowerCase();
+        if (type !== 'command' && type !== 'text') {
+            return [{ type: 'text', quoteToken, text: 'ประเภทงานต้องเป็น "command" หรือ "text"' }];
+        }
+
+        const days = parts[1];
+        const time = parts[2];
+        const payload = parts.slice(3).join(' ');
+
+        const autoKey = `${type}_${days}_${time.replace(':', '')}_${Date.now().toString().slice(-4)}`;
+        const taskName = type === 'command' ? `Auto Run /${payload}` : `Auto Message (${days} ${time})`;
+
+        await db.addScheduledTask({
+            task_key: autoKey,
+            task_name: taskName,
+            task_type: type,
+            command: type === 'command' ? payload : null,
+            text_message: type === 'text' ? payload : null,
+            schedule_days: days,
+            schedule_time: time,
+            enabled: 1
+        });
+
+        const scheduler = require('./scheduler');
+        scheduler.reloadTasks();
+
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `✅ เพิ่มงานอัตโนมัติสำเร็จ!\n• Key: ${autoKey}\n• Type: ${type}\n• วัน: ${days} เวลา: ${time}\n• รายละเอียด: ${payload}`
+        }];
+    },
+    'deltask': async (context) => {
+        const { param, quoteToken } = context;
+        if (!param) {
+            return [{ type: 'text', quoteToken, text: 'กรุณาระบุ key ของงาน: /deltask <task_key>' }];
+        }
+        const taskKey = param.trim();
+        const deleted = await db.deleteScheduledTask(taskKey);
+        if (!deleted) {
+            return [{ type: 'text', quoteToken, text: `ไม่พบงาน '${taskKey}' หรือลบไม่สำเร็จ` }];
+        }
+
+        const scheduler = require('./scheduler');
+        scheduler.reloadTasks();
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `🗑️ ลบงาน '${taskKey}' เรียบร้อยแล้ว`
+        }];
+    },
+    'reloadtasks': async (context) => {
+        const { quoteToken } = context;
+        const scheduler = require('./scheduler');
+        scheduler.reloadTasks();
+        return [{
+            type: 'text',
+            quoteToken,
+            text: '🔄 สั่งรีโหลดงานจากฐานข้อมูล (scheduled_task_tbl) เรียบร้อยแล้ว'
+        }];
+    },
+    'prune': async (context) => {
+        const { param, quoteToken } = context;
+        const parts = (param || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+        let days = 30;
+        let isDryRun = false;
+        let includeAvatars = false;
+
+        for (const p of parts) {
+            const num = parseInt(p.replace(/[^0-9]/g, ''), 10);
+            if (!isNaN(num) && num > 0) {
+                days = num;
+            } else if (p === 'dry' || p === 'dryrun' || p === '--dry-run') {
+                isDryRun = true;
+            } else if (p === 'avatar' || p === 'avatars' || p === '--include-avatars') {
+                includeAvatars = true;
+            }
+        }
+
+        const { pruneImages } = require('./prune_images');
+        const result = pruneImages({
+            retentionDays: days,
+            isDryRun,
+            includeAvatars
+        });
+
+        const lines = [
+            isDryRun ? '🔍 [Dry Run] ตรวจสอบไฟล์เก่าที่หมดอายุ:' : '🧹 ล้างไฟล์รูปภาพเก่าเรียบร้อยแล้ว:',
+            `• เก็บไฟล์ไว้: ${result.retentionDays} วัน`,
+            `• ตรวจสอบทั้งหมด: ${result.totalScanned} ไฟล์`,
+            `• ${isDryRun ? 'ไฟล์ที่ลบได้' : 'ลบไฟล์สำเร็จ'}: ${result.totalDeleted} ไฟล์`,
+            `• คืนพื้นที่ดิสก์: ${result.totalFreedMb} MB`
+        ];
+
+        if (result.details.team.deleted > 0) {
+            lines.push(`  - รูปทีม/TOTW: ${result.details.team.deleted} ไฟล์`);
+        }
+        if (result.details.qr.deleted > 0) {
+            lines.push(`  - QR Code: ${result.details.qr.deleted} ไฟล์`);
+        }
+        if (result.details.avatar.deleted > 0) {
+            lines.push(`  - Avatar: ${result.details.avatar.deleted} ไฟล์`);
+        }
+
+        return [{
+            type: 'text',
+            quoteToken,
+            text: lines.join('\n')
+        }];
+    },
+    'pruneimages': async (context) => COMMAND_REGISTRY['prune'](context),
+    'cleanup': async (context) => COMMAND_REGISTRY['prune'](context),
+    // Example scaffolding (fill in handlers as we convert cases):
+    // 'setmaxweek': async (context) => { /* ... */ },
+    'setmaxweek': async (context) => {
+        const { param, quoteToken, is_flex, groupId } = context;
+        let msg = '';
+        let sub = null;
+        let altText;
+
+        if (param == "") {
+            msg = "Please enter max number";
+            return [{ type: 'text', quoteToken: quoteToken, text: msg }];
+        }
+
+        await db.updateMaxNumberWeek(Number(param));
+
+        const result = await db.getMemberWeek0(1, is_flex, groupId);
+        // db.getMemberWeek0 returns [msg, sub, altText] in the legacy code
+        if (Array.isArray(result) && result.length > 0) {
+            msg = result[0];
+            sub = result[1];
+            altText = result[2];
+        } else {
+            msg = result;
+        }
+
+        if (is_flex && typeof msg === 'object') {
+            return {
+                type: 'flex',
+                altText: altText || "ลงชื่อเตะบอล",
+                contents: msg
+            };
+        } else {
+            return {
+                type: 'textV2',
+                quoteToken: quoteToken,
+                text: msg,
+                substitution: sub
+            };
+        }
+    },
+    'removereserve': async (context) => {
+        const { quoteToken, is_flex, groupId } = context;
+        const result = await db.removeReserveMembers();
+        if (result.success) {
+            const infoText = result.count > 0
+                ? `ลบรายชื่อสำรองสำเร็จ! (${result.count} คน: ${result.names.join(', ')})`
+                : `ไม่มีรายชื่อสำรองในสัปดาห์นี้ครับ`;
+
+            const [flexMsg, sub, altTextStr] = await db.getMemberWeek0(1, is_flex, groupId);
+            if (is_flex && typeof flexMsg === 'object') {
+                return [
+                    { type: 'text', quoteToken: quoteToken, text: infoText },
+                    { type: 'flex', altText: altTextStr || "ลงชื่อเตะบอล", contents: flexMsg }
+                ];
+            } else {
+                return [
+                    { type: 'text', quoteToken: quoteToken, text: infoText },
+                    { type: 'text', quoteToken: quoteToken, text: flexMsg }
+                ];
+            }
+        } else {
+            return [{ type: 'text', quoteToken: quoteToken, text: `เกิดข้อผิดพลาด: ${result.message}` }];
+        }
+    },
+    'delreserve': async (context) => COMMAND_REGISTRY['removereserve'](context),
+    'x1': async (context) => {
+        const { member_id } = context;
+        await db.registerNY(member_id);
+        const msg = await db.getMemberNY();
+        return [{ type: 'text', text: msg }];
+    },
+    '+2': async (context) => {
+        const isScheduledOrBot = !context.member || context.member.id === 0 || context.member.line_user_id === 'SYSTEM_BOT' || context.member_name === 'System';
+        console.log(`[+2 CMD] Debt list command called by ${context.member_name || 'System'} (isScheduled: ${isScheduledOrBot})`);
+        const [msg, sub, debt_count, proceed, debt_val, debt_members] = await db.getDebtList(1);
+        console.log(`[+2 CMD] getDebtList(1) returned: debt_count=${debt_count}, proceed=${proceed}, debt_val=${debt_val}, members=${debt_members ? debt_members.length : 0}, subKeys=${sub ? Object.keys(sub).length : 0}`);
+
+        // If run by schedule/bot and there is no debt, skip pushing response text
+        if (isScheduledOrBot && (!debt_count || debt_count === 0)) {
+            console.log('[+2 CMD] No debt members found for scheduled task. Skipping push/reply.');
+            return null;
+        }
+
+        const hasSub = sub && typeof sub === 'object' && Object.keys(sub).length > 0 && Object.keys(sub).length <= 20;
+        const firstMsg = hasSub
+            ? { type: 'textV2', text: msg, substitution: sub }
+            : { type: 'text', text: msg };
+        const replyMsgs = [firstMsg];
+
+        if (debt_members && debt_members.length > 0) {
+            try {
+                const rawDebts = debt_members.map(m => Number(m.debt));
+                const debts = rawDebts.filter(d => !isNaN(d) && d > 0);
+                const uniqueDebts = debts.length > 0 ? [...new Set(debts)] : (debt_val > 0 ? [debt_val] : []);
+                for (const amount of uniqueDebts.slice(0, 4)) {
+                    if (!amount || isNaN(amount) || amount <= 0) {
+                        console.warn(`[+2 CMD] Skipping QR generation for invalid/zero debt amount: ${amount}`);
+                        continue;
+                    }
+                    console.log(`[+2 CMD] Generating QR for amount: ${amount}...`);
+                    const filename = await qrGen.generateQrCode(amount, '006660080321320');
+                    const localQrUrl = qrGen.getQrImageUrl(filename);
+                    console.log(`[+2 CMD] Generated QR: ${filename} -> ${localQrUrl}`);
+                    replyMsgs.push({
+                        type: 'image',
+                        originalContentUrl: localQrUrl,
+                        previewImageUrl: localQrUrl
+                    });
+                }
+            } catch (qrErr) {
+                console.error('[+2 CMD] Error generating QR code for +2 cmd:', qrErr);
+            }
+        } else {
+            console.log(`[+2 CMD] No debt members to generate QR codes for.`);
+        }
+        return replyMsgs;
+    },
+    '+1': async (context) => {
+        const { member_id, member_name, is_flex, groupId, quoteToken } = context;
+        let msg = '';
+        let sub = null;
+        let altText;
+
+        const activeWeek = await db.queryWeekDate(0);
+        if (activeWeek && activeWeek.length > 0) {
+            const rawDate = new Date(activeWeek[0].date);
+            const y = rawDate.getFullYear();
+            const m = ('0' + (rawDate.getMonth() + 1)).slice(-2);
+            const d = ('0' + rawDate.getDate()).slice(-2);
+            const dateStr = `${y}-${m}-${d}`;
+            const weekDate = new Date(`${dateStr}T19:00:00+07:00`);
+            if (new Date() >= weekDate) {
+                const theme = await db.getTheme();
+                msg = flex.buildRegisterClosedFlex(theme);
+                altText = "ระบบปิดรับลงชื่อแล้ว";
+                return { type: 'flex', altText, contents: msg };
+            }
+        }
+
+        const reg_res2 = await db.registerMember(member_id, member_name);
+        let noticeText = null;
+        if (reg_res2 == 1) {
+            noticeText = `${member_name} มีลงชื่อไว้อยู่แล้ว`;
+        } else if (reg_res2 > 1) {
+            return [{ type: 'text', quoteToken: quoteToken, text: `ขออภัย ${member_name} ยังมียอดค้าง ${reg_res2}บาท!` }];
+        }
+        [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId, member_id);
+
+        if (is_flex && typeof msg === 'object') {
+            if (msg.header) delete msg.header;
+            return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg };
+        } else {
+            const hasSub = sub && typeof sub === 'object' && Object.keys(sub).length > 0;
+            if (noticeText) {
+                return [
+                    { type: 'text', quoteToken: quoteToken, text: noticeText },
+                    hasSub
+                        ? { type: 'textV2', quoteToken: quoteToken, text: msg, substitution: sub }
+                        : { type: 'text', quoteToken: quoteToken, text: msg }
+                ];
+            }
+            return hasSub
+                ? { type: 'textV2', quoteToken, text: msg, substitution: sub }
+                : { type: 'text', quoteToken, text: msg };
+        }
+    },
+    '-1': async (context) => {
+        const { member_id, member_name, is_flex, groupId } = context;
+        await db.unregisterMember(member_id).then(async (unregResult) => {
             if (unregResult.success) {
-                console.log(`${chat_type} ${member_name} พบข้อมูลลงทะเบียน!`);
                 if (unregResult.team_id != 1) {
                     await db.updateMemberAutoReg(member_id, 0);
                 }
             }
-            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
-            if (is_flex && typeof msg === 'object') {
-                msg_type = 1;
-                altText = altText || "ลงชื่อเตะบอล";
-            } else {
-                msg_type = 2;
-            }
-            break;
+        });
+        const [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg };
+        } else {
+            const hasSub = sub && typeof sub === 'object' && Object.keys(sub).length > 0;
+            return hasSub
+                ? { type: 'textV2', text: msg, substitution: sub }
+                : { type: 'text', text: msg };
         }
-        case '+pay2':
-            //if (is_mention) {
-            await db.updateMemberWeek(member_id, 1, 0);
-            [msg, sub] = await db.getMemberWeek2(0);
-            //console.log(sub) ;
-            msg_type = 2;
-            // } else {
-            //     msg = "ถ้าส่ง slip แล้วยังไม่ขึ้นโปรดรอ หรือพิมพ์ +pay @ชื่อสมาชิก" ;
-            // }
+    },
+    '+pay2': async (context) => {
+        const { member_id } = context;
+        await db.updateMemberWeek(member_id, 1, 0);
+        const [msg, sub] = await db.getMemberWeek2(0);
+        return { type: 'textV2', text: msg, substitution: sub };
+    },
+    '+pay': async (context) => {
+        const { member_id, quoteToken, is_flex, groupId } = context;
+        await db.updateMemberWeek(member_id, 1, 0);
+        let count = 0;
+        const [msg, sub, cnt] = await db.getMemberWeek2(0);
+        count = cnt || 0;
 
-            break;
-        case '+pay':
-            //if (is_mention) {
-            await db.updateMemberWeek(member_id, 1, 0);
-            let count = 0;
-            [msg, sub, count] = await db.getMemberWeek2(0);
-            //console.log(`user count: ${count}`)
-            if (count > 0 && count < 21)
-                msg_type = 2;
-            else
-                msg_type = 0;
-            // } else {
-            //     msg = "ถ้าส่ง slip แล้วยังไม่ขึ้นโปรดรอ หรือพิมพ์ +pay @ชื่อสมาชิก" ;
-            // }
-
-            break;
-        case '-pay':
-            if (is_mention) {
-                await db.updateMemberWeek(member_id, 0, 0);
-                msg = await db.getMemberWeek(0);
-            }
-            break;
-        case '-team':
-            //if (is_mention) {
-            //week = await db.queryWeekID(0)
-            //let team_colors = await db.getTeamColorWeek(week[0].id) ;
-            //console.log(team_colors) ;
-            //await db.updateMemberWeek(member_id, 0, 1) ;
-            msg = `พิมพ์ +team1(-4) ได้เลย ไม่ต้อง -team`;
-            //} else {
-            //    msg = `ต้องระบุชื่อสมาชิกด้วย` ;
-            //}
-            break;
-        case '+team1':
-        case '+team2':
-        case '+team3':
-        case '+team4':
-            if (is_mention) {
-                let team_num = Number(cmd.slice(-1)) - 1;
-                let week = await db.queryWeekID(0)
-                let team_colors = await db.getTeamColorWeek(week[0].id);
-                //console.log(team_colors[team_num]) ;
-                await db.updateMemberWeek(member_id, team_colors[team_num].id, 1);
-                msg = `${member_name} อยู่ทีม ${team_colors[team_num].color}`;
-            } else {
-                msg = `ต้องระบุชื่อสมาชิกด้วย`;
-            }
-
-            break;
-        case 'resetteam':
-            await db.resetMemberTeam();
-            msg = `ปรับให้ทุกคนไม่มีทีมแล้ว`;
-            break;
-        case 'randomteam':
-            //const cdate = new Date();
-            const dow = (new Date()).getDay();
-            //const h = cdate.getHours() ;
-            if (dow >= 0) {
-                const team_res = await db.addTeamMemberWeek();
-                if (team_res == 0) {
-                    week = await db.queryWeekID(0)
-                    //console.log(week) ;
-                    msg = await db.getTeamWeek(week[0].id, groupId);
-                    //console.log(msg) ;
-                    altText = `Team Week - ${week[0].date}`;
-                    msg_type = 1;
-                } else if (team_res == 1) {
-                    msg = "ทำการสุ่มไปแล้วใช้ /teamweek เพื่อดูทีม";
-                    msg_type = 0;
-                } else if (team_res == 2) {
-                    msg = "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม";
-                    msg_type = 0;
-                }
-            } else {
-                msg = "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม";
-                msg_type = 0;
-            }
-
-            break;
-        case 'teamweek':
-            week = await db.queryWeekID(0);
-            if (week && week.length > 0) {
-                msg = await db.getTeamWeek(week[0].id, groupId);
-                if (msg) {
-                    altText = `Team Week - ${week[0].date}`;
-                    msg_type = 1;
-                } else {
-                    msg = "ยังไม่มีข้อมูลทีมในสัปดาห์นี้";
-                    msg_type = 0;
-                }
-            } else {
-                msg = "ยังไม่มีข้อมูลสัปดาห์นี้";
-                msg_type = 0;
-            }
-            break;
-        case 'matchweek':
-            week = await db.queryWeekID(0);
-            if (week && week.length > 0) {
-                msg = await db.getMatchWeek(week[0].id, groupId);
-                if (msg) {
-                    altText = `Match Week - ${week[0].date}`;
-                    msg_type = 1;
-                } else {
-                    msg = "ยังไม่มีข้อมูลแมตช์ในสัปดาห์นี้";
-                    msg_type = 0;
-                }
-            } else {
-                msg = "ยังไม่มีข้อมูลสัปดาห์นี้";
-                msg_type = 0;
-            }
-            break;
-        case 'tableweek':
-            msg = "แสดงตารางใน /matchweek แทนแล้ว";
-            //msg = "teamweek" ;
-            break;
-        case 'topscorer':
-        case 'topassist':
-            msg = "ให้ใช้ /top แทน";
-            break;
-        case 'setrank':
-            if (is_mention) {
-                await db.updateMemberRank(member_id, rank_val);
-                msg = `ปรับระดับ (rank) ของ ${member_name} เป็น ${rank_val} เรียบร้อยครับ`;
-            } else {
-                msg = `กรุณาระบุชื่อสมาชิก: /setrank @ชื่อสมาชิก ระดับ`;
-            }
-            msg_type = 0;
-            break;
-        case 'setdebt':
-            if (is_mention) {
-                await db.setMemberDebt(member_id, debt_val);
-                msg = `ตั้งยอดค้างของ ${member_name} เป็น ${debt_val} บาท เรียบร้อยครับ`;
-            } else {
-                msg = `กรุณาระบุชื่อสมาชิก: /setdebt @ชื่อสมาชิก จำนวนเงิน`;
-            }
-            msg_type = 0;
-            break;
-        case 'theme':
-            if (param === 'black' || param === 'white') {
-                await db.setTheme(param);
-                msg = `เปลี่ยนธีมเป็น ${param} เรียบร้อยครับ`;
-            } else {
-                msg = `กรุณาระบุธีม: /theme black หรือ /theme white`;
-            }
-            msg_type = 0;
-            break;
-        case 'setcost': {
-            if (param === "") {
-                msg = "กรุณาระบุค่าสนามทั้งหมด เช่น /setcost 3300";
-                msg_type = 0;
-                break;
-            }
-            const totalCost = parseInt(param, 10);
-            if (isNaN(totalCost) || totalCost <= 0) {
-                msg = "กรุณาระบุค่าสนามเป็นตัวเลขที่มากกว่า 0";
-                msg_type = 0;
-                break;
-            }
-
-            const result = await db.setWeekCost(totalCost);
-            if (result.success) {
-                msg = `ตั้งค่าค่าสนามสำเร็จ!\n` +
-                    `ยอดรวม: ${totalCost} บาท\n` +
-                    `สมาชิกลงชื่อ: ${result.count} คน\n` +
-                    `เฉลี่ยคนละ: ${result.sharedFee} บาท\n` +
-                    `บันทึกยอดค้างชำระเรียบร้อยแล้ว`;
-            } else {
-                msg = `เกิดข้อผิดพลาด: ${result.message}`;
-            }
-            msg_type = 0;
-            break;
+        // Build 1st message (paid confirmation / remaining unpaid list)
+        let firstMsg;
+        if (count > 0 && count < 21) {
+            firstMsg = { type: 'textV2', quoteToken, text: msg, substitution: sub };
+        } else {
+            firstMsg = { type: 'text', quoteToken, text: msg };
         }
-        case 'resetdebt':
-        case 'resetcost': {
-            const result = await db.resetWeekDebt();
-            if (result.success) {
-                msg = `รีเซ็ตยอดค้างชำระของสมาชิกทุกคนในสัปดาห์นี้เรียบร้อยครับ\n` +
-                    `สมาชิกลงชื่อที่ถูกรีเซ็ต: ${result.count} คน`;
-            } else {
-                msg = `เกิดข้อผิดพลาด: ${result.message}`;
-            }
-            msg_type = 0;
-            break;
-        }
-        case 'qr': {
-            week = await db.queryWeekID(0);
-            let amount = 0;
-            if (param !== "") {
-                amount = parseInt(param, 10);
-                if (isNaN(amount) || amount < 0) {
-                    msg = "กรุณาระบุจำนวนเงินเป็นตัวเลข เช่น /qr 150";
-                    msg_type = 0;
-                    break;
-                }
-            } else {
-                if (!week || week[0].cost <= 0) {
-                    msg = "ยังไม่ได้คำนวณค่าสนามในสัปดาห์นี้ครับ";
-                    msg_type = 0;
-                    break;
-                }
-                amount = week[0].cost;
-            }
 
+        // If no unpaid members left → auto-open new week, send @ALL invite + register flex
+        if (count === 0) {
             try {
-                //006990146713367
-                //0850705894
-                const filename = await qrGen.generateQrCode(amount, '006990146713367');
+                const next_sat = getNextSaturday();
+                await db.newWeek(next_sat);
 
-                let baseUrl = global.baseWebhookUrl || "https://api.revemu.org";
-                if (baseUrl.startsWith('http://')) {
-                    baseUrl = baseUrl.replace('http://', 'https://');
-                }
-                const localQrUrl = `${baseUrl}/img/qr/${filename}`;
-
-                const theme = await db.getTheme();
-                msg = flex.buildQrFlex(amount, '0850705894', theme, localQrUrl);
-                altText = `สแกน QR ชำระเงิน ${amount} บาท`;
-                msg_type = 1;
-            } catch (qrErr) {
-                console.error('Failed to generate local QR:', qrErr);
-                msg = `เกิดข้อผิดพลาดในการสร้าง QR Code: ${qrErr.message}`;
-                msg_type = 0;
-            }
-            break;
-        }
-        case 'showautoreg':
-        case 'whoautoreg':
-        case 'autoregshow':
-        case 'autoreglist':
-            param = 'list';
-        // falls through
-        case 'autoreg':
-        case '+autoreg': {
-            const theme = await db.getTheme();
-            const autoregTpl = await db.getTemplate('autoreg', 'header');
-            const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
-            if (param.toLowerCase() === 'list') {
-                const list = await db.getAutoRegList(groupId);
-                msg = flex.buildAutoRegFlex('list', null, list, theme, autoregImageUrl);
-                altText = "สมาชิกลงชื่ออัตโนมัติ";
-                msg_type = 1;
-                break;
-            }
-            const list = await db.getAutoRegList(groupId);
-            const isAlreadyRegistered = list.some(m => m.id === member_id);
-            if (isAlreadyRegistered) {
-                const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
-                msg = flex.buildAutoRegFlex('already', memberInfo, list, theme, autoregImageUrl);
-                altText = `ลงชื่ออัตโนมัติอยู่แล้ว: ${member_name}`;
-                msg_type = 1;
-                break;
-            }
-            if (list.length >= 24) {
-                msg = flex.buildAutoRegFlex('full', null, list, theme, autoregImageUrl);
-                altText = "รายชื่อลงชื่อออโต้เต็มแล้ว";
-                msg_type = 1;
-                break;
-            }
-            await db.updateMemberAutoReg(member_id, 1);
-            const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
-            const updatedList = await db.getAutoRegList(groupId);
-            msg = flex.buildAutoRegFlex('add', memberInfo, updatedList, theme, autoregImageUrl);
-            altText = `สมัครลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
-            msg_type = 1;
-            break;
-        }
-        case '-autoreg': {
-            const theme = await db.getTheme();
-            const autoregTpl = await db.getTemplate('autoreg', 'header');
-            const autoregImageUrl = autoregTpl ? autoregTpl.url : null;
-            await db.updateMemberAutoReg(member_id, 0);
-            const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
-            const list = await db.getAutoRegList(groupId);
-            msg = flex.buildAutoRegFlex('remove', memberInfo, list, theme, autoregImageUrl);
-            altText = `ยกเลิกลงชื่ออัตโนมัติสำเร็จ: ${member_name}`;
-            msg_type = 1;
-            break;
-        }
-        case 'stat':
-        case 'mystat':
-        case 'me':
-        case 'my': {
-            const theme = await db.getTheme();
-            const statTpl = await db.getTemplate('stat', 'header');
-            const statsImageUrl = statTpl ? statTpl.url : null;
-            const statsData = await db.getMemberStats(member_id, groupId);
-            if (statsData) {
-                msg = flex.buildMemberStatsFlex(statsData, theme, statsImageUrl);
-                altText = `สถิติส่วนตัวของ ${statsData.member.name}`;
-                msg_type = 1;
-            } else {
-                msg = "ไม่พบข้อมูลสถิติของสมาชิกท่านนี้";
-                msg_type = 0;
-            }
-            break;
-        }
-        case 'bottom':
-        case 'testbottom': {
-            let limit = param != '' ? Number(param) : 30;
-            if (limit > 25) {
-                //limit = 25;
-            }
-            await db.updateHof();
-            const stats = await Promise.all([
-                db.getTopStat(limit, 5), // Top Weekly Bottoms / Depression
-                db.getTopStat(limit, 2)  // Top Own Goals
-            ]);
-
-            const carousel = flex.tpl_carousel;
-            carousel.contents = stats.filter(x => x !== null && x !== undefined);
-            const date = new Date();
-            altText = `ทำเนียบซึมเศร้าประจำปี (${date.getFullYear()})`;
-            msg = carousel;
-            msg_type = 1;
-            break;
-        }
-        case 'menu': {
-            const theme = await db.getTheme();
-            const week = await db.queryWeekID(0);
-            const dateStr = week.length > 0 ? week[0].date : '';
-            let autoRegCount = 0;
-            try {
-                const autoRegRes = await db.executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
-                if (autoRegRes.length > 0) {
-                    autoRegCount = autoRegRes[0].count;
-                }
-            } catch (err) {
-                console.error("Error getting autoRegCount in menu:", err.message);
-            }
-            msg = flex.buildMenuFlex(dateStr, theme, null, autoRegCount);
-            altText = "เมนูบริการของบอท";
-            msg_type = 1;
-            break;
-        }
-        case 'newweek': {
-            const next_sat = getNextSaturday();
-            await db.newWeek(next_sat);
-            // falls through
-        }
-        case 'register':
-        case 'join':
-        case 'play':
-        case 'ลงชื่อ':
-        case 'reg': {
-            [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
-            if (is_flex && typeof msg === 'object') {
-                msg_type = 1;
-                altText = altText || "ลงชื่อเตะบอล";
-            } else {
-                msg_type = 2;
-            }
-            break;
-        }
-        case 'schedule': {
-            const theme = await db.getTheme();
-            const args = param.split(/\s+/).filter(Boolean);
-            let startTime = '17:00';
-            let endTime = null;
-            let matchDuration = 8;
-
-            if (args.length > 0) {
-                startTime = args[0];
-            }
-            if (args.length > 1) {
-                if (args[1].includes(':') || args[1].includes('.')) {
-                    endTime = args[1];
+                const inviteMsg = await buildNewWeekInviteMsg(groupId);
+                const [flexMsg, regSub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
+                let newWeekMsg;
+                if (is_flex && typeof flexMsg === 'object') {
+                    newWeekMsg = { type: 'flex', altText: altText || 'ลงชื่อเตะบอล', contents: flexMsg };
                 } else {
-                    matchDuration = parseInt(args[1], 10) || 8;
+                    newWeekMsg = { type: 'textV2', text: flexMsg, substitution: regSub };
                 }
-            }
-            if (args.length > 2) {
-                if (args[2].includes(':') || args[2].includes('.')) {
-                    endTime = args[2];
-                } else {
-                    matchDuration = parseInt(args[2], 10) || 8;
-                }
-            }
 
-            const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, 1, 3, endTime);
-            if (schedJson) {
-                msg = flex.buildScheduleFlex(schedJson, theme);
-                altText = `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`;
-                msg_type = 1;
-            } else {
-                msg = schedText;
+                const result = [firstMsg];
+                result.push(newWeekMsg);
+                if (inviteMsg) result.push(inviteMsg);
+                return result;
+            } catch (e) {
+                // fallback: return just the first message if newweek fails
             }
-            break;
-        }
-        case 'now': {
-            const theme = await db.getTheme();
-            const matchInfo = await db.getCurrentMatch(groupId);
-            if (!matchInfo) {
-                msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
-                break;
-            }
-            const cur = matchInfo.currentMatch;
-            if (!cur) {
-                msg = 'ยังไม่มีข้อมูลแมตช์ปัจจุบัน';
-                break;
-            }
-            msg = flex.buildNowFlex(matchInfo, theme);
-            altText = `⚽ แมตช์ปัจจุบัน [${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}`;
-            msg_type = 1;
-            break;
-        }
-        case 'live': {
-            const theme = await db.getTheme();
-            const matchInfo = await db.getCurrentMatch(groupId);
-            if (!matchInfo || !matchInfo.sched) {
-                msg = 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ';
-                break;
-            }
-            const cur = matchInfo.currentMatch;
-            msg = flex.buildLiveFlex(matchInfo, theme);
-            altText = `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''}`;
-            msg_type = 1;
-            break;
         }
 
-
-
-        case 'top':
-            let limit = param != '' ? Number(param) : 30;
-            if (limit > 25) {
-                //limit = 25;
-            }
-
-            await db.updateHof();
-            const stats = await Promise.all([
-                db.getTopStat(limit, 0),
-                db.getTopStat(limit, 1),
-                db.getTopStat(limit, 4),
-                db.getTopStat(limit, 6)
-            ]);
-
-            const carousel = flex.tpl_carousel;
-            carousel.contents = stats.filter(x => x !== null && x !== undefined);
-            const date = new Date();
-            altText = `Top ${limit} Stat (${date.getFullYear()})`;
-            msg = carousel;
-            msg_type = 1;
-            break;
-        case 'testcarousel':
-            msg = await db.getTopStat(10, 0);
-            //console.log(msg) ;
-            //content = content.replace(/(\r\n|\n|\r)/gm, "");
-            //console.log(content) ;
-            /*const data = {
-                img_url: 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg',
-                content: msg
-            };
-            const tpl =  flex.tpl_top.replace(/(\r\n|\n|\r)/gm, "");
-            //console.log(tpl) ;
-            msg = flex.replaceFlex(tpl, data) ;*/
-            obj = flex.tpl_bubble;
-            obj.size = "nano";
-            obj.hero.url = 'https://static.vecteezy.com/system/resources/thumbnails/028/142/355/small_2x/a-stadium-filled-with-excited-fans-a-football-field-in-the-foreground-background-with-empty-space-for-text-photo.jpg';
-            obj.hero.aspectRatio = "12:6"
-            //console.log(msg) ;
-            obj.body.contents = JSON.parse(msg);
-            console.log(obj);
-            //msg = test ;
-
-            carousel = flex.tpl_carousel;
-            carousel.contents = [];
-            carousel.contents.push(obj);
-            carousel.contents.push(obj);
-            msg = carousel;
-            console.log(msg);
-
-            altText = "Test Carousel";
-            msg_type = 1;
-            break;
-        case 'slip':
-        case 'sliplist': {
-            const theme = await db.getTheme();
-            const isAdmin = member && member.admin === 1;
-            const senderId = isAdmin ? null : (member ? member.line_user_id : null);
-            let noticedSlips = await db.getNoticedSlips(senderId);
-
-            if (!isAdmin && noticedSlips.length === 0 && senderId) {
-                const latestSlip = await db.getLatestSlipBySender(senderId);
-                if (latestSlip) {
-                    noticedSlips = [latestSlip];
-                }
-            }
-
-            msg = flex.buildSlipListFlex(noticedSlips, theme);
-            altText = `สลิปการโอนเงิน (${noticedSlips.length} รายการ)`;
-            msg_type = 1;
-            break;
+        return [firstMsg];
+    },
+    '-pay': async (context) => {
+        const { is_mention, member_id } = context;
+        if (is_mention) {
+            await db.updateMemberWeek(member_id, 0, 0);
+            const msg = await db.getMemberWeek(0);
+            return [{ type: 'text', text: msg }];
         }
-        case 'verify': {
-            if (!param || isNaN(Number(param))) {
-                msg = '⚠️ กรุณาระบุหมายเลขสลิป เช่น /verify 123';
-                msg_type = 0;
-                break;
-            }
-            const slipId = Number(param);
-            const slip = await db.getSlipById(slipId);
-            if (!slip) {
-                msg = `⚠️ ไม่พบสลิป #${slipId}`;
-                msg_type = 0;
-                break;
-            }
-            const isAdmin = member && member.admin === 1;
-            if (!isAdmin && member && String(slip.sender_id) !== String(member.line_user_id)) {
-                msg = `⚠️ คุณสามารถตรวจสอบได้เฉพาะสลิปของตัวเองเท่านั้น`;
-                msg_type = 0;
-                break;
-            }
-            if (!slip.qrcode) {
-                msg = `⚠️ สลิป #${slipId} ไม่มี QR Code ไม่สามารถตรวจสอบได้`;
-                msg_type = 0;
-                break;
-            }
-            console.log(`[verify] Verifying slip #${slipId} via EasySlip API...`);
-            let verifyResult = null;
-            try {
-                const response = await axios.post('https://api.easyslip.com/v2/verify/bank', {
-                    payload: slip.qrcode
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${EASYSLIP_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 10000
-                });
-                verifyResult = response.data;
-            } catch (apiErr) {
-                if (apiErr.response && apiErr.response.data) {
-                    verifyResult = apiErr.response.data;
-                }
-            }
-            if (verifyResult && verifyResult.success === true) {
-                const vData = verifyResult.data;
-                const senderName = vData.rawSlip?.sender?.account?.name?.th ||
-                    vData.rawSlip?.sender?.account?.name?.en ||
-                    vData.rawSlip?.sender?.name || slip.sender_name;
-                const senderBank = vData.rawSlip?.sender?.bank?.short || '';
-                const amount = vData.amountInSlip ?? (vData.rawSlip?.amount?.amount);
-                const amountStr = (amount !== undefined && amount !== null) ? Number(amount).toLocaleString('th-TH') : '0';
-                const recipient = vData.rawSlip?.receiver?.account?.name?.en ||
-                    vData.rawSlip?.receiver?.account?.name?.th || '';
-                const account = vData.rawSlip?.receiver?.account?.proxy?.account || '';
-                let recipientName = recipient;
-                const recipient_th = vData.rawSlip?.receiver?.account?.name?.th || '';
-                let slipToMe = false;
-                if (account) {
-                    if (account.endsWith('5894') || (account.startsWith('006') && account.endsWith('3367'))) {
-                        recipientName = 'Kyne';
-                        slipToMe = true;
-                    } else if ((recipient_th.includes('เศรษฐ') || recipientName.toUpperCase().includes('KTB G')) && account.endsWith('3367')) {
-                        recipientName = 'Kyne';
-                        slipToMe = true;
-                    }
-                }
-                if (recipientName.includes('เศรษฐ') || recipientName.toUpperCase().includes('SAGE') || recipientName.toUpperCase().includes('SETH')) {
-                    slipToMe = true;
-                    recipientName = 'Kyne';
-                }
-                const newStatus = slipToMe ? 'success' : 'not_me';
-                await db.updateSlipLog(slipId, newStatus, vData);
-                msg = `✅ ตรวจสอบสลิป #${slipId} สำเร็จ!\n\n`;
-                msg += `💰 ยอดเงิน: ${amountStr} บาท\n`;
-                msg += `💸 โอนจาก: ${senderName} - ${senderBank}\n`;
-                msg += `💵 ให้กับ: ${recipientName}\n`;
-                msg += `📌 สถานะ: ${slipToMe ? 'โอนให้เรา ✅' : 'ไม่เกี่ยวกับค่าสนาม 📝'}`;
-                if (slipToMe) {
-                    // Find the member who sent this slip and update their payment
-                    const slipMember = await db.queryMemberbyLineID(slip.sender_id);
-                    if (slipMember && slipMember.length > 0) {
-                        await db.updateMemberWeek(slipMember[0].id, 1, 0);
-                        msg += `\n\n💳 อัพเดทการชำระเงินให้ ${slip.sender_name} แล้ว`;
-                    }
-                }
-            } else {
-                const errMsg = verifyResult?.error ? `${verifyResult.error.code} - ${verifyResult.error.message}` : 'ไม่ทราบสาเหตุ';
-                msg = `❌ ตรวจสอบสลิป #${slipId} ไม่สำเร็จ\n\nสาเหตุ: ${errMsg}`;
-            }
-            msg_type = 0;
-            break;
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: -pay @ชื่อสมาชิก` }];
+    },
+    '-team': async (context) => ({ type: 'text', text: `พิมพ์ +team1(-4) ได้เลย ไม่ต้อง -team` }),
+    '+team1': async (context) => COMMAND_REGISTRY['+teamN'] ? COMMAND_REGISTRY['+teamN'](context) : undefined,
+    '+team2': async (context) => COMMAND_REGISTRY['+teamN'] ? COMMAND_REGISTRY['+teamN'](context) : undefined,
+    '+team3': async (context) => COMMAND_REGISTRY['+teamN'] ? COMMAND_REGISTRY['+teamN'](context) : undefined,
+    '+team4': async (context) => COMMAND_REGISTRY['+teamN'] ? COMMAND_REGISTRY['+teamN'](context) : undefined,
+    '+teamN': async (context) => {
+        const { cmd, is_mention, member_id, member_name, groupId } = context;
+        if (is_mention) {
+            let team_num = Number(cmd.slice(-1)) - 1;
+            let week = await db.queryWeekID(0);
+            let team_colors = await db.getTeamColorWeek(week[0].id);
+            await db.updateMemberWeek(member_id, team_colors[team_num].id, 1);
+            return [{ type: 'text', text: `${member_name} อยู่ทีม ${team_colors[team_num].color}` }];
+        } else {
+            return [{ type: 'text', text: `ต้องระบุชื่อสมาชิกด้วย` }];
         }
-        default:
-            if (msg == "") {
-                const theme = await db.getTheme();
+    },
+    'resetteam': async () => { await db.resetMemberTeam(); return [{ type: 'text', text: `ปรับให้ทุกคนไม่มีทีมแล้ว` }]; },
+    'randomteam1': async (context) => {
+        const dow = (new Date()).getDay();
+        if (dow >= 0) {
+            const team_res = await db.addTeamMemberWeek();
+            if (team_res == 0) {
                 const week = await db.queryWeekID(0);
-                const dateStr = week.length > 0 ? week[0].date : '';
-                let autoRegCount = 0;
-                try {
-                    const autoRegRes = await db.executeQuery("SELECT COUNT(*) as count FROM member_tbl WHERE auto_reg = 1");
-                    if (autoRegRes.length > 0) {
-                        autoRegCount = autoRegRes[0].count;
-                    }
-                } catch (err) {
-                    console.error("Error getting autoRegCount in default menu:", err.message);
-                }
-                msg = flex.buildMenuFlex(dateStr, theme, `ไม่รู้จักคำสั่ง: "${cmd}"`, autoRegCount);
-                altText = `ไม่รู้จักคำสั่ง: "${cmd}"`;
-                msg_type = 1;
+                const msg = await db.getTeamWeek(week[0].id, context.groupId);
+                const dateStr = week && week[0]?.date ? db.getFormatDate(week[0].date, 'short') : (week?.[0]?.date || '');
+                return { type: 'flex', altText: `Team Week - ${dateStr}`, contents: msg };
+            } else if (team_res == 1) {
+                return [{ type: 'text', text: "ทำการสุ่มไปแล้วใช้ /teamweek เพื่อดูทีม" }];
+            } else if (team_res == 2) {
+                return [{ type: 'text', text: "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม" }];
             }
-            break;
-    }
-    if (msg == '') return;
+        }
+        return [{ type: 'text', text: "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม" }];
+    },
+    'randomteam': async (context) => {
+        const { param, groupId } = context;
+        const week = await db.queryWeekID(param || 0);
+        if (!week || week.length === 0) {
+            return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];
+        }
+        const randRes = await db.randomTeamByPosition(week[0].id, groupId);
+        if (!randRes || randRes.status === 'NO_PLAYERS') {
+            return [{ type: 'text', text: "ยังไม่มีผู้เล่นลงทะเบียนในสัปดาห์นี้" }];
+        }
+        if (randRes.status === 'ERROR') {
+            return [{ type: 'text', text: `เกิดข้อผิดพลาด: ${randRes.message}` }];
+        }
 
-    switch (msg_type) {
-        case 0:
+        const bubbles = await db.getTeamFormation(week[0].id, groupId);
+        if (bubbles) {
+            const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
+            if (bubblesList.length > 0) {
+                let dateStr = '';
+                try {
+                    const dateText = bubblesList[0]?.header?.contents?.[0]?.contents?.[2]?.text || '';
+                    dateStr = dateText.replace(/^📅\s*/, '').trim();
+                } catch (e) { }
+                const dateSuffix = dateStr ? ` - ${dateStr}` : '';
+
+                return [{
+                    type: 'flex',
+                    altText: `⚽ ผังทีมประจำสัปดาห์${dateSuffix}`,
+                    contents: bubblesList.length === 1
+                        ? bubblesList[0]
+                        : { type: 'carousel', contents: bubblesList }
+                }];
+            }
+        }
+        if (randRes.alreadyAssigned) {
+            return [{ type: 'text', text: `ผู้เล่นทุกคนมีทีมแล้ว (${randRes.totalPlayers} คน)` }];
+        }
+        return [{ type: 'text', text: `✅ สุ่มทีมตามตำแหน่งสำเร็จ (${randRes.teamCount} ทีม, ${randRes.totalPlayers} คน)` }];
+    },
+    'teamweek1': async (context) => {
+        const { param, groupId } = context;
+        const week = await db.queryWeekID(param);
+        if (week && week.length > 0) {
+            const msg = await db.getTeamWeek(week[0].id, groupId);
+            const dateStr = week[0].date ? db.getFormatDate(week[0].date, 'short') : '';
+            if (msg) return { type: 'flex', altText: `Team Week - ${dateStr}`, contents: msg };
+            return [{ type: 'text', text: `ยังไม่มีข้อมูลทีมในสัปดาห์ ${dateStr}` }];
+        }
+        return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
+    },
+    'teamimg': async (context) => {
+        const { param, groupId } = context;
+        let cleanParam = (param || '').trim();
+        cleanParam = cleanParam.replace(/^(img|image)\s*/i, '').trim();
+        const imageUrls = await teamImg.generateTeamFormationImages(cleanParam, groupId);
+        if (imageUrls && imageUrls.length > 0) {
+            return imageUrls.map(url => ({
+                type: 'image',
+                originalContentUrl: url,
+                previewImageUrl: url
+            }));
+        }
+        return [{ type: 'text', text: 'ยังไม่มีข้อมูลทีมหรือผังการเล่นสำหรับสร้างรูปภาพ' }];
+    },
+    'teamimage': async (context) => COMMAND_REGISTRY['teamimg'](context),
+    'formationimg': async (context) => COMMAND_REGISTRY['teamimg'](context),
+    'lineupimg': async (context) => COMMAND_REGISTRY['teamimg'](context),
+    'teamweek': async (context) => {
+        const { param, groupId } = context;
+        const trimmed = (param || '').trim().toLowerCase();
+        if (trimmed === 'img' || trimmed === 'image' || trimmed.startsWith('img ') || trimmed.startsWith('image ')) {
+            context.param = (param || '').trim().replace(/^(img|image)\s*/i, '').trim();
+            return COMMAND_REGISTRY['teamimg'](context);
+        }
+        const bubbles = await db.getTeamFormation(param, groupId);
+        if (bubbles) {
+            const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
+            if (bubblesList.length > 0) {
+                return [{
+                    type: 'flex',
+                    altText: `⚽ ผังทีมประจำสัปดาห์`,
+                    contents: bubblesList.length === 1
+                        ? bubblesList[0]
+                        : { type: 'carousel', contents: bubblesList }
+                }];
+            }
+        }
+        return [{ type: 'text', text: 'ยังไม่มีข้อมูลการจัดตำแหน่งทีมในสัปดาห์นี้' }];
+    },
+    'formation': async (context) => COMMAND_REGISTRY['teamweek'](context),
+    'lineup': async (context) => COMMAND_REGISTRY['teamweek'](context),
+    'matchweek': async (context) => {
+        const { param, groupId } = context;
+        const week = await db.queryWeekID(param);
+        if (week && week.length > 0) {
+            const msgs = await db.getMatchWeek(week[0].id, groupId);
+            if (msgs) return msgs;
+            return [{ type: 'text', text: `ยังไม่มีข้อมูลแมตช์ในสัปดาห์ ${week[0].date}` }];
+        }
+        return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
+    },
+    'tableweek': async () => ({ type: 'text', text: "แสดงตารางใน /matchweek แทนแล้ว" }),
+    'topscorer': async () => ({ type: 'text', text: "ให้ใช้ /top แทน" }),
+    'topassist': async () => ({ type: 'text', text: "ให้ใช้ /top แทน" }),
+    'setrank': async (context) => {
+        const { is_mention, member_id, rank_val, member_name } = context;
+        if (is_mention) { await db.updateMemberRank(member_id, rank_val); return [{ type: 'text', text: `ปรับระดับ (rank) ของ ${member_name} เป็น ${rank_val} เรียบร้อยครับ` }]; }
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setrank @ชื่อสมาชิก ระดับ` }];
+    },
+    'setpriority': async (context) => {
+        const { is_mention, member_id, priority_val, member_name } = context;
+        if (is_mention) { await db.updateMemberPriority(member_id, priority_val); return [{ type: 'text', text: `ปรับ priority tier ค่าเริ่มต้นของ ${member_name} เป็น ${priority_val} เรียบร้อยครับ` }]; }
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setpriority @ชื่อสมาชิก ระดับ (1, 2 หรือ 0)` }];
+    },
+    'setpriorityweek': async (context) => {
+        const { is_mention, member_id, priority_val, member_name } = context;
+        if (is_mention) {
+            const week = await db.queryWeekID(0);
+            if (!week || week.length === 0) return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];
+            await db.setMemberWeekPriority(member_id, week[0].id, priority_val);
+            return [{ type: 'text', text: `ปรับ priority tier ประจำสัปดาห์ของ ${member_name} เป็น ${priority_val} เรียบร้อยครับ` }];
+        }
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setpriorityweek @ชื่อสมาชิก ระดับ (1, 2 หรือ 0 เพื่อใช้ค่า default)` }];
+    },
+    'setdebt': async (context) => {
+        const { is_mention, member_id, debt_val, member_name } = context;
+        if (is_mention) { await db.setMemberDebt(member_id, debt_val); return [{ type: 'text', text: `ตั้งยอดค้างของ ${member_name} เป็น ${debt_val} บาท เรียบร้อยครับ` }]; }
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setdebt @ชื่อสมาชิก จำนวนเงิน` }];
+    },
+    'theme': async (context) => {
+        const { param } = context;
+        if (param === 'black' || param === 'white') { await db.setTheme(param); return [{ type: 'text', text: `เปลี่ยนธีมเป็น ${param} เรียบร้อยครับ` }]; }
+        return [{ type: 'text', text: `กรุณาระบุธีม: /theme black หรือ /theme white` }];
+    },
+    'setcost': async (context) => {
+        const { param } = context;
+        if (param === "") return [{ type: 'text', text: "กรุณาระบุค่าสนามทั้งหมด เช่น /setcost 3300" }];
+        const totalCost = parseInt(param, 10);
+        if (isNaN(totalCost) || totalCost <= 0) return [{ type: 'text', text: "กรุณาระบุค่าสนามเป็นตัวเลขที่มากกว่า 0" }];
+        const result = await db.setWeekCost(totalCost);
+        if (result.success) {
+            return [{ type: 'text', text: `ตั้งค่าค่าสนามสำเร็จ!\nยอดรวม: ${totalCost} บาท\nสมาชิกลงชื่อ: ${result.count} คน\nเฉลี่ยคนละ: ${result.sharedFee} บาท\nบันทึกยอดค้างชำระเรียบร้อยแล้ว` }];
+        }
+        return [{ type: 'text', text: `เกิดข้อผิดพลาด: ${result.message}` }];
+    },
+    'resetdebt': async () => {
+        const result = await db.resetWeekDebt();
+        if (result.success) return [{ type: 'text', text: `รีเซ็ตยอดค้างชำระของสมาชิกทุกคนในสัปดาห์นี้เรียบร้อยครับ\nสมาชิกลงชื่อที่ถูกรีเซ็ต: ${result.count} คน` }];
+        return [{ type: 'text', text: `เกิดข้อผิดพลาด: ${result.message}` }];
+    },
+    'resetcost': async (context) => COMMAND_REGISTRY['resetdebt'](context),
+    'qr': async (context) => {
+        const { param, groupId, quoteToken } = context;
+        const week = await db.queryWeekID(0);
+        let amount = 0;
+        let isFlex = false;
+        let amountSpecified = false;
+
+        if (param !== "") {
+            const tokens = param.trim().split(/\s+/);
+            for (const token of tokens) {
+                const lowerToken = token.toLowerCase();
+                if (lowerToken === 'flex' || lowerToken === '-flex' || lowerToken === 'f') {
+                    isFlex = true;
+                } else if (lowerToken === 'image' || lowerToken === 'img' || lowerToken === 'file' || lowerToken === '-image' || lowerToken === '-img' || lowerToken === '-file') {
+                    isFlex = false;
+                } else {
+                    const parsedAmount = parseInt(token, 10);
+                    if (!isNaN(parsedAmount) && parsedAmount >= 0) {
+                        amount = parsedAmount;
+                        amountSpecified = true;
+                    } else {
+                        return [{ type: 'text', quoteToken, text: "กรุณาระบุจำนวนเงินเป็นตัวเลข เช่น /qr 150 หรือ /qr flex 150" }];
+                    }
+                }
+            }
+        }
+
+        if (!amountSpecified) {
+            if (week && week.length > 0 && week[0].cost > 0) {
+                amount = week[0].cost;
+            } else {
+                amount = 0;
+            }
+        }
+
+        try {
+            //paotang pay
+            //006660080321320
+            //g-wallet
+            //006990146713367
+            const filename = await qrGen.generateQrCode(amount, '006660080321320');
+            const localQrUrl = qrGen.getQrImageUrl(filename);
+
+            if (isFlex) {
+                const theme = await db.getTheme();
+                const msg = flex.buildQrFlex(amount, '0850705894', theme, localQrUrl);
+                const altText = `สแกน QR ชำระเงิน ${amount} บาท`;
+                return { type: 'flex', altText, contents: msg };
+            } else {
+                return {
+                    type: 'image',
+                    originalContentUrl: localQrUrl,
+                    previewImageUrl: localQrUrl
+                };
+            }
+        } catch (qrErr) {
+            return [{ type: 'text', text: `เกิดข้อผิดพลาดในการสร้าง QR Code: ${qrErr.message}` }];
+        }
+    },
+    'qrpay': async (context) => {
+        context.param = context.param ? `0 ${context.param}` : '0';
+        return COMMAND_REGISTRY['qr'](context);
+    },
+    'autoreglist': async (context) => { context.param = 'list'; return COMMAND_REGISTRY['autoreg'](context); },
+    '+autoreg': async (context) => COMMAND_REGISTRY['autoreg'](context),
+    'autoreg': async (context) => {
+        const { param, groupId, member_id, member_name } = context;
+        const theme = await db.getTheme();
+        if (param.toLowerCase() === 'list') {
+            const list = await db.getAutoRegList(groupId);
+            const callerMember = member_id ? { id: member_id, name: member_name } : null;
+            const msg = flex.buildAutoRegFlex('list', callerMember, list, theme);
+            return { type: 'flex', altText: "สมาชิกลงชื่ออัตโนมัติ", contents: msg };
+        }
+        const list = await db.getAutoRegList(groupId);
+        const isAlreadyRegistered = list.some(m => m.id === member_id);
+        if (isAlreadyRegistered) {
+            const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
+            const msg = flex.buildAutoRegFlex('already', memberInfo, list, theme);
+            return { type: 'flex', altText: `ลงชื่ออัตโนมัติอยู่แล้ว: ${member_name}`, contents: msg };
+        }
+        if (list.length >= 24) {
+            const msg = flex.buildAutoRegFlex('full', null, list, theme);
+            return { type: 'flex', altText: "รายชื่อลงชื่อออโต้เต็มแล้ว", contents: msg };
+        }
+        await db.updateMemberAutoReg(member_id, 1, groupId);
+        const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
+        const updatedList = await db.getAutoRegList(groupId);
+        const msg = flex.buildAutoRegFlex('add', memberInfo, updatedList, theme);
+        return { type: 'flex', altText: `สมัครลงชื่ออัตโนมัติสำเร็จ: ${member_name}`, contents: msg };
+    },
+    '-autoreg': async (context) => {
+        const { member_id, member_name, groupId } = context;
+        const theme = await db.getTheme();
+        await db.updateMemberAutoReg(member_id, 0, groupId);
+        const memberInfo = await db.getMemberDisplayInfo(member_id, groupId);
+        const list = await db.getAutoRegList(groupId);
+        const msg = flex.buildAutoRegFlex('remove', memberInfo, list, theme);
+        return { type: 'flex', altText: `ยกเลิกลงชื่ออัตโนมัติสำเร็จ: ${member_name}`, contents: msg };
+    },
+    'stat': async (context) => {
+        const { member_id, groupId } = context;
+        const theme = await db.getTheme();
+        const statsData = await db.getMemberStats(member_id, groupId);
+        if (statsData) return { type: 'flex', altText: `สถิติส่วนตัวของ ${statsData.member.name}`, contents: flex.buildMemberStatsFlex(statsData, theme) };
+        return [{ type: 'text', text: "ไม่พบข้อมูลสถิติของสมาชิกท่านนี้" }];
+    },
+    'mystat': async (context) => COMMAND_REGISTRY['stat'](context),
+    'me': async (context) => COMMAND_REGISTRY['stat'](context),
+    'my': async (context) => COMMAND_REGISTRY['stat'](context),
+    'bottom': async (context) => {
+        const { param, groupId } = context;
+        const limit = param != '' ? Number(param) : 30;
+        const stats = await Promise.all([db.getTopStat(limit, 5, groupId), db.getTopStat(limit, 2, groupId)]);
+        const carousel = flex.tpl_carousel; carousel.contents = stats.filter(x => x !== null && x !== undefined);
+        return { type: 'flex', altText: `ทำเนียบซึมเศร้าประจำปี (${new Date().getFullYear()})`, contents: carousel };
+    },
+    'top': async (context) => {
+        const { param, groupId } = context;
+        const limit = (param && !isNaN(Number(param))) ? Number(param) : 30;
+        await db.updateHof();
+        const currentYear = new Date().getFullYear();
+
+        const [statScorers, statAssists, statAvgPts, statMvpCount] = await Promise.all([
+            db.getTopStat(limit, 0, groupId), // Top Scorers
+            db.getTopStat(limit, 1, groupId), // Top Assists
+            db.getTopStat(limit, 4, groupId), // Avg Pts (Raw MVP Pts / Total Weeks)
+            db.getTopStat(limit, 7, groupId)  // Most MVP Count (Weekly MVP Wins)
+        ]);
+
+        const group1 = [statScorers, statAssists].filter(x => x !== null && x !== undefined);
+        const group2 = [statAvgPts, statMvpCount].filter(x => x !== null && x !== undefined);
+
+        const replyMessages = [];
+
+        if (group1.length > 0) {
+            replyMessages.push({
+                type: 'flex',
+                altText: `ทำเนียบอันดับประจำปี (${currentYear}) - ดาวซัลโว & แอสซิสต์`,
+                contents: group1.length === 1 ? group1[0] : { type: 'carousel', contents: group1 }
+            });
+        }
+
+        if (group2.length > 0) {
+            replyMessages.push({
+                type: 'flex',
+                altText: `ทำเนียบอันดับประจำปี (${currentYear}) - คะแนนเฉลี่ย & MVP`,
+                contents: group2.length === 1 ? group2[0] : { type: 'carousel', contents: group2 }
+            });
+        }
+
+        if (replyMessages.length === 1) return replyMessages[0];
+        if (replyMessages.length > 1) return replyMessages;
+        return { type: 'text', text: "ยังไม่มีข้อมูลสถิติสำหรับปีนี้" };
+    },
+    'topstat': async (context) => COMMAND_REGISTRY['top'](context),
+    'menu': async (context) => {
+        const theme = await db.getTheme();
+        const week = await db.queryWeekID(0);
+        const dateStr = week.length > 0 ? week[0].date : '';
+        const autoRegCount = await db.getAutoRegCount();
+        const msg = flex.buildMenuFlex(dateStr, theme, null, autoRegCount);
+        return { type: 'flex', altText: "เมนูบริการของบอท", contents: msg };
+    },
+    'newweek': async (context) => {
+        const { quoteToken, param, is_flex, groupId } = context;
+        const [unpaidMsg, unpaidSub, unpaidCount] = await db.getMemberWeek2(0);
+        const count = unpaidCount || 0;
+
+        if (count > 2) {
             return [{
                 type: 'text',
-                quoteToken: quoteToken,
-                text: msg
+                quoteToken,
+                text: `⚠️ ไม่สามารถเปิดสัปดาห์ใหม่ได้ เนื่องจากยังมีสมาชิกค้างชำระ ${count} คน (อนุญาตให้เปิดสัปดาห์ใหม่ได้เมื่อค้างชำระไม่เกิน 2 คน)`
             }];
-        case 1:
-            return {
-                type: 'flex',
-                altText: altText,
-                contents: msg,
-            };
-        case 2:
-            return {
-                type: 'textV2',
-                quoteToken: quoteToken,
-                text: msg,
-                substitution: sub
-            };
-        case 3:
-            return {
-                type: 'textV2',
-                text: msg,
-                substitution: sub
-            };
-        default:
-            return;
+        }
+
+        let customTimeRange = null;
+        if (param && param.trim() !== '') {
+            const timeMatch = param.trim().match(/(\d{1,2}[:.]\d{2}\s*-\s*\d{1,2}[:.]\d{2})/);
+            if (timeMatch) {
+                customTimeRange = timeMatch[1].replace(/\./g, ':');
+            }
+        }
+
+        const next_sat = getNextSaturday();
+        await db.newWeek(next_sat, customTimeRange);
+
+        const messages = [];
+
+        // 1st message: register flex / text
+        const registerResult = await COMMAND_REGISTRY['register'](context);
+        if (registerResult) {
+            const regMsgs = Array.isArray(registerResult) ? registerResult : [registerResult];
+            messages.push(...regMsgs);
+        }
+
+        // Last message: @ALL invite
+        const inviteMsg = await buildNewWeekInviteMsg(groupId);
+        if (inviteMsg) messages.push(inviteMsg);
+
+        return messages.length > 0 ? messages : [{ type: 'text', quoteToken, text: '✅ เปิดสัปดาห์ใหม่แล้ว' }];
+    },
+    'weektime': async (context) => {
+        const { param, quoteToken, is_flex, groupId } = context;
+        if (!param || param.trim() === '') {
+            return [{
+                type: 'text',
+                quoteToken,
+                text: 'กรุณาระบุช่วงเวลาเตะบอล เช่น /weektime 18:00-20:30'
+            }];
+        }
+        const timeStr = param.trim().replace(/\./g, ':');
+        const updateRes = await db.updateWeekTimeRange(timeStr);
+        if (updateRes.success) {
+            const [flexMsg, sub, altTextStr] = await db.getMemberWeek0(1, is_flex, groupId);
+            if (is_flex && typeof flexMsg === 'object') {
+                return [
+                    { type: 'text', quoteToken, text: `✅ ปรับเวลาเตะบอลสัปดาห์นี้เป็น ${timeStr} น. แล้ว` },
+                    { type: 'flex', altText: altTextStr || "ลงชื่อเตะบอล", contents: flexMsg }
+                ];
+            } else {
+                return [
+                    { type: 'text', quoteToken, text: `✅ ปรับเวลาเตะบอลสัปดาห์นี้เป็น ${timeStr} น. แล้ว` },
+                    { type: 'text', quoteToken, text: flexMsg }
+                ];
+            }
+        } else {
+            return [{ type: 'text', quoteToken, text: `เกิดข้อผิดพลาด: ${updateRes.message}` }];
+        }
+    },
+    'setweektime': async (context) => COMMAND_REGISTRY['weektime'](context),
+    'register': async (context) => { const { is_flex, groupId, member_id } = context; const [msg, sub, altText] = await db.getMemberWeek0(1, is_flex, groupId, member_id); if (is_flex && typeof msg === 'object') return { type: 'flex', altText: altText || "ลงชื่อเตะบอล", contents: msg }; return { type: 'textV2', text: msg, substitution: sub }; },
+    'schedule': async (context) => {
+        const { param } = context;
+        const theme = await db.getTheme();
+        const args = (param || '').split(/\s+/).filter(Boolean);
+        let startTime = null;
+        let endTime = null;
+        let matchDuration = null;
+        let forceRegen = false;
+
+        for (const arg of args) {
+            if (arg.includes(':') || arg.includes('.')) {
+                if (!startTime) {
+                    startTime = arg;
+                } else if (!endTime) {
+                    endTime = arg;
+                }
+            } else if (['reset', 'regen', 'force', 'new', 'rebuild'].includes(arg.toLowerCase())) {
+                forceRegen = true;
+            } else {
+                const parsedNum = parseInt(arg, 10);
+                if (!isNaN(parsedNum) && parsedNum > 0) {
+                    matchDuration = parsedNum;
+                }
+            }
+        }
+
+        if (startTime || endTime || matchDuration) {
+            forceRegen = true;
+        }
+
+        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime, forceRegen);
+        if (schedJson) return { type: 'flex', altText: `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`, contents: flex.buildScheduleFlex(schedJson, theme) };
+        return [{ type: 'text', text: schedText }];
+    },
+    'now': async (context) => {
+        const { groupId } = context;
+        const theme = await db.getTheme();
+        const matchInfo = await db.getCurrentMatch(groupId);
+        if (!matchInfo) return [{ type: 'text', text: 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ' }];
+        const cur = matchInfo.currentMatch;
+        if (!cur) return [{ type: 'text', text: 'ยังไม่มีข้อมูลแมตช์ปัจจุบัน' }];
+        return { type: 'flex', altText: `⚽ แมตช์ปัจจุบัน [${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}`, contents: flex.buildNowFlex(matchInfo, theme) };
+    },
+    'live': async (context) => {
+        const { groupId } = context;
+        const theme = await db.getTheme();
+        const matchInfo = await db.getCurrentMatch(groupId);
+        if (!matchInfo || !matchInfo.sched) return [{ type: 'text', text: 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ' }];
+        const cur = matchInfo.currentMatch;
+        return { type: 'flex', altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''}`, contents: flex.buildLiveFlex(matchInfo, theme) };
+    },
+    'maxmvpscore': async (context) => {
+        const { param, quoteToken } = context;
+        let year = null;
+        let reset = false;
+
+        if (param && param.trim() !== '') {
+            const tokens = param.trim().toLowerCase().split(/\s+/);
+            tokens.forEach(tok => {
+                if (tok === 'reset' || tok === 'force' || tok === 'rebuild') {
+                    reset = true;
+                } else if (!isNaN(Number(tok)) && Number(tok) > 2000) {
+                    year = Number(tok);
+                }
+            });
+        }
+
+        const res = await db.calcAndSaveMaxMvpScore({ year, reset });
+        if (!res || res.weeksChecked === 0) {
+            return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูลสัปดาห์สำหรับคำนวณ ${year ? `ปี ${year}` : ''}` }];
+        }
+
+        let msg = `🏆 รายละเอียดคะแนน MVP สูงสุดอ้างอิง ${res.year ? `ปี ${res.year}` : 'ทุกสัปดาห์'}\n`;
+        msg += `📌 Reference Benchmark (10.00 คะแนน): ${res.maxRawScore.toFixed(4)}\n`;
+        msg += `📊 สรุปการซิงค์: ${res.weeksChecked} สัปดาห์ (ข้ามสัปดาห์เดิม ${res.skipped} | เพิ่มใหม่ ${res.newInserted}${reset ? ' | รีเซ็ตแล้ว' : ''})\n\n`;
+        msg += `🔥 รายละเอียด Top 5 ผลงาน MVP สูงสุด:\n\n`;
+
+        res.topPerformances.forEach((p, idx) => {
+            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
+            const rating = res.maxRawScore > 0 ? Math.min(10.0, (p.rawScore / res.maxRawScore) * 10).toFixed(1) : '0.0';
+            const csText = (p.cleanSheets && p.cleanSheets > 0) ? ` + 🧤 ${p.cleanSheets}CS` : '';
+            const gaText = (p.conceded && p.conceded > 0) ? ` - 🥅 ${p.conceded}GA` : '';
+            msg += `${medal} ${p.name} (${p.dateStr}) [Week ${p.week_id}]\n`;
+            msg += `   └─ ผลงาน: ⚽ ${p.goals}G + 👟 ${p.assists}A${csText}${gaText}\n`;
+            msg += `   └─ Raw Score: ${p.rawScore.toFixed(4)}\n`;
+            msg += `   => Rating: ${rating} / 10\n\n`;
+        });
+
+        msg += `✅ อัพเดทคะแนนอ้างอิง 10.00 (Benchmark) เรียบร้อยแล้ว!`;
+        return [{ type: 'text', text: msg }];
+    },
+    'mvplist': async (context) => {
+        const { param, groupId, quoteToken } = context;
+        let year = null;
+        if (param && param.trim() !== '') {
+            const num = Number(param.trim());
+            if (!isNaN(num) && num > 2000) {
+                year = num;
+            }
+        }
+        if (!year) {
+            year = new Date().getFullYear();
+        }
+        const theme = await db.getTheme();
+        const mvpData = await db.getMvpList(year, groupId);
+        if (!mvpData || mvpData.weeks.length === 0) {
+            return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูล MVP ประจำปี ${year}` }];
+        }
+        const bubbles = flex.buildMvpListFlex(mvpData, theme);
+        const bubblesList = Array.isArray(bubbles) ? bubbles : (bubbles.contents || [bubbles]);
+
+        if (bubblesList.length > 0) {
+            const chunkSize = 2;
+            const replyMessages = [];
+            const totalBubbles = bubblesList.length;
+            for (let i = 0; i < totalBubbles && replyMessages.length < 5; i += chunkSize) {
+                const chunk = bubblesList.slice(i, i + chunkSize);
+                const pageStart = i + 1;
+                const pageEnd = i + chunk.length;
+                const pageInfo = totalBubbles > 1 ? ` (หน้า ${pageStart}${pageEnd > pageStart ? `-${pageEnd}` : ''}/${totalBubbles})` : '';
+
+                if (chunk.length === 1) {
+                    replyMessages.push({
+                        type: 'flex',
+                        altText: `🌟 ทำเนียบ MVP ประจำปี ${mvpData.year}${pageInfo}`,
+                        contents: chunk[0]
+                    });
+                } else {
+                    replyMessages.push({
+                        type: 'flex',
+                        altText: `🌟 ทำเนียบ MVP ประจำปี ${mvpData.year}${pageInfo}`,
+                        contents: {
+                            type: 'carousel',
+                            contents: chunk
+                        }
+                    });
+                }
+            }
+            try {
+                const tempDir = path.join(__dirname, 'temp');
+                if (!fs.existsSync(tempDir)) {
+                    fs.mkdirSync(tempDir, { recursive: true });
+                }
+                fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
+                fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
+            } catch (saveErr) {
+                console.error('Error saving latest_flex.json in mvplist:', saveErr.message);
+            }
+
+            return replyMessages;
+        }
+        return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบข้อมูล MVP ประจำปี ${year}` }];
+    },
+    'slip': async (context) => {
+        const { member, groupId } = context;
+        const theme = await db.getTheme();
+        const isAdmin = member && member.admin === 1;
+        const senderId = isAdmin ? null : (member ? member.line_user_id : null);
+        let noticedSlips = await db.getNoticedSlips(senderId);
+        if (!isAdmin && noticedSlips.length === 0 && senderId) {
+            const latestSlip = await db.getLatestSlipBySender(senderId);
+            if (latestSlip) noticedSlips = [latestSlip];
+        }
+        const msg = flex.buildSlipListFlex(noticedSlips, theme);
+        return { type: 'flex', altText: `สลิปการโอนเงิน (${noticedSlips.length} รายการ)`, contents: msg };
+    },
+    'sliplist': async (context) => COMMAND_REGISTRY['slip'](context),
+    'verify': async (context) => {
+        const { param, member, quoteToken } = context;
+        if (!param || isNaN(Number(param))) return [{ type: 'text', quoteToken, text: '⚠️ กรุณาระบุหมายเลขสลิป เช่น /verify 123' }];
+        const slipId = Number(param);
+        const slip = await db.getSlipById(slipId);
+        if (!slip) return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบสลิป #${slipId}` }];
+        const isAdmin = member && member.admin === 1;
+        if (!isAdmin && member && String(slip.sender_id) !== String(member.line_user_id)) return [{ type: 'text', quoteToken, text: '⚠️ คุณสามารถตรวจสอบได้เฉพาะสลิปของตัวเองเท่านั้น' }];
+        if (!slip.qrcode) return [{ type: 'text', quoteToken, text: `⚠️ สลิป #${slipId} ไม่มี QR Code ไม่สามารถตรวจสอบได้` }];
+
+        const verifyResult = await slipService.verifySlipPayload(slip.qrcode, slip.sender_name);
+        if (verifyResult.success && verifyResult.slipData) {
+            const { details, slipToMe, logStatus } = slipService.processSlipData(verifyResult.slipData, slip.sender_name);
+            await db.updateSlipLog(slipId, logStatus, verifyResult.slipData);
+            let msg = `✅ ตรวจสอบสลิป #${slipId} สำเร็จ!\n\n`;
+            msg += `💰 ยอดเงิน: ${details.amountStr} บาท\n`;
+            msg += `💸 โอนจาก: ${details.senderName} - ${details.senderBank}\n`;
+            msg += `💵 ให้กับ: ${details.recipientName}\n`;
+            msg += `📌 สถานะ: ${slipToMe ? `โอนค่าสนาม ✅\n\n💳 อัพเดทข้อมูล slip ของ ${slip.sender_name} แล้ว` : 'ไม่เกี่ยวกับค่าสนาม 📝'}`;
+            /*if (slipToMe) {
+                //const slipMember = await db.queryMemberbyLineID(slip.sender_id);
+                if (slipMember && slipMember.length > 0) {
+                    //await db.updateMemberWeek(slipMember[0].id, 1, 0);
+                    msg += `\n\n💳 อัพเดทข้อมูล slip ของ ${slip.sender_name} แล้ว`;
+                }
+            }*/
+            return [{ type: 'text', text: msg }];
+        } else {
+            const errMsg = verifyResult.error ? `${verifyResult.error.code} - ${verifyResult.error.message}` : 'ไม่ทราบสาเหตุ';
+            return [{ type: 'text', text: `❌ ตรวจสอบสลิป #${slipId} ไม่สำเร็จ\n\nสาเหตุ: ${errMsg}` }];
+        }
+    },
+};
+
+async function resolveMentionTarget(cmd, param, member, quoteToken) {
+    let member_id = member ? member.id : undefined;
+    let member_name = member ? member.name : undefined;
+    let target_line_user_id = member ? member.line_user_id : undefined;
+    let is_mention = false;
+
+    if (!MENTION_COMMANDS.has(cmd) || !param.startsWith('@')) {
+        return { member_id, member_name, target_line_user_id, is_mention, param };
     }
 
-    //console.log(replyMessages)
-    return replyMessages;
+    const mention = await db.queryMemberbyName(param);
+    if (!mention || mention.length === 0) {
+        return { reply: formatTextReply(`ไม่พบสมาชิก ${param}`, quoteToken) };
+    }
+
+    is_mention = true;
+    member_id = mention[0].id;
+    member_name = param;
+    target_line_user_id = mention[0].line_user_id;
+
+    if (!WEEK_CHECK_SKIP.has(cmd) && !await db.IsMemberWeek(member_id)) {
+        return {
+            reply: formatTextReply(`สมาชิก ${param} ไม่ได้ลงชื่อในสัปดาห์นี้`, quoteToken)
+        };
+    }
+
+    return { member_id, member_name, target_line_user_id, is_mention, param };
+}
+
+async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
+    try {
+        const { cmd, param: rawParam } = parseCommandString(cmd_str);
+        let param = rawParam;
+
+        if (member && member.debt > 0 && member.admin !== 1 && !ADMIN_RESTRICTED_COMMANDS.has(cmd)) {
+            const displayName = (member.name || '').replace('@', '');
+            return formatTextReply(`ขออภัย ${displayName} ยังมียอดค้างชำระ ${member.debt} บาท ไม่สามารถใช้งานคำสั่งได้`, quoteToken);
+        }
+
+        try {
+            const adminCmds = await db.getAdminCommands();
+            const adminCmdSet = new Set(adminCmds || []);
+            if (adminCmdSet.has(cmd)) {
+                if (!member || member.admin !== 1) {
+                    return [{
+                        type: 'text',
+                        quoteToken: quoteToken,
+                        text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับผู้ดูแลระบบเท่านั้น)`
+                    }];
+                }
+            }
+        } catch (dbErr) {
+            console.error('⚠️ Failed to verify admin command from database:', dbErr.message);
+        }
+
+        let is_flex = true;
+        if (param.toLowerCase().includes('text')) {
+            is_flex = false;
+            param = param.replace(/text/gi, '').trim();
+        }
+
+        let rank_val = 0;
+        if (cmd === 'setrank') {
+            const parts = param.split(/\s+/).filter(Boolean);
+            if (parts.length > 1) {
+                const possibleVal = parts.pop();
+                const parsed = parseInt(possibleVal, 10);
+                if (!isNaN(parsed)) {
+                    rank_val = parsed;
+                    param = parts.join(' ').trim();
+                }
+            }
+        }
+
+        let debt_val = 0;
+        if (cmd === 'setdebt') {
+            const parts = param.split(/\s+/).filter(Boolean);
+            if (parts.length > 1) {
+                const possibleVal = parts.pop();
+                const parsed = parseInt(possibleVal, 10);
+                if (!isNaN(parsed)) {
+                    debt_val = parsed;
+                    param = parts.join(' ').trim();
+                }
+            }
+        }
+
+        let priority_val = 0;
+        if (cmd === 'setpriority' || cmd === 'setpriorityweek') {
+            const parts = param.split(/\s+/).filter(Boolean);
+            if (parts.length > 1) {
+                const possibleVal = parts.pop();
+                const parsed = parseInt(possibleVal, 10);
+                if (!isNaN(parsed)) {
+                    priority_val = parsed;
+                    param = parts.join(' ').trim();
+                }
+            }
+        }
+
+        const mentionResult = await resolveMentionTarget(cmd, param, member, quoteToken);
+        if (mentionResult.reply) {
+            return mentionResult.reply;
+        }
+
+        let member_id = mentionResult.member_id;
+        let member_name = mentionResult.member_name;
+        let target_line_user_id = mentionResult.target_line_user_id;
+        let is_mention = mentionResult.is_mention;
+        param = mentionResult.param;
+
+        const result = await handleCommandSwitch({
+            cmd,
+            param,
+            quoteToken,
+            groupId,
+            is_flex,
+            rank_val,
+            priority_val,
+            debt_val,
+            member,
+            member_id,
+            member_name,
+            target_line_user_id,
+            is_mention
+        });
+
+        try {
+            const tempDir = path.join(__dirname, 'temp');
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true });
+            }
+            fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(result, null, 2), 'utf8');
+            fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(result, null, 2), 'utf8');
+        } catch (e) {
+            console.error('Error writing latest_flex.json:', e.message);
+        }
+
+        return result;
+    } catch (err) {
+        console.error('⚠️ Error processing command:', err);
+        const errDetail = err && err.message ? err.message : String(err);
+        return [{
+            type: 'text',
+            quoteToken,
+            text: `เกิดข้อผิดพลาด: ${errDetail}`
+        }];
+    }
+}
+
+async function handleCommandSwitch(context) {
+    const { cmd, param, quoteToken, groupId, is_flex, rank_val, debt_val, member, member_id, member_name, target_line_user_id, is_mention } = context;
+    let chat_type = "[cmd] -";
+    //console.log(`${chat_type} command: ${cmd} - param: ${param}`);
+
+    // If a registry handler exists for this command, call it first. Handler may
+    // return a reply (array/object) to short-circuit; `undefined` continues to
+    // the legacy switch-based fallback.
+    const registryHandler = COMMAND_REGISTRY[cmd];
+    if (registryHandler && typeof registryHandler === 'function') {
+        try {
+            const registryResult = await registryHandler(context);
+            if (registryResult !== undefined) {
+                return registryResult;
+            }
+        } catch (handlerErr) {
+            console.error('⚠️ Error in command registry handler for', cmd, handlerErr.message || handlerErr);
+            const errDetail = handlerErr && handlerErr.message ? handlerErr.message : String(handlerErr);
+            return [{
+                type: 'text',
+                quoteToken,
+                text: `เกิดข้อผิดพลาด (${cmd}): ${errDetail}`
+            }];
+        }
+    }
+    // No registry handler matched; show default unknown-command menu
+    return unknownCommandResponse(context);
 }
 
 
 module.exports = {
     process_cmd,
 };
+
+async function unknownCommandResponse(context) {
+    const { cmd, quoteToken, groupId } = context;
+    const theme = await db.getTheme();
+    const week = await db.queryWeekID(0);
+    const dateStr = week.length > 0 ? week[0].date : '';
+    const autoRegCount = await db.getAutoRegCount();
+    const msg = flex.buildMenuFlex(dateStr, theme, `ไม่รู้จักคำสั่ง: "${cmd}"`, autoRegCount);
+    const altText = `ไม่รู้จักคำสั่ง: "${cmd}"`;
+    return { type: 'flex', altText, contents: msg };
+}

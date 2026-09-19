@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prune:images": "node prune_images.js"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,7 @@
     "qrcode-reader": "^1.0.4",
     "svg2img": "^1.0.0-beta.2",
     "thai-qr-payment": "^1.1.0",
-    "zbarimg": "^1.1.1"
+    "zbarimg": "^1.1.1",
+    "zxing-wasm": "^3.1.3"
   }
 }
