@@ -3,6 +3,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const qrGen = require('./qr_gen');
 const logger = require('./utils/logger');
+const { getNextSaturday } = require('./utils/date');
 
 const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
 
@@ -383,7 +384,47 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
 
             replyMessages = [firstMsg];
 
-            if (count > 0) {
+            if (count === 0) {
+                // All paid → auto-open next week, send @ALL invite + registration flex
+                try {
+                    const next_sat = getNextSaturday();
+                    await db.newWeek(next_sat);
+
+                    const [flexMsg, regSub, altText] = await db.getMemberWeek0(1, true, source.groupId || null);
+                    let newWeekMsg;
+                    if (flexMsg && typeof flexMsg === 'object') {
+                        newWeekMsg = { type: 'flex', altText: altText || 'ลงชื่อเตะบอล', contents: flexMsg };
+                    } else {
+                        newWeekMsg = { type: 'textV2', text: flexMsg, substitution: regSub };
+                    }
+                    replyMessages.push(newWeekMsg);
+
+                    // Build @ALL invite message (last)
+                    try {
+                        const weekInfo = await db.queryWeekID(0);
+                        if (weekInfo && weekInfo.length > 0) {
+                            const maxPlayers = Number(weekInfo[0].max) || 24;
+                            const newDate = new Date(weekInfo[0].date);
+                            const newDateStr = await db.getFormatDate(newDate, 'short');
+                            const autoReg = await db.getAutoRegCount(source.groupId || null);
+                            const registered = Number(autoReg) || 0;
+                            const remaining = Math.max(0, maxPlayers - registered);
+                            const inviteText = `{all}\n+${registered} เปิดลงชื่อ เสาร์ที่ ${newDateStr}\nยังลงได้อีก ${remaining} คนครับ`;
+                            replyMessages.push({
+                                type: 'textV2',
+                                text: inviteText,
+                                substitution: { all: { type: 'mention', mentionee: { type: 'all' } } }
+                            });
+                        }
+                    } catch (inviteErr) {
+                        logger.error('[slip] Error building invite message:', inviteErr.message || inviteErr);
+                    }
+
+                    logger.info(`[slip] All paid — auto-opened new week (${next_sat.toDateString()}) and appended invite + register flex`);
+                } catch (newWeekErr) {
+                    logger.error('[slip] Error auto-opening new week after all paid:', newWeekErr.message || newWeekErr);
+                }
+            } else if (count > 0) {
                 try {
                     let cost = Number(weekCost) || 0;
                     if (cost <= 0) {

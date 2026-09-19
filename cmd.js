@@ -48,6 +48,39 @@ function formatFlexReply(contents, altText) {
     };
 }
 
+/**
+ * Builds the @ALL invite message sent after a new week is opened.
+ * Format:
+ *   @ALL
+ *   +x เปิดลงชื่อ เสาร์ที่ xxx
+ *   ยังลงได้อีก xx คนครับ
+ */
+async function buildNewWeekInviteMsg(groupId = null) {
+    try {
+        const weekInfo = await db.queryWeekID(0);
+        if (!weekInfo || weekInfo.length === 0) return null;
+        const week = weekInfo[0];
+        const maxPlayers = Number(week.max) || 24;
+        const date = new Date(week.date);
+        const dateStr = await db.getFormatDate(date, 'short');
+        const autoRegCount = await db.getAutoRegCount(groupId);
+        const registered = Number(autoRegCount) || 0;
+        const remaining = Math.max(0, maxPlayers - registered);
+        const regStr = `+${registered}`;
+
+        const inviteText = `{all}\n${regStr} เปิดลงชื่อ เสาร์ที่ ${dateStr}\nยังลงได้อีก ${remaining} คนครับ`;
+        return {
+            type: 'textV2',
+            text: inviteText,
+            substitution: {
+                all: { type: 'mention', mentionee: { type: 'all' } }
+            }
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
 function formatTextV2Reply(text, quoteToken, substitution) {
     const payload = {
         type: 'textV2',
@@ -497,13 +530,45 @@ const COMMAND_REGISTRY = {
         return { type: 'textV2', text: msg, substitution: sub };
     },
     '+pay': async (context) => {
-        const { member_id, quoteToken } = context;
+        const { member_id, quoteToken, is_flex, groupId } = context;
         await db.updateMemberWeek(member_id, 1, 0);
         let count = 0;
         const [msg, sub, cnt] = await db.getMemberWeek2(0);
         count = cnt || 0;
-        if (count > 0 && count < 21) return { type: 'textV2', quoteToken, text: msg, substitution: sub };
-        return [{ type: 'text', quoteToken, text: msg }];
+
+        // Build 1st message (paid confirmation / remaining unpaid list)
+        let firstMsg;
+        if (count > 0 && count < 21) {
+            firstMsg = { type: 'textV2', quoteToken, text: msg, substitution: sub };
+        } else {
+            firstMsg = { type: 'text', quoteToken, text: msg };
+        }
+
+        // If no unpaid members left → auto-open new week, send @ALL invite + register flex
+        if (count === 0) {
+            try {
+                const next_sat = getNextSaturday();
+                await db.newWeek(next_sat);
+
+                const inviteMsg = await buildNewWeekInviteMsg(groupId);
+                const [flexMsg, regSub, altText] = await db.getMemberWeek0(1, is_flex, groupId);
+                let newWeekMsg;
+                if (is_flex && typeof flexMsg === 'object') {
+                    newWeekMsg = { type: 'flex', altText: altText || 'ลงชื่อเตะบอล', contents: flexMsg };
+                } else {
+                    newWeekMsg = { type: 'textV2', text: flexMsg, substitution: regSub };
+                }
+
+                const result = [firstMsg];
+                result.push(newWeekMsg);
+                if (inviteMsg) result.push(inviteMsg);
+                return result;
+            } catch (e) {
+                // fallback: return just the first message if newweek fails
+            }
+        }
+
+        return [firstMsg];
     },
     '-pay': async (context) => {
         const { is_mention, member_id } = context;
@@ -865,7 +930,7 @@ const COMMAND_REGISTRY = {
         return { type: 'flex', altText: "เมนูบริการของบอท", contents: msg };
     },
     'newweek': async (context) => {
-        const { quoteToken, param } = context;
+        const { quoteToken, param, is_flex, groupId } = context;
         const [unpaidMsg, unpaidSub, unpaidCount] = await db.getMemberWeek2(0);
         const count = unpaidCount || 0;
 
@@ -887,7 +952,21 @@ const COMMAND_REGISTRY = {
 
         const next_sat = getNextSaturday();
         await db.newWeek(next_sat, customTimeRange);
-        return COMMAND_REGISTRY['register'](context);
+
+        const messages = [];
+
+        // 1st message: register flex / text
+        const registerResult = await COMMAND_REGISTRY['register'](context);
+        if (registerResult) {
+            const regMsgs = Array.isArray(registerResult) ? registerResult : [registerResult];
+            messages.push(...regMsgs);
+        }
+
+        // Last message: @ALL invite
+        const inviteMsg = await buildNewWeekInviteMsg(groupId);
+        if (inviteMsg) messages.push(inviteMsg);
+
+        return messages.length > 0 ? messages : [{ type: 'text', quoteToken, text: '✅ เปิดสัปดาห์ใหม่แล้ว' }];
     },
     'weektime': async (context) => {
         const { param, quoteToken, is_flex, groupId } = context;
