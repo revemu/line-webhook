@@ -926,6 +926,7 @@ const COMMAND_REGISTRY = {
         let startTime = null;
         let endTime = null;
         let matchDuration = null;
+        let forceRegen = false;
 
         for (const arg of args) {
             if (arg.includes(':') || arg.includes('.')) {
@@ -934,6 +935,8 @@ const COMMAND_REGISTRY = {
                 } else if (!endTime) {
                     endTime = arg;
                 }
+            } else if (['reset', 'regen', 'force', 'new', 'rebuild'].includes(arg.toLowerCase())) {
+                forceRegen = true;
             } else {
                 const parsedNum = parseInt(arg, 10);
                 if (!isNaN(parsedNum) && parsedNum > 0) {
@@ -942,7 +945,11 @@ const COMMAND_REGISTRY = {
             }
         }
 
-        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime);
+        if (startTime || endTime || matchDuration) {
+            forceRegen = true;
+        }
+
+        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime, forceRegen);
         if (schedJson) return { type: 'flex', altText: `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`, contents: flex.buildScheduleFlex(schedJson, theme) };
         return [{ type: 'text', text: schedText }];
     },

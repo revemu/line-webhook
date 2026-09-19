@@ -3617,12 +3617,76 @@ async function getDebtList(type = 0) {
 }
 
 
-async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = null, totalHours = null, endTimeStr = null) {
+async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = null, totalHours = null, endTimeStr = null, forceRegen = false) {
   // Fetch current week team colors
   const week = await queryWeekID();
   if (!week || week.length === 0) return ['ยังไม่มีข้อมูลสัปดาห์นี้', null];
 
   const week_id = week[0].id;
+
+  const jsonPath = path.join(__dirname, 'schedule.json');
+  if (!forceRegen && fs.existsSync(jsonPath)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+      if (existing && existing.weekId === week_id && Array.isArray(existing.matches) && existing.matches.length > 0) {
+        // Sync with match_stat_tbl to find current & next match
+        let currentMatchNo = 1;
+        let nextMatchNo = 2;
+        let dbMatches = [];
+        try {
+          const rows = await queryMatchWeek(week_id);
+          if (rows && rows.length > 0) {
+            dbMatches = rows;
+            const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
+            currentMatchNo = maxDbMatchNum;
+            nextMatchNo = Math.min(maxDbMatchNum + 1, existing.matches.length);
+          }
+        } catch (err) {
+          console.error('[schedule] failed to query match_stat_tbl:', err.message);
+        }
+
+        existing.currentMatch = existing.matches.find(m => m.matchNo === currentMatchNo) || existing.matches[0];
+        existing.nextMatch = existing.matches.find(m => m.matchNo === nextMatchNo) || null;
+        existing.dbMatches = dbMatches;
+
+        try {
+          const imgTpl = await getTemplate('schedule', 'header');
+          if (imgTpl && imgTpl.url) {
+            existing.imageUrl = imgTpl.url;
+          }
+        } catch (err) {}
+
+        const lines = [];
+        lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${existing.date}`);
+        const breakInfo = (existing.breakMinutes && existing.breakMinutes > 0) ? ` (พัก ~${Number(existing.breakMinutes).toFixed(1).replace('.0', '')} นาที)` : '';
+        lines.push(`🕐 เริ่ม ${existing.startTime} น. - ${existing.endTime} น. | ${existing.matchMinutes} นาที/แมตช์${breakInfo}`);
+        const displayHours = Number(Number(existing.totalHours || 2.5).toFixed(2));
+        const numTeams = (existing.teams || []).length || 4;
+        const cycleLen = (numTeams * (numTeams - 1)) / 2;
+        const totalRounds = existing.totalRounds || Math.ceil(existing.matches.length / cycleLen);
+        const matchesPerTeam = Math.round((existing.matches.length * 2) / numTeams);
+        lines.push(`👥 ${numTeams} ทีม | ${existing.matches.length} แมตช์ (${totalRounds} รอบ • ทีมละ ${matchesPerTeam} แมตช์เท่ากัน) | ${displayHours} ชม.`);
+        lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
+        lines.push('─'.repeat(30));
+
+        existing.matches.forEach((m, i) => {
+          if (i % cycleLen === 0) {
+            lines.push(`▶ รอบที่ ${Math.floor(i / cycleLen) + 1}`);
+          }
+          const restingStr = Array.isArray(m.resting) ? m.resting.join(', ') : '';
+          lines.push(`[${m.matchNo || i + 1}] ${m.startTime}-${m.endTime}  ${m.teamA} vs ${m.teamB}${restingStr ? `  (พัก: ${restingStr})` : ''}`);
+        });
+
+        lines.push('─'.repeat(30));
+        lines.push(`สิ้นสุด ${existing.endTime} น.`);
+
+        return [lines.join('\n'), existing];
+      }
+    } catch (readErr) {
+      console.error('[schedule] failed to read existing schedule.json:', readErr.message);
+    }
+  }
+
   const team_colors = await getTeamColorWeek(week_id);
 
   if (!team_colors || team_colors.length < 2) {
@@ -6916,6 +6980,16 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
         const rawCmd = (task.command || '').trim();
         const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
         if (cleanCmd) {
+          const textMsg = (task.text_message || '').trim();
+          if (textMsg) {
+            const resolvedObj = await resolveScheduleTemplateText(textMsg, groupId);
+            if (resolvedObj && (resolvedObj.text || resolvedObj.contents)) {
+              if (finalMessages.length < 5) {
+                finalMessages.push(resolvedObj);
+              }
+            }
+          }
+
           const res = await cmdModule.process_cmd(cleanCmd, systemBotMember, null, groupId);
           if (res) {
             const list = Array.isArray(res) ? res : [res];

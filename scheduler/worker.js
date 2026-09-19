@@ -92,9 +92,26 @@ async function runTask(task, triggerSource = 'schedule') {
       };
 
       const reply = await cmd.process_cmd(cleanCmd, botMember, null, targetGroupId);
+
+      const msgs = [];
+      const textMsg = (task.text_message || '').trim();
+      if (textMsg) {
+        const textMsgObj = await db.resolveScheduleTemplateText(textMsg, targetGroupId);
+        if (textMsgObj && (textMsgObj.text || textMsgObj.contents)) {
+          msgs.push(textMsgObj);
+        }
+      }
+
+      if (reply) {
+        if (Array.isArray(reply)) {
+          msgs.push(...reply);
+        } else {
+          msgs.push(reply);
+        }
+      }
+
       if (isLogOnly) {
-        if (reply) {
-          const msgs = Array.isArray(reply) ? reply : [reply];
+        if (msgs.length > 0) {
           const logText = msgs.map(m => m.text || JSON.stringify(m)).join('\n');
           logger.info(`[SchedulerWorker] [LOG_ONLY] Command '${cleanCmd}' output:\n${logText}`);
         } else {
@@ -102,8 +119,7 @@ async function runTask(task, triggerSource = 'schedule') {
         }
         pushResult = true;
       } else {
-        if (reply) {
-          const msgs = Array.isArray(reply) ? reply : [reply];
+        if (msgs.length > 0) {
           logger.info(`[SchedulerWorker] Pushing command response (${msgs.length} message(s)) to group:${groupTag}...`);
           pushResult = await lineClient.pushMessage(targetGroupId, msgs);
         } else {
