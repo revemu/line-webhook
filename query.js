@@ -1091,15 +1091,17 @@ async function getNYEventInfo() {
           if (parsedVal && parsedVal.url) {
             mapUrl = parsedVal.url;
             if (parsedVal.label) mapLabel = parsedVal.label;
+          } else if (parsedVal && parsedVal.text) {
+            mapLabel = parsedVal.text;
           }
           if (parsedCode && parsedCode.url) {
             if (!mapUrl) mapUrl = parsedCode.url;
             if (parsedCode.label) mapLabel = parsedCode.label;
+          } else if (parsedCode && parsedCode.text && !mapLabel) {
+            mapLabel = parsedCode.text;
           }
-        }
-
-        // 2. Process Gallery / Image rows (ny_image, ny_gallery, ny_img%, party_image%, etc.)
-        if (rowUrl) {
+        } else if (rowUrl) {
+          // 2. Process Gallery / Image rows (ny_image, ny_gallery, ny_img%, party_image%, etc.)
           if (!heroUrl) heroUrl = rowUrl;
           images.push({
             url: rowUrl,
