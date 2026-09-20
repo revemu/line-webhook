@@ -6121,7 +6121,6 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
             size: 'full',
             aspectRatio: '20:11',
             aspectMode: 'cover',
-            cornerRadius: 'md',
             action: {
               type: 'uri',
               label: 'View Image',
@@ -6155,6 +6154,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
         bubbleContents.push({
           type: 'box',
           layout: 'vertical',
+          cornerRadius: 'md',
           margin: idx === 0 ? 'sm' : 'md',
           contents: imgBoxContents
         });
