@@ -1085,7 +1085,7 @@ async function getNYEventInfo() {
         const parsedVal = parseFieldLink(row.value);
         const parsedCode = parseFieldLink(row.code);
 
-        // 1. Process Map links (ny_map, ny_location, or map URLs)
+        // 1. Process Map links (ny_map, ny_location)
         if (row.name === 'ny_map' || row.name === 'ny_location') {
           if (rowUrl) mapUrl = rowUrl;
           if (parsedVal && parsedVal.url) {
@@ -1096,48 +1096,29 @@ async function getNYEventInfo() {
             if (!mapUrl) mapUrl = parsedCode.url;
             if (parsedCode.label) mapLabel = parsedCode.label;
           }
-        } else if (row.name === 'ny_gallery' || row.name === 'ny_album') {
-          // 2. Process Gallery links
-          if (rowUrl) {
-            // If rowUrl is an image file, add to carousel images
-            if (/\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(rowUrl) || rowUrl.includes('/pic/')) {
-              if (!heroUrl) heroUrl = rowUrl;
-              images.push({ url: rowUrl, title: (parsedVal && parsedVal.text) ? parsedVal.text : null });
-            } else {
-              galleryUrl = rowUrl;
-            }
-          }
-          if (parsedVal && parsedVal.url) {
-            if (isMapUrlOrLabel(parsedVal.url, parsedVal.label)) {
-              mapUrl = parsedVal.url;
-              if (parsedVal.label) mapLabel = parsedVal.label;
-            } else {
-              galleryUrl = parsedVal.url;
-              if (parsedVal.label) galleryLabel = parsedVal.label;
-            }
-          } else if (parsedVal && parsedVal.text) {
-            galleryLabel = parsedVal.text;
-          }
-          if (parsedCode && parsedCode.url) {
-            if (isMapUrlOrLabel(parsedCode.url, parsedCode.label)) {
-              if (!mapUrl) mapUrl = parsedCode.url;
-              if (parsedCode.label) mapLabel = parsedCode.label;
-            } else {
-              if (!galleryUrl) galleryUrl = parsedCode.url;
-              if (parsedCode.label) galleryLabel = parsedCode.label;
-            }
-          }
-        } else if (rowUrl) {
-          // 3. Process normal image rows (ny_image, ny_img%, party_image%, etc.)
+        }
+
+        // 2. Process Gallery / Image rows (ny_image, ny_gallery, ny_img%, party_image%, etc.)
+        if (rowUrl) {
           if (!heroUrl) heroUrl = rowUrl;
           images.push({
             url: rowUrl,
-            title: (parsedVal && parsedVal.text) ? parsedVal.text : (parsedVal && parsedVal.label ? parsedVal.label : null),
-            description: (parsedCode && parsedCode.text) ? parsedCode.text : null
+            title: row.value ? String(row.value).trim() : null,
+            description: (row.code && !String(row.code).trim().startsWith('http')) ? String(row.code).trim() : null
           });
+        } else if (row.name === 'ny_gallery' || row.name === 'ny_album') {
+          // If ny_gallery has no image url, treat as external album link
+          if (parsedVal && parsedVal.url) {
+            galleryUrl = parsedVal.url;
+            if (parsedVal.label) galleryLabel = parsedVal.label;
+          }
+          if (parsedCode && parsedCode.url) {
+            if (!galleryUrl) galleryUrl = parsedCode.url;
+            if (parsedCode.label) galleryLabel = parsedCode.label;
+          }
         }
 
-        if (row.name === 'ny_header' || row.name === 'ny_party_header' || row.name === 'party_header' || row.name === 'ny_image') {
+        if (row.name === 'ny_header' || row.name === 'ny_party_header' || row.name === 'party_header') {
           if (rowUrl) heroUrl = rowUrl;
         }
         if (row.name === 'ny_title' && row.value) {
