@@ -403,7 +403,7 @@ const COMMAND_REGISTRY = {
         }
     },
     'delreserve': async (context) => COMMAND_REGISTRY['removereserve'](context),
-    'x1': async (context) => {
+    '+ny': async (context) => {
         const { member_id, member_name, is_flex, groupId } = context;
         await db.registerNY(member_id, member_name);
         const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);
@@ -412,7 +412,7 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: msg }];
     },
-    'x0': async (context) => {
+    '-ny': async (context) => {
         const { member_id, is_flex, groupId } = context;
         await db.unregisterNY(member_id);
         const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId);
