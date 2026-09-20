@@ -987,15 +987,99 @@ async function IsMemberWeek(member_id) {
   }
 }
 
-async function registerNY(member_id) {
+async function ensureNYTable() {
+  try {
+    const createSql = `
+      CREATE TABLE IF NOT EXISTS member_ny_week_tbl (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        datetime DATETIME NOT NULL,
+        member_id INT NOT NULL,
+        name VARCHAR(100) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_datetime_member (datetime, member_id),
+        KEY idx_datetime (datetime)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `;
+    await executeQuery(createSql);
 
-  const query = `update member_tbl set avoid_ids='1' where id=${member_id}`;
+    // Auto-migrate if table was previously created with week_id column instead of datetime
+    const checkColSql = "SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'member_ny_week_tbl' AND column_name = 'datetime'";
+    const colExists = await executeQuery(checkColSql);
+    if (colExists && colExists.length > 0 && colExists[0].count === 0) {
+      await executeQuery("ALTER TABLE member_ny_week_tbl ADD COLUMN datetime DATETIME NOT NULL DEFAULT '2026-12-19 19:00:00' AFTER id");
+      try {
+        await executeQuery("ALTER TABLE member_ny_week_tbl DROP INDEX uq_week_member");
+      } catch (e) {}
+      try {
+        await executeQuery("ALTER TABLE member_ny_week_tbl ADD UNIQUE KEY uq_datetime_member (datetime, member_id)");
+      } catch (e) {}
+    }
+  } catch (err) {
+    console.error("Error ensuring member_ny_week_tbl table:", err.message);
+  }
+}
 
-  //console.log(query) ;
-  const reg_res = await executeQuery(query);
-  //console.log(reg_res) ;
-  return true;
+async function getNYEventInfo() {
+  let eventDatetime = '2026-12-19 19:00:00';
+  let header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 19 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: Waterside ห้องคาราโอกะ K5 Club Pool นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานพิมพ์ x1 เพื่อลงชื่อด้วยนะครับ\n\n";
 
+  try {
+    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny') ORDER BY id DESC");
+    if (tplRows && tplRows.length > 0) {
+      for (const row of tplRows) {
+        if (row.value) {
+          const valTrim = String(row.value).trim();
+          // If value is a datetime string (e.g. '2026-12-19 19:00:00' or '2026-12-19')
+          if (/^\d{4}-\d{2}-\d{2}/.test(valTrim) || !isNaN(new Date(valTrim).getTime())) {
+            eventDatetime = valTrim.includes(' ') ? valTrim : `${valTrim} 19:00:00`;
+          } else if (valTrim.includes('ประกาศ') || valTrim.includes('ปีใหม่')) {
+            header = valTrim.endsWith('\n\n') ? valTrim : `${valTrim}\n\n`;
+          }
+        }
+        if (row.code) {
+          const codeTrim = String(row.code).trim();
+          if (codeTrim.includes('ประกาศ') || codeTrim.includes('ปีใหม่')) {
+            header = codeTrim.endsWith('\n\n') ? codeTrim : `${codeTrim}\n\n`;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error querying NY template:", err.message);
+  }
+
+  return { eventDatetime, header };
+}
+
+async function registerNY(member_id, member_name = null, target_datetime = null) {
+  await ensureNYTable();
+  let eventDatetime = target_datetime;
+  if (!eventDatetime) {
+    const info = await getNYEventInfo();
+    eventDatetime = info.eventDatetime;
+  }
+
+  const query = `
+    INSERT INTO member_ny_week_tbl (datetime, member_id, name)
+    VALUES (?, ?, ?)
+    ON DUPLICATE KEY UPDATE name = COALESCE(VALUES(name), name), updated_at = CURRENT_TIMESTAMP
+  `;
+  await executeQuery(query, [eventDatetime, member_id, member_name]);
+  return { success: true, datetime: eventDatetime, member_id };
+}
+
+async function unregisterNY(member_id, target_datetime = null) {
+  await ensureNYTable();
+  let eventDatetime = target_datetime;
+  if (!eventDatetime) {
+    const info = await getNYEventInfo();
+    eventDatetime = info.eventDatetime;
+  }
+
+  const query = "DELETE FROM member_ny_week_tbl WHERE (datetime = ? OR DATE(datetime) = DATE(?)) AND member_id = ?";
+  await executeQuery(query, [eventDatetime, eventDatetime, member_id]);
+  return { success: true, datetime: eventDatetime, member_id };
 }
 
 async function registerMember(member_id, member_name) {
@@ -2877,35 +2961,34 @@ async function getDonateBadge(donate = 0) {
 
 }
 
-async function getMemberNY() {
-  let header = "";
-  let body = "";
-  let query = "";
+async function getMemberNY(target_datetime = null) {
+  await ensureNYTable();
+  const info = await getNYEventInfo();
+  const eventDatetime = target_datetime || info.eventDatetime;
+  const header = info.header;
 
-  query = `SELECT * from member_tbl where avoid_ids = '1' or avoid_ids = 1`;
-  header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 20 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: มูนเทอร์เรซ ห้อง M5 นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานลงชื่อด้วยนะครับ\n\n";
+  const query = `
+    SELECT ny.id as reg_id, ny.datetime, ny.member_id, m.name, m.alias, m.donate, m.picture_url, m.line_user_id, ny.created_at
+    FROM member_ny_week_tbl ny
+    INNER JOIN member_tbl m ON m.id = ny.member_id
+    WHERE ny.datetime = ? OR DATE(ny.datetime) = DATE(?)
+    ORDER BY ny.id ASC
+  `;
 
-
-  const result = await executeQuery(query);
+  const result = await executeQuery(query, [eventDatetime, eventDatetime]);
   if (result.length > 0) {
-
+    let body = "";
     let i = 0;
     for (const member of result) {
-
-      let donate = await getDonateBadge(member.donate);
-      //console.log((i+1) + ". " + donate + member.name) ;
+      const donate = await getDonateBadge(member.donate);
       body += (i + 1) + ". " + donate + member.name + "\n";
       i++;
     }
-    let str = header + `+${i} พิมพ์ x1 เพื่อลงชื่อครับ\n` + body;
-    //header = `+${i} พิมพ์ x1 เพื่อลงชื่อครับ` ;
-    //str = `${header} ${str}` ;
-    //console.log(str) ;
+    const str = header + `+${i} พิมพ์ x1 เพื่อลงชื่อครับ\n` + body;
     return str;
   } else {
     return header;
   }
-
 }
 
 async function getAutoRegCount(groupId = null) {
@@ -3654,7 +3737,7 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
           if (imgTpl && imgTpl.url) {
             existing.imageUrl = imgTpl.url;
           }
-        } catch (err) {}
+        } catch (err) { }
 
         const lines = [];
         lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${existing.date}`);
@@ -7239,6 +7322,9 @@ module.exports = {
   getMemberWeek2,
   getMemberWeek0,
   registerNY,
+  unregisterNY,
+  getNYEventInfo,
+  ensureNYTable,
   getDebtList,
   getScheduleText,
   getCurrentMatch,
