@@ -5918,6 +5918,97 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
   return bubbles;
 }
 
+function parseTextAndLinks(text) {
+  if (!text || typeof text !== 'string') return null;
+  const str = text.trim();
+  if (!str) return null;
+
+  const bbcodeRegex = /\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/gi;
+  const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/gi;
+  const rawUrlRegex = /^(https?:\/\/[^\s]+)$/i;
+
+  if (rawUrlRegex.test(str)) {
+    return {
+      text: null,
+      links: [{ url: str, label: 'เปิดดูเส้นทาง / แผนที่' }]
+    };
+  }
+
+  const links = [];
+  let cleanText = str;
+
+  // Extract BBCode: [url=...]...[/url]
+  let bbMatch;
+  while ((bbMatch = bbcodeRegex.exec(str)) !== null) {
+    links.push({ url: bbMatch[1].trim(), label: bbMatch[2].trim() || 'เส้นทาง' });
+    cleanText = cleanText.replace(bbMatch[0], '').trim();
+  }
+
+  // Extract Markdown: [...](...)
+  let mdMatch;
+  while ((mdMatch = mdRegex.exec(str)) !== null) {
+    links.push({ url: mdMatch[2].trim(), label: mdMatch[1].trim() || 'เส้นทาง' });
+    cleanText = cleanText.replace(mdMatch[0], '').trim();
+  }
+
+  return {
+    text: cleanText || null,
+    links
+  };
+}
+
+function makeParsedTextComponents(rawText, colors, isWhite, defaultSize = 'xxs', isTitle = false) {
+  const parsed = parseTextAndLinks(rawText);
+  if (!parsed) return [];
+
+  const items = [];
+
+  if (parsed.text) {
+    items.push({
+      type: 'text',
+      text: parsed.text,
+      weight: isTitle ? 'bold' : 'normal',
+      size: isTitle ? 'xs' : defaultSize,
+      color: isTitle ? colors.textPrimary : colors.textMuted,
+      wrap: true,
+      margin: 'xs'
+    });
+  }
+
+  if (parsed.links && parsed.links.length > 0) {
+    parsed.links.forEach(link => {
+      const isMap = link.url.includes('map') || link.url.includes('goo.gl') || link.label.includes('ทาง') || link.label.includes('แผนที่');
+      const icon = isMap ? '📍' : '🔗';
+      items.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'xs',
+        margin: 'xs',
+        action: {
+          type: 'uri',
+          label: link.label.slice(0, 40),
+          uri: link.url
+        },
+        contents: [
+          { type: 'text', text: icon, size: 'xxs', flex: 0 },
+          {
+            type: 'text',
+            text: `${link.label} ↗`,
+            size: 'xxs',
+            color: isWhite ? '#0284c7' : '#38bdf8',
+            decoration: 'underline',
+            weight: 'bold',
+            flex: 1,
+            wrap: true
+          }
+        ]
+      });
+    });
+  }
+
+  return items;
+}
+
 function buildPartyFlex(partyData = {}, theme = 'black') {
   const colors = getThemeColors(theme);
   const isWhite = colors.name === 'white';
@@ -5929,12 +6020,110 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
     venue = 'Waterside ห้องคาราโอกะ K5 Club Pool',
     note = '⚽ หลังจากเตะบอล 17:00-19:00 น.',
     heroUrl = 'https://bearbit.org/pic/party_header.jpg',
+    galleryUrl = null,
+    galleryLabel = 'ดูอัลบั้มรูปภาพเพิ่มเติม',
     members = []
   } = partyData;
 
   const bodyContents = [];
 
   // 1. Party Announcement / Event Info Card
+  const infoDetails = [
+    {
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      contents: [
+        { type: 'text', text: '📅', size: 'xs', flex: 0 },
+        { type: 'text', text: `${dateStr}  ⏰ ${timeStr}`, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+      ]
+    }
+  ];
+
+  // Venue with link parsing support
+  const venueParsed = parseTextAndLinks(venue);
+  if (venueParsed && venueParsed.links && venueParsed.links.length > 0) {
+    infoDetails.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      contents: [
+        { type: 'text', text: '📍', size: 'xs', flex: 0 },
+        { type: 'text', text: venueParsed.text || 'สถานที่จัดงาน', size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+      ]
+    });
+    venueParsed.links.forEach(link => {
+      const isMap = link.url.includes('map') || link.url.includes('goo.gl') || link.label.includes('ทาง') || link.label.includes('แผนที่');
+      infoDetails.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        action: {
+          type: 'uri',
+          label: link.label.slice(0, 40),
+          uri: link.url
+        },
+        contents: [
+          { type: 'text', text: isMap ? '🗺️' : '🔗', size: 'xs', flex: 0 },
+          {
+            type: 'text',
+            text: `${link.label} ↗`,
+            size: 'xs',
+            color: isWhite ? '#0284c7' : '#38bdf8',
+            decoration: 'underline',
+            flex: 1,
+            wrap: true
+          }
+        ]
+      });
+    });
+  } else {
+    infoDetails.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      contents: [
+        { type: 'text', text: '📍', size: 'xs', flex: 0 },
+        { type: 'text', text: venue, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+      ]
+    });
+  }
+
+  infoDetails.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    contents: [
+      { type: 'text', text: '⚽', size: 'xs', flex: 0 },
+      { type: 'text', text: note, size: 'xs', color: colors.textMuted, flex: 1, wrap: true }
+    ]
+  });
+
+  if (galleryUrl && typeof galleryUrl === 'string' && galleryUrl.startsWith('http')) {
+    infoDetails.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      action: {
+        type: 'uri',
+        label: galleryLabel || 'ดูอัลบั้มรูปภาพ',
+        uri: galleryUrl
+      },
+      contents: [
+        { type: 'text', text: '📸', size: 'xs', flex: 0 },
+        {
+          type: 'text',
+          text: `${galleryLabel || 'ดูอัลบั้มรูปภาพเพิ่มเติม'} ↗`,
+          size: 'xs',
+          color: isWhite ? '#0284c7' : '#38bdf8',
+          decoration: 'underline',
+          flex: 1,
+          wrap: true
+        }
+      ]
+    });
+  }
+
   const infoContents = [
     {
       type: 'text',
@@ -5948,35 +6137,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
       layout: 'vertical',
       margin: 'sm',
       spacing: 'xs',
-      contents: [
-        {
-          type: 'box',
-          layout: 'horizontal',
-          spacing: 'sm',
-          contents: [
-            { type: 'text', text: '📅', size: 'xs', flex: 0 },
-            { type: 'text', text: `${dateStr}  ⏰ ${timeStr}`, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
-          ]
-        },
-        {
-          type: 'box',
-          layout: 'horizontal',
-          spacing: 'sm',
-          contents: [
-            { type: 'text', text: '📍', size: 'xs', flex: 0 },
-            { type: 'text', text: venue, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
-          ]
-        },
-        {
-          type: 'box',
-          layout: 'horizontal',
-          spacing: 'sm',
-          contents: [
-            { type: 'text', text: '⚽', size: 'xs', flex: 0 },
-            { type: 'text', text: note, size: 'xs', color: colors.textMuted, flex: 1, wrap: true }
-          ]
-        }
-      ]
+      contents: infoDetails
     }
   ];
 
@@ -6130,25 +6291,12 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
         ];
 
         if (imgTitle) {
-          imgBoxContents.push({
-            type: 'text',
-            text: imgTitle,
-            weight: 'bold',
-            size: 'xs',
-            color: colors.textPrimary,
-            wrap: true,
-            margin: 'xs'
-          });
+          const titleItems = makeParsedTextComponents(imgTitle, colors, isWhite, 'xs', true);
+          imgBoxContents.push(...titleItems);
         }
         if (imgDesc) {
-          imgBoxContents.push({
-            type: 'text',
-            text: imgDesc,
-            size: 'xxs',
-            color: colors.textMuted,
-            wrap: true,
-            margin: 'xs'
-          });
+          const descItems = makeParsedTextComponents(imgDesc, colors, isWhite, 'xxs', false);
+          imgBoxContents.push(...descItems);
         }
 
         bubbleContents.push({
@@ -6159,6 +6307,30 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
           contents: imgBoxContents
         });
       });
+
+      if (galleryUrl && typeof galleryUrl === 'string' && galleryUrl.startsWith('http')) {
+        bubbleContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'md',
+          action: {
+            type: 'uri',
+            label: galleryLabel || 'เปิดดูอัลบั้มเต็ม',
+            uri: galleryUrl
+          },
+          contents: [
+            {
+              type: 'text',
+              text: `🔗 ${galleryLabel || 'เปิดดูอัลบั้มรูปภาพเพิ่มเติม'} ↗`,
+              size: 'xs',
+              color: isWhite ? '#0284c7' : '#38bdf8',
+              align: 'center',
+              decoration: 'underline',
+              flex: 1
+            }
+          ]
+        });
+      }
 
       return {
         type: 'bubble',

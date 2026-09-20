@@ -1031,6 +1031,8 @@ async function getNYEventInfo() {
   let timeStr = '19:00 - 24:00 น.';
 
   let images = [];
+  let galleryUrl = null;
+  let galleryLabel = 'ดูอัลบั้มรูปภาพเพิ่มเติม';
 
   try {
     const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny', 'ny_header', 'ny_party_header', 'party_header', 'ny_image', 'ny_venue', 'ny_location', 'ny_title', 'ny_note', 'ny_gallery') OR name LIKE 'ny_image%' OR name LIKE 'ny_img%' OR name LIKE 'party_image%' OR name LIKE 'party_img%' ORDER BY id ASC");
@@ -1041,7 +1043,27 @@ async function getNYEventInfo() {
           rowUrl = getFullUrl(String(row.url).trim());
         }
 
-        if (rowUrl) {
+        if (row.name === 'ny_gallery') {
+          if (rowUrl) {
+            galleryUrl = rowUrl;
+          }
+          if (row.value && String(row.value).trim() !== '') {
+            const valTrim = String(row.value).trim();
+            if (valTrim.startsWith('http://') || valTrim.startsWith('https://')) {
+              galleryUrl = getFullUrl(valTrim);
+            } else {
+              galleryLabel = valTrim;
+            }
+          }
+          if (row.code && String(row.code).trim() !== '') {
+            const codeTrim = String(row.code).trim();
+            if (codeTrim.startsWith('http://') || codeTrim.startsWith('https://')) {
+              if (!galleryUrl) galleryUrl = getFullUrl(codeTrim);
+            } else if (!galleryLabel || galleryLabel === 'ดูอัลบั้มรูปภาพเพิ่มเติม') {
+              galleryLabel = codeTrim;
+            }
+          }
+        } else if (rowUrl) {
           if (!heroUrl) heroUrl = rowUrl;
           images.push({
             url: rowUrl,
@@ -1103,7 +1125,7 @@ async function getNYEventInfo() {
     console.error("Error querying NY template:", err.message);
   }
 
-  return { eventDatetime, header, heroUrl, venue, note, title, dateStr, timeStr, images };
+  return { eventDatetime, header, heroUrl, venue, note, title, dateStr, timeStr, galleryUrl, galleryLabel, images };
 }
 
 async function registerNY(member_id, member_name = null, target_datetime = null) {
@@ -3062,6 +3084,8 @@ async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = nu
       venue: info.venue || 'Waterside ห้องคาราโอกะ K5 Club Pool',
       note: info.note || '⚽ หลังจากเตะบอล 17:00-19:00 น.',
       heroUrl: heroUrl,
+      galleryUrl: info.galleryUrl,
+      galleryLabel: info.galleryLabel,
       images: info.images || [],
       members: members
     };
@@ -3079,7 +3103,10 @@ async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = nu
         body += (i + 1) + ". " + donate + member.name + "\n";
         i++;
       }
-      const str = headerText + `+${i} พิมพ์ x1 เพื่อลงชื่อครับ\n` + body;
+      let str = headerText + `+${i} พิมพ์ +ny เพื่อลงชื่อครับ\n` + body;
+      if (info.galleryUrl) {
+        str += `\n📸 ${info.galleryLabel || 'อัลบั้มรูปภาพ'}: ${info.galleryUrl}\n`;
+      }
       return [str, null, null];
     } else {
       return [headerText, null, null];
