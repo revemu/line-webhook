@@ -6028,6 +6028,8 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
     venue = 'Waterside ห้องคาราโอกะ K5 Club Pool',
     note = '⚽ หลังจากเตะบอล 17:00-19:00 น.',
     heroUrl = 'https://bearbit.org/pic/party_header.jpg',
+    mapUrl = null,
+    mapLabel = 'เส้นทาง Google Maps',
     galleryUrl = null,
     galleryLabel = 'ดูอัลบั้มรูปภาพเพิ่มเติม',
     members = []
@@ -6068,7 +6070,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
         spacing: 'sm',
         action: {
           type: 'uri',
-          label: link.label.slice(0, 40),
+          label: (link.label ? String(link.label) : 'ดูเส้นทาง').slice(0, 40),
           uri: link.url
         },
         contents: [
@@ -6097,6 +6099,34 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
     });
   }
 
+  // Standalone Map Link (if not already parsed from venue)
+  if (mapUrl && typeof mapUrl === 'string' && mapUrl.startsWith('http') && (!venueParsed || !venueParsed.links.some(l => l.url === mapUrl))) {
+    const displayLabel = mapLabel || 'เส้นทาง';
+    const actionLabel = displayLabel.slice(0, 40);
+    infoDetails.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      action: {
+        type: 'uri',
+        label: actionLabel,
+        uri: mapUrl
+      },
+      contents: [
+        { type: 'text', text: '🗺️', size: 'xs', flex: 0 },
+        {
+          type: 'text',
+          text: `${displayLabel} ↗`,
+          size: 'xs',
+          color: isWhite ? '#0284c7' : '#38bdf8',
+          decoration: 'underline',
+          flex: 1,
+          wrap: true
+        }
+      ]
+    });
+  }
+
   infoDetails.push({
     type: 'box',
     layout: 'horizontal',
@@ -6108,7 +6138,8 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
   });
 
   if (galleryUrl && typeof galleryUrl === 'string' && galleryUrl.startsWith('http')) {
-    const actionLabel = (galleryLabel ? String(galleryLabel) : 'ดูอัลบั้มรูปภาพ').slice(0, 40);
+    const displayLabel = galleryLabel || 'ดูรูปภาพเพิ่มเติม';
+    const actionLabel = displayLabel.slice(0, 40);
     infoDetails.push({
       type: 'box',
       layout: 'horizontal',
@@ -6122,7 +6153,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
         { type: 'text', text: '📸', size: 'xs', flex: 0 },
         {
           type: 'text',
-          text: `${galleryLabel || 'ดูอัลบั้มรูปภาพเพิ่มเติม'} ↗`,
+          text: `${displayLabel} ↗`,
           size: 'xs',
           color: isWhite ? '#0284c7' : '#38bdf8',
           decoration: 'underline',

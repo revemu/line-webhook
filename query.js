@@ -1031,11 +1031,13 @@ async function getNYEventInfo() {
   let timeStr = '19:00 - 24:00 น.';
 
   let images = [];
+  let mapUrl = null;
+  let mapLabel = null;
   let galleryUrl = null;
-  let galleryLabel = 'ดูอัลบั้มรูปภาพเพิ่มเติม';
+  let galleryLabel = null;
 
   try {
-    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny', 'ny_header', 'ny_party_header', 'party_header', 'ny_image', 'ny_venue', 'ny_location', 'ny_title', 'ny_note', 'ny_gallery') OR name LIKE 'ny_image%' OR name LIKE 'ny_img%' OR name LIKE 'party_image%' OR name LIKE 'party_img%' ORDER BY id ASC");
+    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny', 'ny_header', 'ny_party_header', 'party_header', 'ny_image', 'ny_venue', 'ny_location', 'ny_map', 'ny_title', 'ny_note', 'ny_gallery', 'ny_album') OR name LIKE 'ny_image%' OR name LIKE 'ny_img%' OR name LIKE 'ny_gallery%' OR name LIKE 'party_image%' OR name LIKE 'party_img%' ORDER BY id ASC");
     if (tplRows && tplRows.length > 0) {
       for (const row of tplRows) {
         let rowUrl = null;
@@ -1043,54 +1045,95 @@ async function getNYEventInfo() {
           rowUrl = getFullUrl(String(row.url).trim());
         }
 
-        if (row.name === 'ny_gallery') {
-          if (rowUrl) {
-            galleryUrl = rowUrl;
+        // Helper to check if a URL is a web map link
+        const isMapUrlOrLabel = (u, l) => {
+          const str = `${u || ''} ${l || ''}`.toLowerCase();
+          return str.includes('map') || str.includes('goo.gl/maps') || str.includes('maps.app') || str.includes('เส้นทาง') || str.includes('แผนที่') || str.includes('waze');
+        };
+
+        const parseFieldLink = (str) => {
+          if (!str) return null;
+          const trimStr = String(str).trim();
+          if (!trimStr) return null;
+
+          // BBCode: [url=URL]LABEL[/url]
+          const bbMatch = /\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/i.exec(trimStr);
+          if (bbMatch) {
+            return { url: getFullUrl(bbMatch[1].trim()), label: bbMatch[2].trim() };
           }
-          const checkGalleryField = (str) => {
-            if (!str) return;
-            const trimStr = String(str).trim();
-            if (!trimStr) return;
 
-            // BBCode: [url=URL]LABEL[/url]
-            const bbMatch = /\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/i.exec(trimStr);
-            if (bbMatch) {
-              galleryUrl = getFullUrl(bbMatch[1].trim());
-              if (bbMatch[2].trim()) galleryLabel = bbMatch[2].trim();
-              return;
-            }
+          // BBCode: [url]URL[/url]
+          const bbSimpleMatch = /\[url\](https?:\/\/[^\]]+)\[\/url\]/i.exec(trimStr);
+          if (bbSimpleMatch) {
+            return { url: getFullUrl(bbSimpleMatch[1].trim()), label: null };
+          }
 
-            // BBCode: [url]URL[/url]
-            const bbSimpleMatch = /\[url\](https?:\/\/[^\]]+)\[\/url\]/i.exec(trimStr);
-            if (bbSimpleMatch) {
-              galleryUrl = getFullUrl(bbSimpleMatch[1].trim());
-              return;
-            }
+          // Markdown: [LABEL](URL)
+          const mdMatch = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/i.exec(trimStr);
+          if (mdMatch) {
+            return { url: getFullUrl(mdMatch[2].trim()), label: mdMatch[1].trim() };
+          }
 
-            // Markdown: [LABEL](URL)
-            const mdMatch = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/i.exec(trimStr);
-            if (mdMatch) {
-              galleryUrl = getFullUrl(mdMatch[2].trim());
-              if (mdMatch[1].trim()) galleryLabel = mdMatch[1].trim();
-              return;
-            }
+          if (trimStr.startsWith('http://') || trimStr.startsWith('https://')) {
+            return { url: getFullUrl(trimStr), label: null };
+          }
 
-            // Raw URL: starts with http
-            if (trimStr.startsWith('http://') || trimStr.startsWith('https://')) {
-              galleryUrl = getFullUrl(trimStr);
+          return { text: trimStr };
+        };
+
+        // Check value and code for links
+        const parsedVal = parseFieldLink(row.value);
+        const parsedCode = parseFieldLink(row.code);
+
+        // 1. Process Map links (ny_map, ny_location, or map URLs)
+        if (row.name === 'ny_map' || row.name === 'ny_location') {
+          if (rowUrl) mapUrl = rowUrl;
+          if (parsedVal && parsedVal.url) {
+            mapUrl = parsedVal.url;
+            if (parsedVal.label) mapLabel = parsedVal.label;
+          }
+          if (parsedCode && parsedCode.url) {
+            if (!mapUrl) mapUrl = parsedCode.url;
+            if (parsedCode.label) mapLabel = parsedCode.label;
+          }
+        } else if (row.name === 'ny_gallery' || row.name === 'ny_album') {
+          // 2. Process Gallery links
+          if (rowUrl) {
+            // If rowUrl is an image file, add to carousel images
+            if (/\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(rowUrl) || rowUrl.includes('/pic/')) {
+              if (!heroUrl) heroUrl = rowUrl;
+              images.push({ url: rowUrl, title: (parsedVal && parsedVal.text) ? parsedVal.text : null });
             } else {
-              galleryLabel = trimStr;
+              galleryUrl = rowUrl;
             }
-          };
-
-          if (row.value) checkGalleryField(row.value);
-          if (row.code) checkGalleryField(row.code);
+          }
+          if (parsedVal && parsedVal.url) {
+            if (isMapUrlOrLabel(parsedVal.url, parsedVal.label)) {
+              mapUrl = parsedVal.url;
+              if (parsedVal.label) mapLabel = parsedVal.label;
+            } else {
+              galleryUrl = parsedVal.url;
+              if (parsedVal.label) galleryLabel = parsedVal.label;
+            }
+          } else if (parsedVal && parsedVal.text) {
+            galleryLabel = parsedVal.text;
+          }
+          if (parsedCode && parsedCode.url) {
+            if (isMapUrlOrLabel(parsedCode.url, parsedCode.label)) {
+              if (!mapUrl) mapUrl = parsedCode.url;
+              if (parsedCode.label) mapLabel = parsedCode.label;
+            } else {
+              if (!galleryUrl) galleryUrl = parsedCode.url;
+              if (parsedCode.label) galleryLabel = parsedCode.label;
+            }
+          }
         } else if (rowUrl) {
+          // 3. Process normal image rows (ny_image, ny_img%, party_image%, etc.)
           if (!heroUrl) heroUrl = rowUrl;
           images.push({
             url: rowUrl,
-            title: row.value ? String(row.value).trim() : null,
-            description: row.code && !String(row.code).trim().startsWith('http') ? String(row.code).trim() : null
+            title: (parsedVal && parsedVal.text) ? parsedVal.text : (parsedVal && parsedVal.label ? parsedVal.label : null),
+            description: (parsedCode && parsedCode.text) ? parsedCode.text : null
           });
         }
 
@@ -1147,7 +1190,7 @@ async function getNYEventInfo() {
     console.error("Error querying NY template:", err.message);
   }
 
-  return { eventDatetime, header, heroUrl, venue, note, title, dateStr, timeStr, galleryUrl, galleryLabel, images };
+  return { eventDatetime, header, heroUrl, venue, note, title, dateStr, timeStr, mapUrl, mapLabel, galleryUrl, galleryLabel, images };
 }
 
 async function registerNY(member_id, member_name = null, target_datetime = null) {
@@ -3106,6 +3149,8 @@ async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = nu
       venue: info.venue || 'Waterside ห้องคาราโอกะ K5 Club Pool',
       note: info.note || '⚽ หลังจากเตะบอล 17:00-19:00 น.',
       heroUrl: heroUrl,
+      mapUrl: info.mapUrl,
+      mapLabel: info.mapLabel,
       galleryUrl: info.galleryUrl,
       galleryLabel: info.galleryLabel,
       images: info.images || [],
