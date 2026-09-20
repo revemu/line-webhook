@@ -6086,72 +6086,89 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
     };
   }
 
-  // 5. If extra images / gallery provided, build a Flex Carousel
+  // 5. If extra images / gallery provided, build a Flex Carousel (2 images per bubble, no buttons)
   const extraImages = (partyData.images || []).filter(item => {
     const u = typeof item === 'string' ? item : (item && item.url);
     return u && typeof u === 'string' && u.startsWith('http') && u !== heroUrl;
   });
 
   if (extraImages.length > 0) {
-    const imageBubbles = extraImages.map((imgItem, idx) => {
-      const u = typeof imgItem === 'string' ? imgItem : imgItem.url;
-      const imgTitle = (typeof imgItem === 'object' && imgItem.title) ? imgItem.title : (venue ? `📍 ${venue}` : `🎉 บรรยากาศงานเลี้ยง (#${idx + 1})`);
-      const imgDesc = (typeof imgItem === 'object' && imgItem.description) ? imgItem.description : null;
+    const pairs = [];
+    for (let i = 0; i < extraImages.length; i += 2) {
+      pairs.push(extraImages.slice(i, i + 2));
+    }
 
-      const imgBodyContents = [
-        {
-          type: 'text',
-          text: imgTitle,
-          weight: 'bold',
-          size: 'sm',
-          color: colors.textPrimary,
-          wrap: true
+    const imageBubbles = pairs.map((pair, pairIdx) => {
+      const bubbleContents = [];
+
+      bubbleContents.push({
+        type: 'text',
+        text: `📸 บรรยากาศงาน & สถานที่`,
+        weight: 'bold',
+        size: 'sm',
+        color: isWhite ? '#b45309' : '#f59e0b'
+      });
+
+      pair.forEach((imgItem, idx) => {
+        const u = typeof imgItem === 'string' ? imgItem : imgItem.url;
+        const imgTitle = (typeof imgItem === 'object' && imgItem.title) ? imgItem.title : null;
+        const imgDesc = (typeof imgItem === 'object' && imgItem.description) ? imgItem.description : null;
+
+        const imgBoxContents = [
+          {
+            type: 'image',
+            url: u,
+            size: 'full',
+            aspectRatio: '20:11',
+            aspectMode: 'cover',
+            cornerRadius: 'md',
+            action: {
+              type: 'uri',
+              label: 'View Image',
+              uri: u
+            }
+          }
+        ];
+
+        if (imgTitle) {
+          imgBoxContents.push({
+            type: 'text',
+            text: imgTitle,
+            weight: 'bold',
+            size: 'xs',
+            color: colors.textPrimary,
+            wrap: true,
+            margin: 'xs'
+          });
         }
-      ];
+        if (imgDesc) {
+          imgBoxContents.push({
+            type: 'text',
+            text: imgDesc,
+            size: 'xxs',
+            color: colors.textMuted,
+            wrap: true,
+            margin: 'xs'
+          });
+        }
 
-      if (imgDesc) {
-        imgBodyContents.push({
-          type: 'text',
-          text: imgDesc,
-          size: 'xs',
-          color: colors.textMuted,
-          wrap: true,
-          margin: 'xs'
+        bubbleContents.push({
+          type: 'box',
+          layout: 'vertical',
+          margin: idx === 0 ? 'sm' : 'md',
+          contents: imgBoxContents
         });
-      }
+      });
 
       return {
         type: 'bubble',
         size: 'giga',
-        hero: {
-          type: 'image',
-          url: u,
-          size: 'full',
-          aspectRatio: '20:13',
-          aspectMode: 'cover',
-          action: {
-            type: 'uri',
-            label: 'View Image',
-            uri: u
-          }
-        },
         body: {
           type: 'box',
           layout: 'vertical',
           backgroundColor: colors.bgMain,
           paddingAll: 'md',
-          contents: imgBodyContents
-        },
-        footer: {
-          type: 'box',
-          layout: 'horizontal',
-          backgroundColor: colors.bgMain,
-          paddingAll: 'md',
-          spacing: 'sm',
-          contents: [
-            makeBoxButton('➕ ลงชื่อ', '+ny', '#16a34a'),
-            makeBoxButton('❌ ยกเลิก', '-ny', '#dc2626')
-          ]
+          contents: bubbleContents
         }
       };
     });
