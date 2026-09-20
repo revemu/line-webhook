@@ -1035,9 +1035,10 @@ async function getNYEventInfo() {
   let mapLabel = null;
   let galleryUrl = null;
   let galleryLabel = null;
+  let description = null;
 
   try {
-    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny', 'ny_header', 'ny_party_header', 'party_header', 'ny_image', 'ny_venue', 'ny_location', 'ny_map', 'ny_title', 'ny_note', 'ny_gallery', 'ny_album') OR name LIKE 'ny_image%' OR name LIKE 'ny_img%' OR name LIKE 'ny_gallery%' OR name LIKE 'party_image%' OR name LIKE 'party_img%' ORDER BY id ASC");
+    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny', 'ny_header', 'ny_party_header', 'party_header', 'ny_image', 'ny_venue', 'ny_location', 'ny_map', 'ny_title', 'ny_note', 'ny_description', 'ny_desc', 'ny_detail', 'ny_details', 'ny_gallery', 'ny_album') OR name LIKE 'ny_image%' OR name LIKE 'ny_img%' OR name LIKE 'ny_gallery%' OR name LIKE 'party_image%' OR name LIKE 'party_img%' ORDER BY id ASC");
     if (tplRows && tplRows.length > 0) {
       for (const row of tplRows) {
         let rowUrl = null;
@@ -1132,6 +1133,9 @@ async function getNYEventInfo() {
         if (row.name === 'ny_note' && row.value) {
           note = String(row.value).trim();
         }
+        if (row.name === 'ny_description' || row.name === 'ny_desc' || row.name === 'ny_detail' || row.name === 'ny_details') {
+          description = (row.value && String(row.value).trim()) || (row.code && String(row.code).trim()) || null;
+        }
 
         if (row.name === 'ny_schedule' || row.name === 'ny_date' || row.name === 'ny_party' || row.name === 'new_year' || row.name === 'ny') {
           if (row.value) {
@@ -1173,7 +1177,7 @@ async function getNYEventInfo() {
     console.error("Error querying NY template:", err.message);
   }
 
-  return { eventDatetime, header, heroUrl, venue, note, title, dateStr, timeStr, mapUrl, mapLabel, galleryUrl, galleryLabel, images };
+  return { eventDatetime, header, heroUrl, venue, note, description, title, dateStr, timeStr, mapUrl, mapLabel, galleryUrl, galleryLabel, images };
 }
 
 async function registerNY(member_id, member_name = null, target_datetime = null) {
@@ -3131,6 +3135,7 @@ async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = nu
       timeStr: info.timeStr || '19:00 - 24:00 น.',
       venue: info.venue || 'Waterside ห้องคาราโอกะ K5 Club Pool',
       note: info.note || '⚽ หลังจากเตะบอล 17:00-19:00 น.',
+      description: info.description,
       heroUrl: heroUrl,
       mapUrl: info.mapUrl,
       mapLabel: info.mapLabel,

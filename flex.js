@@ -6027,6 +6027,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
     timeStr = '19:00 - 24:00 น.',
     venue = 'Waterside ห้องคาราโอกะ K5 Club Pool',
     note = '⚽ หลังจากเตะบอล 17:00-19:00 น.',
+    description = null,
     heroUrl = 'https://bearbit.org/pic/party_header.jpg',
     mapUrl = null,
     mapLabel = 'เส้นทาง Google Maps',
@@ -6136,6 +6137,59 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
       { type: 'text', text: note, size: 'xs', color: colors.textMuted, flex: 1, wrap: true }
     ]
   });
+
+  // Additional Description / Alternate Text with URL tag support (ny_description)
+  if (description && typeof description === 'string' && description.trim()) {
+    const descParsed = parseTextAndLinks(description);
+    if (descParsed && descParsed.links && descParsed.links.length > 0) {
+      if (descParsed.text) {
+        infoDetails.push({
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            { type: 'text', text: '📝', size: 'xs', flex: 0 },
+            { type: 'text', text: descParsed.text, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+          ]
+        });
+      }
+      descParsed.links.forEach(link => {
+        const isMap = link.url.includes('map') || link.url.includes('goo.gl') || link.label.includes('ทาง') || link.label.includes('แผนที่');
+        infoDetails.push({
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          action: {
+            type: 'uri',
+            label: (link.label ? String(link.label) : 'ดูรายละเอียด').slice(0, 40),
+            uri: link.url
+          },
+          contents: [
+            { type: 'text', text: isMap ? '🗺️' : '🔗', size: 'xs', flex: 0 },
+            {
+              type: 'text',
+              text: `${link.label} ↗`,
+              size: 'xs',
+              color: isWhite ? '#0284c7' : '#38bdf8',
+              decoration: 'underline',
+              flex: 1,
+              wrap: true
+            }
+          ]
+        });
+      });
+    } else {
+      infoDetails.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        contents: [
+          { type: 'text', text: '📝', size: 'xs', flex: 0 },
+          { type: 'text', text: description.trim(), size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+        ]
+      });
+    }
+  }
 
   if (galleryUrl && typeof galleryUrl === 'string' && galleryUrl.startsWith('http')) {
     const displayLabel = galleryLabel || 'ดูรูปภาพเพิ่มเติม';
