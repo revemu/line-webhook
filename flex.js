@@ -6046,7 +6046,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
       spacing: 'sm',
       contents: [
         { type: 'text', text: '📅', size: 'xs', flex: 0 },
-        { type: 'text', text: `${dateStr}  ⏰ ${timeStr}`, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+        { type: 'text', text: `เสาร์ที่ ${dateStr}  ⏰ ${timeStr}`, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
       ]
     }
   ];

@@ -1025,7 +1025,7 @@ async function getNYEventInfo() {
   let header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 19 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: Waterside ห้องคาราโอกะ K5 Club Pool นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานพิมพ์ x1 เพื่อลงชื่อด้วยนะครับ\n\n";
   let heroUrl = null;
   let venue = 'Waterside ห้องคาราโอกะ K5 Club Pool';
-  let note = '⚽ หลังจากเตะบอล 17:00-19:00 น.';
+  let note = 'หลังจากเตะบอล 17:00-19:00 น.';
   let title = '🎉 2026 New Year Party';
   let dateStr = 'เสาร์ที่ 19 ธ.ค. 2569';
   let timeStr = '19:00 - 24:00 น.';
