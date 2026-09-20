@@ -5923,7 +5923,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
   const isWhite = colors.name === 'white';
 
   const {
-    title = '🎉 งานเลี้ยงปีใหม่ (New Year Party)',
+    title = '🎉 2026 New Year Party',
     dateStr = 'เสาร์ที่ 19 ธ.ค. 2569',
     timeStr = '19:00 - 24:00 น.',
     venue = 'Waterside ห้องคาราโอกะ K5 Club Pool',
@@ -6003,25 +6003,6 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
         size: 'sm',
         color: colors.textPrimary,
         flex: 1
-      },
-      {
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: '#e11d48',
-        cornerRadius: 'xxl',
-        paddingStart: 'sm',
-        paddingEnd: 'sm',
-        paddingTop: 'xs',
-        paddingBottom: 'xs',
-        contents: [
-          {
-            type: 'text',
-            text: `+${members.length}`,
-            color: '#ffffff',
-            size: 'xxs',
-            weight: 'bold'
-          }
-        ]
       }
     ]
   });
