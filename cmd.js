@@ -9,8 +9,8 @@ const slipService = require('./slip');
 const { getNextSaturday } = require('./utils/date');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
-const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'x1', 'x0', '-x1']);
-const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'x1', 'x0', '-x1', 'ny', 'listny']);
+const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1']);
+const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny']);
 
 function parseCommandString(cmdStr) {
     const pos = cmdStr.indexOf(' ');
@@ -421,7 +421,9 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: msg }];
     },
-    '-x1': async (context) => COMMAND_REGISTRY['x0'](context),
+    'x1': async (context) => COMMAND_REGISTRY['+ny'](context),
+    'x0': async (context) => COMMAND_REGISTRY['-ny'](context),
+    '-x1': async (context) => COMMAND_REGISTRY['-ny'](context),
     'ny': async (context) => {
         const { is_flex, groupId, member_id } = context;
         const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);

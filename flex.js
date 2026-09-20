@@ -6060,7 +6060,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
         },
         {
           type: 'text',
-          text: 'พิมพ์ x1 เพื่อลงชื่อคนแรก!',
+          text: 'พิมพ์ +ny เพื่อลงชื่อคนแรก!',
           size: 'xs',
           color: isWhite ? '#16a34a' : '#22c55e',
           align: 'center',
@@ -6088,8 +6088,8 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
       paddingAll: 'md',
       spacing: 'sm',
       contents: [
-        makeBoxButton('➕ ลงชื่อ (x1)', 'x1', '#16a34a'),
-        makeBoxButton('❌ ยกเลิก (x0)', 'x0', '#dc2626')
+        makeBoxButton('➕ ลงชื่อ (+ny)', '+ny', '#16a34a'),
+        makeBoxButton('❌ ยกเลิก (-ny)', '-ny', '#dc2626')
       ]
     }
   };
