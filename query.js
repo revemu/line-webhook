@@ -1047,22 +1047,44 @@ async function getNYEventInfo() {
           if (rowUrl) {
             galleryUrl = rowUrl;
           }
-          if (row.value && String(row.value).trim() !== '') {
-            const valTrim = String(row.value).trim();
-            if (valTrim.startsWith('http://') || valTrim.startsWith('https://')) {
-              galleryUrl = getFullUrl(valTrim);
+          const checkGalleryField = (str) => {
+            if (!str) return;
+            const trimStr = String(str).trim();
+            if (!trimStr) return;
+
+            // BBCode: [url=URL]LABEL[/url]
+            const bbMatch = /\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/i.exec(trimStr);
+            if (bbMatch) {
+              galleryUrl = getFullUrl(bbMatch[1].trim());
+              if (bbMatch[2].trim()) galleryLabel = bbMatch[2].trim();
+              return;
+            }
+
+            // BBCode: [url]URL[/url]
+            const bbSimpleMatch = /\[url\](https?:\/\/[^\]]+)\[\/url\]/i.exec(trimStr);
+            if (bbSimpleMatch) {
+              galleryUrl = getFullUrl(bbSimpleMatch[1].trim());
+              return;
+            }
+
+            // Markdown: [LABEL](URL)
+            const mdMatch = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/i.exec(trimStr);
+            if (mdMatch) {
+              galleryUrl = getFullUrl(mdMatch[2].trim());
+              if (mdMatch[1].trim()) galleryLabel = mdMatch[1].trim();
+              return;
+            }
+
+            // Raw URL: starts with http
+            if (trimStr.startsWith('http://') || trimStr.startsWith('https://')) {
+              galleryUrl = getFullUrl(trimStr);
             } else {
-              galleryLabel = valTrim;
+              galleryLabel = trimStr;
             }
-          }
-          if (row.code && String(row.code).trim() !== '') {
-            const codeTrim = String(row.code).trim();
-            if (codeTrim.startsWith('http://') || codeTrim.startsWith('https://')) {
-              if (!galleryUrl) galleryUrl = getFullUrl(codeTrim);
-            } else if (!galleryLabel || galleryLabel === 'ดูอัลบั้มรูปภาพเพิ่มเติม') {
-              galleryLabel = codeTrim;
-            }
-          }
+          };
+
+          if (row.value) checkGalleryField(row.value);
+          if (row.code) checkGalleryField(row.code);
         } else if (rowUrl) {
           if (!heroUrl) heroUrl = rowUrl;
           images.push({

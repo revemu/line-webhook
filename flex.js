@@ -5924,6 +5924,7 @@ function parseTextAndLinks(text) {
   if (!str) return null;
 
   const bbcodeRegex = /\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/gi;
+  const bbcodeSimpleRegex = /\[url\](https?:\/\/[^\]]+)\[\/url\]/gi;
   const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/gi;
   const rawUrlRegex = /^(https?:\/\/[^\s]+)$/i;
 
@@ -5937,11 +5938,18 @@ function parseTextAndLinks(text) {
   const links = [];
   let cleanText = str;
 
-  // Extract BBCode: [url=...]...[/url]
+  // Extract BBCode with label: [url=...]...[/url]
   let bbMatch;
   while ((bbMatch = bbcodeRegex.exec(str)) !== null) {
     links.push({ url: bbMatch[1].trim(), label: bbMatch[2].trim() || 'เส้นทาง' });
     cleanText = cleanText.replace(bbMatch[0], '').trim();
+  }
+
+  // Extract BBCode simple: [url]...[/url]
+  let bbSimpleMatch;
+  while ((bbSimpleMatch = bbcodeSimpleRegex.exec(str)) !== null) {
+    links.push({ url: bbSimpleMatch[1].trim(), label: 'เปิดดูเส้นทาง / แผนที่' });
+    cleanText = cleanText.replace(bbSimpleMatch[0], '').trim();
   }
 
   // Extract Markdown: [...](...)
@@ -6100,13 +6108,14 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
   });
 
   if (galleryUrl && typeof galleryUrl === 'string' && galleryUrl.startsWith('http')) {
+    const actionLabel = (galleryLabel ? String(galleryLabel) : 'ดูอัลบั้มรูปภาพ').slice(0, 40);
     infoDetails.push({
       type: 'box',
       layout: 'horizontal',
       spacing: 'sm',
       action: {
         type: 'uri',
-        label: galleryLabel || 'ดูอัลบั้มรูปภาพ',
+        label: actionLabel,
         uri: galleryUrl
       },
       contents: [
@@ -6309,13 +6318,14 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
       });
 
       if (galleryUrl && typeof galleryUrl === 'string' && galleryUrl.startsWith('http')) {
+        const actionLabel = (galleryLabel ? String(galleryLabel) : 'เปิดดูอัลบั้มเต็ม').slice(0, 40);
         bubbleContents.push({
           type: 'box',
           layout: 'horizontal',
           margin: 'md',
           action: {
             type: 'uri',
-            label: galleryLabel || 'เปิดดูอัลบั้มเต็ม',
+            label: actionLabel,
             uri: galleryUrl
           },
           contents: [
