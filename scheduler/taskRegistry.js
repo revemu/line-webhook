@@ -84,7 +84,7 @@ function normalizeTime(timeStr) {
 
 /**
  * Checks if targetDays specification matches the current day of the week.
- * Supports '*', 'weekdays', 'weekends', [1,2,3,4,5], '1-5', '1,2,3,4,5', 'mon-fri', 'fri', 'thu', etc.
+ * Supports '*', 'weekdays', 'weekends', [1,2,3,4,5], '1-5', '1,2,3,4,5', 'mon-fri', 'mon-fri,sun', '1-5,0', 'fri', 'thu', etc.
  * @param {Array|string|number} targetDays 
  * @param {number} currentDow - 0 (Sun) .. 6 (Sat)
  * @returns {boolean}
@@ -96,12 +96,7 @@ function matchesDay(targetDays, currentDow) {
 
   // If array e.g. [1, 2, 3, 4, 5] or ['mon', 'fri']
   if (Array.isArray(targetDays)) {
-    return targetDays.some(d => {
-      if (typeof d === 'number') return d === currentDow;
-      const str = String(d).toLowerCase().trim();
-      if (DAY_MAP[str] !== undefined) return DAY_MAP[str] === currentDow;
-      return parseInt(str, 10) === currentDow;
-    });
+    return targetDays.some(d => matchesDay(d, currentDow));
   }
 
   // If number e.g. 1
@@ -113,32 +108,35 @@ function matchesDay(targetDays, currentDow) {
   if (typeof targetDays === 'string') {
     const s = targetDays.toLowerCase().trim();
     if (s === '*' || s === 'all' || s === 'daily' || s === 'everyday') return true;
-    if (s === 'weekdays' || s === 'mon-fri' || s === '1-5') return currentDow >= 1 && currentDow <= 5;
-    if (s === 'weekends' || s === 'sat-sun' || s === '6,0' || s === '0,6') return currentDow === 0 || currentDow === 6;
 
-    // Handle single day name e.g. "fri", "thu"
-    if (DAY_MAP[s] !== undefined) {
-      return DAY_MAP[s] === currentDow;
-    }
+    // Handle comma-separated list e.g. "mon-fri,sun", "1-5,0", "mon,wed,fri"
+    const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+    return parts.some(p => {
+      if (p === '*' || p === 'all' || p === 'daily' || p === 'everyday') return true;
+      if (p === 'weekdays' || p === 'mon-fri' || p === '1-5') return currentDow >= 1 && currentDow <= 5;
+      if (p === 'weekends' || p === 'sat-sun' || p === '6,0' || p === '0,6') return currentDow === 0 || currentDow === 6;
 
-    // Handle range e.g. "1-5" or "mon-fri"
-    const rangeMatch = s.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
-    if (rangeMatch) {
-      const start = DAY_MAP[rangeMatch[1]] !== undefined ? DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
-      const end = DAY_MAP[rangeMatch[2]] !== undefined ? DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
-      if (!isNaN(start) && !isNaN(end)) {
-        if (start <= end) {
-          return currentDow >= start && currentDow <= end;
-        } else {
-          return currentDow >= start || currentDow <= end;
+      // Single day name e.g. "sun", "fri"
+      if (DAY_MAP[p] !== undefined) {
+        return DAY_MAP[p] === currentDow;
+      }
+
+      // Handle range e.g. "mon-fri", "1-5", "fri-sun"
+      const rangeMatch = p.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
+      if (rangeMatch) {
+        const start = DAY_MAP[rangeMatch[1]] !== undefined ? DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
+        const end = DAY_MAP[rangeMatch[2]] !== undefined ? DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
+        if (!isNaN(start) && !isNaN(end)) {
+          if (start <= end) {
+            return currentDow >= start && currentDow <= end;
+          } else {
+            // Wrapping range, e.g. fri-sun (5 to 0) -> 5, 6, 0
+            return currentDow >= start || currentDow <= end;
+          }
         }
       }
-    }
 
-    // Handle comma-separated list e.g. "1,2,3,4,5" or "mon,tue,wed,thu,fri"
-    const parts = s.split(',').map(p => p.trim());
-    return parts.some(p => {
-      if (DAY_MAP[p] !== undefined) return DAY_MAP[p] === currentDow;
+      // Numeric day e.g. "0", "1"
       return parseInt(p, 10) === currentDow;
     });
   }
@@ -321,3 +319,5 @@ class TaskRegistry {
 
 module.exports = new TaskRegistry();
 module.exports.getBangkokDateTime = getBangkokDateTime;
+module.exports.matchesDay = matchesDay;
+
