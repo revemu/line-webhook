@@ -1010,10 +1010,10 @@ async function ensureNYTable() {
       await executeQuery("ALTER TABLE member_ny_week_tbl ADD COLUMN datetime DATETIME NOT NULL DEFAULT '2026-12-19 19:00:00' AFTER id");
       try {
         await executeQuery("ALTER TABLE member_ny_week_tbl DROP INDEX uq_week_member");
-      } catch (e) {}
+      } catch (e) { }
       try {
         await executeQuery("ALTER TABLE member_ny_week_tbl ADD UNIQUE KEY uq_datetime_member (datetime, member_id)");
-      } catch (e) {}
+      } catch (e) { }
     }
   } catch (err) {
     console.error("Error ensuring member_ny_week_tbl table:", err.message);
@@ -1026,7 +1026,7 @@ async function getNYEventInfo() {
   let heroUrl = null;
   let venue = 'Waterside ห้องคาราโอกะ K5 Club Pool';
   let note = '⚽ หลังจากเตะบอล 17:00-19:00 น.';
-  let title = '🎉 งานเลี้ยงปีใหม่ (New Year Party)';
+  let title = '🎉 2026 New Year Party';
   let dateStr = 'เสาร์ที่ 19 ธ.ค. 2569';
   let timeStr = '19:00 - 24:00 น.';
 
@@ -1084,7 +1084,7 @@ async function getNYEventInfo() {
           const m = String(d.getMinutes()).padStart(2, '0');
           timeStr = `${h}:${m} - 24:00 น.`;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
   } catch (err) {
     console.error("Error querying NY template:", err.message);
