@@ -1023,33 +1023,74 @@ async function ensureNYTable() {
 async function getNYEventInfo() {
   let eventDatetime = '2026-12-19 19:00:00';
   let header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 19 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: Waterside ห้องคาราโอกะ K5 Club Pool นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานพิมพ์ x1 เพื่อลงชื่อด้วยนะครับ\n\n";
+  let heroUrl = null;
+  let venue = 'Waterside ห้องคาราโอกะ K5 Club Pool';
+  let note = '⚽ หลังจากเตะบอล 17:00-19:00 น.';
+  let title = '🎉 งานเลี้ยงปีใหม่ (New Year Party)';
+  let dateStr = 'เสาร์ที่ 19 ธ.ค. 2569';
+  let timeStr = '19:00 - 24:00 น.';
 
   try {
-    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny') ORDER BY id DESC");
+    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny', 'ny_header', 'ny_party_header', 'party_header', 'ny_image', 'ny_venue', 'ny_location', 'ny_title', 'ny_note') ORDER BY id ASC");
     if (tplRows && tplRows.length > 0) {
       for (const row of tplRows) {
-        if (row.value) {
-          const valTrim = String(row.value).trim();
-          // If value is a datetime string (e.g. '2026-12-19 19:00:00' or '2026-12-19')
-          if (/^\d{4}-\d{2}-\d{2}/.test(valTrim) || !isNaN(new Date(valTrim).getTime())) {
-            eventDatetime = valTrim.includes(' ') ? valTrim : `${valTrim} 19:00:00`;
-          } else if (valTrim.includes('ประกาศ') || valTrim.includes('ปีใหม่')) {
-            header = valTrim.endsWith('\n\n') ? valTrim : `${valTrim}\n\n`;
+        if (row.url && String(row.url).trim() !== '' && String(row.url).toLowerCase() !== 'null' && String(row.url).toLowerCase() !== 'none') {
+          heroUrl = getFullUrl(String(row.url).trim());
+        }
+        if (row.name === 'ny_header' || row.name === 'ny_party_header' || row.name === 'party_header' || row.name === 'ny_image') {
+          if (row.url && String(row.url).trim() !== '') {
+            heroUrl = getFullUrl(String(row.url).trim());
           }
         }
-        if (row.code) {
-          const codeTrim = String(row.code).trim();
-          if (codeTrim.includes('ประกาศ') || codeTrim.includes('ปีใหม่')) {
-            header = codeTrim.endsWith('\n\n') ? codeTrim : `${codeTrim}\n\n`;
+        if (row.name === 'ny_title' && row.value) {
+          title = String(row.value).trim();
+        }
+        if ((row.name === 'ny_venue' || row.name === 'ny_location') && row.value) {
+          venue = String(row.value).trim();
+        }
+        if (row.name === 'ny_note' && row.value) {
+          note = String(row.value).trim();
+        }
+
+        if (row.name === 'ny_schedule' || row.name === 'ny_date' || row.name === 'ny_party' || row.name === 'new_year' || row.name === 'ny') {
+          if (row.value) {
+            const valTrim = String(row.value).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(valTrim) || !isNaN(new Date(valTrim).getTime())) {
+              eventDatetime = valTrim.includes(' ') ? valTrim : `${valTrim} 19:00:00`;
+            } else if (valTrim.includes('ประกาศ') || valTrim.includes('ปีใหม่')) {
+              header = valTrim.endsWith('\n\n') ? valTrim : `${valTrim}\n\n`;
+            }
+          }
+          if (row.code) {
+            const codeTrim = String(row.code).trim();
+            if (codeTrim.includes('ประกาศ') || codeTrim.includes('ปีใหม่')) {
+              header = codeTrim.endsWith('\n\n') ? codeTrim : `${codeTrim}\n\n`;
+            } else if (codeTrim.startsWith('http')) {
+              if (!heroUrl) heroUrl = getFullUrl(codeTrim);
+            } else if (codeTrim && !venue) {
+              venue = codeTrim;
+            }
           }
         }
       }
+    }
+
+    if (eventDatetime) {
+      try {
+        const d = new Date(eventDatetime);
+        if (!isNaN(d.getTime())) {
+          dateStr = await getFormatDate(d, 'short');
+          const h = String(d.getHours()).padStart(2, '0');
+          const m = String(d.getMinutes()).padStart(2, '0');
+          timeStr = `${h}:${m} - 24:00 น.`;
+        }
+      } catch (e) {}
     }
   } catch (err) {
     console.error("Error querying NY template:", err.message);
   }
 
-  return { eventDatetime, header };
+  return { eventDatetime, header, heroUrl, venue, note, title, dateStr, timeStr };
 }
 
 async function registerNY(member_id, member_name = null, target_datetime = null) {
@@ -2961,14 +3002,14 @@ async function getDonateBadge(donate = 0) {
 
 }
 
-async function getMemberNY(target_datetime = null) {
+async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = null, target_datetime = null) {
   await ensureNYTable();
   const info = await getNYEventInfo();
   const eventDatetime = target_datetime || info.eventDatetime;
-  const header = info.header;
+  const headerText = info.header;
 
   const query = `
-    SELECT ny.id as reg_id, ny.datetime, ny.member_id, m.name, m.alias, m.donate, m.picture_url, m.line_user_id, ny.created_at
+    SELECT ny.id as reg_id, ny.datetime, ny.member_id, m.id, m.name, m.alias, m.rank, m.donate, m.picture_url, m.line_user_id, ny.created_at
     FROM member_ny_week_tbl ny
     INNER JOIN member_tbl m ON m.id = ny.member_id
     WHERE ny.datetime = ? OR DATE(ny.datetime) = DATE(?)
@@ -2976,18 +3017,59 @@ async function getMemberNY(target_datetime = null) {
   `;
 
   const result = await executeQuery(query, [eventDatetime, eventDatetime]);
-  if (result.length > 0) {
-    let body = "";
-    let i = 0;
-    for (const member of result) {
-      const donate = await getDonateBadge(member.donate);
-      body += (i + 1) + ". " + donate + member.name + "\n";
-      i++;
+
+  if (isFlex) {
+    const assets = await fetchDisplayAssets();
+    if (result && result.length > 0) {
+      await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
     }
-    const str = header + `+${i} พิมพ์ x1 เพื่อลงชื่อครับ\n` + body;
-    return str;
+
+    const members = (result || []).map(member => {
+      const displayInfo = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+      const isCurrent = highlightMemberId ? (
+        String(member.id) === String(highlightMemberId) ||
+        String(member.member_id) === String(highlightMemberId) ||
+        String(member.line_user_id) === String(highlightMemberId)
+      ) : false;
+
+      return {
+        ...displayInfo,
+        donate: '',
+        isCurrent
+      };
+    });
+
+    const theme = await getTheme();
+    const heroUrl = info.heroUrl || 'https://bearbit.org/pic/party_header.jpg';
+
+    const partyData = {
+      title: info.title || '🎉 งานเลี้ยงปีใหม่ (New Year Party)',
+      dateStr: info.dateStr || 'เสาร์ที่ 19 ธ.ค. 2569',
+      timeStr: info.timeStr || '19:00 - 24:00 น.',
+      venue: info.venue || 'Waterside ห้องคาราโอกะ K5 Club Pool',
+      note: info.note || '⚽ หลังจากเตะบอล 17:00-19:00 น.',
+      heroUrl: heroUrl,
+      members: members
+    };
+
+    const flexJson = flex.buildPartyFlex(partyData, theme);
+    const altText = `🎉 งานเลี้ยงปีใหม่ (ลงชื่อแล้ว ${members.length} คน)`;
+    return [flexJson, null, altText];
   } else {
-    return header;
+    // Plain text mode
+    if (result && result.length > 0) {
+      let body = "";
+      let i = 0;
+      for (const member of result) {
+        const donate = await getDonateBadge(member.donate);
+        body += (i + 1) + ". " + donate + member.name + "\n";
+        i++;
+      }
+      const str = headerText + `+${i} พิมพ์ x1 เพื่อลงชื่อครับ\n` + body;
+      return [str, null, null];
+    } else {
+      return [headerText, null, null];
+    }
   }
 }
 

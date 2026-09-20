@@ -5918,6 +5918,196 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
   return bubbles;
 }
 
+function buildPartyFlex(partyData = {}, theme = 'black') {
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+
+  const {
+    title = '🎉 งานเลี้ยงปีใหม่ (New Year Party)',
+    dateStr = 'เสาร์ที่ 19 ธ.ค. 2569',
+    timeStr = '19:00 - 24:00 น.',
+    venue = 'Waterside ห้องคาราโอกะ K5 Club Pool',
+    note = '⚽ หลังจากเตะบอล 17:00-19:00 น.',
+    heroUrl = 'https://bearbit.org/pic/party_header.jpg',
+    members = []
+  } = partyData;
+
+  const bodyContents = [];
+
+  // 1. Party Announcement / Event Info Card
+  const infoContents = [
+    {
+      type: 'text',
+      text: title,
+      weight: 'bold',
+      size: 'md',
+      color: isWhite ? '#b45309' : '#f59e0b'
+    },
+    {
+      type: 'box',
+      layout: 'vertical',
+      margin: 'sm',
+      spacing: 'xs',
+      contents: [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            { type: 'text', text: '📅', size: 'xs', flex: 0 },
+            { type: 'text', text: `${dateStr}  ⏰ ${timeStr}`, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+          ]
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            { type: 'text', text: '📍', size: 'xs', flex: 0 },
+            { type: 'text', text: venue, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+          ]
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            { type: 'text', text: '⚽', size: 'xs', flex: 0 },
+            { type: 'text', text: note, size: 'xs', color: colors.textMuted, flex: 1, wrap: true }
+          ]
+        }
+      ]
+    }
+  ];
+
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: colors.bgHeader,
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    contents: infoContents
+  });
+
+  // 2. Attendee Count Section Header
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'lg',
+    alignItems: 'center',
+    contents: [
+      {
+        type: 'text',
+        text: `👥 รายชื่อผู้ร่วมงาน (${members.length} คน)`,
+        weight: 'bold',
+        size: 'sm',
+        color: colors.textPrimary,
+        flex: 1
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#e11d48',
+        cornerRadius: 'xxl',
+        paddingStart: 'sm',
+        paddingEnd: 'sm',
+        paddingTop: 'xs',
+        paddingBottom: 'xs',
+        contents: [
+          {
+            type: 'text',
+            text: `+${members.length}`,
+            color: '#ffffff',
+            size: 'xxs',
+            weight: 'bold'
+          }
+        ]
+      }
+    ]
+  });
+
+  bodyContents.push({
+    type: 'separator',
+    margin: 'sm',
+    color: colors.separator
+  });
+
+  // 3. Attendee List (2-column layout)
+  if (members && members.length > 0) {
+    const memberRows = makeTwoColumnMemberRows(members, colors);
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      margin: 'sm',
+      contents: memberRows
+    });
+  } else {
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      margin: 'lg',
+      paddingAll: 'md',
+      backgroundColor: colors.bgRound,
+      cornerRadius: 'md',
+      contents: [
+        {
+          type: 'text',
+          text: 'ยังไม่มีผู้ลงชื่อ',
+          size: 'sm',
+          color: colors.textMuted,
+          align: 'center',
+          weight: 'bold'
+        },
+        {
+          type: 'text',
+          text: 'พิมพ์ x1 เพื่อลงชื่อคนแรก!',
+          size: 'xs',
+          color: isWhite ? '#16a34a' : '#22c55e',
+          align: 'center',
+          margin: 'xs'
+        }
+      ]
+    });
+  }
+
+  // 4. Bubble Definition
+  const bubble = {
+    type: 'bubble',
+    size: 'mega',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'md',
+      contents: bodyContents
+    },
+    footer: {
+      type: 'box',
+      layout: 'horizontal',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'md',
+      spacing: 'sm',
+      contents: [
+        makeBoxButton('➕ ลงชื่อ (x1)', 'x1', '#16a34a'),
+        makeBoxButton('❌ ยกเลิก (x0)', 'x0', '#dc2626')
+      ]
+    }
+  };
+
+  // Add Hero Image if available
+  if (heroUrl && typeof heroUrl === 'string' && heroUrl.startsWith('http')) {
+    bubble.hero = {
+      type: 'image',
+      url: heroUrl,
+      size: 'full',
+      aspectRatio: '20:10',
+      aspectMode: 'cover'
+    };
+  }
+
+  return bubble;
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -5949,6 +6139,7 @@ module.exports = {
   buildMatchWeekStandingsTop5Flex,
   buildMatchWeekRestMvpFlex,
   buildMatchWeekMatchesFlex,
-  buildMatchWeekMessages
+  buildMatchWeekMessages,
+  buildPartyFlex
 };
 

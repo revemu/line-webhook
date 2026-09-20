@@ -404,20 +404,30 @@ const COMMAND_REGISTRY = {
     },
     'delreserve': async (context) => COMMAND_REGISTRY['removereserve'](context),
     'x1': async (context) => {
-        const { member_id, member_name } = context;
+        const { member_id, member_name, is_flex, groupId } = context;
         await db.registerNY(member_id, member_name);
-        const msg = await db.getMemberNY();
+        const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "🎉 ลงชื่อร่วมงานเลี้ยงปีใหม่", contents: msg };
+        }
         return [{ type: 'text', text: msg }];
     },
     'x0': async (context) => {
-        const { member_id } = context;
+        const { member_id, is_flex, groupId } = context;
         await db.unregisterNY(member_id);
-        const msg = await db.getMemberNY();
+        const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId);
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "🎉 ลงชื่อร่วมงานเลี้ยงปีใหม่", contents: msg };
+        }
         return [{ type: 'text', text: msg }];
     },
     '-x1': async (context) => COMMAND_REGISTRY['x0'](context),
     'ny': async (context) => {
-        const msg = await db.getMemberNY();
+        const { is_flex, groupId, member_id } = context;
+        const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "🎉 ลงชื่อร่วมงานเลี้ยงปีใหม่", contents: msg };
+        }
         return [{ type: 'text', text: msg }];
     },
     'listny': async (context) => COMMAND_REGISTRY['ny'](context),
