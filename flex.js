@@ -6073,7 +6073,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
   // 4. Bubble Definition
   const bubble = {
     type: 'bubble',
-    size: 'mega',
+    size: 'giga',
     body: {
       type: 'box',
       layout: 'vertical',
@@ -6088,8 +6088,8 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
       paddingAll: 'md',
       spacing: 'sm',
       contents: [
-        makeBoxButton('➕ ลงชื่อ (+ny)', '+ny', '#16a34a'),
-        makeBoxButton('❌ ยกเลิก (-ny)', '-ny', '#dc2626')
+        makeBoxButton('➕ ลงชื่อ', '+ny', '#16a34a'),
+        makeBoxButton('❌ ยกเลิก', '-ny', '#dc2626')
       ]
     }
   };
