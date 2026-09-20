@@ -1030,17 +1030,28 @@ async function getNYEventInfo() {
   let dateStr = 'เสาร์ที่ 19 ธ.ค. 2569';
   let timeStr = '19:00 - 24:00 น.';
 
+  let images = [];
+
   try {
-    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny', 'ny_header', 'ny_party_header', 'party_header', 'ny_image', 'ny_venue', 'ny_location', 'ny_title', 'ny_note') ORDER BY id ASC");
+    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny', 'ny_header', 'ny_party_header', 'party_header', 'ny_image', 'ny_venue', 'ny_location', 'ny_title', 'ny_note', 'ny_gallery') OR name LIKE 'ny_image%' OR name LIKE 'ny_img%' OR name LIKE 'party_image%' OR name LIKE 'party_img%' ORDER BY id ASC");
     if (tplRows && tplRows.length > 0) {
       for (const row of tplRows) {
+        let rowUrl = null;
         if (row.url && String(row.url).trim() !== '' && String(row.url).toLowerCase() !== 'null' && String(row.url).toLowerCase() !== 'none') {
-          heroUrl = getFullUrl(String(row.url).trim());
+          rowUrl = getFullUrl(String(row.url).trim());
         }
+
+        if (rowUrl) {
+          if (!heroUrl) heroUrl = rowUrl;
+          images.push({
+            url: rowUrl,
+            title: row.value ? String(row.value).trim() : null,
+            description: row.code && !String(row.code).trim().startsWith('http') ? String(row.code).trim() : null
+          });
+        }
+
         if (row.name === 'ny_header' || row.name === 'ny_party_header' || row.name === 'party_header' || row.name === 'ny_image') {
-          if (row.url && String(row.url).trim() !== '') {
-            heroUrl = getFullUrl(String(row.url).trim());
-          }
+          if (rowUrl) heroUrl = rowUrl;
         }
         if (row.name === 'ny_title' && row.value) {
           title = String(row.value).trim();
@@ -1066,7 +1077,9 @@ async function getNYEventInfo() {
             if (codeTrim.includes('ประกาศ') || codeTrim.includes('ปีใหม่')) {
               header = codeTrim.endsWith('\n\n') ? codeTrim : `${codeTrim}\n\n`;
             } else if (codeTrim.startsWith('http')) {
-              if (!heroUrl) heroUrl = getFullUrl(codeTrim);
+              const codeUrl = getFullUrl(codeTrim);
+              if (!heroUrl) heroUrl = codeUrl;
+              images.push({ url: codeUrl });
             } else if (codeTrim && !venue) {
               venue = codeTrim;
             }
@@ -1090,7 +1103,7 @@ async function getNYEventInfo() {
     console.error("Error querying NY template:", err.message);
   }
 
-  return { eventDatetime, header, heroUrl, venue, note, title, dateStr, timeStr };
+  return { eventDatetime, header, heroUrl, venue, note, title, dateStr, timeStr, images };
 }
 
 async function registerNY(member_id, member_name = null, target_datetime = null) {
@@ -3043,12 +3056,13 @@ async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = nu
     const heroUrl = info.heroUrl || 'https://bearbit.org/pic/party_header.jpg';
 
     const partyData = {
-      title: info.title || '🎉 งานเลี้ยงปีใหม่ (New Year Party)',
+      title: info.title || '🎉 2026 New Year Party',
       dateStr: info.dateStr || 'เสาร์ที่ 19 ธ.ค. 2569',
       timeStr: info.timeStr || '19:00 - 24:00 น.',
       venue: info.venue || 'Waterside ห้องคาราโอกะ K5 Club Pool',
       note: info.note || '⚽ หลังจากเตะบอล 17:00-19:00 น.',
       heroUrl: heroUrl,
+      images: info.images || [],
       members: members
     };
 

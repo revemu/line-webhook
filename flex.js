@@ -6051,8 +6051,8 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
     });
   }
 
-  // 4. Bubble Definition
-  const bubble = {
+  // 4. Main Party Bubble Definition
+  const partyBubble = {
     type: 'bubble',
     size: 'giga',
     body: {
@@ -6075,9 +6075,9 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
     }
   };
 
-  // Add Hero Image if available
+  // Add Hero Image to main bubble if available
   if (heroUrl && typeof heroUrl === 'string' && heroUrl.startsWith('http')) {
-    bubble.hero = {
+    partyBubble.hero = {
       type: 'image',
       url: heroUrl,
       size: 'full',
@@ -6086,7 +6086,83 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
     };
   }
 
-  return bubble;
+  // 5. If extra images / gallery provided, build a Flex Carousel
+  const extraImages = (partyData.images || []).filter(item => {
+    const u = typeof item === 'string' ? item : (item && item.url);
+    return u && typeof u === 'string' && u.startsWith('http') && u !== heroUrl;
+  });
+
+  if (extraImages.length > 0) {
+    const imageBubbles = extraImages.map((imgItem, idx) => {
+      const u = typeof imgItem === 'string' ? imgItem : imgItem.url;
+      const imgTitle = (typeof imgItem === 'object' && imgItem.title) ? imgItem.title : (venue ? `📍 ${venue}` : `🎉 บรรยากาศงานเลี้ยง (#${idx + 1})`);
+      const imgDesc = (typeof imgItem === 'object' && imgItem.description) ? imgItem.description : null;
+
+      const imgBodyContents = [
+        {
+          type: 'text',
+          text: imgTitle,
+          weight: 'bold',
+          size: 'sm',
+          color: colors.textPrimary,
+          wrap: true
+        }
+      ];
+
+      if (imgDesc) {
+        imgBodyContents.push({
+          type: 'text',
+          text: imgDesc,
+          size: 'xs',
+          color: colors.textMuted,
+          wrap: true,
+          margin: 'xs'
+        });
+      }
+
+      return {
+        type: 'bubble',
+        size: 'giga',
+        hero: {
+          type: 'image',
+          url: u,
+          size: 'full',
+          aspectRatio: '20:13',
+          aspectMode: 'cover',
+          action: {
+            type: 'uri',
+            label: 'View Image',
+            uri: u
+          }
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: colors.bgMain,
+          paddingAll: 'md',
+          contents: imgBodyContents
+        },
+        footer: {
+          type: 'box',
+          layout: 'horizontal',
+          backgroundColor: colors.bgMain,
+          paddingAll: 'md',
+          spacing: 'sm',
+          contents: [
+            makeBoxButton('➕ ลงชื่อ', '+ny', '#16a34a'),
+            makeBoxButton('❌ ยกเลิก', '-ny', '#dc2626')
+          ]
+        }
+      };
+    });
+
+    return {
+      type: 'carousel',
+      contents: [partyBubble, ...imageBubbles]
+    };
+  }
+
+  return partyBubble;
 }
 
 module.exports = {
