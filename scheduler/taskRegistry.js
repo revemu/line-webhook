@@ -255,7 +255,8 @@ class TaskRegistry {
 
       // reply_on_chat tasks: log schedule trigger & pending status, then mark minute logged so worker waits for incoming chat
       if (task.deliveryMode === 'reply_on_chat') {
-        logger.info(`[SchedulerWorker] Task '${id}' (${task.name}) matched schedule (${weekdayShort} @ ${currentTimeStr}) [mode: reply_on_chat] -> Status: PENDING (Waiting for next chat message in group to reply)`);
+        const groupTag = db.getGroupTag(task.groupId);
+        logger.info(`[SchedulerWorker] Task '${id}' (${task.name}) matched schedule (${weekdayShort} @ ${currentTimeStr}) [mode: reply_on_chat] -> Status: PENDING (Waiting for next chat message in ${groupTag || 'any group'} to reply)`);
         this.lastExecution.set(id, currentMinuteKey);
         continue;
       }

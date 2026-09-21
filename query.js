@@ -6918,6 +6918,7 @@ async function getScheduledTasks(onlyEnabled = false) {
     const tasks = await executeQuery(sql);
     for (const t of tasks) {
       if (t.group_id) {
+        t.raw_group_id = t.group_id;
         t.group_id = await resolveLineGroupId(t.group_id);
       }
     }
@@ -7165,6 +7166,7 @@ async function getPendingReplyTasks(groupId) {
     const pending = [];
     for (const t of tasks) {
       if (t.delivery_mode !== 'reply_on_chat') continue;
+      const taskId = t.task_key || String(t.id);
       const schedTime = (t.schedule_time || '20:00').substring(0, 5);
 
       // Check if already executed at or after today's scheduled time
@@ -7181,13 +7183,16 @@ async function getPendingReplyTasks(groupId) {
       if (lastRunDateStr && lastRunDateStr.startsWith(todayDateStr)) {
         const lastRunTime = lastRunDateStr.substring(11, 16);
         if (lastRunTime >= schedTime) {
-          logger.debug(`[Scheduler] Pending task '${t.task_key || t.id}' already executed today (${lastRunDateStr} >= ${schedTime}), skipping.`);
+          logger.info(`[Scheduler] Pending task '${taskId}' already executed today (last_run: ${lastRunDateStr} >= sched: ${schedTime}), skipping.`);
           continue; // Already executed for this scheduled time today
         }
       }
 
       // Check day matching
-      if (!matchesScheduleDay(t.schedule_days, dow)) continue;
+      if (!matchesScheduleDay(t.schedule_days, dow)) {
+        logger.info(`[Scheduler] Pending task '${taskId}' schedule days '${t.schedule_days}' do not match today's day of week (${dow}), skipping.`);
+        continue;
+      }
 
       // Check if scheduled time has arrived (schedMinutes <= currentMinutes)
       const [sH, sM] = schedTime.split(':').map(Number);
@@ -7195,7 +7200,10 @@ async function getPendingReplyTasks(groupId) {
       const schedMinutes = (sH || 0) * 60 + (sM || 0);
       const currentMinutes = (cH || 0) * 60 + (cM || 0);
 
-      if (schedMinutes > currentMinutes) continue; // Not due yet
+      if (schedMinutes > currentMinutes) {
+        logger.info(`[Scheduler] Pending task '${taskId}' not due yet (sched: ${schedTime} > now: ${currentTimeStr}), skipping.`);
+        continue;
+      }
 
       // Check if task has expired (validity window: default 60 minutes if not specified)
       const expireMinutes = (t.expire_minutes !== null && t.expire_minutes !== undefined && Number(t.expire_minutes) > 0)
@@ -7204,17 +7212,32 @@ async function getPendingReplyTasks(groupId) {
 
       const expireAtMinutes = schedMinutes + expireMinutes;
       if (currentMinutes > expireAtMinutes) {
-        logger.debug(`[Scheduler] Pending task '${t.task_key || t.id}' expired (due ${schedTime}, window ${expireMinutes}m, current ${currentTimeStr}), skipping.`);
+        logger.info(`[Scheduler] Pending task '${taskId}' expired (sched: ${schedTime}, window: ${expireMinutes}m, now: ${currentTimeStr}), skipping.`);
         continue; // Scheduled time window has passed, do not trigger
       }
 
       // Check group matching (if task specified a group, must match; if empty, matches active group)
-      const targetGid = t.group_id ? await resolveLineGroupId(t.group_id) : null;
-      if (targetGid && targetGid !== groupId) {
-        logger.debug(`[Scheduler] Pending task '${t.task_key || t.id}' target group (${targetGid}) does not match incoming group (${groupId}), skipping.`);
-        continue;
+      if (t.group_id || t.raw_group_id) {
+        const targetGid = t.group_id || await resolveLineGroupId(t.raw_group_id);
+        const rawGid = t.raw_group_id || t.group_id;
+
+        let isGroupMatch = (targetGid === groupId || String(rawGid) === String(groupId));
+        if (!isGroupMatch) {
+          const groupProfile = await getGroupProfile(groupId);
+          if (groupProfile) {
+            if (String(groupProfile.id) === String(rawGid) || (groupProfile.line_group_id && groupProfile.line_group_id === targetGid)) {
+              isGroupMatch = true;
+            }
+          }
+        }
+
+        if (!isGroupMatch) {
+          logger.info(`[Scheduler] Pending task '${taskId}' target group (${targetGid} / raw ID: ${rawGid}) does not match incoming message group (${groupId}), skipping.`);
+          continue;
+        }
       }
 
+      logger.info(`[Scheduler] Pending task '${taskId}' matched for group ${groupId}!`);
       pending.push(t);
     }
     return pending;
