@@ -44,8 +44,7 @@ logger.info('[SchedulerWorker] Starting background scheduler worker thread...');
  * @param {string} triggerSource 
  */
 async function runTask(task, triggerSource = 'schedule') {
-  logger.info(`[SchedulerWorker] Starting execution of task '${task.id}' (${task.name}) [type: ${task.type}, source: ${triggerSource}]`);
-  const now = new Date();
+  const isReplyOnChat = task.deliveryMode === 'reply_on_chat';
   try {
     let targetGroupId = task.groupId || null;
 
@@ -63,12 +62,7 @@ async function runTask(task, triggerSource = 'schedule') {
       targetGroupId = await db.resolveLineGroupId(targetGroupId);
     }
 
-    const isLogOnly = task.deliveryMode === 'log_only';
-    const isReplyOnChat = task.deliveryMode === 'reply_on_chat';
-
     if (isReplyOnChat) {
-      const groupTag = targetGroupId ? db.getGroupTag(targetGroupId) : '[Any Group]';
-      logger.info(`[SchedulerWorker] Enqueuing pending task '${task.id}' (${task.name}) [mode: reply_on_chat] for ${groupTag} (waiting for next chat reply)`);
       if (parentPort) {
         parentPort.postMessage({
           type: 'ENQUEUE_PENDING_TASK',
@@ -80,6 +74,10 @@ async function runTask(task, triggerSource = 'schedule') {
       }
       return;
     }
+
+    logger.info(`[SchedulerWorker] Starting execution of task '${task.id}' (${task.name}) [type: ${task.type}, source: ${triggerSource}]`);
+    const now = new Date();
+    const isLogOnly = task.deliveryMode === 'log_only';
 
     if (!isLogOnly && !targetGroupId) {
       logger.warn(`[SchedulerWorker] Execution aborted for task '${task.id}': No target groupId available`);

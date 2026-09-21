@@ -40,7 +40,7 @@ class PendingTaskManager {
 
     const groupTag = db.getGroupTag(pendingItem.groupId);
     const expireTime = new Date(expiresAt).toLocaleTimeString('th-TH', { hour12: false, timeZone: 'Asia/Bangkok' });
-    logger.info(`[PendingManager] Enqueued task '${taskId}' (${pendingItem.name}) for ${groupTag || 'any group'} (expires at ${expireTime}, window: ${expireMinutes}m)`);
+    logger.info(`[PendingManager] Enqueued task '${taskId}' (${pendingItem.name}) for ${groupTag || 'any group'} [mode: reply_on_chat] (expires at ${expireTime}, window: ${expireMinutes}m)`);
   }
 
   /**

@@ -255,8 +255,6 @@ class TaskRegistry {
 
       // reply_on_chat tasks: mark minute logged and pass to dueTasks so worker dispatches ENQUEUE_PENDING_TASK
       if (task.deliveryMode === 'reply_on_chat') {
-        const groupTag = db.getGroupTag(task.groupId);
-        logger.info(`[SchedulerWorker] Task '${id}' (${task.name}) matched schedule (${weekdayShort} @ ${currentTimeStr}) [mode: reply_on_chat] -> Status: PENDING (Waiting for next chat message in ${groupTag || 'any group'} to reply)`);
         this.lastExecution.set(id, currentMinuteKey);
         dueTasks.push(task);
         continue;
