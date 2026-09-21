@@ -46,9 +46,9 @@ async function ensureMemberPicture(member, groupId = null) {
         (groupErr.message && groupErr.message.includes('404'));
       if (isNotFound) {
         member.inGroup = false;
-        console.log(`[ensureMemberPicture] Member ${member.name} (${member.id}) is no longer in group ${effectiveGroupId}`);
+        logger.info(`[ensureMemberPicture] Member ${member.name} (${member.id}) is no longer in group ${effectiveGroupId}`);
       } else {
-        console.warn(`[ensureMemberPicture] Failed to check group profile for ${member.name}:`, groupErr.message);
+        logger.warn(`[ensureMemberPicture] Failed to check group profile for ${member.name}:`, groupErr.message);
       }
     }
   }
@@ -62,7 +62,7 @@ async function ensureMemberPicture(member, groupId = null) {
       member.pictureUrl = profile.pictureUrl;
     }
   } catch (err) {
-    console.error(`[ensureMemberPicture] failed to fetch direct profile for user ${member.line_user_id}:`, err.message);
+    logger.error(`[ensureMemberPicture] failed to fetch direct profile for user ${member.line_user_id}:`, err.message);
   }
 }
 
@@ -130,7 +130,7 @@ async function ensureLineGroupTable() {
       updateGroupCache(row);
     }
   } catch (err) {
-    console.error('Error ensuring line_group_id_tbl:', err.message);
+    logger.error('Error ensuring line_group_id_tbl:', err.message);
   }
 }
 
@@ -138,12 +138,12 @@ async function ensureLineGroupTable() {
 async function testConnection() {
   try {
     const connection = await pool.getConnection();
-    console.log('✅ Connected to MySQL database successfully');
+    logger.info('✅ Connected to MySQL database successfully');
     connection.release();
     await ensureLineGroupTable();
     await ensureScheduledTaskTable();
   } catch (error) {
-    console.error('❌ Error connecting to MySQL database:', error.message);
+    logger.error('❌ Error connecting to MySQL database:', error.message);
   }
 }
 
@@ -188,7 +188,7 @@ async function ensureScheduledTaskTable() {
       }
     } catch (colErr2) { }
   } catch (err) {
-    console.error('Error ensuring scheduled_task_tbl:', err.message);
+    logger.error('Error ensuring scheduled_task_tbl:', err.message);
   }
 }
 
@@ -199,7 +199,7 @@ async function executeQuery(query, params = []) {
     const [results] = await pool.execute(query, params);
     return results;
   } catch (error) {
-    console.log(error);
+    logger.info(error);
     throw error;
   }
 }
@@ -328,7 +328,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
       badges[r.value] = { url: getFullUrl(r.url), size: r.size };
     });
   } catch (badgeErr) {
-    console.error('Error querying rank badges:', badgeErr.message);
+    logger.error('Error querying rank badges:', badgeErr.message);
   }
 
   const donateColors = [];
@@ -342,7 +342,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
     });
     donateColors.sort((a, b) => a.threshold - b.threshold);
   } catch (colorErr) {
-    console.error('Error querying donate colors:', colorErr.message);
+    logger.error('Error querying donate colors:', colorErr.message);
   }
 
   const hofCounts = {};
@@ -367,7 +367,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
       hofAwards[h.member_id].push(h.type);
     });
   } catch (hofErr) {
-    console.error('Error querying HOF counts:', hofErr.message);
+    logger.error('Error querying HOF counts:', hofErr.message);
   }
 
   const hofBadge = {};
@@ -377,7 +377,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
       hofBadge[r.value] = { id: r.id, url: getFullUrl(r.url), size: r.size || '20px' };
     });
   } catch (hofBadgeErr) {
-    console.error('Error querying HOF badge template:', hofBadgeErr.message);
+    logger.error('Error querying HOF badge template:', hofBadgeErr.message);
   }
 
   const teamColors = {};
@@ -389,7 +389,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
       }
     });
   } catch (colorErr) {
-    console.error('Error querying team color templates:', colorErr.message);
+    logger.error('Error querying team color templates:', colorErr.message);
   }
 
   return { badges, donateColors, hofCounts, hofBadge, hofAwards, teamColors };
@@ -401,7 +401,7 @@ async function updateAlertCall(value = 1) {
   query = `update template_tpl set value=${value} where name='call'`;
 
   const res = await executeQuery(query);
-  //console.log(res) ;
+  //logger.info(res) ;
   return res;
 
 }
@@ -436,7 +436,7 @@ async function resetMemberTeam() {
   let query = `update member_team_week_tbl set team_id=0 where week_id=${week[0].id}`;
 
   const res = await executeQuery(query);
-  //console.log(res) ;
+  //logger.info(res) ;
   return res;
 
 }
@@ -467,7 +467,7 @@ function shuffleArray(array) {
 
 async function newTeamColorWeek(color, index, week_id) {
   const query = `insert into team_color_week_tbl values(null, ${index}, ${week_id}, '${color}')`;
-  console.log(query);
+  logger.info(query);
 
   const res = await executeQuery(query);
   return res;
@@ -510,7 +510,7 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
       await newTeamColorWeek(shuffledAvailable[i], existingCount + i + 1, week_id);
     }
   } else {
-    //console.log("Team color week already exist!");
+    //logger.info("Team color week already exist!");
   }
 }
 
@@ -520,16 +520,16 @@ async function addTeamMemberWeek() {
   let query = `select * from member_team_week_tbl where week_id=${week[0].id}`;
   let team_colors = await getTeamColorWeek(week[0].id);
   const members = await executeQuery(query);
-  //console.log(res) ;
+  //logger.info(res) ;
   //return res ;
   if (members.length > 0) {
     let num = 0;
     //const test = members.filter(member => member.team_id !=0) ;
     if (members.filter(member => member.team_id != 0).length > 0) {
-      console.log("Team already created!");
+      logger.info("Team already created!");
       return 1;
     } else if (members.filter(member => member.team != 0).length == 0) {
-      console.log("No Team assigned!");
+      logger.info("No Team assigned!");
       return 2;
     }
 
@@ -538,10 +538,10 @@ async function addTeamMemberWeek() {
 
       if (members[i].team > 0) {
         num = members[i].team - 1;
-        console.log(`${members[i].name} => ${team_colors[num].color}`)
+        logger.info(`${members[i].name} => ${team_colors[num].color}`)
         await updateMemberWeek(members[i].member_id, team_colors[num].id, 1);
       } else {
-        console.log(`${members[i].name} no team assigned`)
+        logger.info(`${members[i].name} no team assigned`)
       }
 
     }
@@ -555,12 +555,12 @@ async function ensureWeekTimeColumn() {
     const checkQuery = "SHOW COLUMNS FROM week_tbl LIKE 'time_range'";
     const res = await executeQuery(checkQuery);
     if (res.length === 0) {
-      console.log("[Migration] Adding time_range column to week_tbl...");
+      logger.info("[Migration] Adding time_range column to week_tbl...");
       await executeQuery("ALTER TABLE week_tbl ADD COLUMN time_range VARCHAR(50) NOT NULL DEFAULT '17:30-20:00'");
-      console.log("✅ time_range column added to week_tbl successfully!");
+      logger.info("✅ time_range column added to week_tbl successfully!");
     }
   } catch (err) {
-    console.error("Error ensuring time_range column in week_tbl:", err.message);
+    logger.error("Error ensuring time_range column in week_tbl:", err.message);
   }
 }
 
@@ -612,7 +612,7 @@ async function newWeek(week_date, custom_time_range = null) {
       `);
       for (const member of autoRegMembers) {
         if (member.debt > 0) {
-          console.log(`[Auto-Reg] Skipped ${member.name} (ID: ${member.id}) due to outstanding debt of ${member.debt} baht`);
+          logger.info(`[Auto-Reg] Skipped ${member.name} (ID: ${member.id}) due to outstanding debt of ${member.debt} baht`);
           continue;
         }
         // Check if member is already registered for this week to avoid duplicates
@@ -621,16 +621,16 @@ async function newWeek(week_date, custom_time_range = null) {
         if (existRes.length === 0) {
           const insertQuery = "insert into member_team_week_tbl (member_id, name, team_id, week_id, pay) values(?, ?, 0, ?, 0)";
           await executeQuery(insertQuery, [member.id, member.name, new_week_id]);
-          console.log(`[Auto-Reg] Registered ${member.name} (ID: ${member.id}) for week ID ${new_week_id}`);
+          logger.info(`[Auto-Reg] Registered ${member.name} (ID: ${member.id}) for week ID ${new_week_id}`);
         } else {
-          console.log(`[Auto-Reg] Member ${member.name} (ID: ${member.id}) already registered for week ID ${new_week_id}`);
+          logger.info(`[Auto-Reg] Member ${member.name} (ID: ${member.id}) already registered for week ID ${new_week_id}`);
         }
       }
     } catch (regErr) {
-      console.error('⚠️ Auto-registration failed:', regErr.message);
+      logger.error('⚠️ Auto-registration failed:', regErr.message);
     }
   } else {
-    console.log(date_str + " already exist!");
+    logger.info(date_str + " already exist!");
     if (custom_time_range && week && week.length > 0) {
       await updateWeekTimeRange(custom_time_range, week[0].id);
     }
@@ -661,7 +661,7 @@ async function updateMaxNumberWeek(max_number = 24) {
           const chosenColor = availableColors[0];
           const nextIndex = currentColors.length + 1;
           await newTeamColorWeek(chosenColor, nextIndex, week_id);
-          console.log(`[setmaxweek] Added 4th team color '${chosenColor}' for week ID ${week_id}`);
+          logger.info(`[setmaxweek] Added 4th team color '${chosenColor}' for week ID ${week_id}`);
         }
       }
     }
@@ -716,7 +716,7 @@ async function updateMemberDebt(member_id) {
   query1 = "update member_tbl set debt=0 where id=?";
   const res1 = await executeQuery(query1, [member_id]);
 
-  //console.log(res) ;
+  //logger.info(res) ;
   return res1;
 }
 
@@ -745,7 +745,7 @@ async function updateMemberWeek(member_id, value, type = 0) {
     }
 
     const res = await executeQuery(query, [finalPayVal, member_id, week_id]);
-    //console.log(res) ;
+    //logger.info(res) ;
     return res;
   }
 }
@@ -977,9 +977,9 @@ async function IsMemberWeek(member_id) {
     const week_id = week[0].id;
     const query = `SELECT * from member_team_week_tbl where week_id=${week_id} and member_id=${member_id}`;
     const res = await executeQuery(query);
-    //console.log(`${res.length}`)
+    //logger.info(`${res.length}`)
     if (res.length > 0) {
-      //console.log(`${week_id}`)
+      //logger.info(`${week_id}`)
       return true;
     } else {
       return false;
@@ -1016,7 +1016,7 @@ async function ensureNYTable() {
       } catch (e) { }
     }
   } catch (err) {
-    console.error("Error ensuring member_ny_week_tbl table:", err.message);
+    logger.error("Error ensuring member_ny_week_tbl table:", err.message);
   }
 }
 
@@ -1174,7 +1174,7 @@ async function getNYEventInfo() {
       } catch (e) { }
     }
   } catch (err) {
-    console.error("Error querying NY template:", err.message);
+    logger.error("Error querying NY template:", err.message);
   }
 
   return { eventDatetime, header, heroUrl, venue, note, description, title, dateStr, timeStr, mapUrl, mapLabel, galleryUrl, galleryLabel, images };
@@ -1220,21 +1220,21 @@ async function registerMember(member_id, member_name) {
     const check_res = await executeQuery(check, [member_id]);
     if (check_res.length > 0) {
       const debt = check_res[0].debt;
-      //console.log(`ยอดค้าง ${debt}`);
+      //logger.info(`ยอดค้าง ${debt}`);
       if (debt > 0) return debt;
     }
-    //console.log(`${res.length}`)
+    //logger.info(`${res.length}`)
     if (res.length > 0) {
       return 1;
     } else {
       const query = "insert into member_team_week_tbl (member_id, name, team_id, week_id, pay) values(?, ?, 0, ?, 0)";
-      //console.log(query) ;
+      //logger.info(query) ;
       const reg_res = await executeQuery(query, [member_id, member_name, week_id]);
-      //console.log(reg_res) ;
+      //logger.info(reg_res) ;
       return 0;
     }
   }
-  //console.log(res) ;
+  //logger.info(res) ;
   return 0;
 }
 
@@ -1284,7 +1284,7 @@ async function getTeamColorWeek(week_id) {
 
   let result = await executeQuery(query);
   if ((!result || result.length === 0) && week_id) {
-    console.log(`[Auto-Fix] Missing team_color_week for week_id=${week_id}. Generating team colors automatically...`);
+    logger.info(`[Auto-Fix] Missing team_color_week for week_id=${week_id}. Generating team colors automatically...`);
     await addTeamColorWeek(3, week_id);
     result = await executeQuery(query);
   }
@@ -1446,7 +1446,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     allPositions.forEach(p => { posMap[p.id] = p; });
     const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0, pts_wins: 1.5 };
 
-    console.log(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
+    logger.info(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
     if (tableRows && tableRows.length > 0) {
       tableRows.forEach(row => {
         const teamId = row.team_week_id;
@@ -1467,13 +1467,13 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         teamMvpFactorMap[teamId] = factor;
         teamInfoMap[teamId] = { color: row.color, w, d, l, matches: totalMatches, pts, avgPts, goalsAgainst, divisor, factor };
 
-        console.log(` [Team ${row.color || teamId} (ID: ${teamId})]`);
-        console.log(`   └─ Record: Wins (W): ${w}, Draws (D): ${d}, Losses (L): ${l} => Total Matches Played: ${totalMatches}`);
-        console.log(`   └─ Points (Pts): ${pts}`);
-        console.log(`   └─ Avg Pts Calculation: Points (${pts}) / Total Matches (${totalMatches > 0 ? totalMatches : 1}) = ${avgPts.toFixed(4)}`);
-        console.log(`   └─ Goals Against (A) [from match_stat_tbl]: ${goalsAgainst}`);
-        console.log(`   └─ Team Factor Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${divisor}) = ${factor.toFixed(4)}`);
-        console.log(`   => Team Factor = ${factor.toFixed(4)}`);
+        logger.info(` [Team ${row.color || teamId} (ID: ${teamId})]`);
+        logger.info(`   └─ Record: Wins (W): ${w}, Draws (D): ${d}, Losses (L): ${l} => Total Matches Played: ${totalMatches}`);
+        logger.info(`   └─ Points (Pts): ${pts}`);
+        logger.info(`   └─ Avg Pts Calculation: Points (${pts}) / Total Matches (${totalMatches > 0 ? totalMatches : 1}) = ${avgPts.toFixed(4)}`);
+        logger.info(`   └─ Goals Against (A) [from match_stat_tbl]: ${goalsAgainst}`);
+        logger.info(`   └─ Team Factor Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${divisor}) = ${factor.toFixed(4)}`);
+        logger.info(`   => Team Factor = ${factor.toFixed(4)}`);
       });
     }
 
@@ -1606,13 +1606,13 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const teamDetails = teamInfoMap[m.team_id];
       const teamName = teamDetails ? teamDetails.color : `ID ${m.team_id}`;
 
-      console.log(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
-      console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
-      console.log(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
-      console.log(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches Played (${matches}) = ${rawScore.toFixed(4)}`);
-      console.log(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / Benchmark Ref ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
-      console.log(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
+      logger.info(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
+      logger.info(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
+      logger.info(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
+      logger.info(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
+      logger.info(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches Played (${matches}) = ${rawScore.toFixed(4)}`);
+      logger.info(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / Benchmark Ref ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
+      logger.info(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
 
       const info = resolveMemberDisplayInfo(m, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
       return {
@@ -1676,7 +1676,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         } else {
           await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, refMaxScore.toFixed(4)]);
         }
-        console.log(`🔥 [New Year Record] Updated ${key} in template_tpl to ${refMaxScore.toFixed(4)}`);
+        logger.info(`🔥 [New Year Record] Updated ${key} in template_tpl to ${refMaxScore.toFixed(4)}`);
 
         // Recalculate normalized rating in mvp_week_tbl for this year
         await executeQuery(`
@@ -1688,12 +1688,12 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       } catch (e) { }
     }
 
-    console.log(` [MVP Winner(s)] Max Raw: ${maxRawMvpScore.toFixed(4)} | Benchmark Ref: ${refMaxScore.toFixed(4)} | Leader Rating: ${maxMvpScore.toFixed(1)}/10 | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
-    console.log(`=============================================\n`);
+    logger.info(` [MVP Winner(s)] Max Raw: ${maxRawMvpScore.toFixed(4)} | Benchmark Ref: ${refMaxScore.toFixed(4)} | Leader Rating: ${maxMvpScore.toFixed(1)}/10 | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
+    logger.info(`=============================================\n`);
 
     return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore, allPlayerRatings: formattedList };
   } catch (err) {
-    console.error("Error calculating week leader stats:", err.message);
+    logger.error("Error calculating week leader stats:", err.message);
     return null;
   }
 }
@@ -1738,7 +1738,7 @@ async function ensurePosTables() {
         ('MF', 'Midfielder', '⚙️', 5.00, 3.00, 1.00, 0.00),
         ('CF', 'Center Forward', '⚡', 4.00, 3.00, 0.00, 0.00)
       `);
-      console.log("🌱 [Seed DB] Default positions (GK, DF, DW, MF, CF) with category points inserted into pos_tbl!");
+      logger.info("🌱 [Seed DB] Default positions (GK, DF, DW, MF, CF) with category points inserted into pos_tbl!");
     } else {
       // Set default points if unpopulated
       await executeQuery("UPDATE pos_tbl SET pts_goal = 10.00, pts_assist = 6.00, pts_clean_sheet = 5.00, pts_conceded = 1.00 WHERE UPPER(code) = 'GK' AND pts_goal = 0");
@@ -1772,10 +1772,10 @@ async function ensurePosTables() {
         }
       }
     } catch (colErr) {
-      console.error("Error ensuring pos_tbl columns:", colErr.message);
+      logger.error("Error ensuring pos_tbl columns:", colErr.message);
     }
   } catch (err) {
-    console.error("Error creating position tables:", err.message);
+    logger.error("Error creating position tables:", err.message);
   }
 }
 
@@ -1795,7 +1795,7 @@ async function setMemberWeekPosition(member_id, week_id, pos_code) {
 
     return { success: true, member_id, week_id, pos_code: pos_code ? pos_code.toUpperCase() : 'DEFAULT', pos_id: posId };
   } catch (err) {
-    console.error("Error setting member week position:", err.message);
+    logger.error("Error setting member week position:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -1848,7 +1848,7 @@ async function getEffectiveMemberPosition(member_id, week_id = 0) {
     const fallbackRes = await executeQuery("SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og FROM pos_tbl ORDER BY id ASC LIMIT 1");
     return fallbackRes && fallbackRes.length > 0 ? { ...fallbackRes[0], is_custom_week: false } : null;
   } catch (err) {
-    console.error("Error getting effective position:", err.message);
+    logger.error("Error getting effective position:", err.message);
     return null;
   }
 }
@@ -1864,7 +1864,7 @@ async function updatePositionPoints(pos_code, pts_goal = 0, pts_assist = 0, pts_
     await executeQuery(sql, [pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og, pos_code]);
     return { success: true, pos_code: pos_code.toUpperCase(), pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og };
   } catch (err) {
-    console.error("Error updating position points:", err.message);
+    logger.error("Error updating position points:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -1874,7 +1874,7 @@ async function getAllPositions() {
   try {
     return await executeQuery("SELECT * FROM pos_tbl ORDER BY id ASC");
   } catch (err) {
-    console.error("Error fetching positions:", err.message);
+    logger.error("Error fetching positions:", err.message);
     return [];
   }
 }
@@ -1891,7 +1891,7 @@ async function getMemberPositions(member_id) {
     `;
     return await executeQuery(sql, [member_id]);
   } catch (err) {
-    console.error("Error fetching member positions:", err.message);
+    logger.error("Error fetching member positions:", err.message);
     return [];
   }
 }
@@ -1915,7 +1915,7 @@ async function setMemberPosition(member_id, pos_code, is_primary = 1) {
 
     return { success: true, member_id, pos_code: pos_code.toUpperCase(), pos_id: posId };
   } catch (err) {
-    console.error("Error setting member position:", err.message);
+    logger.error("Error setting member position:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -1951,7 +1951,7 @@ async function ensureMvpWeekTable() {
       await executeQuery("DELETE FROM mvp_week_tbl WHERE member_name LIKE '@team%' OR member_name LIKE 'team%' OR member_name LIKE '+team%'");
     } catch (e) { }
   } catch (err) {
-    console.error("Error creating mvp_week_tbl table:", err.message);
+    logger.error("Error creating mvp_week_tbl table:", err.message);
   }
 }
 
@@ -2007,7 +2007,7 @@ async function ensureMemberYearStatTable() {
       await executeQuery("ALTER TABLE member_year_stat_tbl ADD COLUMN total_rating DECIMAL(8,2) DEFAULT 0.00 AFTER year");
     }
   } catch (err) {
-    console.error("Error creating member_year_stat_tbl table:", err.message);
+    logger.error("Error creating member_year_stat_tbl table:", err.message);
   }
 }
 
@@ -2069,15 +2069,15 @@ async function updateYearStatCache(year = null, memberIds = null) {
         SET mtw.rating = m.rating
         WHERE m.rating > 0${memSyncClause}
       `);
-      console.log(`[Cache] Synchronized ratings from mvp_week_tbl into member_team_week_tbl (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
+      logger.info(`[Cache] Synchronized ratings from mvp_week_tbl into member_team_week_tbl (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
     } catch (e) { }
 
-    console.log(`[Cache] Starting member_year_stat_tbl sync for years: [${yearsToSync.join(', ')}] (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
+    logger.info(`[Cache] Starting member_year_stat_tbl sync for years: [${yearsToSync.join(', ')}] (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
 
     for (const targetYear of yearsToSync) {
-      console.log(`\n======================================================`);
-      console.log(`📊 [Cache Sync] Updating member_year_stat_tbl for Year: ${targetYear} ${cleanMemberIds ? `(Incremental ${cleanMemberIds.length} members)` : ''}`);
-      console.log(`======================================================`);
+      logger.info(`\n======================================================`);
+      logger.info(`📊 [Cache Sync] Updating member_year_stat_tbl for Year: ${targetYear} ${cleanMemberIds ? `(Incremental ${cleanMemberIds.length} members)` : ''}`);
+      logger.info(`======================================================`);
 
       // 1. Query actual weeks played & ratings from member_team_week_tbl (ground truth for participation)
       const weeksRes = await executeQuery(`
@@ -2183,18 +2183,18 @@ async function updateYearStatCache(year = null, memberIds = null) {
             weeksPlayed
           ]);
 
-          console.log(`  👤 [${mName}] (ID: ${mId}) -> Weeks: ${weeksPlayed}, Accu Rating: ${totalRating.toFixed(2)}, Avg: ${avgRating.toFixed(2)}, Max: ${maxRating.toFixed(2)}, Goals: ${gStat.goals}, Assists: ${gStat.assists}`);
+          logger.info(`  👤 [${mName}] (ID: ${mId}) -> Weeks: ${weeksPlayed}, Accu Rating: ${totalRating.toFixed(2)}, Avg: ${avgRating.toFixed(2)}, Max: ${maxRating.toFixed(2)}, Goals: ${gStat.goals}, Assists: ${gStat.assists}`);
         }
-        console.log(`✅ [Year ${targetYear}] Synced ${weeksRes.length} players into member_year_stat_tbl`);
+        logger.info(`✅ [Year ${targetYear}] Synced ${weeksRes.length} players into member_year_stat_tbl`);
       } else {
-        console.log(`ℹ️ [Year ${targetYear}] No player records found in member_team_week_tbl`);
+        logger.info(`ℹ️ [Year ${targetYear}] No player records found in member_team_week_tbl`);
       }
     }
-    console.log(`\n======================================================`);
-    console.log(`🎉 [Cache Sync] Complete sync finished for all target years`);
-    console.log(`======================================================\n`);
+    logger.info(`\n======================================================`);
+    logger.info(`🎉 [Cache Sync] Complete sync finished for all target years`);
+    logger.info(`======================================================\n`);
   } catch (err) {
-    console.error("Error updating member_year_stat_tbl cache:", err.message);
+    logger.error("Error updating member_year_stat_tbl cache:", err.message);
   }
 }
 
@@ -2350,11 +2350,11 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
     const rawScore = matches > 0 ? (rawScoreTotal / matches) : rawScoreTotal;
 
     if (verbose) {
-      console.log(` [Player ${m.name}] (Team: ${td.teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
-      console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
-      console.log(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
-      console.log(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches (${matches}) = ${rawScore.toFixed(4)}`);
+      logger.info(` [Player ${m.name}] (Team: ${td.teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
+      logger.info(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
+      logger.info(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
+      logger.info(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
+      logger.info(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches (${matches}) = ${rawScore.toFixed(4)}`);
     }
 
     return {
@@ -2404,10 +2404,10 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           "DELETE m FROM mvp_week_tbl m JOIN week_tbl w ON m.week_id = w.id WHERE YEAR(w.date) = ?",
           [year]
         );
-        console.log(`[MVP Sync] Force reset mvp_week_tbl records for year ${year}`);
+        logger.info(`[MVP Sync] Force reset mvp_week_tbl records for year ${year}`);
       } else {
         await executeQuery("TRUNCATE TABLE mvp_week_tbl");
-        console.log(`[MVP Sync] Force reset all mvp_week_tbl records`);
+        logger.info(`[MVP Sync] Force reset all mvp_week_tbl records`);
       }
     }
 
@@ -2428,9 +2428,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     const weekCountRes = await executeQuery("SELECT week_id, COUNT(*) as cnt FROM mvp_week_tbl GROUP BY week_id");
     const fullySyncedWeekIds = new Set((weekCountRes || []).filter(r => r.cnt >= 4).map(r => r.week_id));
 
-    console.log(`\n======================================================`);
-    console.log(`🚀 [MVP Sync Started] Total Weeks: ${weeks.length} | Year Filter: ${year || 'ALL'} | Reset Mode: ${reset}`);
-    console.log(`======================================================`);
+    logger.info(`\n======================================================`);
+    logger.info(`🚀 [MVP Sync Started] Total Weeks: ${weeks.length} | Year Filter: ${year || 'ALL'} | Reset Mode: ${reset}`);
+    logger.info(`======================================================`);
 
     let skippedCount = 0;
     let newInsertedCount = 0;
@@ -2447,12 +2447,12 @@ async function calcAndSaveMaxMvpScore(options = {}) {
 
       if (!reset && fullySyncedWeekIds.has(w.id)) {
         skippedCount++;
-        console.log(` ⏩ [${currIdx}/${weeks.length}] Week ID ${w.id} (${dateStr}) -> Already fully synced in mvp_week_tbl (Skipped)`);
+        logger.info(` ⏩ [${currIdx}/${weeks.length}] Week ID ${w.id} (${dateStr}) -> Already fully synced in mvp_week_tbl (Skipped)`);
         continue;
       }
 
       affectedYears.add(wYear);
-      console.log(` ⚙️ [${currIdx}/${weeks.length}] Processing Week ID ${w.id} (${dateStr})...`);
+      logger.info(` ⚙️ [${currIdx}/${weeks.length}] Processing Week ID ${w.id} (${dateStr})...`);
       const playerScores = await calculateWeekRawMvp(w.id);
       weekScoresCache[w.id] = playerScores;
       if (playerScores && playerScores.length > 0) {
@@ -2460,9 +2460,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         const maxRawForWeek = playerScores[0].rawScore;
         await saveWeekMvpRecords(w.id, playerScores);
         newInsertedCount++;
-        console.log(`    ✅ Synced ${playerScores.length} player(s) for Week ID ${w.id} (Top Per-Match Raw Score: ${maxRawForWeek.toFixed(4)})`);
+        logger.info(`    ✅ Synced ${playerScores.length} player(s) for Week ID ${w.id} (Top Per-Match Raw Score: ${maxRawForWeek.toFixed(4)})`);
       } else {
-        console.log(`    ⚠️ No valid team members (team_id > 0) scored in Week ID ${w.id}`);
+        logger.info(`    ⚠️ No valid team members (team_id > 0) scored in Week ID ${w.id}`);
       }
     }
 
@@ -2492,7 +2492,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           SET m.rating = LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2))
           WHERE YEAR(w.date) = ? AND m.raw_score > 0
         `, [maxRawScore, year]);
-        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all records in year ${year} (Benchmark: ${maxRawScore.toFixed(4)})`);
+        logger.info(`✅ [MVP Sync] Updated normalized 1-10 rating for all records in year ${year} (Benchmark: ${maxRawScore.toFixed(4)})`);
       } else {
         await executeQuery(`
           UPDATE mvp_week_tbl m
@@ -2507,7 +2507,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           SET m.rating = LEAST(10.00, ROUND((m.raw_score / yr_stats.yr_max) * 10, 2))
           WHERE m.raw_score > 0 AND yr_stats.yr_max > 0
         `);
-        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all records based on each year's best benchmark`);
+        logger.info(`✅ [MVP Sync] Updated normalized 1-10 rating for all records based on each year's best benchmark`);
       }
     }
 
@@ -2544,11 +2544,11 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, yrMax.toFixed(4)]);
         }
       }
-      console.log(`📌 Saved yearly benchmarks to template_tpl: ${Object.entries(yearlyMaxMap).map(([yr, val]) => `${yr}: ${val.toFixed(4)}`).join(' | ')}`);
+      logger.info(`📌 Saved yearly benchmarks to template_tpl: ${Object.entries(yearlyMaxMap).map(([yr, val]) => `${yr}: ${val.toFixed(4)}`).join(' | ')}`);
     }
 
     // Update rating in member_team_week_tbl for ALL participants of every week
-    console.log(`\n⚙️ [MVP Sync] Updating rating in member_team_week_tbl for all participants...`);
+    logger.info(`\n⚙️ [MVP Sync] Updating rating in member_team_week_tbl for all participants...`);
     for (const w of weeks) {
       const pScores = weekScoresCache[w.id] || await calculateWeekRawMvp(w.id);
       if (!pScores || pScores.length === 0) continue;
@@ -2568,7 +2568,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         } catch (e) { }
       }
     }
-    console.log(`✅ [MVP Sync] Completed updating member_team_week_tbl ratings across ${weeks.length} weeks`);
+    logger.info(`✅ [MVP Sync] Completed updating member_team_week_tbl ratings across ${weeks.length} weeks`);
 
     // ── Sync best MVP winner(s) of each year into hof_tbl (Hall of Fame) ──
     try {
@@ -2597,11 +2597,11 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         for (const [yr, data] of Object.entries(yearlyBestMvpMap)) {
           if (year && Number(yr) !== Number(year)) continue;
           await syncHofRecords('best_mvp', Number(yr), data.memberIds);
-          console.log(`🏆 [HOF Sync] Updated best_mvp in hof_tbl for year ${yr}: Member IDs [${data.memberIds.join(', ')}] (Score: ${data.maxScore.toFixed(4)})`);
+          logger.info(`🏆 [HOF Sync] Updated best_mvp in hof_tbl for year ${yr}: Member IDs [${data.memberIds.join(', ')}] (Score: ${data.maxScore.toFixed(4)})`);
         }
       }
     } catch (hofErr) {
-      console.error('⚠️ [HOF Sync] Error syncing best_mvp to hof_tbl:', hofErr.message);
+      logger.error('⚠️ [HOF Sync] Error syncing best_mvp to hof_tbl:', hofErr.message);
     }
 
     let topSql = `
@@ -2643,9 +2643,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       }
     }
 
-    console.log(`\n======================================================`);
-    console.log(`🏆 ALL-TIME TOP 5 RAW MVP SCORES (CHECKED ${weeks.length} WEEKS - NEW: ${newInsertedCount}, SKIPPED: ${skippedCount}, YEAR: ${year || 'ALL'})`);
-    console.log(`======================================================`);
+    logger.info(`\n======================================================`);
+    logger.info(`🏆 ALL-TIME TOP 5 RAW MVP SCORES (CHECKED ${weeks.length} WEEKS - NEW: ${newInsertedCount}, SKIPPED: ${skippedCount}, YEAR: ${year || 'ALL'})`);
+    logger.info(`======================================================`);
     for (let i = 0; i < topPerformances.length; i++) {
       const p = topPerformances[i];
       const rating = p.score > 0 ? p.score.toFixed(1) : '0.0';
@@ -2661,26 +2661,26 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       } catch (e) { }
 
       if (detail) {
-        console.log(`#${i + 1} [Player ${detail.name}] (${p.dateStr}) [Week ID: ${p.week_id}] (Team: ${detail.teamName}) [Position: ${detail.posCode} ${detail.posIcon}]`);
-        console.log(`   └─ Position Category Points: Goal: +${detail.ptsGoal}, Assist: +${detail.ptsAssist}, Clean Sheet: +${detail.ptsCleanSheet}, Match Win: +${detail.ptsWins}, Goal Conceded Deduct: -${detail.ptsConceded}, Own Goal Deduct: -${detail.ptsOg}`);
-        console.log(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Goals Against (GA): ${detail.goalsConceded}, Matches Played (M): ${detail.matches}`);
-        console.log(`   └─ Raw MVP Score (Total): (${detail.goals} * ${detail.ptsGoal}) + (${detail.assists} * ${detail.ptsAssist}) + (${detail.cleanSheets} * ${detail.ptsCleanSheet}) + (${detail.wins} * ${detail.ptsWins}) - (${detail.goalsConceded} * ${detail.ptsConceded}) - (${detail.own_goals} * ${detail.ptsOg}) = ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)}`);
-        console.log(`   └─ Per-Match Raw MVP Score: ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)} / ${detail.matches} = ${detail.rawScore.toFixed(4)}`);
-        console.log(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Year Benchmark Ref ${refBench.toFixed(4)}) * 10 = ${rating} / 10`);
-        console.log(`   => Final MVP Rating = ${rating} / 10\n`);
+        logger.info(`#${i + 1} [Player ${detail.name}] (${p.dateStr}) [Week ID: ${p.week_id}] (Team: ${detail.teamName}) [Position: ${detail.posCode} ${detail.posIcon}]`);
+        logger.info(`   └─ Position Category Points: Goal: +${detail.ptsGoal}, Assist: +${detail.ptsAssist}, Clean Sheet: +${detail.ptsCleanSheet}, Match Win: +${detail.ptsWins}, Goal Conceded Deduct: -${detail.ptsConceded}, Own Goal Deduct: -${detail.ptsOg}`);
+        logger.info(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Goals Against (GA): ${detail.goalsConceded}, Matches Played (M): ${detail.matches}`);
+        logger.info(`   └─ Raw MVP Score (Total): (${detail.goals} * ${detail.ptsGoal}) + (${detail.assists} * ${detail.ptsAssist}) + (${detail.cleanSheets} * ${detail.ptsCleanSheet}) + (${detail.wins} * ${detail.ptsWins}) - (${detail.goalsConceded} * ${detail.ptsConceded}) - (${detail.own_goals} * ${detail.ptsOg}) = ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)}`);
+        logger.info(`   └─ Per-Match Raw MVP Score: ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)} / ${detail.matches} = ${detail.rawScore.toFixed(4)}`);
+        logger.info(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Year Benchmark Ref ${refBench.toFixed(4)}) * 10 = ${rating} / 10`);
+        logger.info(`   => Final MVP Rating = ${rating} / 10\n`);
       } else {
-        console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
-        console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets (CS): ${p.cleanSheets}, Conceded (GA): ${p.conceded}`);
-        console.log(`   └─ Per-Match Raw MVP Score: ${p.rawScore.toFixed(4)}`);
-        console.log(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
+        logger.info(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
+        logger.info(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets (CS): ${p.cleanSheets}, Conceded (GA): ${p.conceded}`);
+        logger.info(`   └─ Per-Match Raw MVP Score: ${p.rawScore.toFixed(4)}`);
+        logger.info(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
       }
     }
-    console.log(`📌 Benchmark Max Raw Score Saved to DB (10.00 Ref): ${maxRawScore.toFixed(4)}`);
-    console.log(`======================================================\n`);
+    logger.info(`📌 Benchmark Max Raw Score Saved to DB (10.00 Ref): ${maxRawScore.toFixed(4)}`);
+    logger.info(`======================================================\n`);
 
     return { maxRawScore, topPerformances, weeksChecked: weeks.length, newInserted: newInsertedCount, skipped: skippedCount, year };
   } catch (err) {
-    console.error("Error calculating max MVP score across weeks:", err.message);
+    logger.error("Error calculating max MVP score across weeks:", err.message);
     return { maxRawScore: 0, topPerformances: [], weeksChecked: 0, newInserted: 0, skipped: 0, year: null, error: err.message };
   }
 }
@@ -2885,7 +2885,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             }];
           }
         } catch (eTotw) {
-          console.error('[MatchWeek] TOTW data prep failed:', eTotw);
+          logger.error('[MatchWeek] TOTW data prep failed:', eTotw);
         }
       })(),
       // Team formation data prep
@@ -2893,11 +2893,11 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         try {
           formationData = await getTeamFormationData('', groupId, { weekId: week_id });
         } catch (eFormation) {
-          console.warn('[MatchWeek] getTeamFormationData failed:', eFormation.message);
+          logger.warn('[MatchWeek] getTeamFormationData failed:', eFormation.message);
         }
       })()
     ]);
-    console.log(`  [MatchWeek] Data prep (TOTW + formations)  : ${Date.now() - tPrepStart} ms`);
+    logger.info(`  [MatchWeek] Data prep (TOTW + formations)  : ${Date.now() - tPrepStart} ms`);
 
     // Step 2: generate all images in parallel (TOTW full+pitch + all team full+pitch)
     const teamImgMod = require('./team_img');
@@ -2907,9 +2907,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     let cachedImageCount = 0;
     let totalImageCount = 0;
 
-    console.log(`\n======================================================`);
-    console.log(`⏱️ [/matchweek Image Generation — TOTW + All Teams in Parallel]`);
-    console.log(`======================================================`);
+    logger.info(`\n======================================================`);
+    logger.info(`⏱️ [/matchweek Image Generation — TOTW + All Teams in Parallel]`);
+    logger.info(`======================================================`);
 
     const formatImgStatus = (url, cached) => {
       if (!url) return '❌';
@@ -2933,9 +2933,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           const pitchCached = !!pitchRes?.cached;
           if (fullUrl) { totwFormationData[0].imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
           if (pitchUrl) { totwFormationData[0].pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
-          console.log(`  TOTW                       Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
+          logger.info(`  TOTW                       Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
         } catch (e) {
-          console.warn(`  TOTW ❌ image failed: ${e.message}`);
+          logger.warn(`  TOTW ❌ image failed: ${e.message}`);
         }
       })());
     }
@@ -2957,9 +2957,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             const pitchCached = !!pitchRes?.cached;
             if (fullUrl) { t.imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
             if (pitchUrl) { t.pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
-            console.log(`  Team ${t.teamId} (${t.teamColor || '-'})   Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
+            logger.info(`  Team ${t.teamId} (${t.teamColor || '-'})   Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
           } catch (e) {
-            console.warn(`  Team ${t.teamId} ❌ image failed: ${e.message}`);
+            logger.warn(`  Team ${t.teamId} ❌ image failed: ${e.message}`);
           }
         })(team));
       }
@@ -2969,13 +2969,13 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
     const tImgWallClock = Date.now() - tImgStart;
     const tImgSum = Object.values(teamDurations).reduce((a, b) => a + b, 0);
-    console.log(`------------------------------------------------------`);
-    console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
-    console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
+    logger.info(`------------------------------------------------------`);
+    logger.info(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
+    logger.info(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
     if (totalImageCount > 0) {
-      console.log(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
+      logger.info(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
     }
-    console.log(`======================================================\n`);
+    logger.info(`======================================================\n`);
 
     // Step 3: build flex bubbles (CPU only, fast)
     if (totwFormationData) {
@@ -2983,7 +2983,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, res[0].time_range || '', res[0].date, res[0].id);
         if (totwBubbles && totwBubbles.length > 0) totwBubble = totwBubbles[0];
       } catch (e) {
-        console.warn('[MatchWeek] TOTW flex build failed:', e.message);
+        logger.warn('[MatchWeek] TOTW flex build failed:', e.message);
       }
     }
 
@@ -2995,9 +2995,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           formationData.dateStr, formationData.timeRange,
           formationData.weekDate, formationData.weekId
         );
-        console.log(`  Flex JSON Builder                          : ${Date.now() - tFlexStart} ms`);
+        logger.info(`  Flex JSON Builder                          : ${Date.now() - tFlexStart} ms`);
       } catch (e) {
-        console.warn('[MatchWeek] Formation flex build failed:', e.message);
+        logger.warn('[MatchWeek] Formation flex build failed:', e.message);
       }
     }
 
@@ -3186,7 +3186,7 @@ async function getAutoRegCount(groupId = null) {
     const autoRegRes = await executeQuery(query, params);
     return autoRegRes.length > 0 ? autoRegRes[0].count : 0;
   } catch (err) {
-    console.error("Error getting autoRegCount:", err.message);
+    logger.error("Error getting autoRegCount:", err.message);
     return 0;
   }
 }
@@ -3401,7 +3401,7 @@ async function getMemberWeek(type = 0) {
         }
         i++;
       }
-      //console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`);
+      //logger.info(`player: ${player} reserve: ${reserve} goal: ${goal}`);
       let str = header + body;
       header = `+${player}`;
       if (reserve > 0) str += reserve_str;
@@ -3480,7 +3480,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
             }
           }
         } else {
-          //console.log(`user count: ${i+1}:${result.length}`)
+          //logger.info(`user count: ${i+1}:${result.length}`)
           if (result.length < 21 && useMention) {
             let line_id = member.line_user_id;
             //line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc"
@@ -3512,9 +3512,9 @@ async function getMemberWeek2(type = 0, useMention = true) {
         //if (i > 1) break ;
       }
       //user_json = "{" + user_json + "}" ;
-      //console.log(user_json.replace(/\s/g, "")) ;
+      //logger.info(user_json.replace(/\s/g, "")) ;
       //sub = JSON.parse(user_json.replace(/\s/g, "")) 
-      //console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
+      //logger.info(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
       let str = header + body;
       header = `\n+${player}`;
       if (reserve > 0) str += reserve_str;
@@ -3523,7 +3523,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
       if (goal > 0) header += `(${goal})`;
 
       str = `${header} ${str}`;
-      //console.log(sub) ;
+      //logger.info(sub) ;
       return [str, sub, merber_count, (res && res[0] && res[0].cost) ? res[0].cost : 0];
     } else {
       if (type == 0) {
@@ -3532,7 +3532,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
         header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้`;
       }
       //return header ;
-      //console.log(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
+      //logger.info(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
       return [header, sub, merber_count, (res && res[0] && res[0].cost) ? res[0].cost : 0];
     }
   }
@@ -3801,7 +3801,7 @@ async function checkDebtCall() {
 }
 
 async function getDebtList(type = 0) {
-  console.log(`[getDebtList] Called with type = ${type} (0=daily auto, 1=manual)`);
+  logger.info(`[getDebtList] Called with type = ${type} (0=daily auto, 1=manual)`);
   let debt_str = "=== สมาชิกที่มียอดค้าง ===\n\n";
   let debt_count = 0;
   let sub = {};
@@ -3812,25 +3812,25 @@ async function getDebtList(type = 0) {
   if (type == 0) {
     const debt_call = `SELECT value from template_tpl where name = 'call'`;
     const debt_call_res = await executeQuery(debt_call);
-    console.log(`[getDebtList] template_tpl 'call' query result:`, debt_call_res);
+    logger.info(`[getDebtList] template_tpl 'call' query result:`, debt_call_res);
     if (debt_call_res.length > 0) {
       if (debt_call_res[0].value == 0) {
         proceed = true;
       } else {
-        console.log(`[getDebtList] proceed=false because call value is ${debt_call_res[0].value} (already alerted today)`);
+        logger.info(`[getDebtList] proceed=false because call value is ${debt_call_res[0].value} (already alerted today)`);
       }
     } else {
-      console.warn(`[getDebtList] template_tpl 'call' row not found in DB`);
+      logger.warn(`[getDebtList] template_tpl 'call' row not found in DB`);
     }
   } else {
     proceed = true;
-    console.log(`[getDebtList] proceed=true (type != 0, manual request)`);
+    logger.info(`[getDebtList] proceed=true (type != 0, manual request)`);
   }
 
   if (proceed) {
     const check = `SELECT * from member_tbl where debt > 0`;
     const check_res = await executeQuery(check);
-    console.log(`[getDebtList] Query 'member_tbl where debt > 0' returned ${check_res.length} row(s)`);
+    logger.info(`[getDebtList] Query 'member_tbl where debt > 0' returned ${check_res.length} row(s)`);
 
     if (check_res.length > 0) {
       debt_members = check_res;
@@ -3853,17 +3853,17 @@ async function getDebtList(type = 0) {
         } else {
           debt_str += `${debt_count}. ${name} - ${member.debt} บาท\n`;
         }
-        console.log(`[getDebtList] Member #${debt_count}: id=${member.id}, name=${member.name}, debt=${member.debt}, line_id=${line_id || 'none'}, mentionUsed=${name.startsWith('user')}`);
+        logger.info(`[getDebtList] Member #${debt_count}: id=${member.id}, name=${member.name}, debt=${member.debt}, line_id=${line_id || 'none'}, mentionUsed=${name.startsWith('user')}`);
       }
       if (type == 0) {
-        console.log(`[getDebtList] Updating template_tpl 'call' value to 1 (daily alert flag)`);
+        logger.info(`[getDebtList] Updating template_tpl 'call' value to 1 (daily alert flag)`);
         await updateAlertCall(1);
       }
       const uniqueDebts = [...new Set(check_res.map(m => Number(m.debt)).filter(d => !isNaN(d) && d > 0))];
       debt_val = uniqueDebts.length > 0 ? uniqueDebts[0] : 0;
-      console.log(`[getDebtList] Calculated uniqueDebts:`, uniqueDebts, `debt_val:`, debt_val);
+      logger.info(`[getDebtList] Calculated uniqueDebts:`, uniqueDebts, `debt_val:`, debt_val);
     } else {
-      console.log(`[getDebtList] No members found with debt > 0`);
+      logger.info(`[getDebtList] No members found with debt > 0`);
       if (type != 0) {
         debt_str += "ไม่มีสมาชิกค้างชำระ 🎉\n\n";
       }
@@ -3872,7 +3872,7 @@ async function getDebtList(type = 0) {
 
   debt_str += "** ข้อความแจ้งเตือนวันละครั้ง **\n";
   debt_str += "สมาชิกจะยังลงชื่อไม่ได้ในสัปดาห์นี้ และจะไม่ถูกเพิ่มจากการลงทะเบียนอัตโนมัติ ถ้ามีการเปิดสัปดาห์ใหม่";
-  console.log(`[getDebtList] Finished. Summary: proceed=${proceed}, debt_count=${debt_count}, debt_val=${debt_val}, debt_members=${debt_members.length}, subKeys=${Object.keys(sub).length}`);
+  logger.info(`[getDebtList] Finished. Summary: proceed=${proceed}, debt_count=${debt_count}, debt_val=${debt_val}, debt_members=${debt_members.length}, subKeys=${Object.keys(sub).length}`);
   return [debt_str, sub, debt_count, proceed, debt_val, debt_members];
 
 }
@@ -3903,7 +3903,7 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
             nextMatchNo = Math.min(maxDbMatchNum + 1, existing.matches.length);
           }
         } catch (err) {
-          console.error('[schedule] failed to query match_stat_tbl:', err.message);
+          logger.error('[schedule] failed to query match_stat_tbl:', err.message);
         }
 
         existing.currentMatch = existing.matches.find(m => m.matchNo === currentMatchNo) || existing.matches[0];
@@ -3944,7 +3944,7 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
         return [lines.join('\n'), existing];
       }
     } catch (readErr) {
-      console.error('[schedule] failed to read existing schedule.json:', readErr.message);
+      logger.error('[schedule] failed to read existing schedule.json:', readErr.message);
     }
   }
 
@@ -4235,7 +4235,7 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
       matchups = bestSchedule;
     } else {
       // Fallback: original rotating anchor generator
-      console.warn('[schedule] Backtracking solver found no solution, using fallback rotating anchor pool.');
+      logger.warn('[schedule] Backtracking solver found no solution, using fallback rotating anchor pool.');
       const pool = [];
       let poolRound = 0;
       while (pool.length < maxMatches) {
@@ -4337,7 +4337,7 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     }
     // else: no records → start from match 1 / next is match 2
   } catch (err) {
-    console.error('[schedule] failed to query match_stat_tbl:', err.message);
+    logger.error('[schedule] failed to query match_stat_tbl:', err.message);
   }
 
   const currentMatch = scheduleMatches.find(m => m.matchNo === currentMatchNo) || scheduleMatches[0];
@@ -4348,7 +4348,7 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     const imgTpl = await getTemplate('schedule', 'header');
     imageUrl = imgTpl ? imgTpl.url : null;
   } catch (err) {
-    console.error('[schedule] failed to query template image:', err.message);
+    logger.error('[schedule] failed to query template image:', err.message);
   }
 
   const scheduleJson = {
@@ -4373,9 +4373,9 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
   try {
     const jsonPath = path.join(__dirname, 'schedule.json');
     fs.writeFileSync(jsonPath, JSON.stringify(scheduleJson, null, 2), 'utf8');
-    console.log(`[schedule] saved → current: match ${currentMatchNo}, next: match ${nextMatchNo}`);
+    logger.info(`[schedule] saved → current: match ${currentMatchNo}, next: match ${nextMatchNo}`);
   } catch (err) {
-    console.error('[schedule] failed to save JSON:', err.message);
+    logger.error('[schedule] failed to save JSON:', err.message);
   }
 
   return [lines.join('\n'), scheduleJson];
@@ -4534,7 +4534,7 @@ async function getTheme() {
       return result[0].value;
     }
   } catch (err) {
-    console.error('Failed to get theme, defaulting to black:', err.message);
+    logger.error('Failed to get theme, defaulting to black:', err.message);
   }
   return 'black';
 }
@@ -4703,9 +4703,9 @@ async function updateHof() {
     //await syncHofRecords('bottom', currentYear, topBottom);
     await syncHofRecords('best_mvp', currentYear, topBestMvp);
 
-    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top Avg Pts: ${topAvgPts.join(', ')}, Top MVP Count: ${topMvpCounts.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
+    logger.info(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top Avg Pts: ${topAvgPts.join(', ')}, Top MVP Count: ${topMvpCounts.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
   } catch (err) {
-    console.error('Error updating HOF records:', err.message);
+    logger.error('Error updating HOF records:', err.message);
   }
 }
 
@@ -4729,7 +4729,7 @@ async function ensureAutoRegTable() {
     // Normalize any legacy NULL group_id to empty string
     await executeQuery("UPDATE autoreg_tbl SET group_id = '' WHERE group_id IS NULL");
   } catch (err) {
-    console.error("Error ensuring autoreg_tbl table:", err.message);
+    logger.error("Error ensuring autoreg_tbl table:", err.message);
   }
 }
 
@@ -5050,7 +5050,7 @@ async function logSlip(senderId, senderName, imagePath, status, qrcode = null, r
     const jsonStr = responseJson ? JSON.stringify(responseJson) : null;
     await executeQuery(sql, [senderId, senderName, imagePath, status, qrcode, jsonStr]);
   } catch (err) {
-    console.error("Error logging slip:", err);
+    logger.error("Error logging slip:", err);
   }
 }
 
@@ -5066,7 +5066,7 @@ async function getSlipByQRCode(qrcode) {
     }
   } catch (err) {
     if (err.code !== 'ER_BAD_FIELD_ERROR') {
-      console.error("Error getting slip by qrcode:", err);
+      logger.error("Error getting slip by qrcode:", err);
     }
   }
   return null;
@@ -5078,7 +5078,7 @@ async function updateSlipLog(id, status, responseJson = null) {
     const sql = `UPDATE slip_log SET status = ?, response_json = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?`;
     await executeQuery(sql, [status, jsonStr, id]);
   } catch (err) {
-    console.error("Error updating slip log:", err);
+    logger.error("Error updating slip log:", err);
   }
 }
 
@@ -5093,7 +5093,7 @@ async function getNoticedSlips(senderId = null) {
     sql += ` ORDER BY created_at DESC LIMIT 10`;
     return await executeQuery(sql, params);
   } catch (err) {
-    console.error("Error getting noticed slips:", err);
+    logger.error("Error getting noticed slips:", err);
     return [];
   }
 }
@@ -5106,7 +5106,7 @@ async function getSlipById(id) {
       return rows[0];
     }
   } catch (err) {
-    console.error("Error getting slip by id:", err);
+    logger.error("Error getting slip by id:", err);
   }
   return null;
 }
@@ -6050,19 +6050,19 @@ async function getTeamFormationData(param = '', groupId = null, options = {}) {
 
   const totalDuration = Date.now() - tTotalStart;
 
-  console.log(`\n======================================================`);
-  console.log(`⏱️ [/formation Data Performance Breakdown]`);
-  console.log(`======================================================`);
-  console.log(`  1. Schema / DDL Check (ensurePosTables)      : ${ddlDuration} ms`);
-  console.log(`  2. Week & Theme Metadata Queries            : ${metaDuration} ms`);
-  console.log(`  3. Current Week Stats (mvp_week_tbl)         : ${weekStatsDuration} ms`);
-  console.log(`  4. Yearly Cumulative Stats (member_year_stat): ${yearStatsDuration} ms`);
-  console.log(`  5. Team Members SQL (${teamsToRender.length} teams)           : ${totalMembersQueryDuration} ms`);
-  console.log(`  6. LINE API Profile Avatars (if missing)    : ${totalLineAvatarDuration} ms`);
-  console.log(`  7. Tactical Slot Allocation (In-Memory)     : ${totalTacticsDuration} ms`);
-  console.log(`------------------------------------------------------`);
-  console.log(`  🚀 Total Data Server Time                   : ${totalDuration} ms`);
-  console.log(`======================================================\n`);
+  logger.info(`\n======================================================`);
+  logger.info(`⏱️ [/formation Data Performance Breakdown]`);
+  logger.info(`======================================================`);
+  logger.info(`  1. Schema / DDL Check (ensurePosTables)      : ${ddlDuration} ms`);
+  logger.info(`  2. Week & Theme Metadata Queries            : ${metaDuration} ms`);
+  logger.info(`  3. Current Week Stats (mvp_week_tbl)         : ${weekStatsDuration} ms`);
+  logger.info(`  4. Yearly Cumulative Stats (member_year_stat): ${yearStatsDuration} ms`);
+  logger.info(`  5. Team Members SQL (${teamsToRender.length} teams)           : ${totalMembersQueryDuration} ms`);
+  logger.info(`  6. LINE API Profile Avatars (if missing)    : ${totalLineAvatarDuration} ms`);
+  logger.info(`  7. Tactical Slot Allocation (In-Memory)     : ${totalTacticsDuration} ms`);
+  logger.info(`------------------------------------------------------`);
+  logger.info(`  🚀 Total Data Server Time                   : ${totalDuration} ms`);
+  logger.info(`======================================================\n`);
 
   return {
     formationsData,
@@ -6083,9 +6083,9 @@ async function getTeamFormation(param = '', groupId = null) {
   const teamDurations = [];
   let cachedImageCount = 0;
   let totalImageCount = 0;
-  console.log(`\n======================================================`);
-  console.log(`⏱️ [/formation Image Generation Performance]`);
-  console.log(`======================================================`);
+  logger.info(`\n======================================================`);
+  logger.info(`⏱️ [/formation Image Generation Performance]`);
+  logger.info(`======================================================`);
   try {
     const teamImg = require('./team_img');
     const formatImgStatus = (url, cached) => {
@@ -6107,28 +6107,28 @@ async function getTeamFormation(param = '', groupId = null) {
         const pitchCached = !!pitchRes?.cached;
         if (fullUrl) { team.imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
         if (pitchUrl) { team.pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
-        console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
+        logger.info(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
       } catch (eImg) {
-        console.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
+        logger.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
       }
     }));
   } catch (err) {
-    console.warn('[getTeamFormation] team_img module error:', err.message);
+    logger.warn('[getTeamFormation] team_img module error:', err.message);
   }
   const tImgWallClock = Date.now() - tImgStart;
   const tImgSum = teamDurations.reduce((a, b) => a + b, 0);
-  console.log(`------------------------------------------------------`);
-  console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
-  console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
+  logger.info(`------------------------------------------------------`);
+  logger.info(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
+  logger.info(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
   if (totalImageCount > 0) {
-    console.log(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
+    logger.info(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
   }
 
   const tFlexStart = Date.now();
   const flexMsg = flex.buildFormationFlex(data.formationsData, data.theme, data.dateStr, data.timeRange, data.weekDate, data.weekId);
   const flexDuration = Date.now() - tFlexStart;
-  console.log(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
-  console.log(`======================================================\n`);
+  logger.info(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
+  logger.info(`======================================================\n`);
 
   return flexMsg;
 }
@@ -6202,7 +6202,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
         `UPDATE member_team_week_tbl SET team_id = 0 WHERE id IN (${reserveMtwIds.join(',')})`
       );
     }
-    console.log(`[randomteam] Capped at max ${maxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
+    logger.info(`[randomteam] Capped at max ${maxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
   }
 
   const N = registeredMembers.length;
@@ -6212,7 +6212,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   // Check if all players within maxweek quota already have teams assigned
   const allHadTeam = registeredMembers.length > 0 && registeredMembers.every(m => Number(m.team_id) > 0);
   if (allHadTeam) {
-    console.log(`[randomteam] All ${registeredMembers.length} players (<= max ${maxPlayers}) already have teams. Skipping re-randomization.`);
+    logger.info(`[randomteam] All ${registeredMembers.length} players (<= max ${maxPlayers}) already have teams. Skipping re-randomization.`);
     return {
       status: 'ALREADY_ASSIGNED',
       alreadyAssigned: true,
@@ -6628,7 +6628,7 @@ async function saveActiveGroupId(groupId) {
       await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, 'active_group_id', ?)", [groupId]);
     }
   } catch (err) {
-    console.error('Error saving active_group_id in template_tpl:', err.message);
+    logger.error('Error saving active_group_id in template_tpl:', err.message);
   }
 }
 
@@ -6646,7 +6646,7 @@ async function getActiveGroupId() {
       return res[0].value;
     }
   } catch (err) {
-    console.error('Error querying active_group_id from template_tpl:', err.message);
+    logger.error('Error querying active_group_id from template_tpl:', err.message);
   }
   return null;
 }
@@ -6670,7 +6670,7 @@ async function saveBaseUrl(baseUrl) {
       await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, 'base_webhook_url', ?)", [clean]);
     }
   } catch (err) {
-    console.error('Error saving base_webhook_url in template_tpl:', err.message);
+    logger.error('Error saving base_webhook_url in template_tpl:', err.message);
   }
 }
 
@@ -6691,7 +6691,7 @@ async function getBaseUrlFromDb() {
       return res[0].value;
     }
   } catch (err) {
-    console.error('Error querying base_webhook_url from template_tpl:', err.message);
+    logger.error('Error querying base_webhook_url from template_tpl:', err.message);
   }
   return null;
 }
@@ -6718,7 +6718,7 @@ async function getTaskGroupId(taskId) {
       return await resolveLineGroupId(res[0].value);
     }
   } catch (err) {
-    console.error(`Error querying task group_id for '${taskId}' from template_tpl:`, err.message);
+    logger.error(`Error querying task group_id for '${taskId}' from template_tpl:`, err.message);
   }
   return null;
 }
@@ -6734,7 +6734,7 @@ async function saveTaskGroupId(taskId, groupId) {
       await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, ?, ?)", [key, groupId]);
     }
   } catch (err) {
-    console.error(`Error saving ${key} in template_tpl:`, err.message);
+    logger.error(`Error saving ${key} in template_tpl:`, err.message);
   }
 }
 
@@ -6783,7 +6783,7 @@ async function saveGroupProfile(lineGroupId, groupName = null, memberCount = nul
       return record;
     }
   } catch (err) {
-    console.error(`Error saving group profile for ${cleanId}:`, err.message);
+    logger.error(`Error saving group profile for ${cleanId}:`, err.message);
   }
   return null;
 }
@@ -6814,7 +6814,7 @@ async function getGroupProfile(groupIdOrId) {
       return rows[0];
     }
   } catch (err) {
-    console.error(`Error fetching group profile for ${groupIdOrId}:`, err.message);
+    logger.error(`Error fetching group profile for ${groupIdOrId}:`, err.message);
   }
   return null;
 }
@@ -6844,7 +6844,7 @@ async function resolveLineGroupId(groupIdOrId) {
       return rows[0].line_group_id;
     }
   } catch (err) {
-    console.error(`Error resolving line_group_id for ${groupIdOrId}:`, err.message);
+    logger.error(`Error resolving line_group_id for ${groupIdOrId}:`, err.message);
   }
   return key;
 }
@@ -6900,7 +6900,7 @@ async function syncGroupProfile(lineGroupId, lineClient, force = false) {
       await saveGroupProfile(cleanId, profile.groupName, profile.memberCount, profile.pictureUrl);
     }
   } catch (err) {
-    console.error(`Error syncing group profile for ${cleanId}:`, err.message);
+    logger.error(`Error syncing group profile for ${cleanId}:`, err.message);
   }
 }
 
@@ -7166,10 +7166,22 @@ async function getPendingReplyTasks(groupId) {
     for (const t of tasks) {
       if (t.delivery_mode !== 'reply_on_chat') continue;
       const schedTime = (t.schedule_time || '20:00').substring(0, 5);
+
       // Check if already executed at or after today's scheduled time
-      if (t.last_run_date && String(t.last_run_date).startsWith(todayDateStr)) {
-        const lastRunTime = String(t.last_run_date).substring(11, 16);
+      let lastRunDateStr = '';
+      if (t.last_run_date) {
+        if (t.last_run_date instanceof Date) {
+          const d = t.last_run_date;
+          lastRunDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        } else {
+          lastRunDateStr = String(t.last_run_date);
+        }
+      }
+
+      if (lastRunDateStr && lastRunDateStr.startsWith(todayDateStr)) {
+        const lastRunTime = lastRunDateStr.substring(11, 16);
         if (lastRunTime >= schedTime) {
+          logger.debug(`[Scheduler] Pending task '${t.task_key || t.id}' already executed today (${lastRunDateStr} >= ${schedTime}), skipping.`);
           continue; // Already executed for this scheduled time today
         }
       }
@@ -7185,25 +7197,29 @@ async function getPendingReplyTasks(groupId) {
 
       if (schedMinutes > currentMinutes) continue; // Not due yet
 
-      // Check if task has expired (validity window: default 10 minutes if not specified)
+      // Check if task has expired (validity window: default 60 minutes if not specified)
       const expireMinutes = (t.expire_minutes !== null && t.expire_minutes !== undefined && Number(t.expire_minutes) > 0)
         ? parseInt(t.expire_minutes, 10)
-        : 10;
+        : 60;
 
       const expireAtMinutes = schedMinutes + expireMinutes;
       if (currentMinutes > expireAtMinutes) {
+        logger.debug(`[Scheduler] Pending task '${t.task_key || t.id}' expired (due ${schedTime}, window ${expireMinutes}m, current ${currentTimeStr}), skipping.`);
         continue; // Scheduled time window has passed, do not trigger
       }
 
       // Check group matching (if task specified a group, must match; if empty, matches active group)
       const targetGid = t.group_id ? await resolveLineGroupId(t.group_id) : null;
-      if (targetGid && targetGid !== groupId) continue;
+      if (targetGid && targetGid !== groupId) {
+        logger.debug(`[Scheduler] Pending task '${t.task_key || t.id}' target group (${targetGid}) does not match incoming group (${groupId}), skipping.`);
+        continue;
+      }
 
       pending.push(t);
     }
     return pending;
   } catch (err) {
-    console.error('Error fetching pending reply tasks:', err.message);
+    logger.error('Error fetching pending reply tasks:', err.message);
     return [];
   }
 }
@@ -7234,19 +7250,25 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
 
   const executedTaskIds = [];
 
+  logger.info(`[Scheduler] Found ${pendingTasks.length} pending reply_on_chat task(s) for group ${groupId}: [${pendingTasks.map(t => t.task_key || t.id).join(', ')}]`);
+
   for (const task of pendingTasks) {
+    const taskIdKey = task.task_key || String(task.id);
     try {
+      let taskMsgCount = 0;
       if (task.task_type === 'command') {
         const cmdModule = require('./cmd');
         const rawCmd = (task.command || '').trim();
         const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
         if (cleanCmd) {
+          logger.info(`[Scheduler] Executing pending task '${taskIdKey}' (command: '${cleanCmd}') via chat reply...`);
           const textMsg = (task.text_message || '').trim();
           if (textMsg) {
             const resolvedObj = await resolveScheduleTemplateText(textMsg, groupId);
             if (resolvedObj && (resolvedObj.text || resolvedObj.contents)) {
               if (finalMessages.length < 5) {
                 finalMessages.push(resolvedObj);
+                taskMsgCount++;
               }
             }
           }
@@ -7257,6 +7279,7 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
             for (const item of list) {
               if (finalMessages.length < 5) {
                 finalMessages.push(item);
+                taskMsgCount++;
               }
             }
           }
@@ -7265,10 +7288,12 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
       } else if (task.task_type === 'text') {
         const textMsg = (task.text_message || '').trim();
         if (textMsg) {
+          logger.info(`[Scheduler] Executing pending task '${taskIdKey}' (template text) via chat reply...`);
           const resolvedObj = await resolveScheduleTemplateText(textMsg, groupId);
           if (resolvedObj && (resolvedObj.text || resolvedObj.contents)) {
             if (finalMessages.length < 5) {
               finalMessages.push(resolvedObj);
+              taskMsgCount++;
             }
           }
           executedTaskIds.push(task.id);
@@ -7277,13 +7302,14 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
 
       // Mark executed in DB with datetime
       await setScheduledTaskLastRun(task.id, currentDateTimeStr);
+      logger.info(`[Scheduler] Task '${taskIdKey}' executed (${taskMsgCount} message(s) generated), marked completed for today (${currentDateTimeStr}).`);
     } catch (taskErr) {
-      console.error(`Error resolving pending scheduled task '${task.id}':`, taskErr.message);
+      logger.error(`[Scheduler] Error resolving pending scheduled task '${taskIdKey}':`, taskErr.message);
     }
   }
 
   if (executedTaskIds.length > 0) {
-    console.log(`[Scheduler] Prepared ${executedTaskIds.length} pending reply_on_chat task(s) [${executedTaskIds.join(', ')}] as ${finalMessages.length} separate message(s) in a single reply request for group ${groupId} (0 push quota used)`);
+    logger.info(`[Scheduler] Prepared ${executedTaskIds.length} pending reply_on_chat task(s) [${executedTaskIds.join(', ')}] as ${finalMessages.length} separate message(s) in a single reply request for group ${groupId} (0 push quota used)`);
   }
 
   return finalMessages;
@@ -7398,7 +7424,7 @@ async function resolveScheduleTemplateText(templateText, groupId = null) {
       remaining = Math.max(0, maxPlayers - registeredFieldPlayers);
     }
   } catch (err) {
-    console.error('Error resolving template variables for schedule text:', err.message);
+    logger.error('Error resolving template variables for schedule text:', err.message);
   }
 
   // 2. Build template context for conditionals and replacement

@@ -110,9 +110,9 @@ function triggerTask(taskId) {
       type: 'TRIGGER_TASK',
       taskId
     });
-    console.log(`[SchedulerSupervisor] Sent trigger request for task '${taskId}' to worker.`);
+    logger.info(`[SchedulerSupervisor] Sent trigger request for task '${taskId}' to worker.`);
   } else {
-    console.warn(`[SchedulerSupervisor] Cannot trigger task '${taskId}': worker thread is not running.`);
+    logger.warn(`[SchedulerSupervisor] Cannot trigger task '${taskId}': worker thread is not running.`);
   }
 }
 

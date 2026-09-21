@@ -6,6 +6,7 @@ const qrGen = require('./qr_gen');
 const teamImg = require('./team_img');
 const axios = require('axios');
 const slipService = require('./slip');
+const logger = require('./utils/logger');
 const { getNextSaturday } = require('./utils/date');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
@@ -435,13 +436,13 @@ const COMMAND_REGISTRY = {
     'listny': async (context) => COMMAND_REGISTRY['ny'](context),
     '+2': async (context) => {
         const isScheduledOrBot = !context.member || context.member.id === 0 || context.member.line_user_id === 'SYSTEM_BOT' || context.member_name === 'System';
-        console.log(`[+2 CMD] Debt list command called by ${context.member_name || 'System'} (isScheduled: ${isScheduledOrBot})`);
+        logger.info(`[+2 CMD] Debt list command called by ${context.member_name || 'System'} (isScheduled: ${isScheduledOrBot})`);
         const [msg, sub, debt_count, proceed, debt_val, debt_members] = await db.getDebtList(1);
-        console.log(`[+2 CMD] getDebtList(1) returned: debt_count=${debt_count}, proceed=${proceed}, debt_val=${debt_val}, members=${debt_members ? debt_members.length : 0}, subKeys=${sub ? Object.keys(sub).length : 0}`);
+        logger.info(`[+2 CMD] getDebtList(1) returned: debt_count=${debt_count}, proceed=${proceed}, debt_val=${debt_val}, members=${debt_members ? debt_members.length : 0}, subKeys=${sub ? Object.keys(sub).length : 0}`);
 
         // If run by schedule/bot and there is no debt, skip pushing response text
         if (isScheduledOrBot && (!debt_count || debt_count === 0)) {
-            console.log('[+2 CMD] No debt members found for scheduled task. Skipping push/reply.');
+            logger.info('[+2 CMD] No debt members found for scheduled task. Skipping push/reply.');
             return null;
         }
 
@@ -458,13 +459,13 @@ const COMMAND_REGISTRY = {
                 const uniqueDebts = debts.length > 0 ? [...new Set(debts)] : (debt_val > 0 ? [debt_val] : []);
                 for (const amount of uniqueDebts.slice(0, 4)) {
                     if (!amount || isNaN(amount) || amount <= 0) {
-                        console.warn(`[+2 CMD] Skipping QR generation for invalid/zero debt amount: ${amount}`);
+                        logger.warn(`[+2 CMD] Skipping QR generation for invalid/zero debt amount: ${amount}`);
                         continue;
                     }
-                    console.log(`[+2 CMD] Generating QR for amount: ${amount}...`);
+                    logger.info(`[+2 CMD] Generating QR for amount: ${amount}...`);
                     const filename = await qrGen.generateQrCode(amount, '006660080321320');
                     const localQrUrl = qrGen.getQrImageUrl(filename);
-                    console.log(`[+2 CMD] Generated QR: ${filename} -> ${localQrUrl}`);
+                    logger.info(`[+2 CMD] Generated QR: ${filename} -> ${localQrUrl}`);
                     replyMsgs.push({
                         type: 'image',
                         originalContentUrl: localQrUrl,
@@ -472,10 +473,10 @@ const COMMAND_REGISTRY = {
                     });
                 }
             } catch (qrErr) {
-                console.error('[+2 CMD] Error generating QR code for +2 cmd:', qrErr);
+                logger.error('[+2 CMD] Error generating QR code for +2 cmd:', qrErr);
             }
         } else {
-            console.log(`[+2 CMD] No debt members to generate QR codes for.`);
+            logger.info(`[+2 CMD] No debt members to generate QR codes for.`);
         }
         return replyMsgs;
     },
@@ -1168,7 +1169,7 @@ const COMMAND_REGISTRY = {
                 fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
                 fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
             } catch (saveErr) {
-                console.error('Error saving latest_flex.json in mvplist:', saveErr.message);
+                logger.error('Error saving latest_flex.json in mvplist:', saveErr.message);
             }
 
             return replyMessages;
@@ -1275,7 +1276,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 }
             }
         } catch (dbErr) {
-            console.error('⚠️ Failed to verify admin command from database:', dbErr.message);
+            logger.error('⚠️ Failed to verify admin command from database:', dbErr.message);
         }
 
         let is_flex = true;
@@ -1358,12 +1359,12 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(result, null, 2), 'utf8');
             fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(result, null, 2), 'utf8');
         } catch (e) {
-            console.error('Error writing latest_flex.json:', e.message);
+            logger.error('Error writing latest_flex.json:', e.message);
         }
 
         return result;
     } catch (err) {
-        console.error('⚠️ Error processing command:', err);
+        logger.error('⚠️ Error processing command:', err);
         const errDetail = err && err.message ? err.message : String(err);
         return [{
             type: 'text',
@@ -1389,7 +1390,7 @@ async function handleCommandSwitch(context) {
                 return registryResult;
             }
         } catch (handlerErr) {
-            console.error('⚠️ Error in command registry handler for', cmd, handlerErr.message || handlerErr);
+            logger.error('⚠️ Error in command registry handler for', cmd, handlerErr.message || handlerErr);
             const errDetail = handlerErr && handlerErr.message ? handlerErr.message : String(handlerErr);
             return [{
                 type: 'text',

@@ -9,6 +9,7 @@ const { renderThaiQRPayment } = require('thai-qr-payment');
 const svg2img = require('svg2img');
 const fs = require('fs');
 const path = require('path');
+const logger = require('./utils/logger');
 
 const qrDir = path.join(__dirname, 'qr');
 //LKKaohom.ttf
@@ -25,7 +26,7 @@ try {
     customLogoDataUri = `data:image/jpeg;base64,${logoBuf.toString('base64')}`;
   }
 } catch (err) {
-  console.error('[QR-Gen] Failed to load custom center logo:', err.message);
+  logger.error('[QR-Gen] Failed to load custom center logo:', err.message);
 }
 
 let customHeaderDataUri = '';
@@ -38,7 +39,7 @@ try {
     customHeaderDataUri = `data:image/png;base64,${headerBuf.toString('base64')}`;
   }
 } catch (err) {
-  console.error('[QR-Gen] Failed to load custom header:', err.message);
+  logger.error('[QR-Gen] Failed to load custom header:', err.message);
 }
 
 const inFlightGenerations = new Map();
@@ -92,7 +93,7 @@ async function generateQrCode(amount, promptPayNumber = '0850705894', options = 
     try {
       const stats = fs.statSync(filePath);
       if (stats.size > 1000) {
-        console.log(`[QR-Gen] Used cached QR image for amount ${numAmount} (${promptPayNumber}): ${filename}`);
+        logger.info(`[QR-Gen] Used cached QR image for amount ${numAmount} (${promptPayNumber}): ${filename}`);
         return filename;
       }
     } catch (_) {}
@@ -114,12 +115,12 @@ async function generateQrCode(amount, promptPayNumber = '0850705894', options = 
         const stats = fs.statSync(legacyPath);
         if (now - stats.mtimeMs > 3600 * 1000) {
           fs.unlinkSync(legacyPath);
-          console.log(`[QR-Cleanup] Deleted legacy temp QR image: ${file}`);
+          logger.info(`[QR-Cleanup] Deleted legacy temp QR image: ${file}`);
         }
       }
     }
   } catch (cleanupErr) {
-    console.error('[QR-Cleanup] Error cleaning up old legacy QR images:', cleanupErr.message);
+    logger.error('[QR-Cleanup] Error cleaning up old legacy QR images:', cleanupErr.message);
   }
 
   genPromise = (async () => {
@@ -231,7 +232,7 @@ async function generateQrCode(amount, promptPayNumber = '0850705894', options = 
         });
       });
 
-      console.log(`[QR-Gen] Generated fresh QR image for amount ${numAmount} (${promptPayNumber}): ${filename}`);
+      logger.info(`[QR-Gen] Generated fresh QR image for amount ${numAmount} (${promptPayNumber}): ${filename}`);
       return filename;
     } finally {
       inFlightGenerations.delete(filename);

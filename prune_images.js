@@ -17,6 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const logger = require('./utils/logger');
 
 /**
  * Prunes files in a specific directory matching a filter.
@@ -30,7 +31,7 @@ function pruneDirectory({ dirPath, label, fileFilter, maxAgeMs, now, isDryRun })
   try {
     files = fs.readdirSync(dirPath);
   } catch (err) {
-    console.error(`❌ [${label}] Failed to read directory:`, err.message);
+    logger.error(`❌ [${label}] Failed to read directory:`, err.message);
     return { scanned: 0, deleted: 0, bytesFreed: 0 };
   }
 
@@ -55,17 +56,17 @@ function pruneDirectory({ dirPath, label, fileFilter, maxAgeMs, now, isDryRun })
         deleted++;
         if (isDryRun) {
           if (require.main === module) {
-            console.log(`   [DRY-RUN] Would delete: ${file} (${ageDays}d old, ${(stats.size / 1024).toFixed(1)} KB)`);
+            logger.info(`   [DRY-RUN] Would delete: ${file} (${ageDays}d old, ${(stats.size / 1024).toFixed(1)} KB)`);
           }
         } else {
           fs.unlinkSync(fullPath);
           if (require.main === module) {
-            console.log(`   🗑️ Deleted: ${file} (${ageDays}d old, ${(stats.size / 1024).toFixed(1)} KB)`);
+            logger.info(`   🗑️ Deleted: ${file} (${ageDays}d old, ${(stats.size / 1024).toFixed(1)} KB)`);
           }
         }
       }
     } catch (err) {
-      console.warn(`   ⚠️ Error checking file ${file}:`, err.message);
+      logger.warn(`   ⚠️ Error checking file ${file}:`, err.message);
     }
   }
 
@@ -178,25 +179,25 @@ if (require.main === module) {
     }
   }
 
-  console.log('====================================================');
-  console.log(`🧹 Image Pruning Tool ${isDryRun ? '[DRY RUN - No files deleted]' : ''}`);
-  console.log(`Retention period : ${retentionDays} days`);
-  console.log(`Cut-off date     : ${new Date(Date.now() - retentionDays * 86400000).toISOString()}`);
-  console.log('====================================================\n');
+  logger.info('====================================================');
+  logger.info(`🧹 Image Pruning Tool ${isDryRun ? '[DRY RUN - No files deleted]' : ''}`);
+  logger.info(`Retention period : ${retentionDays} days`);
+  logger.info(`Cut-off date     : ${new Date(Date.now() - retentionDays * 86400000).toISOString()}`);
+  logger.info('====================================================\n');
 
   const result = pruneImages({ retentionDays, isDryRun, includeAvatars, includeQr });
 
-  console.log(`📊 [Team Images] Scanned: ${result.details.team.scanned} | Deleted: ${result.details.team.deleted} | Freed: ${(result.details.team.bytesFreed / 1024 / 1024).toFixed(2)} MB`);
-  console.log(`📊 [QR Codes]    Scanned: ${result.details.qr.scanned} | Deleted: ${result.details.qr.deleted} | Freed: ${(result.details.qr.bytesFreed / 1024 / 1024).toFixed(2)} MB`);
+  logger.info(`📊 [Team Images] Scanned: ${result.details.team.scanned} | Deleted: ${result.details.team.deleted} | Freed: ${(result.details.team.bytesFreed / 1024 / 1024).toFixed(2)} MB`);
+  logger.info(`📊 [QR Codes]    Scanned: ${result.details.qr.scanned} | Deleted: ${result.details.qr.deleted} | Freed: ${(result.details.qr.bytesFreed / 1024 / 1024).toFixed(2)} MB`);
   if (includeAvatars) {
-    console.log(`📊 [Avatars]     Scanned: ${result.details.avatar.scanned} | Deleted: ${result.details.avatar.deleted} | Freed: ${(result.details.avatar.bytesFreed / 1024 / 1024).toFixed(2)} MB`);
+    logger.info(`📊 [Avatars]     Scanned: ${result.details.avatar.scanned} | Deleted: ${result.details.avatar.deleted} | Freed: ${(result.details.avatar.bytesFreed / 1024 / 1024).toFixed(2)} MB`);
   }
 
-  console.log('\n====================================================');
-  console.log(`✨ Pruning completed ${isDryRun ? '(DRY RUN)' : ''}`);
-  console.log(`Total files ${isDryRun ? 'eligible' : 'removed'}: ${result.totalDeleted}`);
-  console.log(`Total disk space ${isDryRun ? 'to free' : 'freed'} : ${result.totalFreedMb} MB`);
-  console.log('====================================================');
+  logger.info('\n====================================================');
+  logger.info(`✨ Pruning completed ${isDryRun ? '(DRY RUN)' : ''}`);
+  logger.info(`Total files ${isDryRun ? 'eligible' : 'removed'}: ${result.totalDeleted}`);
+  logger.info(`Total disk space ${isDryRun ? 'to free' : 'freed'} : ${result.totalFreedMb} MB`);
+  logger.info('====================================================');
 }
 
 module.exports = {

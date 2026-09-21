@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const axios = require('axios');
 const db = require('./query');
+const logger = require('./utils/logger');
 const { getFormatDate, getSlashDate } = require('./utils/date');
 
 const teamImgDir = path.join(__dirname, 'img', 'team');
@@ -29,7 +30,7 @@ try {
     goalIconDataUri = `data:image/png;base64,${fs.readFileSync(goalPath).toString('base64')}`;
   }
 } catch (e) {
-  console.warn('[TeamImg] Could not load icon_goal.png:', e.message);
+  logger.warn('[TeamImg] Could not load icon_goal.png:', e.message);
 }
 
 try {
@@ -38,7 +39,7 @@ try {
     assistIconDataUri = `data:image/png;base64,${fs.readFileSync(assistPath).toString('base64')}`;
   }
 } catch (e) {
-  console.warn('[TeamImg] Could not load icon_assist.png:', e.message);
+  logger.warn('[TeamImg] Could not load icon_assist.png:', e.message);
 }
 
 // Crown SVG paths inlined from assets/crown.svg (512x512 viewBox)
@@ -89,7 +90,7 @@ async function fetchImageAsBase64(url, timeoutMs = 6000) {
       }
     }
   } catch (diskErr) {
-    console.warn(`[AvatarCache] Disk read error (${diskPath}):`, diskErr.message);
+    logger.warn(`[AvatarCache] Disk read error (${diskPath}):`, diskErr.message);
   }
 
   // 3. Remote download — save to disk cache, then return base64 data URI
@@ -110,7 +111,7 @@ async function fetchImageAsBase64(url, timeoutMs = 6000) {
       try {
         fs.writeFileSync(diskPath, buffer);
       } catch (writeErr) {
-        console.warn(`[AvatarCache] Disk write error (${diskPath}):`, writeErr.message);
+        logger.warn(`[AvatarCache] Disk write error (${diskPath}):`, writeErr.message);
       }
 
       const dataUri = `data:${contentType};base64,${buffer.toString('base64')}`;
@@ -118,7 +119,7 @@ async function fetchImageAsBase64(url, timeoutMs = 6000) {
       return dataUri;
     }
   } catch (err) {
-    console.warn(`[AvatarCache] Failed to download avatar (${secureUrl}):`, err.message);
+    logger.warn(`[AvatarCache] Failed to download avatar (${secureUrl}):`, err.message);
   }
   return null;
 }
@@ -973,10 +974,10 @@ async function generateTeamFormationImages(param = '', groupId = null) {
       if (url) {
         imageUrls.push(url);
         const cacheStr = res?.cached ? '(used cached image)' : '(generated)';
-        console.log(`  [TeamImg] Team ${team.teamId} image: ✅ ${cacheStr}`);
+        logger.info(`  [TeamImg] Team ${team.teamId} image: ✅ ${cacheStr}`);
       }
     } catch (err) {
-      console.error(`[TeamImg] Failed to generate image for team ${team.teamId}:`, err.message);
+      logger.error(`[TeamImg] Failed to generate image for team ${team.teamId}:`, err.message);
     }
   }
 
