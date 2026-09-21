@@ -7083,30 +7083,50 @@ const SCHEDULE_DAY_MAP = {
 };
 
 function matchesScheduleDay(scheduleDays, currentDow) {
-  if (!scheduleDays || scheduleDays === '*' || scheduleDays === 'all' || scheduleDays === 'daily') {
+  if (scheduleDays === '*' || scheduleDays == null || scheduleDays === 'all' || scheduleDays === 'daily' || scheduleDays === 'everyday') {
     return true;
   }
-  const spec = String(scheduleDays).trim().toLowerCase();
-  if (spec === 'mon-fri' || spec === '1-5' || spec === 'weekday' || spec === 'weekdays') {
-    return currentDow >= 1 && currentDow <= 5;
+
+  if (Array.isArray(scheduleDays)) {
+    return scheduleDays.some(d => matchesScheduleDay(d, currentDow));
   }
-  if (spec === 'sat-sun' || spec === 'weekend' || spec === 'weekends' || spec === '6-0' || spec === '0,6') {
-    return currentDow === 0 || currentDow === 6;
+
+  if (typeof scheduleDays === 'number') {
+    return scheduleDays === currentDow;
   }
-  const rangeMatch = spec.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
-  if (rangeMatch) {
-    const start = SCHEDULE_DAY_MAP[rangeMatch[1]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
-    const end = SCHEDULE_DAY_MAP[rangeMatch[2]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
-    if (!isNaN(start) && !isNaN(end)) {
-      if (start <= end) return currentDow >= start && currentDow <= end;
-      else return currentDow >= start || currentDow <= end;
-    }
+
+  if (typeof scheduleDays === 'string') {
+    const s = scheduleDays.toLowerCase().trim();
+    if (s === '*' || s === 'all' || s === 'daily' || s === 'everyday') return true;
+
+    const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+    return parts.some(p => {
+      if (p === '*' || p === 'all' || p === 'daily' || p === 'everyday') return true;
+      if (p === 'weekdays' || p === 'mon-fri' || p === '1-5') return currentDow >= 1 && currentDow <= 5;
+      if (p === 'weekends' || p === 'sat-sun' || p === '6,0' || p === '0,6') return currentDow === 0 || currentDow === 6;
+
+      if (SCHEDULE_DAY_MAP[p] !== undefined) {
+        return SCHEDULE_DAY_MAP[p] === currentDow;
+      }
+
+      const rangeMatch = p.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
+      if (rangeMatch) {
+        const start = SCHEDULE_DAY_MAP[rangeMatch[1]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
+        const end = SCHEDULE_DAY_MAP[rangeMatch[2]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
+        if (!isNaN(start) && !isNaN(end)) {
+          if (start <= end) {
+            return currentDow >= start && currentDow <= end;
+          } else {
+            return currentDow >= start || currentDow <= end;
+          }
+        }
+      }
+
+      return parseInt(p, 10) === currentDow;
+    });
   }
-  const parts = spec.split(',').map(p => p.trim());
-  return parts.some(p => {
-    if (SCHEDULE_DAY_MAP[p] !== undefined) return SCHEDULE_DAY_MAP[p] === currentDow;
-    return parseInt(p, 10) === currentDow;
-  });
+
+  return false;
 }
 
 function getBangkokCurrent() {
@@ -7151,115 +7171,36 @@ function getBangkokCurrent() {
 }
 
 /**
- * Retrieves scheduled tasks whose delivery_mode = 'reply_on_chat' that are due today
- * and waiting to be sent using the next chat replyToken in the group.
- * Checks expire_minutes to skip and mark stale tasks as completed.
+ * Retrieves scheduled tasks whose delivery_mode = 'reply_on_chat' currently queued in memory
+ * waiting to be sent using the next chat replyToken in the group.
  * @param {string} groupId 
  * @returns {Promise<Array<Object>>}
  */
 async function getPendingReplyTasks(groupId) {
   if (!groupId) return [];
   try {
-    const { dow, currentTimeStr, todayDateStr, currentDateTimeStr } = getBangkokCurrent();
-    const tasks = await getScheduledTasks(true);
-
-    const pending = [];
-    for (const t of tasks) {
-      if (t.delivery_mode !== 'reply_on_chat') continue;
-      const taskId = t.task_key || String(t.id);
-      const schedTime = (t.schedule_time || '20:00').substring(0, 5);
-
-      // Check if already executed at or after today's scheduled time
-      let lastRunDateStr = '';
-      if (t.last_run_date) {
-        if (t.last_run_date instanceof Date) {
-          const d = t.last_run_date;
-          lastRunDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-        } else {
-          lastRunDateStr = String(t.last_run_date);
-        }
-      }
-
-      if (lastRunDateStr && lastRunDateStr.startsWith(todayDateStr)) {
-        const lastRunTime = lastRunDateStr.substring(11, 16);
-        if (lastRunTime >= schedTime) {
-          logger.info(`[Scheduler] Pending task '${taskId}' already executed today (last_run: ${lastRunDateStr} >= sched: ${schedTime}), skipping.`);
-          continue; // Already executed for this scheduled time today
-        }
-      }
-
-      // Check day matching
-      if (!matchesScheduleDay(t.schedule_days, dow)) {
-        logger.info(`[Scheduler] Pending task '${taskId}' schedule days '${t.schedule_days}' do not match today's day of week (${dow}), skipping.`);
-        continue;
-      }
-
-      // Check if scheduled time has arrived (schedMinutes <= currentMinutes)
-      const [sH, sM] = schedTime.split(':').map(Number);
-      const [cH, cM] = currentTimeStr.split(':').map(Number);
-      const schedMinutes = (sH || 0) * 60 + (sM || 0);
-      const currentMinutes = (cH || 0) * 60 + (cM || 0);
-
-      if (schedMinutes > currentMinutes) {
-        logger.info(`[Scheduler] Pending task '${taskId}' not due yet (sched: ${schedTime} > now: ${currentTimeStr}), skipping.`);
-        continue;
-      }
-
-      // Check if task has expired (validity window: default 60 minutes if not specified)
-      const expireMinutes = (t.expire_minutes !== null && t.expire_minutes !== undefined && Number(t.expire_minutes) > 0)
-        ? parseInt(t.expire_minutes, 10)
-        : 60;
-
-      const expireAtMinutes = schedMinutes + expireMinutes;
-      if (currentMinutes > expireAtMinutes) {
-        logger.info(`[Scheduler] Pending task '${taskId}' expired (sched: ${schedTime}, window: ${expireMinutes}m, now: ${currentTimeStr}), skipping.`);
-        continue; // Scheduled time window has passed, do not trigger
-      }
-
-      // Check group matching (if task specified a group, must match; if empty, matches active group)
-      if (t.group_id || t.raw_group_id) {
-        const targetGid = t.group_id || await resolveLineGroupId(t.raw_group_id);
-        const rawGid = t.raw_group_id || t.group_id;
-
-        let isGroupMatch = (targetGid === groupId || String(rawGid) === String(groupId));
-        if (!isGroupMatch) {
-          const groupProfile = await getGroupProfile(groupId);
-          if (groupProfile) {
-            if (String(groupProfile.id) === String(rawGid) || (groupProfile.line_group_id && groupProfile.line_group_id === targetGid)) {
-              isGroupMatch = true;
-            }
-          }
-        }
-
-        if (!isGroupMatch) {
-          logger.info(`[Scheduler] Pending task '${taskId}' target group (${targetGid} / raw ID: ${rawGid}) does not match incoming message group (${groupId}), skipping.`);
-          continue;
-        }
-      }
-
-      logger.info(`[Scheduler] Pending task '${taskId}' matched for group ${groupId}!`);
-      pending.push(t);
-    }
-    return pending;
+    const pendingManager = require('./scheduler/pendingManager');
+    return await pendingManager.getPendingForGroup(groupId);
   } catch (err) {
-    logger.error('Error fetching pending reply tasks:', err.message);
+    logger.error('[PendingManager] Error fetching pending reply tasks:', err.message);
     return [];
   }
 }
 
 /**
- * Resolves and formats all pending reply_on_chat scheduled tasks for a group.
+ * Resolves and formats all pending reply_on_chat scheduled tasks for a group from the in-memory queue.
  * Each task generates its own separate message object (up to LINE's 5-message limit per reply request),
  * sent together in a single API call with zero push quota consumed.
- * Marks the tasks as executed for today with full datetime.
+ * Marks the tasks as executed in MySQL with full datetime and removes from memory queue.
  * @param {string} groupId 
  * @param {Object} [triggeringMember] 
  * @returns {Promise<Array<Object>>} Array of message objects to send via replyMessage
  */
 async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
   if (!groupId) return [];
-  const pendingTasks = await getPendingReplyTasks(groupId);
-  if (pendingTasks.length === 0) return [];
+  const pendingManager = require('./scheduler/pendingManager');
+  const pendingTasks = await pendingManager.getPendingForGroup(groupId);
+  if (!pendingTasks || pendingTasks.length === 0) return [];
 
   const { currentDateTimeStr } = getBangkokCurrent();
   const finalMessages = [];
@@ -7273,13 +7214,13 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
 
   const executedTaskIds = [];
 
-  logger.info(`[Scheduler] Found ${pendingTasks.length} pending reply_on_chat task(s) for group ${groupId}: [${pendingTasks.map(t => t.task_key || t.id).join(', ')}]`);
+  logger.info(`[Scheduler] Consuming ${pendingTasks.length} pending reply_on_chat task(s) from memory queue for group ${groupId}: [${pendingTasks.map(t => t.id).join(', ')}]`);
 
   for (const task of pendingTasks) {
-    const taskIdKey = task.task_key || String(task.id);
+    const taskIdKey = task.id;
     try {
       let taskMsgCount = 0;
-      if (task.task_type === 'command') {
+      if (task.type === 'command') {
         const cmdModule = require('./cmd');
         const rawCmd = (task.command || '').trim();
         const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
@@ -7306,9 +7247,9 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
               }
             }
           }
-          executedTaskIds.push(task.id);
+          executedTaskIds.push(taskIdKey);
         }
-      } else if (task.task_type === 'text') {
+      } else if (task.type === 'text') {
         const textMsg = (task.text_message || '').trim();
         if (textMsg) {
           logger.info(`[Scheduler] Executing pending task '${taskIdKey}' (template text) via chat reply...`);
@@ -7319,13 +7260,15 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
               taskMsgCount++;
             }
           }
-          executedTaskIds.push(task.id);
+          executedTaskIds.push(taskIdKey);
         }
       }
 
       // Mark executed in DB with datetime
-      await setScheduledTaskLastRun(task.id, currentDateTimeStr);
-      logger.info(`[Scheduler] Task '${taskIdKey}' executed (${taskMsgCount} message(s) generated), marked completed for today (${currentDateTimeStr}).`);
+      await setScheduledTaskLastRun(task.dbId || task.id, currentDateTimeStr);
+      // Remove from in-memory pending queue
+      pendingManager.remove(task.id);
+      logger.info(`[Scheduler] Task '${taskIdKey}' executed (${taskMsgCount} message(s) generated), marked completed in DB and dequeued from memory.`);
     } catch (taskErr) {
       logger.error(`[Scheduler] Error resolving pending scheduled task '${taskIdKey}':`, taskErr.message);
     }

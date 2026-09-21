@@ -64,6 +64,22 @@ async function runTask(task, triggerSource = 'schedule') {
     }
 
     const isLogOnly = task.deliveryMode === 'log_only';
+    const isReplyOnChat = task.deliveryMode === 'reply_on_chat';
+
+    if (isReplyOnChat) {
+      const groupTag = targetGroupId ? db.getGroupTag(targetGroupId) : '[Any Group]';
+      logger.info(`[SchedulerWorker] Enqueuing pending task '${task.id}' (${task.name}) [mode: reply_on_chat] for ${groupTag} (waiting for next chat reply)`);
+      if (parentPort) {
+        parentPort.postMessage({
+          type: 'ENQUEUE_PENDING_TASK',
+          task: {
+            ...task,
+            groupId: targetGroupId || task.groupId
+          }
+        });
+      }
+      return;
+    }
 
     if (!isLogOnly && !targetGroupId) {
       logger.warn(`[SchedulerWorker] Execution aborted for task '${task.id}': No target groupId available`);

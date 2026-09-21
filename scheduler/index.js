@@ -2,6 +2,7 @@ const { Worker } = require('worker_threads');
 const path = require('path');
 const db = require('../query');
 const logger = require('../utils/logger');
+const pendingManager = require('./pendingManager');
 const { getBaseUrl, setBaseUrl } = require('../utils/url');
 
 let worker = null;
@@ -35,6 +36,8 @@ function initScheduler() {
       logger.info(`[SchedulerSupervisor] Worker notification: Task '${msg.taskId}' completed (success: ${msg.success}) at ${msg.timestamp}`);
     } else if (msg.type === 'TASK_ERROR') {
       logger.error(`[SchedulerSupervisor] Worker notification: Task '${msg.taskId}' failed with error: ${msg.error}`);
+    } else if (msg.type === 'ENQUEUE_PENDING_TASK') {
+      pendingManager.enqueue(msg.task);
     }
   });
 
@@ -134,5 +137,6 @@ module.exports = {
   notifyActiveGroup,
   notifyBaseUrl,
   triggerTask,
-  reloadTasks
+  reloadTasks,
+  pendingManager
 };
