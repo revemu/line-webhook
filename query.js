@@ -6,7 +6,7 @@ const logger = require('./utils/logger');
 require('dotenv').config({ quiet: true });
 const flex = require('./flex');
 const lineClient = require('./lineClient');
-const { getFormatDate, getShortDate, thaiMonthsShort } = require('./utils/date');
+const { getFormatDate, getShortDate, getSlashDate, thaiMonthsShort, parseDateInput } = require('./utils/date');
 
 let lastGroupId = null;
 
@@ -5766,22 +5766,12 @@ function isLikelyDateStr(str) {
   return false;
 }
 
-async function getTeamFormationData(param = '', groupId = null, options = {}) {
-  const tTotalStart = Date.now();
-
-  // 1. DDL Checks
-  const tDdlStart = Date.now();
-  await ensurePosTables();
-  const ddlDuration = Date.now() - tDdlStart;
-
-  // 2. Metadata (Theme, Week, Colors)
-  const tMetaStart = Date.now();
-  const theme = await getTheme();
+function parseTeamAndWeekArgs(param = '', defaultWeekId = 0) {
   const trimmed = String(param !== null && param !== undefined ? param : '').trim();
   let teamArg = null;
-  let weekArg = options.weekId || 0; // allow caller to bypass param parser with a pre-resolved week ID
+  let weekArg = defaultWeekId || 0;
 
-  if (!options.weekId && trimmed) {
+  if (trimmed) {
     if (isLikelyDateStr(trimmed)) {
       weekArg = trimmed;
     } else {
@@ -5822,6 +5812,95 @@ async function getTeamFormationData(param = '', groupId = null, options = {}) {
       }
     }
   }
+
+  return { teamArg, weekArg };
+}
+
+/**
+ * Checks if the /teamweek command is allowed to run for the specified week parameter.
+ * For the current/latest week, access is only permitted after 20:00 (8:00 PM) on Friday.
+ * Past weeks are always accessible.
+ * @param {string} param 
+ * @returns {Promise<{ allowed: boolean, message?: string }>}
+ */
+async function checkTeamWeekAccess(param = '') {
+  try {
+    const { weekArg } = parseTeamAndWeekArgs(param);
+    const targetWeek = await queryWeekID(weekArg || 0);
+    if (!targetWeek || targetWeek.length === 0) {
+      return { allowed: true };
+    }
+
+    const latestWeek = await queryWeekID(0);
+    if (!latestWeek || latestWeek.length === 0) {
+      return { allowed: true };
+    }
+
+    // If target week is NOT the current week (i.e. past week), allow viewing anytime
+    if (targetWeek[0].id !== latestWeek[0].id) {
+      return { allowed: true };
+    }
+
+    // It is the current week. Check if current time in Bangkok is after Friday 20:00
+    const bkk = getBangkokCurrent();
+    const matchDateObj = parseDateInput(latestWeek[0].date);
+
+    if (matchDateObj && !isNaN(matchDateObj.getTime())) {
+      const matchDow = matchDateObj.getDay();
+      const diffToFriday = (matchDow >= 5) ? (matchDow - 5) : (matchDow + 2);
+      const fridayDate = new Date(matchDateObj.getTime());
+      fridayDate.setDate(fridayDate.getDate() - diffToFriday);
+
+      const fridayYear = fridayDate.getFullYear();
+      const fridayMonth = String(fridayDate.getMonth() + 1).padStart(2, '0');
+      const fridayDay = String(fridayDate.getDate()).padStart(2, '0');
+      const cutoffDateTimeStr = `${fridayYear}-${fridayMonth}-${fridayDay} 20:01:00`;
+
+      if (bkk.currentDateTimeStr < cutoffDateTimeStr) {
+        return {
+          allowed: false,
+          message: '⚠️ ยังไม่มีการสุ่มทีม ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. หลังจาการสุ่มทีมครับ'
+        };
+      }
+      return { allowed: true };
+    }
+
+    // Fallback if match date cannot be parsed: check Bangkok current day of week and time
+    // dow: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    if (bkk.dow === 5) {
+      if (bkk.currentTimeStr < '20:00') {
+        return {
+          allowed: false,
+          message: '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ'
+        };
+      }
+      return { allowed: true };
+    } else if (bkk.dow === 6 || bkk.dow === 0) {
+      return { allowed: true };
+    } else {
+      return {
+        allowed: false,
+        message: '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ'
+      };
+    }
+  } catch (err) {
+    logger.error('[checkTeamWeekAccess] Error checking access:', err.message || err);
+    return { allowed: true };
+  }
+}
+
+async function getTeamFormationData(param = '', groupId = null, options = {}) {
+  const tTotalStart = Date.now();
+
+  // 1. DDL Checks
+  const tDdlStart = Date.now();
+  await ensurePosTables();
+  const ddlDuration = Date.now() - tDdlStart;
+
+  // 2. Metadata (Theme, Week, Colors)
+  const tMetaStart = Date.now();
+  const theme = await getTheme();
+  const { teamArg, weekArg } = parseTeamAndWeekArgs(param, options.weekId);
 
   const week = await queryWeekID(weekArg || 0);
   if (!week || week.length === 0) return null;
@@ -7555,5 +7634,7 @@ module.exports = {
   getPendingReplyTasks,
   dispatchPendingReplyTasks,
   matchesScheduleDay,
-  getBangkokCurrent
+  getBangkokCurrent,
+  parseTeamAndWeekArgs,
+  checkTeamWeekAccess
 };

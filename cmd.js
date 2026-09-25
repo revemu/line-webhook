@@ -680,6 +680,12 @@ const COMMAND_REGISTRY = {
     },
     'teamweek1': async (context) => {
         const { param, groupId } = context;
+        if (db.checkTeamWeekAccess) {
+            const accessCheck = await db.checkTeamWeekAccess(param);
+            if (!accessCheck.allowed) {
+                return [{ type: 'text', text: accessCheck.message || '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ' }];
+            }
+        }
         const week = await db.queryWeekID(param);
         if (week && week.length > 0) {
             const msg = await db.getTeamWeek(week[0].id, groupId);
@@ -693,6 +699,12 @@ const COMMAND_REGISTRY = {
         const { param, groupId } = context;
         let cleanParam = (param || '').trim();
         cleanParam = cleanParam.replace(/^(img|image)\s*/i, '').trim();
+        if (db.checkTeamWeekAccess) {
+            const accessCheck = await db.checkTeamWeekAccess(cleanParam);
+            if (!accessCheck.allowed) {
+                return [{ type: 'text', text: accessCheck.message || '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ' }];
+            }
+        }
         const imageUrls = await teamImg.generateTeamFormationImages(cleanParam, groupId);
         if (imageUrls && imageUrls.length > 0) {
             return imageUrls.map(url => ({
@@ -712,6 +724,12 @@ const COMMAND_REGISTRY = {
         if (trimmed === 'img' || trimmed === 'image' || trimmed.startsWith('img ') || trimmed.startsWith('image ')) {
             context.param = (param || '').trim().replace(/^(img|image)\s*/i, '').trim();
             return COMMAND_REGISTRY['teamimg'](context);
+        }
+        if (db.checkTeamWeekAccess) {
+            const accessCheck = await db.checkTeamWeekAccess(param);
+            if (!accessCheck.allowed) {
+                return [{ type: 'text', text: accessCheck.message || '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ' }];
+            }
         }
         const bubbles = await db.getTeamFormation(param, groupId);
         if (bubbles) {
