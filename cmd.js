@@ -623,12 +623,20 @@ const COMMAND_REGISTRY = {
     },
     'resetteam': async () => { await db.resetMemberTeam(); return [{ type: 'text', text: `ปรับให้ทุกคนไม่มีทีมแล้ว` }]; },
     'randomteam1': async (context) => {
+        const { member, quoteToken, groupId } = context;
+        if (!member || (Number(member.admin) !== 2 && member.line_user_id !== 'SYSTEM_BOT')) {
+            return [{
+                type: 'text',
+                quoteToken: quoteToken,
+                text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับบอททำการสุ่มทีม)`
+            }];
+        }
         const dow = (new Date()).getDay();
         if (dow >= 0) {
             const team_res = await db.addTeamMemberWeek();
             if (team_res == 0) {
                 const week = await db.queryWeekID(0);
-                const msg = await db.getTeamWeek(week[0].id, context.groupId);
+                const msg = await db.getTeamWeek(week[0].id, groupId);
                 const dateStr = week && week[0]?.date ? db.getFormatDate(week[0].date, 'short') : (week?.[0]?.date || '');
                 return { type: 'flex', altText: `Team Week - ${dateStr}`, contents: msg };
             } else if (team_res == 1) {
@@ -640,7 +648,14 @@ const COMMAND_REGISTRY = {
         return [{ type: 'text', text: "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม" }];
     },
     'randomteam': async (context) => {
-        const { param, groupId } = context;
+        const { param, groupId, member, quoteToken } = context;
+        if (!member || (Number(member.admin) !== 2 && member.line_user_id !== 'SYSTEM_BOT')) {
+            return [{
+                type: 'text',
+                quoteToken: quoteToken,
+                text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับบอททำการสุ่มทีม)`
+            }];
+        }
         const week = await db.queryWeekID(param || 0);
         if (!week || week.length === 0) {
             return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];
@@ -1197,7 +1212,7 @@ const COMMAND_REGISTRY = {
     'slip': async (context) => {
         const { member, groupId } = context;
         const theme = await db.getTheme();
-        const isAdmin = member && member.admin === 1;
+        const isAdmin = member && (member.admin === 1 || member.admin === 2);
         const senderId = isAdmin ? null : (member ? member.line_user_id : null);
         let noticedSlips = await db.getNoticedSlips(senderId);
         if (!isAdmin && noticedSlips.length === 0 && senderId) {
@@ -1214,7 +1229,7 @@ const COMMAND_REGISTRY = {
         const slipId = Number(param);
         const slip = await db.getSlipById(slipId);
         if (!slip) return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบสลิป #${slipId}` }];
-        const isAdmin = member && member.admin === 1;
+        const isAdmin = member && (member.admin === 1 || member.admin === 2);
         if (!isAdmin && member && String(slip.sender_id) !== String(member.line_user_id)) return [{ type: 'text', quoteToken, text: '⚠️ คุณสามารถตรวจสอบได้เฉพาะสลิปของตัวเองเท่านั้น' }];
         if (!slip.qrcode) return [{ type: 'text', quoteToken, text: `⚠️ สลิป #${slipId} ไม่มี QR Code ไม่สามารถตรวจสอบได้` }];
 
@@ -1276,7 +1291,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         const { cmd, param: rawParam } = parseCommandString(cmd_str);
         let param = rawParam;
 
-        if (member && member.debt > 0 && member.admin !== 1 && !ADMIN_RESTRICTED_COMMANDS.has(cmd)) {
+        if (member && member.debt > 0 && member.admin !== 1 && member.admin !== 2 && !ADMIN_RESTRICTED_COMMANDS.has(cmd)) {
             const displayName = (member.name || '').replace('@', '');
             return formatTextReply(`ขออภัย ${displayName} ยังมียอดค้างชำระ ${member.debt} บาท ไม่สามารถใช้งานคำสั่งได้`, quoteToken);
         }
@@ -1285,7 +1300,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const adminCmds = await db.getAdminCommands();
             const adminCmdSet = new Set(adminCmds || []);
             if (adminCmdSet.has(cmd)) {
-                if (!member || member.admin !== 1) {
+                if (!member || (member.admin !== 1 && member.admin !== 2)) {
                     return [{
                         type: 'text',
                         quoteToken: quoteToken,

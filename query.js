@@ -783,7 +783,7 @@ async function setWeekCost(totalCost) {
     [costfee, week_id]
   );
   for (const m of payingMembers) {
-    if (m.team_id === 101 || m.admin === 1) {
+    if (m.team_id === 101 || m.admin > 0) {
       continue;
     } else if (m.team_id === 100) {
       costfee = 40;
