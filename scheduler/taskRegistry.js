@@ -223,12 +223,15 @@ class TaskRegistry {
 
   /**
    * Evaluates registered tasks against current date & time (Bangkok timezone).
+   * Supports same-day catch-up if a task was scheduled for today, its time has passed,
+   * and it hasn't run yet today.
    * @param {Date} [now=new Date()]
    * @returns {Array<Object>} List of tasks that should execute now
    */
   getDueTasks(now = new Date()) {
     const dueTasks = [];
-    const { dow, currentTimeStr, todayDateStr, currentMinuteKey, weekdayShort } = getBangkokDateTime(now);
+    const { dow, currentTimeStr, todayDateStr, currentMinuteKey, weekdayShort, h, m } = getBangkokDateTime(now);
+    const nowMs = now.getTime();
 
     for (const [id, task] of this.tasks.entries()) {
       if (task.enabled === false) continue;
@@ -242,25 +245,65 @@ class TaskRegistry {
         continue;
       }
 
-      // 2. Check time condition (HH:mm)
-      if (targetTime && targetTime !== currentTimeStr) {
-        continue;
+      if (!targetTime) continue;
+
+      // 2. Check if schedule time has arrived today
+      const isExactMinute = (targetTime === currentTimeStr);
+      const isPastScheduledTime = (currentTimeStr >= targetTime);
+
+      if (!isPastScheduledTime) {
+        continue; // Scheduled time has not arrived yet today
       }
 
-      // 3. Ensure the task has not already executed during this exact minute
+      // Check if task has already executed today (checked via DB last_run_date)
+      const lastRunDateStr = task.last_run_date ? String(task.last_run_date).trim() : '';
+      const hasRunToday = lastRunDateStr.startsWith(todayDateStr);
+
+      if (hasRunToday) {
+        continue; // Already executed today, do not run again
+      }
+
+      // Prevent re-evaluating during the exact same minute
       const lastRunMinute = this.lastExecution.get(id);
       if (lastRunMinute === currentMinuteKey) {
         continue;
       }
 
-      // reply_on_chat tasks: mark minute logged and pass to dueTasks so worker dispatches ENQUEUE_PENDING_TASK
+      // 3. Handle reply_on_chat tasks
       if (task.deliveryMode === 'reply_on_chat') {
+        const [schedH, schedM] = targetTime.split(':').map(n => parseInt(n, 10));
+        const expireMinutes = Number(task.expireMinutes) > 0 ? parseInt(task.expireMinutes, 10) : 60;
+
+        const currentTotalMinutes = parseInt(h, 10) * 60 + parseInt(m, 10);
+        const schedTotalMinutes = schedH * 60 + schedM;
+        const minutesPassed = currentTotalMinutes - schedTotalMinutes;
+
+        if (minutesPassed > expireMinutes) {
+          // Task time window has expired for today
+          continue;
+        }
+
+        const remainingMs = Math.max(0, (expireMinutes - minutesPassed) * 60 * 1000);
+        const calculatedExpiresAt = nowMs + remainingMs;
+
         this.lastExecution.set(id, currentMinuteKey);
-        dueTasks.push(task);
+        if (!isExactMinute) {
+          logger.info(`[TaskRegistry] Catch-up pending task '${id}' for today (${weekdayShort} scheduled @ ${targetTime}, current: ${currentTimeStr}, remaining window: ${expireMinutes - minutesPassed}m)`);
+        }
+        dueTasks.push({
+          ...task,
+          calculatedExpiresAt
+        });
         continue;
       }
 
-      logger.info(`[TaskRegistry] Task '${id}' matched schedule (${weekdayShort} @ ${currentTimeStr})!`);
+      // 4. Handle push / log_only tasks
+      this.lastExecution.set(id, currentMinuteKey);
+      if (!isExactMinute) {
+        logger.info(`[TaskRegistry] Catch-up triggered for task '${id}' (${weekdayShort} scheduled @ ${targetTime}, current time: ${currentTimeStr})`);
+      } else {
+        logger.info(`[TaskRegistry] Task '${id}' matched schedule (${weekdayShort} @ ${currentTimeStr})!`);
+      }
       dueTasks.push(task);
     }
 

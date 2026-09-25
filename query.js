@@ -7287,7 +7287,7 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
     id: 0,
     line_user_id: 'SYSTEM_BOT',
     name: 'System',
-    admin: 1,
+    admin: 2,
     debt: 0
   };
 
