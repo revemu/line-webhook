@@ -426,6 +426,11 @@ async function updateMemberPriority(member_id, priority) {
   return await executeQuery(query, [priority, member_id]);
 }
 
+async function updateMemberAvoidIds(member_id, avoid_ids) {
+  const query = "update member_tbl set avoid_ids=? where id=?";
+  return await executeQuery(query, [avoid_ids !== null && avoid_ids !== undefined ? String(avoid_ids).trim() : '', member_id]);
+}
+
 async function setMemberWeekPriority(member_id, week_id, priority) {
   const query = "update member_team_week_tbl set priority=? where member_id=? and week_id=?";
   return await executeQuery(query, [priority, member_id, week_id]);
@@ -441,9 +446,9 @@ async function resetMemberTeam() {
 
 }
 
-async function newMember(lineID, name, pictureUrl = null) {
-  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_ids, picture_url) values(?, 0, 0, 0, ?, ?, NULL, ?)";
-  const res = await executeQuery(query, [name, name.replace('@', ''), lineID, pictureUrl]);
+async function newMember(lineID, name, pictureUrl = null, avoid_ids = '') {
+  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_ids, picture_url) values(?, 0, 0, 0, ?, ?, ?, ?)";
+  const res = await executeQuery(query, [name, name.replace('@', ''), lineID, avoid_ids || '', pictureUrl]);
   return res;
 }
 
@@ -7549,6 +7554,7 @@ module.exports = {
   updateMemberInfo,
   updateMemberRank,
   updateMemberPriority,
+  updateMemberAvoidIds,
   setMemberWeekPriority,
   updateMemberDebt,
   updateMemberWeek,

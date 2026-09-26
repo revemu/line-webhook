@@ -10,8 +10,8 @@ const logger = require('./utils/logger');
 const { getNextSaturday } = require('./utils/date');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
-const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1']);
-const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny']);
+const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1']);
+const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny']);
 
 function parseCommandString(cmdStr) {
     const pos = cmdStr.indexOf(' ');
@@ -801,6 +801,40 @@ const COMMAND_REGISTRY = {
         if (is_mention) { await db.setMemberDebt(member_id, debt_val); return [{ type: 'text', text: `ตั้งยอดค้างของ ${member_name} เป็น ${debt_val} บาท เรียบร้อยครับ` }]; }
         return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setdebt @ชื่อสมาชิก จำนวนเงิน` }];
     },
+    'setavoid': async (context) => {
+        const { is_mention, member_id, avoid_val, member_name } = context;
+        if (is_mention) {
+            let targetIds = [];
+            if (avoid_val) {
+                const tokens = avoid_val.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+                for (const token of tokens) {
+                    if (/^(none|null|-|0|clear|reset)$/i.test(token)) continue;
+                    if (/^\d+$/.test(token)) {
+                        const idNum = Number(token);
+                        if (idNum > 0 && idNum !== member_id && !targetIds.includes(idNum)) {
+                            targetIds.push(idNum);
+                        }
+                    } else if (token.startsWith('@')) {
+                        const found = await db.queryMemberbyName(token);
+                        if (found && found.length > 0) {
+                            const foundId = Number(found[0].id);
+                            if (foundId !== member_id && !targetIds.includes(foundId)) {
+                                targetIds.push(foundId);
+                            }
+                        }
+                    }
+                }
+            }
+            const cleanAvoid = targetIds.join(',');
+            await db.updateMemberAvoidIds(member_id, cleanAvoid);
+            if (cleanAvoid) {
+                return [{ type: 'text', text: `ตั้งค่า avoid_ids (หลีกเลี่ยงทีมเดียวกัน) ของ ${member_name} เป็น [${cleanAvoid}] เรียบร้อยครับ` }];
+            } else {
+                return [{ type: 'text', text: `ล้างค่า avoid_ids ของ ${member_name} เรียบร้อยครับ` }];
+            }
+        }
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setavoid @ชื่อสมาชิก 12,25 (หรือ @ชื่อ2 หรือ 0 เพื่อล้างค่า)` }];
+    },
     'theme': async (context) => {
         const { param } = context;
         if (param === 'black' || param === 'white') { await db.setTheme(param); return [{ type: 'text', text: `เปลี่ยนธีมเป็น ${param} เรียบร้อยครับ` }]; }
@@ -1357,6 +1391,15 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             }
         }
 
+        let avoid_val = '';
+        if (cmd === 'setavoid') {
+            const parts = param.split(/\s+/).filter(Boolean);
+            if (parts.length > 1) {
+                param = parts[0];
+                avoid_val = parts.slice(1).join(' ').trim();
+            }
+        }
+
         const mentionResult = await resolveMentionTarget(cmd, param, member, quoteToken);
         if (mentionResult.reply) {
             return mentionResult.reply;
@@ -1377,6 +1420,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             rank_val,
             priority_val,
             debt_val,
+            avoid_val,
             member,
             member_id,
             member_name,
@@ -1408,7 +1452,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
 }
 
 async function handleCommandSwitch(context) {
-    const { cmd, param, quoteToken, groupId, is_flex, rank_val, debt_val, member, member_id, member_name, target_line_user_id, is_mention } = context;
+    const { cmd, param, quoteToken, groupId, is_flex, rank_val, priority_val, debt_val, avoid_val, member, member_id, member_name, target_line_user_id, is_mention } = context;
     let chat_type = "[cmd] -";
     //console.log(`${chat_type} command: ${cmd} - param: ${param}`);
 
