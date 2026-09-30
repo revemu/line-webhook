@@ -425,13 +425,15 @@ async function handleTextMessage(event, member) {
 
         const spamCheck = spamProtector.acquire(userId, groupId, cmd_str);
         if (!spamCheck.allowed) {
-            logger.warn(`[SPAM BLOCKED] Duplicate command '${message.text}' from ${member ? member.name : userId} ignored (only 1st is processed)`);
+            const secInfo = spamCheck.remainingSec ? ` (${spamCheck.remainingSec}s remaining)` : '';
+            logger.warn(`[SPAM BLOCKED] Duplicate command '${message.text}' from ${member ? member.name : userId} ignored${secInfo}`);
             if (spamCheck.shouldWarn) {
                 const displayName = member && member.name ? member.name.replace('@', '') : 'คุณ';
+                const waitText = spamCheck.remainingSec ? ` (อีก ${spamCheck.remainingSec} วินาที)` : '';
                 const replyMsg = [
                     {
                         type: 'text',
-                        text: `ขออภัย ${displayName} เพิ่งส่งคำสั่งนี้ไปแล้ว กรุณารอสักครู่ครับ ⏳`
+                        text: `ขออภัย ${displayName} เพิ่งส่งคำสั่งนี้ไปแล้ว กรุณารอสักครู่ครับ${waitText} ⏳`
                     }
                 ];
                 await replyMessage(replyToken, replyMsg);
