@@ -7127,13 +7127,20 @@ async function deleteScheduledTask(keyOrId) {
  * Updates last_run_date for a scheduled task with full datetime (YYYY-MM-DD HH:mm:ss).
  * @param {string|number} keyOrId 
  * @param {string|null} [dateOrDateTimeStr=null] - Optional datetime string, defaults to Bangkok current datetime
+/**
+ * Sets last_run_date for a scheduled task by task_key or database id.
+ * @param {string|number} keyOrId 
+ * @param {string|null} [dateOrDateTimeStr=null] 
+ * @param {number|null} [fallbackId=null]
  * @returns {Promise<boolean>}
  */
-async function setScheduledTaskLastRun(keyOrId, dateOrDateTimeStr = null) {
-  if (!keyOrId) return false;
+async function setScheduledTaskLastRun(keyOrId, dateOrDateTimeStr = null, fallbackId = null) {
+  if (!keyOrId && !fallbackId) return false;
   const val = dateOrDateTimeStr || getBangkokCurrent().currentDateTimeStr;
-  const sql = "UPDATE scheduled_task_tbl SET last_run_date = ? WHERE task_key = ? OR id = ?";
-  await executeQuery(sql, [val, String(keyOrId), isNaN(Number(keyOrId)) ? -1 : Number(keyOrId)]);
+  const sql = "UPDATE scheduled_task_tbl SET last_run_date = ? WHERE task_key = ? OR id = ? OR id = ?";
+  const numKey = !isNaN(Number(keyOrId)) ? Number(keyOrId) : -1;
+  const numFallback = fallbackId && !isNaN(Number(fallbackId)) ? Number(fallbackId) : -1;
+  await executeQuery(sql, [val, String(keyOrId || ''), numKey, numFallback]);
   return true;
 }
 
@@ -7348,10 +7355,22 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
         }
       }
 
-      // Mark executed in DB with datetime
-      await setScheduledTaskLastRun(task.dbId || task.id, currentDateTimeStr);
+      // Mark executed in DB with datetime (using task.id and task.dbId fallback)
+      await setScheduledTaskLastRun(task.id, currentDateTimeStr, task.dbId);
       // Remove from in-memory pending queue
       pendingManager.remove(task.id);
+      // Notify scheduler supervisor & worker thread so in-memory registry updates immediately
+      try {
+        const scheduler = require('./scheduler');
+        if (scheduler && typeof scheduler.notifyTaskExecuted === 'function') {
+          scheduler.notifyTaskExecuted(task.id, currentDateTimeStr);
+          if (task.dbId && String(task.dbId) !== String(task.id)) {
+            scheduler.notifyTaskExecuted(task.dbId, currentDateTimeStr);
+          }
+        }
+      } catch (notifyErr) {
+        logger.debug('[Scheduler] Could not notify worker of task execution:', notifyErr.message);
+      }
       logger.info(`[Scheduler] Task '${taskIdKey}' executed (${taskMsgCount} message(s) generated), marked completed in DB and dequeued from memory.`);
     } catch (taskErr) {
       logger.error(`[Scheduler] Error resolving pending scheduled task '${taskIdKey}':`, taskErr.message);

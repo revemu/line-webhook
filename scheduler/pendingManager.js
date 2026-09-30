@@ -90,6 +90,13 @@ class PendingTaskManager {
     const now = Date.now();
     const expiresAt = task.expiresAt && task.expiresAt > now ? task.expiresAt : (now + (expireMinutes * 60 * 1000));
 
+    // Deduplicate: If task is already pending and unexpired, do not overwrite or log duplicate
+    const existing = this.pendingTasks.get(taskId);
+    if (existing && existing.expiresAt > now) {
+      logger.debug(`[PendingManager] Task '${taskId}' is already pending (expires at ${new Date(existing.expiresAt).toLocaleTimeString('th-TH')}), skipping duplicate enqueue.`);
+      return;
+    }
+
     const pendingItem = {
       id: taskId,
       dbId: task.dbId || task.id,

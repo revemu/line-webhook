@@ -280,6 +280,13 @@ if (parentPort) {
         lastDbReloadTime = Date.now();
         break;
 
+      case 'TASK_EXECUTED':
+        if (message.taskId) {
+          taskRegistry.markTaskExecutedLocally(message.taskId, message.dateTimeStr);
+          logger.info(`[SchedulerWorker] Task '${message.taskId}' marked executed locally at ${message.dateTimeStr || 'now'}`);
+        }
+        break;
+
       default:
         logger.debug(`[SchedulerWorker] Unknown message type received: ${message.type}`);
     }

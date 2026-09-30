@@ -128,6 +128,22 @@ function reloadTasks() {
   }
 }
 
+/**
+ * Notifies the scheduler worker thread that a task was executed (e.g. via chat reply).
+ * Updates in-memory last_run_date in worker thread immediately to prevent duplicate catch-up loops.
+ * @param {string|number} taskId 
+ * @param {string} [dateTimeStr] 
+ */
+function notifyTaskExecuted(taskId, dateTimeStr) {
+  if (worker) {
+    worker.postMessage({
+      type: 'TASK_EXECUTED',
+      taskId: String(taskId),
+      dateTimeStr: dateTimeStr || null
+    });
+  }
+}
+
 // Cleanup on process shutdown
 process.on('SIGINT', () => { isShuttingDown = true; });
 process.on('SIGTERM', () => { isShuttingDown = true; });
@@ -138,5 +154,6 @@ module.exports = {
   notifyBaseUrl,
   triggerTask,
   reloadTasks,
+  notifyTaskExecuted,
   pendingManager
 };

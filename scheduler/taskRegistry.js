@@ -144,10 +144,37 @@ function matchesDay(targetDays, currentDow) {
   return false;
 }
 
+/**
+ * Helper to check if a last_run_date matches the target Bangkok date (YYYY-MM-DD).
+ * Accurately handles Date objects, ISO strings, and standard MySQL datetime strings.
+ * @param {Date|string|null} dateOrStr 
+ * @param {string} targetDateStr - 'YYYY-MM-DD'
+ * @returns {boolean}
+ */
+function isSameBangkokDay(dateOrStr, targetDateStr) {
+  if (!dateOrStr || !targetDateStr) return false;
+  if (dateOrStr instanceof Date) {
+    const { todayDateStr } = getBangkokDateTime(dateOrStr);
+    return todayDateStr === targetDateStr;
+  }
+  const s = String(dateOrStr).trim();
+  if (s.startsWith(targetDateStr)) return true;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    return s.substring(0, 10) === targetDateStr;
+  }
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    const { todayDateStr } = getBangkokDateTime(parsed);
+    return todayDateStr === targetDateStr;
+  }
+  return false;
+}
+
 class TaskRegistry {
   constructor() {
     this.tasks = new Map();
     this.lastExecution = new Map(); // taskId -> 'YYYY-MM-DD HH:mm'
+    this.lastEnqueued = new Map(); // taskId -> 'YYYY-MM-DD'
     this.lastTasksHash = null;
     this.isLoaded = false;
   }
@@ -171,12 +198,14 @@ class TaskRegistry {
 
       if (force) {
         this.lastExecution.clear();
+        this.lastEnqueued.clear();
       }
 
       const isInitial = !this.isLoaded;
       this.tasks.clear();
 
       if (rows && rows.length > 0) {
+        const { todayDateStr } = getBangkokDateTime();
         for (const row of rows) {
           const isEnabled = row.enabled === 1 || row.enabled === true;
           if (!isEnabled) continue;
@@ -201,6 +230,9 @@ class TaskRegistry {
           };
 
           this.tasks.set(taskId, taskObj);
+          if (taskObj.last_run_date && isSameBangkokDay(taskObj.last_run_date, todayDateStr)) {
+            this.lastEnqueued.set(taskId, todayDateStr);
+          }
           logger.debug(`[TaskRegistry] Registered task: ${taskId} (${taskObj.name}) | Type: ${taskObj.type} | Schedule: ${taskObj.schedule.days} @ ${taskObj.schedule.time}`);
         }
       }
@@ -256,11 +288,15 @@ class TaskRegistry {
       }
 
       // Check if task has already executed today (checked via DB last_run_date)
-      const lastRunDateStr = task.last_run_date ? String(task.last_run_date).trim() : '';
-      const hasRunToday = lastRunDateStr.startsWith(todayDateStr);
-
+      const hasRunToday = isSameBangkokDay(task.last_run_date, todayDateStr);
       if (hasRunToday) {
         continue; // Already executed today, do not run again
+      }
+
+      // Check if task has already been enqueued/dispatched today
+      const hasEnqueuedToday = (this.lastEnqueued.get(id) === todayDateStr);
+      if (hasEnqueuedToday) {
+        continue; // Already enqueued today, waiting in pending queue or already processed
       }
 
       // Prevent re-evaluating during the exact same minute
@@ -287,6 +323,7 @@ class TaskRegistry {
         const calculatedExpiresAt = nowMs + remainingMs;
 
         this.lastExecution.set(id, currentMinuteKey);
+        this.lastEnqueued.set(id, todayDateStr);
         if (!isExactMinute) {
           logger.info(`[TaskRegistry] Catch-up pending task '${id}' for today (${weekdayShort} scheduled @ ${targetTime}, current: ${currentTimeStr}, remaining window: ${expireMinutes - minutesPassed}m)`);
         }
@@ -299,6 +336,7 @@ class TaskRegistry {
 
       // 4. Handle push / log_only tasks
       this.lastExecution.set(id, currentMinuteKey);
+      this.lastEnqueued.set(id, todayDateStr);
       if (!isExactMinute) {
         logger.info(`[TaskRegistry] Catch-up triggered for task '${id}' (${weekdayShort} scheduled @ ${targetTime}, current time: ${currentTimeStr})`);
       } else {
@@ -317,7 +355,7 @@ class TaskRegistry {
    */
   markMinuteLogged(taskId, date = new Date()) {
     const { currentMinuteKey } = getBangkokDateTime(date);
-    this.lastExecution.set(taskId, currentMinuteKey);
+    this.lastExecution.set(String(taskId), currentMinuteKey);
   }
 
   /**
@@ -327,18 +365,53 @@ class TaskRegistry {
    * @param {Date} [date=new Date()] 
    */
   async markTaskExecuted(taskId, date = new Date()) {
-    const { currentDateTimeStr, currentMinuteKey } = getBangkokDateTime(date);
-    this.lastExecution.set(taskId, currentMinuteKey);
+    const { currentDateTimeStr, currentMinuteKey, todayDateStr } = getBangkokDateTime(date);
+    const key = String(taskId);
+    this.lastExecution.set(key, currentMinuteKey);
+    this.lastEnqueued.set(key, todayDateStr);
 
-    const task = this.tasks.get(taskId);
+    const task = this.tasks.get(key);
     if (task) {
       task.last_run_date = currentDateTimeStr;
+    }
+    for (const t of this.tasks.values()) {
+      if (String(t.dbId) === key || String(t.id) === key) {
+        t.last_run_date = currentDateTimeStr;
+        this.lastExecution.set(t.id, currentMinuteKey);
+        this.lastEnqueued.set(t.id, todayDateStr);
+      }
     }
 
     try {
       await db.setScheduledTaskLastRun(taskId, currentDateTimeStr);
     } catch (err) {
       logger.error(`[TaskRegistry] Failed to persist last_run_date for task '${taskId}':`, err.message);
+    }
+  }
+
+  /**
+   * Marks a task as executed in memory without issuing a DB write (used when main thread already wrote to DB).
+   * @param {string|number} taskId 
+   * @param {string} [dateTimeStr] 
+   */
+  markTaskExecutedLocally(taskId, dateTimeStr = null) {
+    const { currentDateTimeStr, currentMinuteKey, todayDateStr } = getBangkokDateTime();
+    const val = dateTimeStr || currentDateTimeStr;
+    const key = String(taskId);
+
+    this.lastExecution.set(key, currentMinuteKey);
+    this.lastEnqueued.set(key, todayDateStr);
+
+    const task = this.tasks.get(key);
+    if (task) {
+      task.last_run_date = val;
+    }
+    for (const t of this.tasks.values()) {
+      if (String(t.dbId) === key || String(t.id) === key) {
+        t.last_run_date = val;
+        this.lastExecution.set(t.id, currentMinuteKey);
+        this.lastEnqueued.set(t.id, todayDateStr);
+      }
     }
   }
 
