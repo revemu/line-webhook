@@ -1097,30 +1097,79 @@ const COMMAND_REGISTRY = {
         let startTime = null;
         let endTime = null;
         let matchDuration = null;
+        let targetTeamCount = null;
         let forceRegen = false;
 
-        for (const arg of args) {
-            if (arg.includes(':') || arg.includes('.')) {
+        for (const rawArg of args) {
+            const arg = rawArg.trim();
+            const lowerArg = arg.toLowerCase();
+
+            // 1. Force / reset flags
+            if (['reset', 'regen', 'force', 'new', 'rebuild'].includes(lowerArg)) {
+                forceRegen = true;
+                continue;
+            }
+
+            // 2. Time range format (e.g. 17:30-20:00 or 17.30-20.00)
+            if (arg.includes('-') && (arg.includes(':') || arg.includes('.'))) {
+                const parts = arg.split('-').map(s => s.trim());
+                if (parts.length >= 2) {
+                    if (!startTime) startTime = parts[0];
+                    if (!endTime) endTime = parts[1];
+                    continue;
+                }
+            }
+
+            // 3. Single time format (e.g. 17:30 or 17.30)
+            if (arg.includes(':') || (arg.includes('.') && /^\d{1,2}\.\d{2}$/.test(arg))) {
                 if (!startTime) {
                     startTime = arg;
                 } else if (!endTime) {
                     endTime = arg;
                 }
-            } else if (['reset', 'regen', 'force', 'new', 'rebuild'].includes(arg.toLowerCase())) {
-                forceRegen = true;
-            } else {
-                const parsedNum = parseInt(arg, 10);
-                if (!isNaN(parsedNum) && parsedNum > 0) {
+                continue;
+            }
+
+            // 4. Explicit team count formats (e.g. 4ทีม, 3ทีม, 4t, 3t, 4team, 4teams, team:4, teams:4, team=4, teams=4)
+            const teamUnitMatch = arg.match(/^(\d+)\s*(ทีม|t|team|teams)$/i) || arg.match(/^(?:team|teams|t)[:=](\d+)$/i);
+            if (teamUnitMatch) {
+                const tNum = parseInt(teamUnitMatch[1], 10);
+                if (!isNaN(tNum) && tNum >= 2 && tNum <= 6) {
+                    targetTeamCount = tNum;
+                    forceRegen = true;
+                    continue;
+                }
+            }
+
+            // 5. Explicit match duration formats (e.g. 8m, 8min, 8mins, 8นาที, m:8, min:8)
+            const durationUnitMatch = arg.match(/^(\d+)\s*(m|min|mins|นาที)$/i) || arg.match(/^(?:m|min|duration)[:=](\d+)$/i);
+            if (durationUnitMatch) {
+                const dNum = parseInt(durationUnitMatch[1], 10);
+                if (!isNaN(dNum) && dNum > 0) {
+                    matchDuration = dNum;
+                    forceRegen = true;
+                    continue;
+                }
+            }
+
+            // 6. Generic numbers: 3 or 4 represents team count, while 5+ represents match duration in minutes
+            const parsedNum = parseInt(arg, 10);
+            if (!isNaN(parsedNum) && parsedNum > 0) {
+                if ((parsedNum === 3 || parsedNum === 4) && targetTeamCount === null) {
+                    targetTeamCount = parsedNum;
+                } else if (!matchDuration) {
                     matchDuration = parsedNum;
                 }
+                forceRegen = true;
+                continue;
             }
         }
 
-        if (startTime || endTime || matchDuration) {
+        if (startTime || endTime || matchDuration || targetTeamCount) {
             forceRegen = true;
         }
 
-        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime, forceRegen);
+        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime, forceRegen, targetTeamCount);
         if (schedJson) return { type: 'flex', altText: `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`, contents: flex.buildScheduleFlex(schedJson, theme) };
         return [{ type: 'text', text: schedText }];
     },

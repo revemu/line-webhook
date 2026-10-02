@@ -495,7 +495,13 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
     max_players = week[0].max || 24;
   }
 
-  const targetCount = max_players > 24 ? 4 : count;
+  let registeredCount = 0;
+  try {
+    const regRes = await executeQuery("SELECT COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ?", [week_id]);
+    registeredCount = regRes?.[0]?.cnt || 0;
+  } catch (err) {}
+
+  const targetCount = (max_players > 24 || registeredCount > 24) ? 4 : count;
 
   let query = `select * from team_color_week_tbl where week_id=${week_id}`;
   const res = await executeQuery(query);
@@ -3883,18 +3889,44 @@ async function getDebtList(type = 0) {
 }
 
 
-async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = null, totalHours = null, endTimeStr = null, forceRegen = false) {
+async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = null, totalHours = null, endTimeStr = null, forceRegen = false, targetTeamCount = null) {
   // Fetch current week team colors
   const week = await queryWeekID();
   if (!week || week.length === 0) return ['ยังไม่มีข้อมูลสัปดาห์นี้', null];
 
   const week_id = week[0].id;
 
+  // Determine desired team count:
+  // If targetTeamCount is explicitly provided (e.g. 3 or 4), use it.
+  // Otherwise, automatically check the number of registered players for this week:
+  // If registered members > 24 (or week max > 24) -> 4 teams, otherwise -> 3 teams.
+  let desiredTeamCount = targetTeamCount ? parseInt(targetTeamCount, 10) : null;
+  let registeredCount = 0;
+  try {
+    const regRes = await executeQuery(
+      "SELECT COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ?",
+      [week_id]
+    );
+    registeredCount = regRes?.[0]?.cnt || 0;
+  } catch (err) {
+    logger.error('[schedule] failed to query registered members count:', err.message);
+  }
+
+  if (!desiredTeamCount) {
+    const maxQuota = (week[0] && week[0].max) ? Number(week[0].max) : 24;
+    if (registeredCount > 24 || maxQuota > 24) {
+      desiredTeamCount = 4;
+    } else {
+      desiredTeamCount = 3;
+    }
+  }
+
   const jsonPath = path.join(__dirname, 'schedule.json');
   if (!forceRegen && fs.existsSync(jsonPath)) {
     try {
       const existing = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-      if (existing && existing.weekId === week_id && Array.isArray(existing.matches) && existing.matches.length > 0) {
+      const existingTeamCount = Array.isArray(existing?.teams) ? existing.teams.length : 0;
+      if (existing && existing.weekId === week_id && Array.isArray(existing.matches) && existing.matches.length > 0 && existingTeamCount === desiredTeamCount) {
         // Sync with match_stat_tbl to find current & next match
         let currentMatchNo = 1;
         let nextMatchNo = 2;
@@ -3953,7 +3985,12 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     }
   }
 
-  const team_colors = await getTeamColorWeek(week_id);
+  // Ensure enough team colors are generated for desiredTeamCount
+  let team_colors = await getTeamColorWeek(week_id);
+  if (!team_colors || team_colors.length < desiredTeamCount) {
+    await addTeamColorWeek(desiredTeamCount, week_id);
+    team_colors = await getTeamColorWeek(week_id);
+  }
 
   if (!team_colors || team_colors.length < 2) {
     return ['ยังไม่มีข้อมูลทีมในสัปดาห์นี้ (ใช้คำสั่ง randomteam ก่อน)', null];
@@ -3972,6 +4009,14 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     }
   }
 
+  if (startTimeStr && startTimeStr.includes('-')) {
+    const parts = startTimeStr.split('-').map(s => s.trim().replace('.', ':'));
+    if (parts.length >= 2) {
+      startTimeStr = parts[0];
+      if (!endTimeStr) endTimeStr = parts[1];
+    }
+  }
+
   if (!startTimeStr) {
     startTimeStr = weekStartTime;
   }
@@ -3979,10 +4024,11 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     endTimeStr = weekEndTime;
   }
 
-  // Shuffle a copy of the team colors to randomize starting team assignments and increase schedule variety
-  const shuffledColors = shuffleArray([...team_colors.slice(0, 4)]);
+  // Pick exactly desiredTeamCount colors
+  const activeColors = team_colors.slice(0, desiredTeamCount);
+  const shuffledColors = shuffleArray([...activeColors]);
 
-  // Build team list (up to 4)
+  // Build team list
   const teams = shuffledColors.map(t => t.color);
   const numTeams = teams.length;
 
@@ -6273,12 +6319,14 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     return { status: 'NO_PLAYERS', message: 'ยังไม่มีผู้เล่นลงทะเบียนในสัปดาห์นี้' };
   }
 
-  // Limit randomization to members registered within maxweek quota (FIFO by mtw.id ASC)
+  // Limit randomization to members registered within quota (FIFO by mtw.id ASC)
+  // If registered members exceed 24, allow 4-team quota of up to 32 players
   const maxPlayers = (weekInfo && weekInfo[0] && weekInfo[0].max) ? Number(weekInfo[0].max) : 24;
-  const registeredMembers = allRegistered.slice(0, maxPlayers);
-  const reserveMembers = allRegistered.slice(maxPlayers);
+  const effectiveMaxPlayers = (allRegistered.length > 24 && maxPlayers <= 24) ? 32 : maxPlayers;
+  const registeredMembers = allRegistered.slice(0, effectiveMaxPlayers);
+  const reserveMembers = allRegistered.slice(effectiveMaxPlayers);
 
-  // Ensure any excess reserve members beyond maxweek have no team assigned (team_id = 0)
+  // Ensure any excess reserve members beyond quota have no team assigned (team_id = 0)
   if (reserveMembers.length > 0) {
     const reserveMtwIds = reserveMembers.map(r => r.mtw_id).filter(Boolean);
     if (reserveMtwIds.length > 0) {
@@ -6286,7 +6334,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
         `UPDATE member_team_week_tbl SET team_id = 0 WHERE id IN (${reserveMtwIds.join(',')})`
       );
     }
-    logger.info(`[randomteam] Capped at max ${maxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
+    logger.info(`[randomteam] Capped at max ${effectiveMaxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
   }
 
   const N = registeredMembers.length;
