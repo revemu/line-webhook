@@ -10,8 +10,8 @@ const logger = require('./utils/logger');
 const { getNextSaturday } = require('./utils/date');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
-const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1']);
-const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny']);
+const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3']);
+const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3']);
 
 function parseCommandString(cmdStr) {
     const pos = cmdStr.indexOf(' ');
@@ -405,8 +405,9 @@ const COMMAND_REGISTRY = {
     },
     'delreserve': async (context) => COMMAND_REGISTRY['removereserve'](context),
     '+ny': async (context) => {
-        const { member_id, member_name, is_flex, groupId } = context;
-        await db.registerNY(member_id, member_name);
+        const { member_id, member_name, is_flex, groupId, ny_guests } = context;
+        const guests = typeof ny_guests === 'number' ? Math.max(0, ny_guests) : 0;
+        await db.registerNY(member_id, member_name, null, guests);
         const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);
         if (is_flex && typeof msg === 'object') {
             return { type: 'flex', altText: altText || "🎉 ลงชื่อร่วมงานเลี้ยงปีใหม่", contents: msg };
@@ -422,9 +423,19 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: msg }];
     },
-    'x1': async (context) => COMMAND_REGISTRY['+ny'](context),
+    'x1': async (context) => { context.ny_guests = 0; return COMMAND_REGISTRY['+ny'](context); },
+    'x2': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 1; return COMMAND_REGISTRY['+ny'](context); },
+    'x3': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 2; return COMMAND_REGISTRY['+ny'](context); },
+    'x4': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 3; return COMMAND_REGISTRY['+ny'](context); },
+    'x5': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 4; return COMMAND_REGISTRY['+ny'](context); },
+    '+ny2': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 1; return COMMAND_REGISTRY['+ny'](context); },
+    '+ny3': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 2; return COMMAND_REGISTRY['+ny'](context); },
+    '+ny4': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 3; return COMMAND_REGISTRY['+ny'](context); },
+    '+ny5': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 4; return COMMAND_REGISTRY['+ny'](context); },
     'x0': async (context) => COMMAND_REGISTRY['-ny'](context),
     '-x1': async (context) => COMMAND_REGISTRY['-ny'](context),
+    '-x2': async (context) => COMMAND_REGISTRY['-ny'](context),
+    '-x3': async (context) => COMMAND_REGISTRY['-ny'](context),
     'ny': async (context) => {
         const { is_flex, groupId, member_id } = context;
         const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);
@@ -1449,6 +1460,55 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             }
         }
 
+        let ny_guests = null;
+        const nyCmds = new Set(['+ny', 'x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5']);
+        if (nyCmds.has(cmd) || /^x([1-9]\d*)$/i.test(cmd)) {
+            const xMatch = /^x([1-9]\d*)$/i.exec(cmd);
+            if (xMatch) {
+                const total = parseInt(xMatch[1], 10);
+                ny_guests = Math.max(0, total - 1);
+            } else if (cmd === '+ny2') {
+                ny_guests = 1;
+            } else if (cmd === '+ny3') {
+                ny_guests = 2;
+            } else if (cmd === '+ny4') {
+                ny_guests = 3;
+            } else if (cmd === '+ny5') {
+                ny_guests = 4;
+            }
+
+            if (param) {
+                const parts = param.split(/\s+/).filter(Boolean);
+                const lastPart = parts[parts.length - 1];
+                if (/^\+\d+$/.test(lastPart)) {
+                    ny_guests = parseInt(lastPart.substring(1), 10);
+                    if (parts.length > 1) {
+                        parts.pop();
+                        param = parts.join(' ').trim();
+                    } else {
+                        param = '';
+                    }
+                } else if (/^\d+$/.test(lastPart)) {
+                    const totalNum = parseInt(lastPart, 10);
+                    ny_guests = Math.max(0, totalNum - 1);
+                    if (parts.length > 1) {
+                        parts.pop();
+                        param = parts.join(' ').trim();
+                    } else {
+                        param = '';
+                    }
+                } else if (lastPart.toLowerCase().includes('ผู้ติดตาม')) {
+                    if (ny_guests === null) ny_guests = 1;
+                    if (parts.length > 1) {
+                        parts.pop();
+                        param = parts.join(' ').trim();
+                    } else {
+                        param = '';
+                    }
+                }
+            }
+        }
+
         const mentionResult = await resolveMentionTarget(cmd, param, member, quoteToken);
         if (mentionResult.reply) {
             return mentionResult.reply;
@@ -1470,6 +1530,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             priority_val,
             debt_val,
             avoid_val,
+            ny_guests,
             member,
             member_id,
             member_name,
@@ -1501,7 +1562,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
 }
 
 async function handleCommandSwitch(context) {
-    const { cmd, param, quoteToken, groupId, is_flex, rank_val, priority_val, debt_val, avoid_val, member, member_id, member_name, target_line_user_id, is_mention } = context;
+    const { cmd, param, quoteToken, groupId, is_flex, rank_val, priority_val, debt_val, avoid_val, ny_guests, member, member_id, member_name, target_line_user_id, is_mention } = context;
     let chat_type = "[cmd] -";
     //console.log(`${chat_type} command: ${cmd} - param: ${param}`);
 
@@ -1525,6 +1586,24 @@ async function handleCommandSwitch(context) {
             }];
         }
     }
+
+    // Dynamic xN command support for party registration (e.g. x6 -> 6 persons)
+    if (/^x(\d+)$/i.test(cmd)) {
+        const total = parseInt(cmd.slice(1), 10);
+        if (total === 0) {
+            return COMMAND_REGISTRY['-ny'](context);
+        } else if (total > 0 && total <= 20) {
+            if (context.ny_guests === undefined || context.ny_guests === null) {
+                context.ny_guests = total - 1;
+            }
+            return COMMAND_REGISTRY['+ny'](context);
+        }
+    }
+
+    if (/^-x(\d+)$/i.test(cmd)) {
+        return COMMAND_REGISTRY['-ny'](context);
+    }
+
     // No registry handler matched; show default unknown-command menu
     return unknownCommandResponse(context);
 }

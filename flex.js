@@ -1498,7 +1498,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     });
   }*/
 
-  let displayName = `${p.donate || ''}${p.name}`;
+  let displayName = `${p.donate || ''}${p.name}${p.guests && !String(p.name).includes('(+') ? ` (+${p.guests})` : ''}`;
   let textColor = p.nameColor || colors.memberNameSpecial;
   /*if (isCurrent) {
     displayName += ' 👈';
@@ -6245,21 +6245,44 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
   });
 
   // 2. Attendee Count Section Header
+  const totalMembers = members ? members.length : 0;
+  const totalGuests = typeof partyData.totalGuests === 'number'
+    ? partyData.totalGuests
+    : (members || []).reduce((sum, m) => sum + (Number(m.guests) || 0), 0);
+  const totalAttendees = typeof partyData.totalAttendees === 'number'
+    ? partyData.totalAttendees
+    : (totalMembers + totalGuests);
+
+  const countHeaderContents = [
+    {
+      type: 'text',
+      text: totalGuests > 0
+        ? `👥 ผู้ร่วมงานทั้งหมด (${totalAttendees} คน)`
+        : `👥 รายชื่อผู้ร่วมงาน (${totalMembers} คน)`,
+      weight: 'bold',
+      size: 'sm',
+      color: colors.textPrimary,
+      flex: 1
+    }
+  ];
+
+  if (totalGuests > 0) {
+    countHeaderContents.push({
+      type: 'text',
+      text: `(สมาชิก ${totalMembers} + ผู้ติดตาม ${totalGuests})`,
+      size: 'xs',
+      color: isWhite ? '#ea580c' : '#f59e0b',
+      align: 'end',
+      flex: 0
+    });
+  }
+
   bodyContents.push({
     type: 'box',
     layout: 'horizontal',
     margin: 'lg',
     alignItems: 'center',
-    contents: [
-      {
-        type: 'text',
-        text: `👥 รายชื่อผู้ร่วมงาน (${members.length} คน)`,
-        weight: 'bold',
-        size: 'sm',
-        color: colors.textPrimary,
-        flex: 1
-      }
-    ]
+    contents: countHeaderContents
   });
 
   bodyContents.push({
@@ -6296,7 +6319,7 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
         },
         {
           type: 'text',
-          text: 'พิมพ์ +ny เพื่อลงชื่อคนแรก!',
+          text: 'พิมพ์ x1 หรือ x2 เพื่อลงชื่อคนแรก!',
           size: 'xs',
           color: isWhite ? '#16a34a' : '#22c55e',
           align: 'center',
@@ -6324,8 +6347,9 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
       paddingAll: 'md',
       spacing: 'sm',
       contents: [
-        makeBoxButton('➕ ลงชื่อ', '+ny', '#16a34a'),
-        makeBoxButton('❌ ยกเลิก', '-ny', '#dc2626')
+        makeBoxButton('➕ ลงชื่อ', '+ny', '#16a34a', 1, 'sm', true),
+        makeBoxButton('👥 มีผู้ติดตาม', 'x2', '#0284c7', 1, 'sm', true),
+        makeBoxButton('❌ ยกเลิก', '-ny', '#dc2626', 1, 'sm', true)
       ]
     }
   };

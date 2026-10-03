@@ -1026,6 +1026,13 @@ async function ensureNYTable() {
         await executeQuery("ALTER TABLE member_ny_week_tbl ADD UNIQUE KEY uq_datetime_member (datetime, member_id)");
       } catch (e) { }
     }
+
+    // Auto-migrate if guests column does not exist
+    const checkGuestsSql = "SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'member_ny_week_tbl' AND column_name = 'guests'";
+    const guestsColExists = await executeQuery(checkGuestsSql);
+    if (guestsColExists && guestsColExists.length > 0 && guestsColExists[0].count === 0) {
+      await executeQuery("ALTER TABLE member_ny_week_tbl ADD COLUMN guests INT NOT NULL DEFAULT 0 AFTER name");
+    }
   } catch (err) {
     logger.error("Error ensuring member_ny_week_tbl table:", err.message);
   }
@@ -1033,7 +1040,7 @@ async function ensureNYTable() {
 
 async function getNYEventInfo() {
   let eventDatetime = '2026-12-19 19:00:00';
-  let header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 19 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: Waterside ห้องคาราโอกะ K5 Club Pool นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานพิมพ์ x1 เพื่อลงชื่อด้วยนะครับ\n\n";
+  let header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 19 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: Waterside ห้องคาราโอกะ K5 Club Pool นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานพิมพ์ x1 เพื่อลงชื่อ หรือ x2 หากมีผู้ติดตามด้วยนะครับ\n\n";
   let heroUrl = null;
   let venue = 'Waterside ห้องคาราโอกะ K5 Club Pool';
   let note = 'หลังจากเตะบอล 17:00-19:00 น.';
@@ -1191,7 +1198,7 @@ async function getNYEventInfo() {
   return { eventDatetime, header, heroUrl, venue, note, description, title, dateStr, timeStr, mapUrl, mapLabel, galleryUrl, galleryLabel, images };
 }
 
-async function registerNY(member_id, member_name = null, target_datetime = null) {
+async function registerNY(member_id, member_name = null, target_datetime = null, guests = 0) {
   await ensureNYTable();
   let eventDatetime = target_datetime;
   if (!eventDatetime) {
@@ -1199,13 +1206,18 @@ async function registerNY(member_id, member_name = null, target_datetime = null)
     eventDatetime = info.eventDatetime;
   }
 
+  const safeGuests = Math.max(0, parseInt(guests, 10) || 0);
+
   const query = `
-    INSERT INTO member_ny_week_tbl (datetime, member_id, name)
-    VALUES (?, ?, ?)
-    ON DUPLICATE KEY UPDATE name = COALESCE(VALUES(name), name), updated_at = CURRENT_TIMESTAMP
+    INSERT INTO member_ny_week_tbl (datetime, member_id, name, guests)
+    VALUES (?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE 
+      name = COALESCE(VALUES(name), name), 
+      guests = VALUES(guests),
+      updated_at = CURRENT_TIMESTAMP
   `;
-  await executeQuery(query, [eventDatetime, member_id, member_name]);
-  return { success: true, datetime: eventDatetime, member_id };
+  await executeQuery(query, [eventDatetime, member_id, member_name, safeGuests]);
+  return { success: true, datetime: eventDatetime, member_id, guests: safeGuests };
 }
 
 async function unregisterNY(member_id, target_datetime = null) {
@@ -3107,7 +3119,7 @@ async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = nu
   const headerText = info.header;
 
   const query = `
-    SELECT ny.id as reg_id, ny.datetime, ny.member_id, m.id, m.name, m.alias, m.rank, m.donate, m.picture_url, m.line_user_id, ny.created_at
+    SELECT ny.id as reg_id, ny.datetime, ny.member_id, COALESCE(ny.guests, 0) as guests, m.id, m.name, m.alias, m.rank, m.donate, m.picture_url, m.line_user_id, ny.created_at
     FROM member_ny_week_tbl ny
     INNER JOIN member_tbl m ON m.id = ny.member_id
     WHERE ny.datetime = ? OR DATE(ny.datetime) = DATE(?)
@@ -3130,12 +3142,21 @@ async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = nu
         String(member.line_user_id) === String(highlightMemberId)
       ) : false;
 
+      const guests = Number(member.guests) || 0;
+      const nameWithGuests = guests > 0 ? `${displayInfo.name} (+${guests})` : displayInfo.name;
+
       return {
         ...displayInfo,
+        name: nameWithGuests,
+        guests,
         donate: '',
         isCurrent
       };
     });
+
+    const totalMembers = members.length;
+    const totalGuests = members.reduce((sum, m) => sum + (Number(m.guests) || 0), 0);
+    const totalAttendees = totalMembers + totalGuests;
 
     const theme = await getTheme();
     const heroUrl = info.heroUrl || 'https://bearbit.org/pic/party_header.jpg';
@@ -3153,23 +3174,37 @@ async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = nu
       galleryUrl: info.galleryUrl,
       galleryLabel: info.galleryLabel,
       images: info.images || [],
-      members: members
+      members: members,
+      totalAttendees,
+      totalGuests,
+      totalMembers
     };
 
     const flexJson = flex.buildPartyFlex(partyData, theme);
-    const altText = `🎉 งานเลี้ยงปีใหม่ (ลงชื่อแล้ว ${members.length} คน)`;
+    const altText = totalGuests > 0
+      ? `🎉 งานเลี้ยงปีใหม่ (ร่วมงาน ${totalAttendees} คน: สมาชิก ${totalMembers} + ผู้ติดตาม ${totalGuests})`
+      : `🎉 งานเลี้ยงปีใหม่ (ลงชื่อแล้ว ${totalMembers} คน)`;
     return [flexJson, null, altText];
   } else {
     // Plain text mode
     if (result && result.length > 0) {
       let body = "";
       let i = 0;
+      let totalAttendees = 0;
+      let totalGuests = 0;
       for (const member of result) {
         const donate = await getDonateBadge(member.donate);
-        body += (i + 1) + ". " + donate + member.name + "\n";
+        const guests = Number(member.guests) || 0;
+        const guestText = guests > 0 ? ` (+${guests} ผู้ติดตาม)` : "";
+        body += (i + 1) + ". " + donate + member.name + guestText + "\n";
+        totalGuests += guests;
+        totalAttendees += (1 + guests);
         i++;
       }
-      let str = headerText + `+${i} พิมพ์ +ny เพื่อลงชื่อครับ\n` + body;
+      const attendeeCountStr = totalGuests > 0 
+        ? `+${totalAttendees} (สมาชิก ${i} คน + ผู้ติดตาม ${totalGuests} คน)` 
+        : `+${i}`;
+      let str = headerText + `${attendeeCountStr} พิมพ์ x1 หรือ x2 เพื่อลงชื่อครับ\n` + body;
       if (info.galleryUrl) {
         str += `\n📸 ${info.galleryLabel || 'อัลบั้มรูปภาพ'}: ${info.galleryUrl}\n`;
       }
