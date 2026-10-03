@@ -1233,6 +1233,25 @@ async function unregisterNY(member_id, target_datetime = null) {
   return { success: true, datetime: eventDatetime, member_id };
 }
 
+async function unregisterGuestNY(member_id, target_datetime = null) {
+  await ensureNYTable();
+  let eventDatetime = target_datetime;
+  if (!eventDatetime) {
+    const info = await getNYEventInfo();
+    eventDatetime = info.eventDatetime;
+  }
+
+  const checkQuery = "SELECT id, guests FROM member_ny_week_tbl WHERE (datetime = ? OR DATE(datetime) = DATE(?)) AND member_id = ?";
+  const rows = await executeQuery(checkQuery, [eventDatetime, eventDatetime, member_id]);
+  if (!rows || rows.length === 0) {
+    return { success: false, notRegistered: true, datetime: eventDatetime, member_id };
+  }
+
+  const query = "UPDATE member_ny_week_tbl SET guests = 0, updated_at = CURRENT_TIMESTAMP WHERE (datetime = ? OR DATE(datetime) = DATE(?)) AND member_id = ?";
+  await executeQuery(query, [eventDatetime, eventDatetime, member_id]);
+  return { success: true, datetime: eventDatetime, member_id, hadGuests: (rows[0].guests || 0) > 0 };
+}
+
 async function registerMember(member_id, member_name) {
   const week = await queryWeekID();
   if (week.length > 0) {
@@ -7680,6 +7699,7 @@ module.exports = {
   getMemberWeek0,
   registerNY,
   unregisterNY,
+  unregisterGuestNY,
   getNYEventInfo,
   ensureNYTable,
   getDebtList,

@@ -10,8 +10,8 @@ const logger = require('./utils/logger');
 const { getNextSaturday } = require('./utils/date');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
-const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3']);
-const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3']);
+const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3', '-guest', '-guests', '-follower', 'delguest', 'remguest', 'cancelguest']);
+const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3', '-guest', '-guests', '-follower', 'delguest', 'remguest', 'cancelguest']);
 
 function parseCommandString(cmdStr) {
     const pos = cmdStr.indexOf(' ');
@@ -415,7 +415,10 @@ const COMMAND_REGISTRY = {
         return [{ type: 'text', text: msg }];
     },
     '-ny': async (context) => {
-        const { member_id, is_flex, groupId } = context;
+        const { param, member_id, is_flex, groupId } = context;
+        if (param && (param.includes('guest') || param.includes('ผู้ติดตาม') || param === '0')) {
+            return COMMAND_REGISTRY['-guest'](context);
+        }
         await db.unregisterNY(member_id);
         const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId);
         if (is_flex && typeof msg === 'object') {
@@ -423,6 +426,20 @@ const COMMAND_REGISTRY = {
         }
         return [{ type: 'text', text: msg }];
     },
+    '-guest': async (context) => {
+        const { member_id, member_name, is_flex, groupId } = context;
+        await db.unregisterGuestNY(member_id);
+        const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "🎉 ลงชื่อร่วมงานเลี้ยงปีใหม่", contents: msg };
+        }
+        return [{ type: 'text', text: msg }];
+    },
+    '-guests': async (context) => COMMAND_REGISTRY['-guest'](context),
+    '-follower': async (context) => COMMAND_REGISTRY['-guest'](context),
+    'delguest': async (context) => COMMAND_REGISTRY['-guest'](context),
+    'remguest': async (context) => COMMAND_REGISTRY['-guest'](context),
+    'cancelguest': async (context) => COMMAND_REGISTRY['-guest'](context),
     'x1': async (context) => { context.ny_guests = 0; return COMMAND_REGISTRY['+ny'](context); },
     'x2': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 1; return COMMAND_REGISTRY['+ny'](context); },
     'x3': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 2; return COMMAND_REGISTRY['+ny'](context); },

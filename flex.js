@@ -6342,14 +6342,29 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
     },
     footer: {
       type: 'box',
-      layout: 'horizontal',
+      layout: 'vertical',
       backgroundColor: colors.bgMain,
       paddingAll: 'md',
       spacing: 'sm',
       contents: [
-        makeBoxButton('➕ ลงชื่อ', '+ny', '#16a34a', 1, 'sm', true),
-        makeBoxButton('👥 มีผู้ติดตาม', 'x2', '#0284c7', 1, 'sm', true),
-        makeBoxButton('❌ ยกเลิก', '-ny', '#dc2626', 1, 'sm', true)
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            makeBoxButton('➕ ลงชื่อ (คนเดียว)', '+ny', '#16a34a', 1, 'sm', true),
+            makeBoxButton('👥 มีผู้ติดตาม', 'x2', '#0284c7', 1, 'sm', true)
+          ]
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            makeBoxButton('➖ ยกเลิกผู้ติดตาม', '-guest', '#d97706', 1, 'sm', true),
+            makeBoxButton('❌ ยกเลิกทั้งหมด', '-ny', '#dc2626', 1, 'sm', true)
+          ]
+        }
       ]
     }
   };
