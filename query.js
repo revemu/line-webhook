@@ -780,7 +780,7 @@ async function setWeekCost(totalCost) {
     return { success: false, message: 'ไม่มีสมาชิกที่ลงชื่อในสัปดาห์นี้' };
   }
 
-  const payingMembers = members.filter(m => (m.team_id !== 101 && m.admin !== 1));
+  const payingMembers = members.filter(m => (m.team_id !== 101 && (!m.admin || m.admin <= 0)));
   //const count = members.length;
   const count = (members.length > week[0].max) ? week[0].max : members.length;
   if (count === 0) {
@@ -3283,7 +3283,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
+      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <= 0)";
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+";
@@ -3412,7 +3412,7 @@ async function getMemberWeek(type = 0) {
     query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
+      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <= 0)";
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+"
@@ -3506,7 +3506,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
     query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.avoid_ids FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
+      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <= 0)";
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+"
