@@ -831,7 +831,8 @@ async function setWeekCost(totalCost) {
   );
 
   // Update debt for main field players:
-  // Non-admins get sharedFee, admins (admin > 0 or team_id = 101) get 0 (free)
+  // Non-admins get sharedFee, admins (admin > 0 or team_id = 101) get 0
+  // หมายเหตุ: Admin ไม่ได้เล่นฟรี แต่ Admin เป็นคนสำรองจ่ายค่าสนามและเคลียร์หักยอดกันเอง จึงตั้ง debt = 0 เพื่อไม่ต้องส่ง slip ยืนยัน
   for (const m of mainFieldPlayers) {
     const isExempt = (m.team_id === 101 || (m.admin && m.admin > 0));
     const debtAmount = isExempt ? 0 : sharedFee;
