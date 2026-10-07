@@ -690,14 +690,33 @@ async function removeReserveMembers() {
   const max_players = week[0].max;
 
   // Fetch all registered members for the week in order of registration
-  const query = "SELECT id, member_id, team_id, name FROM member_team_week_tbl WHERE week_id = ? ORDER BY id ASC";
+  const query = `
+    SELECT mtw.id, mtw.member_id, mtw.team_id, mtw.name, m.team_id as member_team_id 
+    FROM member_team_week_tbl mtw
+    LEFT JOIN member_tbl m ON mtw.member_id = m.id
+    WHERE mtw.week_id = ? 
+    ORDER BY mtw.id ASC
+  `;
   const registrations = await executeQuery(query, [week_id]);
 
+  const teamColors = await getTeamColorWeek(week_id);
+  const teamCount = (teamColors && teamColors.length > 0)
+    ? teamColors.length
+    : ((max_players > 24 || registrations.length > 24) ? 4 : 3);
+  const max_goalies = Math.max(1, teamCount || 3);
+
   let nonGoalieCount = 0;
+  let goalieCount = 0;
   const reservesToRemove = [];
 
   for (const reg of registrations) {
-    if (reg.team_id !== 100) {
+    const isGoalie = (Number(reg.member_team_id) === 100 || Number(reg.team_id) === 100);
+    if (isGoalie) {
+      goalieCount++;
+      if (goalieCount > max_goalies) {
+        reservesToRemove.push(reg);
+      }
+    } else {
       nonGoalieCount++;
       if (nonGoalieCount > max_players) {
         reservesToRemove.push(reg);
@@ -3280,7 +3299,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     const date = new Date(res[0].date);
     const time_range = res[0].time_range || '17:30-20:00';
 
-    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.team_id as member_team_id, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <= 0)";
@@ -3288,9 +3307,16 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
       header = "ลงชื่อเตะบอล";
       start = "+";
     }
+    query += " ORDER BY member_team_week_tbl.id ASC";
 
     const result = await executeQuery(query);
     if (result.length > 0) {
+      const teamColors = await getTeamColorWeek(week_id);
+      const teamCount = (teamColors && teamColors.length > 0)
+        ? teamColors.length
+        : ((max_players > 24 || result.length > 24) ? 4 : 3);
+      const max_goalies = Math.max(1, teamCount || 3);
+
       if (isFlex) {
         const players = [];
         const reserves = [];
@@ -3318,28 +3344,36 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
             String(member.line_user_id) === String(highlightMemberId)
           ) : false;
 
+          const memberItem = { name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent };
+
           if (type == 1) {
-            if (member.team_id == 100) {
-              goalies.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+            const isGoalie = (Number(member.member_team_id) === 100 || Number(member.team_id) === 100);
+            if (isGoalie) {
+              if (goalies.length < max_goalies) {
+                goalies.push(memberItem);
+              } else {
+                const reserveName = (!name_display.includes('(โกล์)') && !name_display.includes('(GK)')) ? `${name_display} (โกล์)` : name_display;
+                reserves.push({ ...memberItem, name: reserveName });
+              }
             } else {
               if (players.length < max_players) {
-                players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+                players.push(memberItem);
               } else {
-                reserves.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+                reserves.push(memberItem);
               }
             }
           } else {
-            players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+            players.push(memberItem);
           }
         }
 
         const theme = await getTheme();
         const autoRegCount = await getAutoRegCount(groupId);
 
-        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, theme, autoRegCount, time_range);
+        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, theme, autoRegCount, time_range, max_goalies);
         let altHeader = `+${players.length}`;
-        if (reserves.length > 0) altHeader += `(${reserves.length})`;
         if (goalies.length > 0) altHeader += `(${goalies.length})`;
+        if (reserves.length > 0) altHeader += `(${reserves.length})`;
         const altText = `${altHeader} ${titleText} เสาร์ที่ ${dateStr} @ ${time_range} น.`;
         return [flexJson, sub, altText];
       }
@@ -3358,9 +3392,16 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
         name_display = (name_display || '').replace('@', '');
 
         if (type == 1) {
-          if (member.team_id == 100) {
-            goal++;
-            goal_str += (goal) + ". " + donate + name_display + "\n";
+          const isGoalie = (Number(member.member_team_id) === 100 || Number(member.team_id) === 100);
+          if (isGoalie) {
+            if (goal < max_goalies) {
+              goal++;
+              goal_str += (goal) + ". " + donate + name_display + "\n";
+            } else {
+              reserve++;
+              const reserveName = (!name_display.includes('(โกล์)') && !name_display.includes('(GK)')) ? `${name_display} (โกล์)` : name_display;
+              reserve_str += (reserve) + ". " + donate + reserveName + "\n";
+            }
           } else {
             if (player < max_players) {
               player++;
@@ -3378,10 +3419,10 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
       }
       let str = header + body;
       header = `+${player}`;
-      if (reserve > 0) str += reserve_str;
       if (goal > 0) str += goal_str;
-      if (reserve > 0) header += `(${reserve})`;
+      if (reserve > 0) str += reserve_str;
       if (goal > 0) header += `(${goal})`;
+      if (reserve > 0) header += `(${reserve})`;
 
       str = `${header} ${str}`;
 
@@ -3409,7 +3450,8 @@ async function getMemberWeek(type = 0) {
 
   if (res.length > 0) {
     const week_id = res[0].id;
-    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    const max_players = res[0].max || 24;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.team_id as member_team_id, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <= 0)";
@@ -3417,21 +3459,16 @@ async function getMemberWeek(type = 0) {
       header = "ลงชื่อเตะบอล";
       start = "+"
     }
-
-    /*const check = `SELECT * from member_tbl where debt > 0`;
-    const check_res = await executeQuery(check);
-    let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
-    let debt_count = 0;
-    if (check_res.length > 0) {
-      for (const member of check_res) {
-        debt_count++;
-        debt_str += `${debt_count}. ${member.name} - ${member.debt}บาท\n`;
-      }
-    }*/
+    query += " ORDER BY member_team_week_tbl.id ASC";
 
     const result = await executeQuery(query);
     if (result.length > 0) {
       const date = new Date(res[0].date);
+      const teamColors = await getTeamColorWeek(week_id);
+      const teamCount = (teamColors && teamColors.length > 0)
+        ? teamColors.length
+        : ((max_players > 24 || result.length > 24) ? 4 : 3);
+      const max_goalies = Math.max(1, teamCount || 3);
 
       header = `${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
       let i = 0;
@@ -3444,24 +3481,31 @@ async function getMemberWeek(type = 0) {
       for (const member of result) {
         //let donate = await getDonateBadge(member.donate);
         let donate = '';
+        let member_name = (member.id == 116 || member.id == 16) ? member.alias : member.name;
+        member_name = (member_name || '').replace('@', '');
 
         if (type == 1) {
-          if (member.team_id == 100) {
-            goal++;
-            goal_str += (goal) + ". " + donate + member.name + "\n";
-          } else {
-
-            //index = player ;
-            if (player < 24) {
-              player++;
-              body += (player) + ". " + donate + member.name + "\n";
+          const isGoalie = (Number(member.member_team_id) === 100 || Number(member.team_id) === 100);
+          if (isGoalie) {
+            if (goal < max_goalies) {
+              goal++;
+              goal_str += (goal) + ". " + donate + member_name + "\n";
             } else {
               reserve++;
-              reserve_str += (reserve) + ". " + donate + member.name + "\n";
+              const reserveName = (!member_name.includes('(โกล์)') && !member_name.includes('(GK)')) ? `${member_name} (โกล์)` : member_name;
+              reserve_str += (reserve) + ". " + donate + reserveName + "\n";
+            }
+          } else {
+            if (player < max_players) {
+              player++;
+              body += (player) + ". " + donate + member_name + "\n";
+            } else {
+              reserve++;
+              reserve_str += (reserve) + ". " + donate + member_name + "\n";
             }
           }
         } else {
-          body += (i + 1) + ". " + donate + member.name + "\n";
+          body += (i + 1) + ". " + donate + member_name + "\n";
           player++;
         }
         i++;
@@ -3469,11 +3513,10 @@ async function getMemberWeek(type = 0) {
       //logger.info(`player: ${player} reserve: ${reserve} goal: ${goal}`);
       let str = header + body;
       header = `+${player}`;
-      if (reserve > 0) str += reserve_str;
       if (goal > 0) str += goal_str;
-      if (reserve > 0) header += `(${reserve})`;
+      if (reserve > 0) str += reserve_str;
       if (goal > 0) header += `(${goal})`;
-      if (debt_count > 0) str += debt_str;
+      if (reserve > 0) header += `(${reserve})`;
 
       str = `${header} ${str}`;
 
@@ -7588,10 +7631,13 @@ async function resolveScheduleTemplateText(templateText, groupId = null) {
       maxPlayers = parseInt(week.max, 10) || 0;
 
       const members = await executeQuery(
-        "SELECT member_id, team_id FROM member_team_week_tbl WHERE week_id = ?",
+        `SELECT mtw.member_id, mtw.team_id, m.team_id as member_team_id 
+         FROM member_team_week_tbl mtw
+         LEFT JOIN member_tbl m ON mtw.member_id = m.id 
+         WHERE mtw.week_id = ?`,
         [week.id]
       );
-      registeredFieldPlayers = (members || []).filter(m => m.team_id != 100).length;
+      registeredFieldPlayers = (members || []).filter(m => Number(m.member_team_id) !== 100 && Number(m.team_id) !== 100).length;
       remaining = Math.max(0, maxPlayers - registeredFieldPlayers);
     }
   } catch (err) {

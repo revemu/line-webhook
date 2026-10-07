@@ -1567,15 +1567,17 @@ function makeTwoColumnMemberRows(list, colors) {
   return rows;
 }
 
-function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, theme, autoRegCount = 0, timeRange = '17:30-20:00') {
+function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, theme, autoRegCount = 0, timeRange = '17:30-20:00', maxGoalies = null) {
   const bodyContents = [];
   let actualTheme = theme;
   let actualAutoRegCount = autoRegCount;
   let actualTimeRange = timeRange;
+  let actualMaxGoalies = maxGoalies;
   if (typeof theme === 'string' && (theme.startsWith('http') || theme.toLowerCase() === 'none')) {
     actualTheme = autoRegCount;
     actualAutoRegCount = timeRange || 0;
     actualTimeRange = arguments[9] || '17:30-20:00';
+    actualMaxGoalies = arguments[10] || null;
   }
   const colors = getThemeColors(actualTheme);
 
@@ -1583,13 +1585,17 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   const headerSubContents = [];
   headerSubContents.push({
     type: 'text',
-    text: `เสาร์ที่ ${dateStr}  ⏰ ${timeRange || '17:30-20:00'} น.`,
+    text: `เสาร์ที่ ${dateStr}  ⏰ ${actualTimeRange || '17:30-20:00'} น.`,
     size: 'xs',
     color: colors.textMuted
   });
 
   const extraCounts = [];
-  if (goalies.length > 0) extraCounts.push(`🧤 ${goalies.length}`);
+  if (actualMaxGoalies) {
+    extraCounts.push(`🧤 ${goalies.length}/${actualMaxGoalies}`);
+  } else if (goalies.length > 0) {
+    extraCounts.push(`🧤 ${goalies.length}`);
+  }
   if (reserves.length > 0) extraCounts.push(`⏳ ${reserves.length}`);
   if (extraCounts.length > 0) {
     headerSubContents.push({
@@ -1717,25 +1723,6 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     });
   }
 
-  // Reserves section
-  if (reserves.length > 0) {
-    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
-    bodyContents.push({
-      type: 'text',
-      text: '⏳ รายชื่อสำรอง',
-      size: 'sm',
-      weight: 'bold',
-      color: colors.name === 'white' ? '#ea580c' : '#ffaa66',
-      margin: 'sm'
-    });
-
-    bodyContents.push({
-      type: 'box',
-      layout: 'vertical',
-      contents: makeTwoColumnMemberRows(reserves, colors)
-    });
-  }
-
   // Goalies section
   if (goalies.length > 0) {
     bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
@@ -1752,6 +1739,25 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       type: 'box',
       layout: 'vertical',
       contents: makeTwoColumnMemberRows(goalies, colors)
+    });
+  }
+
+  // Reserves section
+  if (reserves.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+    bodyContents.push({
+      type: 'text',
+      text: '⏳ รายชื่อสำรอง',
+      size: 'sm',
+      weight: 'bold',
+      color: colors.name === 'white' ? '#ea580c' : '#ffaa66',
+      margin: 'sm'
+    });
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      contents: makeTwoColumnMemberRows(reserves, colors)
     });
   }
 
