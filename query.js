@@ -808,14 +808,11 @@ async function setWeekCost(totalCost) {
     : ((max_players > 24 || members.length > 24) ? 4 : 3);
   const max_goalies = Math.max(1, teamCount || 3);
 
-  // Filter members eligible for paying (exclude exempt team_id=101 and admin > 0)
-  const eligibleMembers = members.filter(m => (m.team_id !== 101 && (!m.admin || m.admin <= 0)));
-
   // Separate field players and goalkeepers
-  const fieldPlayers = eligibleMembers.filter(m => m.team_id !== 100);
-  const goalies = eligibleMembers.filter(m => m.team_id === 100);
+  const fieldPlayers = members.filter(m => m.team_id !== 100);
+  const goalies = members.filter(m => m.team_id === 100);
 
-  // Field players capped at max_players (reserves are excluded from pitch fee calculation)
+  // Field players capped at max_players (main field players)
   const mainFieldPlayers = fieldPlayers.slice(0, max_players);
   const count = mainFieldPlayers.length;
 
@@ -833,19 +830,24 @@ async function setWeekCost(totalCost) {
     [sharedFee, week_id]
   );
 
-  // Update debt for main field players
+  // Update debt for main field players:
+  // Non-admins get sharedFee, admins (admin > 0 or team_id = 101) get 0 (free)
   for (const m of mainFieldPlayers) {
+    const isExempt = (m.team_id === 101 || (m.admin && m.admin > 0));
+    const debtAmount = isExempt ? 0 : sharedFee;
     await executeQuery(
       "UPDATE member_tbl SET debt = ? WHERE id = ?",
-      [sharedFee, m.member_id]
+      [debtAmount, m.member_id]
     );
   }
 
-  // Set fixed fee of 40 baht for main goalkeepers
+  // Set fixed fee of 40 baht for main goalkeepers (unless exempt)
   for (const m of mainGoalies) {
+    const isExempt = (m.team_id === 101 || (m.admin && m.admin > 0));
+    const debtAmount = isExempt ? 0 : 40;
     await executeQuery(
       "UPDATE member_tbl SET debt = ? WHERE id = ?",
-      [40, m.member_id]
+      [debtAmount, m.member_id]
     );
   }
 
