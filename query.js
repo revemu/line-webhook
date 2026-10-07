@@ -786,47 +786,82 @@ async function setWeekCost(totalCost) {
     return { success: false, message: 'ไม่พบข้อมูลสัปดาห์ปัจจุบัน' };
   }
   const week_id = week[0].id;
+  const max_players = week[0].max || 24;
 
-  // Query all members registered for this week
+  // Query all members registered for this week in FIFO order
   const membersQuery = `
     SELECT mtw.member_id, mtw.pay, m.team_id, m.admin 
     FROM member_team_week_tbl mtw
     INNER JOIN member_tbl m ON mtw.member_id = m.id
     WHERE mtw.week_id = ?
+    ORDER BY mtw.id ASC
   `;
   const members = await executeQuery(membersQuery, [week_id]);
   if (members.length === 0) {
     return { success: false, message: 'ไม่มีสมาชิกที่ลงชื่อในสัปดาห์นี้' };
   }
 
-  const payingMembers = members.filter(m => (m.team_id !== 101 && (!m.admin || m.admin <= 0)));
-  //const count = members.length;
-  const count = (members.length > week[0].max) ? week[0].max : members.length;
+  // Calculate team count for max goalkeepers
+  const teamColors = await getTeamColorWeek(week_id);
+  const teamCount = (teamColors && teamColors.length > 0)
+    ? teamColors.length
+    : ((max_players > 24 || members.length > 24) ? 4 : 3);
+  const max_goalies = Math.max(1, teamCount || 3);
+
+  // Filter members eligible for paying (exclude exempt team_id=101 and admin > 0)
+  const eligibleMembers = members.filter(m => (m.team_id !== 101 && (!m.admin || m.admin <= 0)));
+
+  // Separate field players and goalkeepers
+  const fieldPlayers = eligibleMembers.filter(m => m.team_id !== 100);
+  const goalies = eligibleMembers.filter(m => m.team_id === 100);
+
+  // Field players capped at max_players (reserves are excluded from pitch fee calculation)
+  const mainFieldPlayers = fieldPlayers.slice(0, max_players);
+  const count = mainFieldPlayers.length;
+
   if (count === 0) {
     return { success: false, message: 'ไม่มีสมาชิกที่ต้องชำระเงินในสัปดาห์นี้' };
   }
 
+  // Goalkeepers capped at max_goalies (fixed fee 40 baht)
+  const mainGoalies = goalies.slice(0, max_goalies);
+
   const sharedFee = Math.ceil((totalCost + 100) / count) + 35;
-  let costfee = sharedFee;
+
   await executeQuery(
     "UPDATE week_tbl SET cost = ? WHERE id = ?",
-    [costfee, week_id]
+    [sharedFee, week_id]
   );
-  for (const m of payingMembers) {
-    if (m.team_id === 101 || m.admin > 0) {
-      continue;
-    } else if (m.team_id === 100) {
-      costfee = 40;
-    } else {
-      costfee = sharedFee;
-    }
+
+  // Update debt for main field players
+  for (const m of mainFieldPlayers) {
     await executeQuery(
       "UPDATE member_tbl SET debt = ? WHERE id = ?",
-      [costfee, m.member_id]
+      [sharedFee, m.member_id]
     );
   }
 
-  return { success: true, count, sharedFee };
+  // Set fixed fee of 40 baht for main goalkeepers
+  for (const m of mainGoalies) {
+    await executeQuery(
+      "UPDATE member_tbl SET debt = ? WHERE id = ?",
+      [40, m.member_id]
+    );
+  }
+
+  // Ensure reserves have debt set to 0
+  const reserveMembers = [
+    ...fieldPlayers.slice(max_players),
+    ...goalies.slice(max_goalies)
+  ];
+  for (const m of reserveMembers) {
+    await executeQuery(
+      "UPDATE member_tbl SET debt = 0 WHERE id = ?",
+      [m.member_id]
+    );
+  }
+
+  return { success: true, count, sharedFee, goalieCount: mainGoalies.length };
 }
 
 async function resetWeekDebt() {

@@ -875,7 +875,12 @@ const COMMAND_REGISTRY = {
         if (isNaN(totalCost) || totalCost <= 0) return [{ type: 'text', text: "กรุณาระบุค่าสนามเป็นตัวเลขที่มากกว่า 0" }];
         const result = await db.setWeekCost(totalCost);
         if (result.success) {
-            return [{ type: 'text', text: `ตั้งค่าค่าสนามสำเร็จ!\nยอดรวม: ${totalCost} บาท\nสมาชิกลงชื่อ: ${result.count} คน\nเฉลี่ยคนละ: ${result.sharedFee} บาท\nบันทึกยอดค้างชำระเรียบร้อยแล้ว` }];
+            let replyText = `ตั้งค่าค่าสนามสำเร็จ!\nยอดรวม: ${totalCost} บาท\nผู้เล่นในสนาม: ${result.count} คน\nเฉลี่ยคนละ: ${result.sharedFee} บาท`;
+            if (result.goalieCount > 0) {
+                replyText += `\nโกล์ (${result.goalieCount} คน): ค่าธรรมเนียมคนละ 40 บาท`;
+            }
+            replyText += `\nบันทึกยอดค้างชำระเรียบร้อยแล้ว`;
+            return [{ type: 'text', text: replyText }];
         }
         return [{ type: 'text', text: `เกิดข้อผิดพลาด: ${result.message}` }];
     },
