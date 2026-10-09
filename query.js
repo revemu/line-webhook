@@ -7593,29 +7593,59 @@ function evaluateCondition(exprStr, ctx) {
   if (!exprStr) return false;
   const expr = exprStr.trim();
 
-  // Try binary operators: >=, <=, ==, !=, =, >, <
-  const opMatch = expr.match(/^([a-zA-Z0-9_]+)\s*(>=|<=|==|!=|=|>|<)\s*([a-zA-Z0-9_]+)$/);
+  // 1. Try binary operators: >=, <=, ==, !=, =, >, <
+  const opMatch = expr.match(/^([a-zA-Z0-9_]+)\s*(>=|<=|==|!=|=|>|<)\s*(.+)$/);
   if (opMatch) {
-    const leftKey = opMatch[1].toLowerCase();
+    const leftRaw = opMatch[1].trim();
+    const leftKey = leftRaw.toLowerCase();
     const op = opMatch[2];
-    const rightKey = opMatch[3].toLowerCase();
+    const rightRaw = opMatch[3].trim().replace(/^['"]|['"]$/g, '');
+    const rightKey = rightRaw.toLowerCase();
 
-    const leftVal = ctx.hasOwnProperty(leftKey) ? ctx[leftKey] : (!isNaN(Number(opMatch[1])) ? Number(opMatch[1]) : opMatch[1]);
-    const rightVal = ctx.hasOwnProperty(rightKey) ? ctx[rightKey] : (!isNaN(Number(opMatch[3])) ? Number(opMatch[3]) : opMatch[3]);
+    // Check if comparing day of week (e.g. dow == fri, day == 5)
+    const isDowLeft = leftKey === 'dow' || leftKey === 'day' || leftKey === 'weekday';
+    const isDowRight = rightKey === 'dow' || rightKey === 'day' || rightKey === 'weekday';
+
+    if (isDowLeft && SCHEDULE_DAY_MAP[rightKey] !== undefined) {
+      const curDow = ctx.dow !== undefined ? Number(ctx.dow) : -1;
+      const targetDow = SCHEDULE_DAY_MAP[rightKey];
+      switch (op) {
+        case '==':
+        case '=': return curDow === targetDow;
+        case '!=': return curDow !== targetDow;
+      }
+    } else if (isDowRight && SCHEDULE_DAY_MAP[leftKey] !== undefined) {
+      const curDow = ctx.dow !== undefined ? Number(ctx.dow) : -1;
+      const targetDow = SCHEDULE_DAY_MAP[leftKey];
+      switch (op) {
+        case '==':
+        case '=': return curDow === targetDow;
+        case '!=': return curDow !== targetDow;
+      }
+    }
+
+    const leftVal = ctx.hasOwnProperty(leftKey) ? ctx[leftKey] : (!isNaN(Number(leftRaw)) ? Number(leftRaw) : leftRaw);
+    const rightVal = ctx.hasOwnProperty(rightKey) ? ctx[rightKey] : (!isNaN(Number(rightRaw)) ? Number(rightRaw) : rightRaw);
 
     switch (op) {
       case '>=': return leftVal >= rightVal;
       case '<=': return leftVal <= rightVal;
       case '==':
-      case '=': return leftVal == rightVal;
-      case '!=': return leftVal != rightVal;
+      case '=': return String(leftVal).toLowerCase() == String(rightVal).toLowerCase();
+      case '!=': return String(leftVal).toLowerCase() != String(rightVal).toLowerCase();
       case '>': return leftVal > rightVal;
       case '<': return leftVal < rightVal;
     }
   }
 
-  // Single truthy check (e.g. {{#if remaining}})
+  // 2. Direct day-of-week condition check (e.g. {{#if fri}}, {{#if friday}}, {{#if sat}})
   const singleKey = expr.toLowerCase();
+  if (SCHEDULE_DAY_MAP[singleKey] !== undefined) {
+    const curDow = ctx.dow !== undefined ? Number(ctx.dow) : -1;
+    return curDow === SCHEDULE_DAY_MAP[singleKey];
+  }
+
+  // 3. Single truthy check (e.g. {{#if remaining}})
   if (ctx.hasOwnProperty(singleKey)) {
     const val = ctx[singleKey];
     if (typeof val === 'number') return val > 0;
@@ -7698,6 +7728,11 @@ async function resolveScheduleTemplateText(templateText, groupId = null) {
   }
 
   // 2. Build template context for conditionals and replacement
+  const bkkCurrent = getBangkokCurrent();
+  const currentDow = bkkCurrent.dow;
+  const dayNameShort = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][currentDow] || 'sun';
+  const dayNameFull = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][currentDow] || 'sunday';
+
   const ctx = {
     remaining,
     remains: remaining,
@@ -7713,7 +7748,14 @@ async function resolveScheduleTemplateText(templateText, groupId = null) {
     week_date: dateStr,
     timerange: timeRange,
     time_range: timeRange,
-    time: timeRange
+    time: timeRange,
+    dow: currentDow,
+    day: currentDow,
+    weekday: currentDow,
+    day_name: dayNameShort,
+    dayname: dayNameShort,
+    [dayNameShort]: true,
+    [dayNameFull]: true
   };
 
   // 3. Process conditional blocks ({{#if ...}} ... {{/if}})

@@ -107,6 +107,13 @@ line-webhook/
 - ทำงานคู่กับฐานข้อมูล `scheduled_task_tbl`
 - รันผ่าน Node.js `worker_threads` เพื่อป้องกันไม่ให้งานหนักบล็อก Event Loop ของเซิร์ฟเวอร์
 - ตรวจสอบและดึงงานที่ถึงกำหนดเวลา (Scheduled Tasks) เช่น แจ้งเตือนสลิปค้างจ่าย หรือการแจ้งข่าวสาร
+- **ระบบข้อความ Template (`resolveScheduleTemplateText`)**:
+  - ตัวแปร: `#weekdate`, `#timerange`, `#max`, `#registered`, `#remaining`, `{all}`
+  - Conditional Blocks: `{{#if expr}}...{{else}}...{{/if}}` หรือ `[if expr]...[else]...[/if]`
+  - รองรับเงื่อนไขวันในสัปดาห์:
+    - รูปแบบระบุตัวแปร: `{{#if dow == fri}}`, `{{#if dow == 5}}`, `{{#if day == sat}}`
+    - รูปแบบย่อตามชื่อวัน: `{{#if fri}}`, `{{#if friday}}`, `{{#if sat}}`
+    - ตรรกะตัวเลข: `{{#if remaining > 0}}`, `{{#if remaining == 0}}`
 
 ### 4.5 ระบบลงทะเบียนงานเลี้ยงปีใหม่และผู้ติดตาม (`cmd.js`, `flex.js`, `query.js`)
 - **ฐานข้อมูล**: ตาราง `member_ny_week_tbl` เก็บ `datetime`, `member_id`, `name`, `guests` (จำนวนผู้ติดตามเริ่มต้นเป็น 0)

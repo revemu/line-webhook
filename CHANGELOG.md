@@ -7,6 +7,12 @@
 ## [Unreleased] - 2026-10-09
 
 ### Added / Changed
+- **Schedule Task Template Day-of-Week Conditions (รองรับเงื่อนไขวันในข้อความตั้งเวลา)**:
+  - **รองรับการตรวจสอบวันในสัปดาห์**: เพิ่มการประเมินเงื่อนไขเกี่ยวกับวันใน `evaluateCondition` และ `resolveScheduleTemplateText` ผ่าน `getBangkokCurrent().dow`
+  - **รูปแบบที่รองรับ**:
+    - เปรียบเทียบตัวแปร `dow` / `day` / `weekday`: เช่น `{{#if dow == fri}}`, `{{#if dow == friday}}`, `{{#if dow == 5}}`, `{{#if dow != sat}}`
+    - ตรวจสอบชื่อวันโดยตรง: เช่น `{{#if fri}}`, `{{#if friday}}`, `{{#if sat}}` หรือแบบ Bracket `[if fri]...[/if]`
+    - รองรับ block `{{else}}` / `[else]` ร่วมด้วย
 - **Random Team Assignment Update (`/randomteam`)**:
   - **ไม่นำโกล์ลงทีม (`member_tbl.team_id = 100`)**: กรองผู้เล่นที่เป็นโกล์ (`team_id = 100` ใน `member_tbl`) ออกจากการสุ่มทีมทั้งหมด โดยกำหนดให้โกล์มี `team_id = 0` (ไม่สังกัดทีมใดทีมหนึ่ง) และในการ์ดตำแหน่งโกล์ของแต่ละทีมใน Flex Message จะแสดงเป็น `'สลับกัน'` อัตโนมัติ
   - **จำกัดผู้เล่นตาม `maxweek` เคร่งครัด**: ยกเลิกการขยายโควตาผู้เล่นเป็น 32 คนอัตโนมัติ โดยคัดเลือกเฉพาะผู้เล่นในสนาม (Outfield Players) สูงสุดตามโควตา `maxweek` (`week_tbl.max` เช่น 24 คน) แบบ FIFO เท่านั้น ส่วนผู้เล่นลำดับเกินกว่านั้นจะถูกจัดเป็นตัวสำรอง (`reserveMembers`, `team_id = 0`) ทั้งหมด
