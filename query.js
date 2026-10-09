@@ -6454,12 +6454,29 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     return { status: 'NO_PLAYERS', message: 'ยังไม่มีผู้เล่นลงทะเบียนในสัปดาห์นี้' };
   }
 
-  // Limit randomization to members registered strictly within maxweek quota (FIFO by mtw.id ASC)
-  const maxPlayers = (weekInfo && weekInfo[0] && weekInfo[0].max) ? Number(weekInfo[0].max) : 24;
-  const registeredMembers = allRegistered.slice(0, maxPlayers);
-  const reserveMembers = allRegistered.slice(maxPlayers);
+  // Separate goalkeepers (team_id = 100 in member_tbl) and outfield players.
+  // Goalkeepers must NOT be assigned to any team in /randomteam.
+  const isGoalie = (m) => Number(m.member_team_id) === 100;
+  const goalieMembers = allRegistered.filter(isGoalie);
+  const outfieldRegistered = allRegistered.filter(m => !isGoalie(m));
 
-  // Ensure any excess reserve members beyond quota have no team assigned (team_id = 0)
+  // Ensure all goalkeepers have team_id = 0 (unassigned)
+  if (goalieMembers.length > 0) {
+    const goalieMtwIds = goalieMembers.map(r => r.mtw_id).filter(Boolean);
+    if (goalieMtwIds.length > 0) {
+      await executeQuery(
+        `UPDATE member_team_week_tbl SET team_id = 0 WHERE id IN (${goalieMtwIds.join(',')})`
+      );
+    }
+    logger.info(`[randomteam] Excluded ${goalieMembers.length} goalkeeper(s) (team_id=100) from team assignment: ${goalieMembers.map(r => r.name).join(', ')}`);
+  }
+
+  // Limit randomization strictly to outfield players within maxweek quota (FIFO by mtw.id ASC)
+  const maxPlayers = (weekInfo && weekInfo[0] && weekInfo[0].max) ? Number(weekInfo[0].max) : 24;
+  const registeredMembers = outfieldRegistered.slice(0, maxPlayers);
+  const reserveMembers = outfieldRegistered.slice(maxPlayers);
+
+  // Ensure any excess outfield reserve members beyond quota have no team assigned (team_id = 0)
   if (reserveMembers.length > 0) {
     const reserveMtwIds = reserveMembers.map(r => r.mtw_id).filter(Boolean);
     if (reserveMtwIds.length > 0) {
