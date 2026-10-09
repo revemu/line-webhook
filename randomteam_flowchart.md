@@ -48,7 +48,7 @@ flowchart TD
     subgraph PH2["🟡 Phase 2: Priority 1 (ผู้เล่นสำคัญ)"]
         direction TB
         P2A[ดึงผู้เล่นที่มี Priority = 1\nแต่ยังไม่มีทีม]
-        P2A --> P2B[วนตามตำแหน่ง GK, DF, DW, DM, MF, AM, CF\nสุ่มลำดับตำแหน่ง]
+        P2A --> P2B[วนตามตำแหน่ง DF, DW, DM, MF, AM, CF (ไม่เลือกตำแหน่งโกล์)\nสุ่มลำดับตำแหน่ง]
         P2B --> P2C[สำหรับ Priority 1: หาทีมที่ยังไม่มี\nPriority 1 ในตำแหน่งเดียวกัน]
         P2C --> P2D[วางผู้เล่นเข้าทีมที่ดีที่สุด\nBalance: Conflict → Position → Size → Rating]
     end

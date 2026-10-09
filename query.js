@@ -6454,12 +6454,10 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     return { status: 'NO_PLAYERS', message: 'ยังไม่มีผู้เล่นลงทะเบียนในสัปดาห์นี้' };
   }
 
-  // Limit randomization to members registered within quota (FIFO by mtw.id ASC)
-  // If registered members exceed 24, allow 4-team quota of up to 32 players
+  // Limit randomization to members registered strictly within maxweek quota (FIFO by mtw.id ASC)
   const maxPlayers = (weekInfo && weekInfo[0] && weekInfo[0].max) ? Number(weekInfo[0].max) : 24;
-  const effectiveMaxPlayers = (allRegistered.length > 24 && maxPlayers <= 24) ? 32 : maxPlayers;
-  const registeredMembers = allRegistered.slice(0, effectiveMaxPlayers);
-  const reserveMembers = allRegistered.slice(effectiveMaxPlayers);
+  const registeredMembers = allRegistered.slice(0, maxPlayers);
+  const reserveMembers = allRegistered.slice(maxPlayers);
 
   // Ensure any excess reserve members beyond quota have no team assigned (team_id = 0)
   if (reserveMembers.length > 0) {
@@ -6469,7 +6467,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
         `UPDATE member_team_week_tbl SET team_id = 0 WHERE id IN (${reserveMtwIds.join(',')})`
       );
     }
-    logger.info(`[randomteam] Capped at max ${effectiveMaxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
+    logger.info(`[randomteam] Capped strictly at max ${maxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
   }
 
   const N = registeredMembers.length;
@@ -6684,8 +6682,8 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     return candidateTeams;
   };
 
-  // Standard position order for distribution
-  const posOrder = ['GK', 'DF', 'DW', 'DM', 'MF', 'AM', 'CF'];
+  // Standard position order for distribution (Outfield positions only, no GK selection)
+  const posOrder = ['DF', 'DW', 'DM', 'MF', 'AM', 'CF'];
 
   // Helper to pick the best candidate team with balanced capacity, position room, zero avoid conflicts, and randomized tie-breaking
   const pickBestTeam = (candidatePool, group, playerPos, isPriority1 = false) => {
