@@ -162,11 +162,10 @@ function processSlipData(slipData, memberName, options = {}) {
     const { isDuplicate = false, memberDebt = 0, formatDateFn } = options;
 
     if (!slipData) {
-        let header = `🙏 ${memberName} ได้รับสลิปโอนแล้ว \n\n`;
-        header += `** 📝 ยังไม่พบข้อมูลการโอนในระบบที่เชื่อมกับธนาคาร ระบบจะบันทึกสลิปนี้ไว้เพื่อตรวจสอบอีกครั้งครับ บางครั้งข้อมูลจะล่าช้าประมาณ 2-3 นาทีหลังโอน ทำให้ระบบอาจจะยังตรวจสอบไม่พบ \n\nสามารถตรวจสอบสถานะได้ด้วยตัวเองอีกครั้ง ด้วยคำสั่ง /slip **`;
+        let header = `🙏 ${memberName} ได้รับสลิปโอนแล้ว`;
         let logStatus = 'noticed';
         if (isDuplicate) {
-            header += `⚠️ สลิปนี้ถูกส่งมาแล้ว \n\n`;
+            header += `\n\n** สลิปนี้เคยส่งเข้ามาแล้ว **`;
             logStatus = 'duplicate';
         }
         return {
@@ -272,8 +271,8 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
                 logger.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
             }
             if (!isSlipValid) {
-                if (qrCode.includes("60000010103")) {
-                    logger.info('QR payload contains PromptPay identifier (60000010103), accepting slip as fallback.');
+                if (qrCode.includes("60000010103") || qrCode.includes("0016A000000677010111")) {
+                    logger.info('QR payload contains PromptPay identifier, accepting slip as fallback.');
                     isSlipValid = true;
                 }
             }
@@ -366,18 +365,19 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
 
         if (showUnpaid) {
             const [msg, sub, count, weekCost] = await db.getMemberWeek2(0, true);
+            const combinedText = header ? `${header.trimEnd()}\n\n${msg}` : msg;
             let firstMsg;
             if (count === 0 || count > 20 || !sub || Object.keys(sub).length === 0) {
                 firstMsg = {
                     type: 'text',
                     quoteToken: message.quoteToken,
-                    text: header + msg
+                    text: combinedText
                 };
             } else {
                 firstMsg = {
                     type: 'textV2',
                     quoteToken: message.quoteToken,
-                    text: header + msg,
+                    text: combinedText,
                     substitution: sub
                 };
             }
@@ -454,14 +454,14 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
             replyMessages = [{
                 type: 'text',
                 quoteToken: message.quoteToken,
-                text: header
+                text: header.trim()
             }];
         }
     } else {
         replyMessages = [{
             type: 'text',
             quoteToken: message.quoteToken,
-            text: header
+            text: header.trim()
         }];
     }
     const tDbWeek = Date.now() - tDbWeekStart;
