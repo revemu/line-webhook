@@ -1221,7 +1221,12 @@ const COMMAND_REGISTRY = {
         const matchInfo = await db.getCurrentMatch(groupId);
         if (!matchInfo || !matchInfo.sched) return [{ type: 'text', text: 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ' }];
         const cur = matchInfo.currentMatch;
-        return { type: 'flex', altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''}`, contents: flex.buildLiveFlex(matchInfo, theme) };
+        const webLiveUrl = (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/web/view';
+        return { 
+            type: 'flex', 
+            altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''} | ดูสดผ่านเว็บ: ${webLiveUrl}`, 
+            contents: flex.buildLiveFlex(matchInfo, theme) 
+        };
     },
     'maxmvpscore': async (context) => {
         const { param, quoteToken } = context;

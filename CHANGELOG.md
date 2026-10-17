@@ -4,7 +4,22 @@
 
 ---
 
-## [Unreleased] - 2026-10-11
+## [Unreleased] - 2026-10-17
+
+### Added / Changed
+- **Live Match View & Web Stream Link (`/live`)**:
+  - **เพิ่มลิงก์ดูถ่ายทอดสด / ผลการแข่งขันผ่านเว็บ (`https://boxch2.kdnstream.com/web/view`)**:
+    - เพิ่มแถบ Banner ใต้หัวข้อ Live! Match สำหรับคลิกเปิดดูผ่านเว็บได้ทันที
+    - เพิ่มปุ่ม Footer และ Text Link ท้ายการ์ด Flex Message พร้อมรองรับตัวแปร `LIVE_WEB_URL` ใน `.env`
+    - เพิ่ม Action ลิงก์ที่รูปภาพ Header ให้สามารถคลิกเพื่อเปิดเว็บได้
+    - แนบลิงก์รับชมผ่านเว็บลงใน `altText` เพื่อให้เห็นใน Notification
+    - เพิ่มฟังก์ชัน `makeBoxUriButton` ใน `flex.js` สำหรับสร้างปุ่มเปิด URI มาตรฐาน
+  - **ขยายช่วงแมตช์ถัดไปให้แสดงเพิ่มอีก 4 แมตช์**:
+    - ปรับเงื่อนไขการกรองแมตช์ใน `buildLiveFlex` เป็น `maxMatchNo = curMatchNo + 4` (แสดง 2 แมตช์ก่อนหน้า, แมตช์ปัจจุบัน, 4 แมตช์ถัดไป และแมตช์สุดท้าย เช่น `3 4 live 6 7 8 9 ... 18`)
+
+---
+
+## [0.5.4] - 2026-10-11
 
 ### Changed
 - **Slip Verification Message Simplification (ปรับข้อความเมื่อตรวจสอบสลิปไม่สำเร็จให้กระชับ)**:

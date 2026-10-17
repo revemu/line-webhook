@@ -871,14 +871,15 @@ function buildNowFlex(matchInfo, theme) {
  * @param {object} matchInfo - result from getCurrentMatch() containing sched, dbMatches, currentMatch, scorers, assists, table
  */
 function buildLiveFlex(matchInfo, theme) {
-  const { sched, currentMatch, scorers, assists, table, dbMatches, recentMatchDetails, imageUrl } = matchInfo;
+  const { sched, currentMatch, scorers, assists, table, dbMatches, recentMatchDetails, imageUrl, webLiveUrl } = matchInfo;
   const { date, startTime, matchMinutes, totalHours, teams, totalMatches, totalRounds, endTime, matches } = sched;
   const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
+  const targetWebUrl = webLiveUrl || (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/web/view';
 
-  // Filter to show 5 matches max: 2 previous matches, 1 current match, 2 next matches
+  // Filter to show matches: 2 previous matches, 1 current match, 4 next matches (e.g. 3, 4, live, 6, 7, 8, 9 ... 18)
   const curMatchNo = currentMatch ? currentMatch.matchNo : 1;
   const minMatchNo = Math.max(1, curMatchNo - 2);
-  const maxMatchNo = curMatchNo + 2;
+  const maxMatchNo = curMatchNo + 4;
   const displayMatches = matches.filter(m => m.matchNo >= minMatchNo && m.matchNo <= maxMatchNo);
 
   // Group display matches by round
@@ -913,6 +914,52 @@ function buildLiveFlex(matchInfo, theme) {
         color: colors.textMuted,
         align: 'end',
         margin: 'xs'
+      }
+    ]
+  });
+
+  // ── Web Live Link Banner ──
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'xs',
+    paddingStart: 'sm',
+    paddingEnd: 'sm',
+    paddingTop: 'xs',
+    paddingBottom: 'xs',
+    backgroundColor: colors.name === 'white' ? '#eff6ff' : '#0c2340',
+    borderColor: colors.name === 'white' ? '#bfdbfe' : '#1d4ed8',
+    borderWidth: '1px',
+    cornerRadius: 'sm',
+    alignItems: 'center',
+    action: {
+      type: 'uri',
+      label: 'ดูสดผ่านเว็บ',
+      uri: targetWebUrl
+    },
+    contents: [
+      {
+        type: 'text',
+        text: '🌐',
+        size: 'xs',
+        flex: 0
+      },
+      {
+        type: 'text',
+        text: 'ดูสดผ่านเว็บ: boxch2.kdnstream.com/web/view',
+        size: 'xs',
+        color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
+        weight: 'bold',
+        margin: 'xs',
+        flex: 1
+      },
+      {
+        type: 'text',
+        text: '↗',
+        size: 'xs',
+        color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
+        weight: 'bold',
+        flex: 0
       }
     ]
   });
@@ -1279,6 +1326,33 @@ function buildLiveFlex(matchInfo, theme) {
       backgroundColor: colors.bgMain,
       paddingAll: 'sm',
       contents: bodyContents
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingStart: 'sm',
+      paddingEnd: 'sm',
+      paddingBottom: 'sm',
+      paddingTop: 'none',
+      spacing: 'xs',
+      contents: [
+        makeBoxUriButton('🌐 ดูถ่ายทอดสด / ผลการแข่งขันผ่านเว็บ', targetWebUrl, '#0284c7'),
+        {
+          type: 'text',
+          text: targetWebUrl,
+          size: 'xxs',
+          color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
+          align: 'center',
+          decoration: 'underline',
+          margin: 'xs',
+          action: {
+            type: 'uri',
+            label: 'Web Link',
+            uri: targetWebUrl
+          }
+        }
+      ]
     }
   };
 
@@ -1295,7 +1369,12 @@ function buildLiveFlex(matchInfo, theme) {
           url: headerUrl,
           size: 'full',
           aspectRatio: '20:7',
-          aspectMode: 'cover'
+          aspectMode: 'cover',
+          action: {
+            type: 'uri',
+            label: 'Web View',
+            uri: targetWebUrl
+          }
         }
       ]
     };
@@ -1342,6 +1421,36 @@ function makeDisabledBoxButton(label, color = '#9ca3af', flexVal = 1, size = 'sm
     cornerRadius: 'md',
     paddingTop: 'sm',
     paddingBottom: 'sm',
+    contents: [
+      {
+        type: 'text',
+        text: label,
+        color: '#ffffff',
+        align: 'center',
+        weight: 'bold',
+        size: size,
+        wrap: wrap
+      }
+    ],
+    flex: flexVal
+  };
+}
+
+function makeBoxUriButton(label, uri, color, flexVal = 1, size = 'sm', wrap = false) {
+  const safeColor = color && typeof color === 'string' && /^[0-9a-fA-F]{3,8}$/.test(color) ? `#${color}` : color;
+  const actionLabel = typeof label === 'string' ? label.slice(0, 40) : label;
+  return {
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: safeColor,
+    cornerRadius: 'md',
+    paddingTop: 'sm',
+    paddingBottom: 'sm',
+    action: {
+      type: 'uri',
+      label: actionLabel,
+      uri: uri
+    },
     contents: [
       {
         type: 'text',
@@ -6526,6 +6635,7 @@ module.exports = {
   buildMatchWeekRestMvpFlex,
   buildMatchWeekMatchesFlex,
   buildMatchWeekMessages,
-  buildPartyFlex
+  buildPartyFlex,
+  makeBoxUriButton
 };
 
