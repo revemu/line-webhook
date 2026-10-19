@@ -211,6 +211,14 @@ async function ensureMatchStatScheduleColumns() {
     // Graceful: MySQL user may not have ALTER privilege or manual migration will be used
     logger.warn('Notice: match_stat_tbl schema check (manual migration: migrations/match_stat_schedule.sql):', err.message);
   }
+
+  try {
+    await executeQuery(`
+      ALTER TABLE match_stat_tbl
+        MODIFY COLUMN team_a_goal INT NULL DEFAULT NULL,
+        MODIFY COLUMN team_b_goal INT NULL DEFAULT NULL
+    `);
+  } catch (modErr) { }
 }
 
 
@@ -4066,6 +4074,9 @@ async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
   if (!week_id || !Array.isArray(scheduleMatches) || scheduleMatches.length === 0) return false;
 
   try {
+    // Ensure schedule schema columns exist
+    await ensureMatchStatScheduleColumns();
+
     // 1. Query existing records for this week
     const existing = await executeQuery(
       "SELECT * FROM match_stat_tbl WHERE week_id = ? ORDER BY match_num ASC",
@@ -4079,10 +4090,26 @@ async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
       }
     }
 
+    // Build color to ID mapping as fallback if teamAId / teamBId is missing in fixture
+    const colorToIdMap = new Map();
+    try {
+      const colors = await getTeamColorWeek(week_id);
+      if (colors && colors.length > 0) {
+        for (const c of colors) {
+          if (c.color) colorToIdMap.set(String(c.color).trim().toLowerCase(), c.id);
+        }
+      }
+    } catch (colErr) { }
+
     // 2. Insert or update fixtures
     for (const m of scheduleMatches) {
       const matchNum = m.matchNo;
       const ex = existingMap.get(matchNum);
+      const round = m.round || 1;
+      const startTime = m.startTime || null;
+      const endTime = m.endTime || null;
+      let teamAId = m.teamAId || (m.teamA ? colorToIdMap.get(String(m.teamA).trim().toLowerCase()) : null) || null;
+      let teamBId = m.teamBId || (m.teamB ? colorToIdMap.get(String(m.teamB).trim().toLowerCase()) : null) || null;
 
       if (ex) {
         const isPlayed = ex.status === 'finished' || ex.status === 'in_progress' || (ex.status === undefined && ex.team_a_goal !== null && ex.team_a_goal !== undefined);
@@ -4091,7 +4118,7 @@ async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
           try {
             await executeQuery(
               "UPDATE match_stat_tbl SET round = ?, start_time = ?, end_time = ? WHERE id = ?",
-              [m.round, m.startTime, m.endTime, ex.id]
+              [round, startTime, endTime, ex.id]
             );
           } catch (e) { }
         } else {
@@ -4099,13 +4126,20 @@ async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
           try {
             await executeQuery(
               "UPDATE match_stat_tbl SET round = ?, start_time = ?, end_time = ?, team_a_id = ?, team_b_id = ?, team_a_goal = NULL, team_b_goal = NULL, status = 'scheduled' WHERE id = ?",
-              [m.round, m.startTime, m.endTime, m.teamAId, m.teamBId, ex.id]
+              [round, startTime, endTime, teamAId, teamBId, ex.id]
             );
           } catch (updateColErr) {
-            await executeQuery(
-              "UPDATE match_stat_tbl SET team_a_id = ?, team_b_id = ? WHERE id = ?",
-              [m.teamAId, m.teamBId, ex.id]
-            );
+            try {
+              await executeQuery(
+                "UPDATE match_stat_tbl SET team_a_id = ?, team_b_id = ?, team_a_goal = NULL, team_b_goal = NULL WHERE id = ?",
+                [teamAId, teamBId, ex.id]
+              );
+            } catch (u2) {
+              await executeQuery(
+                "UPDATE match_stat_tbl SET team_a_id = ?, team_b_id = ? WHERE id = ?",
+                [teamAId, teamBId, ex.id]
+              );
+            }
           }
         }
       } else {
@@ -4113,13 +4147,27 @@ async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
         try {
           await executeQuery(
             "INSERT INTO match_stat_tbl (week_id, match_num, round, start_time, end_time, team_a_id, team_b_id, team_a_goal, team_b_goal, status) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'scheduled')",
-            [week_id, matchNum, m.round, m.startTime, m.endTime, m.teamAId, m.teamBId]
+            [week_id, matchNum, round, startTime, endTime, teamAId, teamBId]
           );
         } catch (insertColErr) {
-          await executeQuery(
-            "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id) VALUES (?, ?, ?, ?)",
-            [week_id, matchNum, m.teamAId, m.teamBId]
-          );
+          try {
+            await executeQuery(
+              "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id, team_a_goal, team_b_goal) VALUES (?, ?, ?, ?, NULL, NULL)",
+              [week_id, matchNum, teamAId, teamBId]
+            );
+          } catch (i2) {
+            try {
+              await executeQuery(
+                "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id) VALUES (?, ?, ?, ?)",
+                [week_id, matchNum, teamAId, teamBId]
+              );
+            } catch (i3) {
+              await executeQuery(
+                "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id, team_a_goal, team_b_goal) VALUES (?, ?, ?, ?, 0, 0)",
+                [week_id, matchNum, teamAId, teamBId]
+              );
+            }
+          }
         }
       }
     }
@@ -4142,6 +4190,174 @@ async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
     logger.warn('[schedule] Failed to save schedule into match_stat_tbl (run migrations/match_stat_schedule.sql):', err.message);
     return false;
   }
+}
+
+// ── Database Schedule Builder ──
+// Loads the week schedule directly from match_stat_tbl and team_color_week_tbl (SSOT)
+async function getScheduleFromDb(week_id) {
+  if (!week_id) return null;
+
+  try {
+    const weekRows = await queryWeekID(week_id);
+    if (!weekRows || weekRows.length === 0) return null;
+    const weekRow = weekRows[0];
+
+    const dbMatches = await queryMatchWeek(week_id);
+    if (!dbMatches || dbMatches.length === 0) return null;
+
+    const teamColors = await getTeamColorWeek(week_id);
+    const colorMap = new Map();
+    if (teamColors && teamColors.length > 0) {
+      teamColors.forEach(c => colorMap.set(c.id, c.color));
+    }
+    const teams = teamColors && teamColors.length > 0 ? teamColors.map(c => c.color) : [];
+    const numTeams = teams.length || 4;
+    const cycleLen = (numTeams * (numTeams - 1)) / 2 || 6;
+
+    const scheduleMatches = dbMatches.map((r, i) => {
+      const teamA = colorMap.get(r.team_a_id) || `ทีม ${r.team_a_id}`;
+      const teamB = colorMap.get(r.team_b_id) || `ทีม ${r.team_b_id}`;
+      return {
+        matchNo: r.match_num,
+        round: r.round || Math.floor(i / cycleLen) + 1,
+        startTime: r.start_time || '',
+        endTime: r.end_time || '',
+        teamA,
+        teamAId: r.team_a_id,
+        teamB,
+        teamBId: r.team_b_id,
+        resting: teams.filter(t => t !== teamA && t !== teamB),
+        status: r.status,
+        team_a_goal: r.team_a_goal,
+        team_b_goal: r.team_b_goal
+      };
+    });
+
+    let currentMatchNo = 1;
+    let nextMatchNo = Math.min(2, scheduleMatches.length);
+    let matchStatus = 'scheduled';
+    const hasStatusCol = dbMatches.some(r => r.status !== undefined && r.status !== null);
+
+    if (hasStatusCol) {
+      const inProg = dbMatches.find(r => r.status === 'in_progress');
+      if (inProg) {
+        currentMatchNo = inProg.match_num;
+        matchStatus = 'in_progress';
+        const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+        nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, scheduleMatches.length);
+      } else {
+        const firstSched = dbMatches.find(r => r.status === 'scheduled');
+        if (firstSched) {
+          currentMatchNo = firstSched.match_num;
+          matchStatus = 'scheduled';
+          const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+          nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, scheduleMatches.length);
+        } else {
+          currentMatchNo = scheduleMatches.length;
+          matchStatus = 'all_finished';
+          nextMatchNo = currentMatchNo;
+        }
+      }
+    } else {
+      const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
+      currentMatchNo = maxDbMatchNum;
+      nextMatchNo = Math.min(maxDbMatchNum + 1, scheduleMatches.length);
+    }
+
+    const currentMatch = scheduleMatches.find(m => m.matchNo === currentMatchNo) || scheduleMatches[0];
+    const nextMatch = scheduleMatches.find(m => m.matchNo === nextMatchNo) || null;
+
+    let dateStr = '';
+    if (weekRow.date) {
+      const dateObj = new Date(weekRow.date);
+      dateStr = `${dateObj.getDate()} ${thaiMonthsShort[dateObj.getMonth()]} ${String(dateObj.getFullYear()).slice(-2)}`;
+    }
+
+    const firstMatch = scheduleMatches[0];
+    const lastMatch = scheduleMatches[scheduleMatches.length - 1];
+    const startTimeStr = firstMatch?.startTime || '17:30';
+    const endTimeStr = lastMatch?.endTime || '20:00';
+
+    let matchMin = 8;
+    if (firstMatch && firstMatch.startTime && firstMatch.endTime) {
+      const [sh, sm] = firstMatch.startTime.replace('.', ':').split(':').map(Number);
+      const [eh, em] = firstMatch.endTime.replace('.', ':').split(':').map(Number);
+      const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+      if (diff > 0) matchMin = diff;
+    }
+
+    let breakMin = 2;
+    if (scheduleMatches.length > 1 && scheduleMatches[0].endTime && scheduleMatches[1].startTime) {
+      const [e1h, e1m] = scheduleMatches[0].endTime.replace('.', ':').split(':').map(Number);
+      const [s2h, s2m] = scheduleMatches[1].startTime.replace('.', ':').split(':').map(Number);
+      const bDiff = (s2h * 60 + (s2m || 0)) - (e1h * 60 + (e1m || 0));
+      if (bDiff >= 0) breakMin = bDiff;
+    }
+
+    const [startH, startM] = startTimeStr.replace('.', ':').split(':').map(Number);
+    const [endH, endM] = endTimeStr.replace('.', ':').split(':').map(Number);
+    let totalMins = (endH * 60 + (endM || 0)) - (startH * 60 + (startM || 0));
+    if (totalMins < 0) totalMins += 1440;
+    const totalHours = Number((totalMins / 60).toFixed(2));
+    const totalRounds = Math.ceil(scheduleMatches.length / cycleLen);
+
+    let imageUrl = null;
+    try {
+      const imgTpl = await getTemplate('schedule', 'header');
+      if (imgTpl && imgTpl.url) imageUrl = imgTpl.url;
+    } catch (err) { }
+
+    return {
+      weekId: week_id,
+      date: dateStr,
+      startTime: startTimeStr,
+      endTime: endTimeStr,
+      matchMinutes: matchMin,
+      breakMinutes: breakMin,
+      totalHours: totalHours,
+      teams: teams,
+      totalMatches: scheduleMatches.length,
+      totalRounds: totalRounds,
+      currentMatch,
+      nextMatch,
+      imageUrl,
+      dbMatches,
+      matches: scheduleMatches,
+      matchStatus
+    };
+  } catch (err) {
+    logger.error('[schedule] failed to build schedule from DB:', err.message);
+    return null;
+  }
+}
+
+// Formats schedule lines for text display
+function formatScheduleLines(sched) {
+  if (!sched || !Array.isArray(sched.matches)) return '';
+  const lines = [];
+  lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${sched.date}`);
+  const breakInfo = (sched.breakMinutes && sched.breakMinutes > 0) ? ` (พัก ~${Number(sched.breakMinutes).toFixed(1).replace('.0', '')} นาที)` : '';
+  lines.push(`🕐 เริ่ม ${sched.startTime} น. - ${sched.endTime} น. | ${sched.matchMinutes} นาที/แมตช์${breakInfo}`);
+  const displayHours = Number(Number(sched.totalHours || 2.5).toFixed(2));
+  const numTeams = (sched.teams || []).length || 4;
+  const cycleLen = (numTeams * (numTeams - 1)) / 2 || 6;
+  const totalRounds = sched.totalRounds || Math.ceil(sched.matches.length / cycleLen);
+  const matchesPerTeam = Math.round((sched.matches.length * 2) / numTeams);
+  lines.push(`👥 ${numTeams} ทีม | ${sched.matches.length} แมตช์ (${totalRounds} รอบ • ทีมละ ${matchesPerTeam} แมตช์เท่ากัน) | ${displayHours} ชม.`);
+  lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
+  lines.push('─'.repeat(30));
+
+  sched.matches.forEach((m, i) => {
+    if (i % cycleLen === 0) {
+      lines.push(`▶ รอบที่ ${Math.floor(i / cycleLen) + 1}`);
+    }
+    const restingStr = Array.isArray(m.resting) ? m.resting.join(', ') : '';
+    lines.push(`[${m.matchNo || i + 1}] ${m.startTime}-${m.endTime}  ${m.teamA} vs ${m.teamB}${restingStr ? `  (พัก: ${restingStr})` : ''}`);
+  });
+
+  lines.push('─'.repeat(30));
+  lines.push(`สิ้นสุด ${sched.endTime} น.`);
+  return lines.join('\n');
 }
 
 async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = null, totalHours = null, endTimeStr = null, forceRegen = false, targetTeamCount = null) {
@@ -4176,81 +4392,17 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     }
   }
 
-  const jsonPath = path.join(__dirname, 'schedule.json');
-  if (!forceRegen && fs.existsSync(jsonPath)) {
+  // 1. Primary: Load existing schedule directly from MySQL match_stat_tbl (SSOT)
+  if (!forceRegen) {
     try {
-      const existing = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-      const existingTeamCount = Array.isArray(existing?.teams) ? existing.teams.length : 0;
-      if (existing && existing.weekId === week_id && Array.isArray(existing.matches) && existing.matches.length > 0 && existingTeamCount === desiredTeamCount) {
-        // Sync with match_stat_tbl to find current & next match
-        let currentMatchNo = 1;
-        let nextMatchNo = 2;
-        let dbMatches = [];
-        try {
-          const rows = await queryMatchWeek(week_id);
-          if (rows && rows.length > 0) {
-            dbMatches = rows;
-            const inProg = dbMatches.find(r => r.status === 'in_progress');
-            if (inProg) {
-              currentMatchNo = inProg.match_num;
-              const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
-              nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, existing.matches.length);
-            } else {
-              const firstSched = dbMatches.find(r => r.status === 'scheduled');
-              if (firstSched) {
-                currentMatchNo = firstSched.match_num;
-                const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
-                nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, existing.matches.length);
-              } else {
-                const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
-                currentMatchNo = maxDbMatchNum;
-                nextMatchNo = Math.min(maxDbMatchNum + 1, existing.matches.length);
-              }
-            }
-          }
-        } catch (err) {
-          logger.error('[schedule] failed to query match_stat_tbl:', err.message);
-        }
-
-        existing.currentMatch = existing.matches.find(m => m.matchNo === currentMatchNo) || existing.matches[0];
-        existing.nextMatch = existing.matches.find(m => m.matchNo === nextMatchNo) || null;
-        existing.dbMatches = dbMatches;
-
-        try {
-          const imgTpl = await getTemplate('schedule', 'header');
-          if (imgTpl && imgTpl.url) {
-            existing.imageUrl = imgTpl.url;
-          }
-        } catch (err) { }
-
-        const lines = [];
-        lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${existing.date}`);
-        const breakInfo = (existing.breakMinutes && existing.breakMinutes > 0) ? ` (พัก ~${Number(existing.breakMinutes).toFixed(1).replace('.0', '')} นาที)` : '';
-        lines.push(`🕐 เริ่ม ${existing.startTime} น. - ${existing.endTime} น. | ${existing.matchMinutes} นาที/แมตช์${breakInfo}`);
-        const displayHours = Number(Number(existing.totalHours || 2.5).toFixed(2));
-        const numTeams = (existing.teams || []).length || 4;
-        const cycleLen = (numTeams * (numTeams - 1)) / 2;
-        const totalRounds = existing.totalRounds || Math.ceil(existing.matches.length / cycleLen);
-        const matchesPerTeam = Math.round((existing.matches.length * 2) / numTeams);
-        lines.push(`👥 ${numTeams} ทีม | ${existing.matches.length} แมตช์ (${totalRounds} รอบ • ทีมละ ${matchesPerTeam} แมตช์เท่ากัน) | ${displayHours} ชม.`);
-        lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
-        lines.push('─'.repeat(30));
-
-        existing.matches.forEach((m, i) => {
-          if (i % cycleLen === 0) {
-            lines.push(`▶ รอบที่ ${Math.floor(i / cycleLen) + 1}`);
-          }
-          const restingStr = Array.isArray(m.resting) ? m.resting.join(', ') : '';
-          lines.push(`[${m.matchNo || i + 1}] ${m.startTime}-${m.endTime}  ${m.teamA} vs ${m.teamB}${restingStr ? `  (พัก: ${restingStr})` : ''}`);
-        });
-
-        lines.push('─'.repeat(30));
-        lines.push(`สิ้นสุด ${existing.endTime} น.`);
-
-        return [lines.join('\n'), existing];
+      const dbSched = await getScheduleFromDb(week_id);
+      const dbTeamCount = Array.isArray(dbSched?.teams) ? dbSched.teams.length : 0;
+      if (dbSched && Array.isArray(dbSched.matches) && dbSched.matches.length > 0 && dbTeamCount === desiredTeamCount) {
+        const lines = formatScheduleLines(dbSched);
+        return [lines, dbSched];
       }
-    } catch (readErr) {
-      logger.error('[schedule] failed to read existing schedule.json:', readErr.message);
+    } catch (err) {
+      logger.error('[schedule] failed to load schedule from DB:', err.message);
     }
   }
 
@@ -4775,66 +4927,41 @@ async function getMatchScorersAndAssists(matchId, assets, groupId) {
 }
 
 // ── Live current/next match lookup ──
-// Reads the schedule list from schedule.json but re-queries match_stat_tbl
-// for the latest match_num so it is always up to date.
+// Reads the schedule directly from MySQL (match_stat_tbl) as SSOT
 async function getCurrentMatch(groupId = null) {
-  const jsonPath = path.join(__dirname, 'schedule.json');
-  if (!require('fs').existsSync(jsonPath)) return null;
-
-  const sched = JSON.parse(require('fs').readFileSync(jsonPath, 'utf8'));
-  const schedMatches = sched.matches;
-  if (!schedMatches || schedMatches.length === 0) return null;
-
-  let currentMatchNo = 1;
-  let nextMatchNo = Math.min(2, schedMatches.length);
-  let currentDbRow = null;
-  let matchStatus = 'scheduled'; // 'scheduled' | 'in_progress' | 'all_finished'
-
-  let dbMatches = [];
   const week = await queryWeekID();
-  if (week && week.length > 0) {
-    dbMatches = await queryMatchWeek(week[0].id);
-    if (dbMatches && dbMatches.length > 0) {
-      const hasStatusCol = dbMatches.some(r => r.status !== undefined && r.status !== null);
+  if (!week || week.length === 0) return null;
+  const weekId = week[0].id;
 
-      if (hasStatusCol) {
-        // 1. Is there an in-progress match?
-        const inProgress = dbMatches.find(r => r.status === 'in_progress');
-        if (inProgress) {
-          currentMatchNo = inProgress.match_num;
-          currentDbRow = inProgress;
-          matchStatus = 'in_progress';
-          const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
-          nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, schedMatches.length);
-        } else {
-          // 2. Find first scheduled match (Upcoming / Next Up)
-          const firstSched = dbMatches.find(r => r.status === 'scheduled');
-          if (firstSched) {
-            currentMatchNo = firstSched.match_num;
-            currentDbRow = firstSched;
-            matchStatus = 'scheduled';
-            const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
-            nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, schedMatches.length);
-          } else {
-            // 3. All matches are finished!
-            currentMatchNo = schedMatches.length;
-            currentDbRow = dbMatches.find(r => r.match_num === currentMatchNo) || dbMatches[dbMatches.length - 1];
-            matchStatus = 'all_finished';
-            nextMatchNo = currentMatchNo;
-          }
+  // 1. Primary: Load schedule directly from MySQL (match_stat_tbl)
+  let sched = await getScheduleFromDb(weekId);
+
+  // Fallback: If DB does not have matches yet, check if legacy schedule.json exists on disk
+  if (!sched || !sched.matches || sched.matches.length === 0) {
+    const jsonPath = path.join(__dirname, 'schedule.json');
+    if (fs.existsSync(jsonPath)) {
+      try {
+        const rawJson = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+        if (rawJson && rawJson.matches && rawJson.matches.length > 0) {
+          // Auto-migrate legacy fixtures to match_stat_tbl in MySQL
+          await saveScheduleToDb(weekId, rawJson.matches, false);
+          sched = await getScheduleFromDb(weekId) || rawJson;
         }
-      } else {
-        // Fallback for legacy DB without status column:
-        const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
-        currentMatchNo = maxDbMatchNum;
-        nextMatchNo = Math.min(maxDbMatchNum + 1, schedMatches.length);
-        currentDbRow = dbMatches.find(r => r.match_num === maxDbMatchNum);
-      }
+      } catch (e) { }
     }
   }
 
-  const currentMatch = schedMatches.find(m => m.matchNo === currentMatchNo) || schedMatches[0];
-  const nextMatch = schedMatches.find(m => m.matchNo === nextMatchNo && nextMatchNo !== currentMatchNo) || null;
+  if (!sched || !sched.matches || sched.matches.length === 0) return null;
+
+  const schedMatches = sched.matches;
+  const dbMatches = sched.dbMatches || [];
+  const currentMatchNo = sched.currentMatch ? sched.currentMatch.matchNo : 1;
+  const nextMatchNo = sched.nextMatch ? sched.nextMatch.matchNo : Math.min(2, schedMatches.length);
+  const currentMatch = sched.currentMatch;
+  const nextMatch = sched.nextMatch;
+  const matchStatus = sched.matchStatus || 'scheduled';
+  const currentDbRow = dbMatches.find(r => r.match_num === currentMatchNo) || null;
+
   const nextMatch2No = Math.min(currentMatchNo + 2, schedMatches.length);
   const nextMatch2 = (nextMatch2No !== currentMatchNo && nextMatch2No !== nextMatchNo)
     ? (schedMatches.find(m => m.matchNo === nextMatch2No) || null)
@@ -8036,6 +8163,8 @@ module.exports = {
   ensureNYTable,
   getDebtList,
   getScheduleText,
+  getScheduleFromDb,
+  formatScheduleLines,
   getCurrentMatch,
   saveScheduleToDb,
   ensureMatchStatScheduleColumns,

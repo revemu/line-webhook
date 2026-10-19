@@ -9,5 +9,9 @@ ALTER TABLE `match_stat_tbl`
   ADD COLUMN `status` ENUM('scheduled', 'in_progress', 'finished') NOT NULL DEFAULT 'finished' COMMENT 'สถานะแมตช์' AFTER `team_b_goal`,
   ADD COLUMN `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
 
+ALTER TABLE `match_stat_tbl`
+  MODIFY COLUMN `team_a_goal` INT NULL DEFAULT NULL,
+  MODIFY COLUMN `team_b_goal` INT NULL DEFAULT NULL;
+
 -- Optional: Add index on (week_id, match_num) for fast lookups
 -- ALTER TABLE `match_stat_tbl` ADD INDEX `idx_week_match` (`week_id`, `match_num`);

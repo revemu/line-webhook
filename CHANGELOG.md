@@ -8,11 +8,15 @@
 
 ### Added / Changed
 - **Database-Backed Schedule & Match Progression (`/schedule`, `/now`, `/live`)**:
-  - **บันทึกตารางแข่งลง MySQL (`match_stat_tbl`) โดยตรง**:
-    - ปรับปรุงให้คำสั่ง `/schedule` บันทึกคู่แข่งขัน 18 แมตช์ (round, start_time, end_time, team_a_id, team_b_id, status = 'scheduled') ลงในตาราง `match_stat_tbl` โดยอัตโนมัติ พร้อมทั้งเขียน `schedule.json` เป็น fallback cache
-    - เพิ่มฟังก์ชัน `saveScheduleToDb(week_id, scheduleMatches, forceRegen)` ใน `query.js` ป้องกันการเขียนทับผลการแข่งขันของแมตช์ที่แข่งเสร็จแล้ว (เว้นแต่จะระบุคำสั่ง force / reset)
-    - เพิ่ม Migration SQL `migrations/match_stat_schedule.sql` สำหรับเพิ่มคอลัมน์ `round`, `start_time`, `end_time`, `status` และ `updated_at` ใน `match_stat_tbl`
-    - เพิ่มฟังก์ชัน `ensureMatchStatScheduleColumns()` ใน `query.js` เพื่อตรวจสอบโครงสร้างตารางตอนเริ่มต้นอย่างปลอดภัย
+  - **ยกเลิกการพึ่งพา `schedule.json` และเปลี่ยนมาใช้ MySQL (`match_stat_tbl`) เป็น Single Source of Truth (SSOT) 100%**:
+    - เพิ่มฟังก์ชัน `getScheduleFromDb(week_id)` ใน `query.js` ดึงข้อมูลตารางแข่งขันและประมวลผล Match Progression Lifecycle โดยตรงจากตาราง `match_stat_tbl` และ `team_color_week_tbl`
+    - ปรับคำสั่ง `/schedule` ให้ตรวจสอบและโหลดตารางที่มีอยู่แล้วจากฐานข้อมูล `match_stat_tbl` โดยตรง ไม่ต้องพึ่งพาหรืออ่านไฟล์ `schedule.json`
+    - ปรับฟังก์ชัน `getCurrentMatch()` สำหรับคำสั่ง `/now` และ `/live` ให้ดึงข้อมูลสดจากฐานข้อมูลโดยตรง ทำให้การแก้ไขผลการแข่งขันหรือเวลาในฐานข้อมูลสะท้อนขึ้นหน้าแชทแบบ Realtime ทันที
+    - แก้ไขปัญหาความไม่สอดคล้องของข้อมูล (Data Desync) ระหว่างแคชไฟล์และฐานข้อมูลอย่างถาวร
+    - เพิ่มฟังก์ชัน `formatScheduleLines(sched)` เพื่อจัดรูปแบบข้อความตารางการแข่งขันอย่างเป็นระเบียบ
+    - บันทึกคู่แข่งขัน 18 แมตช์ (round, start_time, end_time, team_a_id, team_b_id, status = 'scheduled') ลงในตาราง `match_stat_tbl` โดยอัตโนมัติ
+    - ป้องกันการเขียนทับผลการแข่งขันของแมตช์ที่แข่งเสร็จแล้ว (เว้นแต่จะระบุคำสั่ง force / reset)
+    - เพิ่ม Migration SQL `migrations/match_stat_schedule.sql` และฟังก์ชัน `ensureMatchStatScheduleColumns()` รองรับ `MODIFY COLUMN team_a_goal INT NULL` เพื่อความสมบูรณ์ของโครงสร้างตาราง
   - **ระบบ Match Lifecycle & Automatic Cursor Progression (รองรับการจบแต่ละแมตช์ก่อนขึ้นนัดถัดไป)**:
     - ปรับปรุงฟังก์ชัน `getCurrentMatch()` ให้ตรวจสอบสถานะการแข่งขันแบบ Realtime:
       - หากมีแมตช์ที่กำลังแข่งขัน (`status = 'in_progress'`): ชี้ไปที่แมตช์นั้นเป็น Current Match (แสดงสด 🟢 LIVE)
