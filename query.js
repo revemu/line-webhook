@@ -143,6 +143,7 @@ async function testConnection() {
     await ensureLineGroupTable();
     await ensureScheduledTaskTable();
     await ensureMatchStatScheduleColumns();
+    await ensureUserTable();
   } catch (error) {
     logger.error('❌ Error connecting to MySQL database:', error.message);
   }
@@ -219,6 +220,37 @@ async function ensureMatchStatScheduleColumns() {
         MODIFY COLUMN team_b_goal INT NULL DEFAULT NULL
     `);
   } catch (modErr) { }
+}
+
+async function ensureUserTable() {
+  try {
+    const sql = `
+      CREATE TABLE IF NOT EXISTS user_tbl (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL COMMENT 'Bcrypt hashed password',
+        role ENUM('admin','root') NOT NULL DEFAULT 'admin',
+        name VARCHAR(100) DEFAULT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_username (username)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `;
+    await executeQuery(sql);
+
+    const users = await executeQuery('SELECT COUNT(*) as cnt FROM user_tbl');
+    if (users && users[0] && users[0].cnt === 0) {
+      await executeQuery(`
+        INSERT INTO user_tbl (username, password, role, name) VALUES
+        ('admin', '$2b$10$DOtGRoaOcG3UGGBjWdxtFutYUcq/FJ47bKeLMf5hSPwSFl6HEr1xG', 'admin', 'Match Admin'),
+        ('root', '$2b$10$NFftupORvl9C7xgWiLdeFujSb8m/W1otZZhXNFc7iOd.RJxv/RrK.', 'root', 'System Root')
+        ON DUPLICATE KEY UPDATE username = VALUES(username)
+      `);
+      logger.info('✅ Initialized default user_tbl accounts (admin, root)');
+    }
+  } catch (err) {
+    logger.warn('Notice: user_tbl schema check:', err.message);
+  }
 }
 
 
@@ -5026,7 +5058,7 @@ async function getCurrentMatch(groupId = null) {
   const imgTpl = await getTemplate('live', 'header');
   const imageUrl = imgTpl ? imgTpl.url : null;
 
-  const webLiveUrl = process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/web/view';
+  const webLiveUrl = process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
   return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, recentMatchDetails, weekId: sched.weekId, date: sched.date, imageUrl, teamColors: assets.teamColors, webLiveUrl, matchStatus };
 }
 
@@ -8227,5 +8259,8 @@ module.exports = {
   matchesScheduleDay,
   getBangkokCurrent,
   parseTeamAndWeekArgs,
-  checkTeamWeekAccess
+  checkTeamWeekAccess,
+  pool,
+  executeQuery,
+  ensureUserTable
 };

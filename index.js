@@ -19,6 +19,7 @@ const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date')
 const { spamProtector } = require('./utils/spamProtection');
 const { initScheduler, notifyBaseUrl } = require('./scheduler');
 const { setBaseUrl } = require('./utils/url');
+const webRouter = require('./routes/web');
 
 const execPromise = util.promisify(exec);
 
@@ -78,11 +79,8 @@ app.use((req, res, next) => {
     next();
 });
 
-// Use LINE SDK middleware for webhook handling
-app.use('/webhook', middleware(config));
-
-// Webhook POST endpoint
-app.post('/webhook', async (req, res) => {
+// LINE Webhook POST endpoint (middleware is scoped strictly to POST /webhook so web dashboard routes under /webhook are not blocked)
+app.post(['/webhook', '/webhook/'], middleware(config), async (req, res) => {
     try {
         const events = req.body.events;
         res.status(200).send('OK');
@@ -123,7 +121,14 @@ async function handleEvent(event) {
 app.use('/img/qr', express.static(path.join(__dirname, 'qr')));
 app.use('/img/team', express.static(path.join(__dirname, 'img', 'team')));
 app.use('/img', express.static(path.join(__dirname, 'img')));
+
+// Serve Soccer Bot Web Dashboard static assets (public folder) under both /webhook and /web
+app.use('/webhook', express.static(path.join(__dirname, 'public')));
+app.use('/web', express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
+
+// Mount Soccer Bot API & Web Dashboard routes (Merged from soccerbotapi)
+app.use(webRouter);
 
 // Serve green_dot.png static asset and fallback route aliases
 /*app.get(['/green_dot.png', '/img/green_dot.png', '/green_pulse_true.png', '/img/green_pulse_true.png'], (req, res) => {
@@ -520,9 +525,12 @@ app.use((error, req, res, next) => {
 });
 
 // Start server
-app.listen(3001, async () => {
-    //logger.info(`LINE Webhook server running on port ${PORT}`);
-    //logger.info(`Webhook URL: http://localhost:${PORT}/webhook`);
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, async () => {
+    logger.info(`✅ Server running on port ${PORT}`);
+    logger.info(`LINE Webhook URL: http://localhost:${PORT}/webhook`);
+    logger.info(`Web Dashboard:   http://localhost:${PORT}/webhook/match`);
 
     // Check if environment variables are set
     if (!config.channelSecret || !config.channelAccessToken) {
@@ -533,7 +541,6 @@ app.listen(3001, async () => {
     }
 
     await db.testConnection();
-    //const res = await db.getMemberWeek() ;
 
     // Check if zbarimg is installed
     const zbarimgInstalled = await checkZbarimgInstalled();

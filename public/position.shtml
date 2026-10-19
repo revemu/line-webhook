@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<title>Position Manager - Soccer Bot</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="style.css">
+	<script>
+		(function () {
+			var saved = localStorage.getItem('theme');
+			var isDark = saved ? (saved === 'dark') : true;
+			if (isDark) {
+				document.documentElement.setAttribute('data-theme', 'dark');
+				document.documentElement.classList.add('dark-theme');
+			} else {
+				document.documentElement.setAttribute('data-theme', 'light');
+				document.documentElement.classList.remove('dark-theme');
+			}
+		})();
+	</script>
+</head>
+
+<body>
+	<div id="position-app" class="container">
+
+		<!-- Theme Toggle Button -->
+		<div class="theme-toggle" @click="toggleTheme"
+			:title="isDarkTheme ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+			<span v-if="isDarkTheme">☀️</span>
+			<span v-else>🌙</span>
+		</div>
+
+		<!-- Navigation Header -->
+		<div class="header" style="margin-top: 0.5rem;">
+			<h1>Position Manager</h1>
+		</div>
+
+		<div class="top-nav-bar">
+			<div class="nav-tabs">
+				<a href="/webhook/match" class="nav-tab">⚽ Match Manager</a>
+				<a href="/webhook/view" class="nav-tab">📺 Match Viewer</a>
+				<a href="/webhook/position" class="nav-tab active">🛡️ Position Manager</a>
+			</div>
+			<div class="user-status-pill" v-if="currentUser">
+				<span class="user-role-badge" :class="currentUser.role">
+					👑 {{ currentUser.username }}
+				</span>
+				<button @click="openPasswordModal" class="btn-action-pill" title="เปลี่ยนรหัสผ่าน">🔑 เปลี่ยนรหัสผ่าน</button>
+				<button @click="logout" class="btn-logout" title="ออกจากระบบ">ออกจากระบบ</button>
+			</div>
+		</div>
+
+		<!-- Date Info & Switcher Card -->
+		<div class="card">
+			<div class="week-info-bar">
+				<div>
+					<div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Match Date</div>
+					<div style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+						<span>📅 {{ week.date }}</span>
+					</div>
+				</div>
+
+				<div class="week-badge-pill" @click="showWeekPicker = true">
+					<span>📅 Switch Date</span>
+					<span style="font-size: 0.75rem;">▼</span>
+				</div>
+			</div>
+
+			<!-- Position Stats / Quota Chips -->
+			<div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+				<div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.4rem;">Position Breakdown (Click to filter):</div>
+				<div class="pos-stats-container">
+					<div class="pos-stat-chip" :class="{ active: selectedPosFilter === null }" @click="selectedPosFilter = null">
+						<span>All</span>
+						<span class="pos-stat-count">{{ members.length }}</span>
+					</div>
+					<div v-for="p in positions" :key="p.id" class="pos-stat-chip"
+						:class="{ active: selectedPosFilter === p.id }"
+						@click="selectedPosFilter = (selectedPosFilter === p.id ? null : p.id)">
+						<span>{{ p.icon }} {{ p.code }}</span>
+						<span class="pos-stat-count">{{ countByPos(p.id) }}</span>
+					</div>
+					<div class="pos-stat-chip" :class="{ active: selectedPosFilter === 0 }"
+						@click="selectedPosFilter = (selectedPosFilter === 0 ? null : 0)">
+						<span>⚪ Unset</span>
+						<span class="pos-stat-count">{{ countByPos(0) }}</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Save Action Toolbar & View Mode Switcher -->
+		<div class="save-action-bar" :class="{ 'has-changes': hasUnsavedChanges }">
+			<div class="save-status-info">
+				<div class="view-mode-tabs">
+					<button class="view-mode-btn" :class="{ active: viewMode === 'pitch' }" @click="viewMode = 'pitch'">
+						🏟️ สนามทุกทีม (Multi-Pitch)
+					</button>
+					<button class="view-mode-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
+						📋 รายชื่อ (List View)
+					</button>
+				</div>
+
+				<div v-show="viewMode === 'pitch'" class="view-mode-tabs" style="margin-left: 0.35rem;">
+					<button class="view-mode-btn" :class="{ active: pitchGridCols === 2 }" @click="pitchGridCols = 2" title="แสดง 2 คอลัมน์">
+						🔲 2 คอลัมน์
+					</button>
+					<button class="view-mode-btn" :class="{ active: pitchGridCols === 1 }" @click="pitchGridCols = 1" title="แสดง 1 คอลัมน์">
+						📑 1 คอลัมน์
+					</button>
+				</div>
+
+				<span v-if="hasUnsavedChanges" class="changes-pulse-badge">
+					● มี {{ unsavedCount }} การเปลี่ยนแปลง
+				</span>
+				<span v-else style="font-size: 0.8rem; color: var(--text-muted);">
+					✓ บันทึกตำแหน่งและทีมแล้ว
+				</span>
+			</div>
+
+			<div style="display: flex; align-items: center; gap: 0.5rem;">
+				<button v-if="hasUnsavedChanges" @click="resetPositions" class="btn-reset-positions" title="ยกเลิกการเปลี่ยนแปลงที่ยังไม่ได้บันทึก">
+					↺ ยกเลิก
+				</button>
+				<button @click="saveAllPositions" class="btn-save-positions" :disabled="!hasUnsavedChanges || saving">
+					<span v-if="saving">⏳ กำลังบันทึก...</span>
+					<span v-else>💾 บันทึกตำแหน่งและทีม {{ hasUnsavedChanges ? '(' + unsavedCount + ')' : '' }}</span>
+				</button>
+			</div>
+		</div>
+
+		<!-- Unassigned Players Pool (อยู่นอกสนาม ยังไม่มีทีม) -->
+		<div v-show="viewMode === 'pitch'" class="unassigned-panel"
+			:class="{ 'drag-over': dragOverUnassigned }"
+			@dragover.prevent="onDragOverUnassigned($event)"
+			@dragleave="onDragLeaveUnassigned($event)"
+			@drop.prevent="onDropToUnassigned($event)">
+
+			<div class="unassigned-panel-header">
+				<div class="unassigned-panel-title">
+					<span>⚪ ผู้เล่นที่ยังไม่มีทีม / นอกสนาม</span>
+					<span style="font-weight: 800; color: var(--primary-color);">({{ unassignedMembers.length }} คน)</span>
+					<span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">
+						(ลากผู้เล่นไปใส่ในสนามของทีมที่ต้องการ หรือลากผู้เล่นจากสนามมาปล่อยที่นี่เพื่อปลดออกจากทีม)
+					</span>
+				</div>
+			</div>
+
+			<div class="unassigned-player-grid">
+				<div v-for="p in unassignedMembers" :key="p.id"
+					class="unassigned-card"
+					:class="{
+						'is-changed': isPlayerChanged(p.id),
+						'is-swap-target': swapTargetPlayerId === p.id
+					}"
+					draggable="true"
+					@dragstart="onDragStart($event, p)"
+					@dragend="onDragEnd($event)"
+					@dragover.prevent.stop="onDragOverPlayer($event, p)"
+					@dragleave.stop="onDragLeavePlayer($event, p)"
+					@drop.prevent.stop="onDropOnPlayer($event, p)"
+					@contextmenu.prevent="openContextMenu($event, p)"
+					:title="p.alias + ' (ลากไปวางในสนามทีมใดก็ได้ หรือคลิกขวาเพื่อเลือกทีม)'">
+					<div class="pitch-player-avatar" style="background: var(--border-color); color: var(--text-main); overflow: hidden;">
+						<img v-if="p.picture_url" :src="p.picture_url" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
+						<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+					</div>
+					<span>{{ p.alias }}</span>
+					<span v-if="p.rating" style="font-size: 0.7rem; color: var(--text-muted);">⭐ {{ p.rating }}</span>
+					<span v-if="isPlayerChanged(p.id)" style="color: #f59e0b; font-size: 0.7rem;">● แก้ไข</span>
+				</div>
+
+				<div v-if="unassignedMembers.length === 0" style="font-size: 0.85rem; color: var(--text-muted); font-style: italic; padding: 0.4rem 0;">
+					✓ ผู้เล่นทุกคนมีทีมแล้ว (สามารถลากผู้เล่นจากสนามมาวางที่นี่เพื่อปลดออกจากทีมได้)
+				</div>
+			</div>
+		</div>
+
+		<!-- All Teams Pitches (Multi-Pitch Board) -->
+		<div v-show="viewMode === 'pitch'" class="multi-pitch-grid" :class="{ 'cols-1': pitchGridCols === 1 }">
+			<div v-for="team in teamColors" :key="team.id"
+				class="team-pitch-card"
+				:class="{ 'has-changes': teamHasChanges(team.id) }">
+
+				<!-- Team Card Header -->
+				<div class="team-pitch-header">
+					<div class="team-pitch-title">
+						<span class="team-color-chip"
+							:style="{ backgroundColor: team.color.toLowerCase(), color: getContrastColor(team.color), border: '1px solid ' + getBorderColor(team.color) }">
+							● {{ team.color }} ({{ getTeamMembers(team.id).length }} คน)
+						</span>
+						<span class="team-rule-badge">
+							📋 โควตา: {{ is8PlayerTeam(team.id) ? 'ทีม 8 คน' : 'ทีม 7 คน' }}
+						</span>
+						<span v-if="isTeamFormationValid(team.id)" class="slot-quota-badge ok" title="ตำแหน่งครบตามขั้นต่ำ">
+							✓ โควตาครบ
+						</span>
+						<span v-else class="slot-quota-badge under" title="มีตำแหน่งที่ยังขาดผู้เล่นตามขั้นต่ำ">
+							⚠️ ขาดบางตำแหน่ง
+						</span>
+					</div>
+
+					<!-- Mini Quota Summary Chips -->
+					<div class="team-quota-chips">
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 4)" title="Center Forward (โควตา 1-2 คน)">
+							CF: {{ getPlayersInPos(team.id, 4).length }}/{{ getPosMax(4, team.id) }}
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 7)" title="Attacking Midfield (โควตา 0-1 คน)">
+							AM: {{ getPlayersInPos(team.id, 7).length }}/1
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 3)" title="Midfielder (โควตา 1-2 คน)">
+							MF: {{ getPlayersInPos(team.id, 3).length }}/{{ is8PlayerTeam(team.id) ? '2' : '1' }}
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 6)" title="Defensive Midfield (โควตา 0-1 คน)">
+							DM: {{ getPlayersInPos(team.id, 6).length }}/1
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 5)" title="Wingers (โควตา 2 คน)">
+							DW: {{ getPlayersInPos(team.id, 5).length }}/2
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 2)" title="Defender (โควตา 1 คน)">
+							DF: {{ getPlayersInPos(team.id, 2).length }}/1
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 1)" title="Goalkeeper (โควตา 0-1 คน)">
+							GK: {{ getPlayersInPos(team.id, 1).length }}/1
+						</span>
+					</div>
+				</div>
+
+				<!-- Soccer Pitch Field (Horizontal / Landscape Tactical Board) -->
+				<div class="pitch-field tactical-pitch">
+					<!-- Pitch Markings Overlay (Horizontal: Left Goal -> Right Goal) -->
+					<div class="pitch-markings">
+						<div class="pitch-half-line-h"></div>
+						<div class="pitch-center-circle-h"></div>
+						<div class="pitch-center-spot-h"></div>
+						<div class="pitch-penalty-left"></div>
+						<div class="pitch-goal-left"></div>
+						<div class="pitch-penalty-right"></div>
+						<div class="pitch-goal-right"></div>
+						<div class="pitch-corner-tl"></div>
+						<div class="pitch-corner-tr"></div>
+						<div class="pitch-corner-bl"></div>
+						<div class="pitch-corner-br"></div>
+					</div>
+
+					<!-- Col 1: GK (Goalkeeper) - 1 slot in left goal area -->
+					<div class="pitch-tactical-col pitch-col-gk">
+						<!-- GK Slot -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_1') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_1')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_1')"
+							@drop.prevent="onDropToSlot($event, team.id, 1)">
+							<template v-if="getPlayersInPos(team.id, 1)[0]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 1)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 1)[0].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 1)[0])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 1)[0])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 1)[0])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 1)[0])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 1)[0])"
+									:title="getPlayersInPos(team.id, 1)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 1)[0].picture_url" :src="getPlayersInPos(team.id, 1)[0].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 1)[0].alias ? getPlayersInPos(team.id, 1)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 1)[0])">
+									<span class="pitch-pos-tag pos-gk">GK</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 1)[0].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>GK</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- Extra GK players if any -->
+						<div v-for="p in getPlayersInPos(team.id, 1).slice(1)" :key="p.id" class="pitch-circle-slot">
+							<div class="pitch-circle-avatar"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								draggable="true"
+								@dragstart="onDragStart($event, p)"
+								@dragend="onDragEnd($event)"
+								@dragover.prevent.stop="onDragOverPlayer($event, p)"
+								@dragleave.stop="onDragLeavePlayer($event, p)"
+								@drop.prevent.stop="onDropOnPlayer($event, p)"
+								@contextmenu.prevent="openContextMenu($event, p)"
+								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+								<span class="pitch-pos-tag pos-gk">GK</span>
+								<span class="pitch-pill-name">{{ p.alias }}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Col 2: DF (Defender) - 1 slot in center in front of goal -->
+					<div class="pitch-tactical-col pitch-col-df">
+						<!-- DF Slot -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_2') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_2')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_2')"
+							@drop.prevent="onDropToSlot($event, team.id, 2)">
+							<template v-if="getPlayersInPos(team.id, 2)[0]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 2)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 2)[0].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 2)[0])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 2)[0])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 2)[0])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 2)[0])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 2)[0])"
+									:title="getPlayersInPos(team.id, 2)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 2)[0].picture_url" :src="getPlayersInPos(team.id, 2)[0].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 2)[0].alias ? getPlayersInPos(team.id, 2)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 2)[0])">
+									<span class="pitch-pos-tag pos-df">DF</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 2)[0].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>DF</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- Extra DF players if any -->
+						<div v-for="p in getPlayersInPos(team.id, 2).slice(1)" :key="p.id" class="pitch-circle-slot">
+							<div class="pitch-circle-avatar"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								draggable="true"
+								@dragstart="onDragStart($event, p)"
+								@dragend="onDragEnd($event)"
+								@dragover.prevent.stop="onDragOverPlayer($event, p)"
+								@dragleave.stop="onDragLeavePlayer($event, p)"
+								@drop.prevent.stop="onDropOnPlayer($event, p)"
+								@contextmenu.prevent="openContextMenu($event, p)"
+								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+								<span class="pitch-pos-tag pos-df">DF</span>
+								<span class="pitch-pill-name">{{ p.alias }}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Col 3: DW (Defensive Wingers) - 2 slots (top & bottom touchlines) -->
+					<div class="pitch-tactical-col pitch-col-dw">
+						<!-- Upper / Left Winger Slot -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_5_0') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_5_0')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_5_0')"
+							@drop.prevent="onDropToSlot($event, team.id, 5)">
+							<template v-if="getPlayersInPos(team.id, 5)[0]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 5)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 5)[0].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 5)[0])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 5)[0])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 5)[0])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 5)[0])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 5)[0])"
+									:title="getPlayersInPos(team.id, 5)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 5)[0].picture_url" :src="getPlayersInPos(team.id, 5)[0].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 5)[0].alias ? getPlayersInPos(team.id, 5)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 5)[0])">
+									<span class="pitch-pos-tag pos-dw">DW</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 5)[0].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>DW</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- Lower / Right Winger Slot -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_5_1') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_5_1')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_5_1')"
+							@drop.prevent="onDropToSlot($event, team.id, 5)">
+							<template v-if="getPlayersInPos(team.id, 5)[1]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 5)[1].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 5)[1].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 5)[1])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 5)[1])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 5)[1])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 5)[1])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 5)[1])"
+									:title="getPlayersInPos(team.id, 5)[1].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 5)[1].picture_url" :src="getPlayersInPos(team.id, 5)[1].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 5)[1].alias ? getPlayersInPos(team.id, 5)[1].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 5)[1])">
+									<span class="pitch-pos-tag pos-dw">DW</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 5)[1].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>DW</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- Extra DW players if more than 2 -->
+						<div v-for="p in getPlayersInPos(team.id, 5).slice(2)" :key="p.id" class="pitch-circle-slot">
+							<div class="pitch-circle-avatar"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								draggable="true"
+								@dragstart="onDragStart($event, p)"
+								@dragend="onDragEnd($event)"
+								@dragover.prevent.stop="onDragOverPlayer($event, p)"
+								@dragleave.stop="onDragLeavePlayer($event, p)"
+								@drop.prevent.stop="onDropOnPlayer($event, p)"
+								@contextmenu.prevent="openContextMenu($event, p)"
+								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+								<span class="pitch-pos-tag pos-dw">DW</span>
+								<span class="pitch-pill-name">{{ p.alias }}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Col 4: DM (Defensive Midfield) - 1 slot in center -->
+					<div class="pitch-tactical-col pitch-col-dm">
+						<!-- DM Slot -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_6') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_6')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_6')"
+							@drop.prevent="onDropToSlot($event, team.id, 6)">
+							<template v-if="getPlayersInPos(team.id, 6)[0]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 6)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 6)[0].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 6)[0])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 6)[0])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 6)[0])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 6)[0])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 6)[0])"
+									:title="getPlayersInPos(team.id, 6)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 6)[0].picture_url" :src="getPlayersInPos(team.id, 6)[0].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 6)[0].alias ? getPlayersInPos(team.id, 6)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 6)[0])">
+									<span class="pitch-pos-tag pos-dm">DM</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 6)[0].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>DM</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- Extra DM players if any -->
+						<div v-for="p in getPlayersInPos(team.id, 6).slice(1)" :key="p.id" class="pitch-circle-slot">
+							<div class="pitch-circle-avatar"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								draggable="true"
+								@dragstart="onDragStart($event, p)"
+								@dragend="onDragEnd($event)"
+								@dragover.prevent.stop="onDragOverPlayer($event, p)"
+								@dragleave.stop="onDragLeavePlayer($event, p)"
+								@drop.prevent.stop="onDropOnPlayer($event, p)"
+								@contextmenu.prevent="openContextMenu($event, p)"
+								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+								<span class="pitch-pos-tag pos-dm">DM</span>
+								<span class="pitch-pill-name">{{ p.alias }}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Col 5: MF (Central Midfield) - 2 slots -->
+					<div class="pitch-tactical-col pitch-col-mf">
+						<!-- MF Slot 1 (Upper) -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_3_0') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_3_0')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_3_0')"
+							@drop.prevent="onDropToSlot($event, team.id, 3)">
+							<template v-if="getPlayersInPos(team.id, 3)[0]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 3)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 3)[0].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 3)[0])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 3)[0])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 3)[0])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 3)[0])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 3)[0])"
+									:title="getPlayersInPos(team.id, 3)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 3)[0].picture_url" :src="getPlayersInPos(team.id, 3)[0].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 3)[0].alias ? getPlayersInPos(team.id, 3)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 3)[0])">
+									<span class="pitch-pos-tag pos-mf">MF</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 3)[0].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>MF</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- MF Slot 2 (Lower) -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_3_1') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_3_1')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_3_1')"
+							@drop.prevent="onDropToSlot($event, team.id, 3)">
+							<template v-if="getPlayersInPos(team.id, 3)[1]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 3)[1].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 3)[1].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 3)[1])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 3)[1])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 3)[1])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 3)[1])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 3)[1])"
+									:title="getPlayersInPos(team.id, 3)[1].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 3)[1].picture_url" :src="getPlayersInPos(team.id, 3)[1].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 3)[1].alias ? getPlayersInPos(team.id, 3)[1].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 3)[1])">
+									<span class="pitch-pos-tag pos-mf">MF</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 3)[1].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>MF</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- Extra MF players if more than 2 -->
+						<div v-for="p in getPlayersInPos(team.id, 3).slice(2)" :key="p.id" class="pitch-circle-slot">
+							<div class="pitch-circle-avatar"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								draggable="true"
+								@dragstart="onDragStart($event, p)"
+								@dragend="onDragEnd($event)"
+								@dragover.prevent.stop="onDragOverPlayer($event, p)"
+								@dragleave.stop="onDragLeavePlayer($event, p)"
+								@drop.prevent.stop="onDropOnPlayer($event, p)"
+								@contextmenu.prevent="openContextMenu($event, p)"
+								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+								<span class="pitch-pos-tag pos-mf">MF</span>
+								<span class="pitch-pill-name">{{ p.alias }}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Col 6: AM (Attacking Midfield) - 1 slot in center -->
+					<div class="pitch-tactical-col pitch-col-am">
+						<!-- AM Slot -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_7') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_7')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_7')"
+							@drop.prevent="onDropToSlot($event, team.id, 7)">
+							<template v-if="getPlayersInPos(team.id, 7)[0]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 7)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 7)[0].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 7)[0])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 7)[0])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 7)[0])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 7)[0])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 7)[0])"
+									:title="getPlayersInPos(team.id, 7)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 7)[0].picture_url" :src="getPlayersInPos(team.id, 7)[0].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 7)[0].alias ? getPlayersInPos(team.id, 7)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 7)[0])">
+									<span class="pitch-pos-tag pos-am">AM</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 7)[0].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>AM</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- Extra AM players if more than 1 -->
+						<div v-for="p in getPlayersInPos(team.id, 7).slice(1)" :key="p.id" class="pitch-circle-slot">
+							<div class="pitch-circle-avatar"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								draggable="true"
+								@dragstart="onDragStart($event, p)"
+								@dragend="onDragEnd($event)"
+								@dragover.prevent.stop="onDragOverPlayer($event, p)"
+								@dragleave.stop="onDragLeavePlayer($event, p)"
+								@drop.prevent.stop="onDropOnPlayer($event, p)"
+								@contextmenu.prevent="openContextMenu($event, p)"
+								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+								<span class="pitch-pos-tag pos-am">AM</span>
+								<span class="pitch-pill-name">{{ p.alias }}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Col 7: CF (Center Forward) - 2 slots in right goal area -->
+					<div class="pitch-tactical-col pitch-col-cf">
+						<!-- CF Slot 1 (Upper) -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_4_0') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_4_0')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_4_0')"
+							@drop.prevent="onDropToSlot($event, team.id, 4)">
+							<template v-if="getPlayersInPos(team.id, 4)[0]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 4)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 4)[0].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 4)[0])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 4)[0])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 4)[0])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 4)[0])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 4)[0])"
+									:title="getPlayersInPos(team.id, 4)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 4)[0].picture_url" :src="getPlayersInPos(team.id, 4)[0].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 4)[0].alias ? getPlayersInPos(team.id, 4)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 4)[0])">
+									<span class="pitch-pos-tag pos-cf">CF</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 4)[0].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>CF</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- CF Slot 2 (Lower) -->
+						<div class="pitch-circle-slot"
+							:class="{ 'drag-over': dragOverSlotKey === (team.id + '_4_1') }"
+							@dragover.prevent="onDragOverSlotKey($event, team.id + '_4_1')"
+							@dragleave="onDragLeaveSlotKey($event, team.id + '_4_1')"
+							@drop.prevent="onDropToSlot($event, team.id, 4)">
+							<template v-if="getPlayersInPos(team.id, 4)[1]">
+								<div class="pitch-circle-avatar"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 4)[1].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 4)[1].id }"
+									draggable="true"
+									@dragstart="onDragStart($event, getPlayersInPos(team.id, 4)[1])"
+									@dragend="onDragEnd($event)"
+									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 4)[1])"
+									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 4)[1])"
+									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 4)[1])"
+									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 4)[1])"
+									:title="getPlayersInPos(team.id, 4)[1].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									<img v-if="getPlayersInPos(team.id, 4)[1].picture_url" :src="getPlayersInPos(team.id, 4)[1].picture_url" />
+									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 4)[1].alias ? getPlayersInPos(team.id, 4)[1].alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 4)[1])">
+									<span class="pitch-pos-tag pos-cf">CF</span>
+									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 4)[1].alias }}</span>
+								</div>
+							</template>
+							<template v-else>
+								<div class="pitch-circle-avatar is-empty">
+									<span>CF</span>
+								</div>
+								<div class="pitch-empty-pill">+ ว่าง</div>
+							</template>
+						</div>
+
+						<!-- Extra CF players if more than 2 -->
+						<div v-for="p in getPlayersInPos(team.id, 4).slice(2)" :key="p.id" class="pitch-circle-slot">
+							<div class="pitch-circle-avatar"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								draggable="true"
+								@dragstart="onDragStart($event, p)"
+								@dragend="onDragEnd($event)"
+								@dragover.prevent.stop="onDragOverPlayer($event, p)"
+								@dragleave.stop="onDragLeavePlayer($event, p)"
+								@drop.prevent.stop="onDropOnPlayer($event, p)"
+								@contextmenu.prevent="openContextMenu($event, p)"
+								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+								<span class="pitch-pos-tag pos-cf">CF</span>
+								<span class="pitch-pill-name">{{ p.alias }}</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Bench / Reserves for this Team -->
+				<div class="bench-container"
+					:class="{ 'drag-over': dragOverBenchTeamId === team.id }"
+					@dragover.prevent="onDragOverBench($event, team.id)"
+					@dragleave="onDragLeaveBench($event, team.id)"
+					@drop.prevent="onDropToTeamBench($event, team.id)">
+					<div class="bench-header">
+						<div class="bench-title">
+							<span>⚪ สำรองทีม {{ team.color }}</span>
+							<span>({{ getBenchPlayers(team.id).length }})</span>
+						</div>
+						<span style="font-size: 0.72rem; color: var(--text-muted);">
+							(ลากมาวางเพื่อพักสำรอง)
+						</span>
+					</div>
+
+					<div class="bench-grid">
+						<div v-for="p in getBenchPlayers(team.id)" :key="p.id"
+							class="pitch-player-card"
+							:class="{
+								'is-changed': isPlayerChanged(p.id),
+								'is-swap-target': swapTargetPlayerId === p.id
+							}"
+							style="background: var(--card-bg); color: var(--text-main); border-color: var(--border-color);"
+							draggable="true"
+							@dragstart="onDragStart($event, p)"
+							@dragend="onDragEnd($event)"
+							@dragover.prevent.stop="onDragOverPlayer($event, p)"
+							@dragleave.stop="onDragLeavePlayer($event, p)"
+							@drop.prevent.stop="onDropOnPlayer($event, p)"
+							@contextmenu.prevent="openContextMenu($event, p)"
+							:title="p.alias + ' (ลากไปวางบนสนาม / สลับตัว / คลิกขวา)'">
+							<div class="pitch-player-avatar"
+								:style="{ backgroundColor: team.color.toLowerCase(), color: getContrastColor(team.color), overflow: 'hidden' }">
+								<img v-if="p.picture_url" :src="p.picture_url" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
+								<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<span class="pitch-player-name">{{ p.alias }}</span>
+							<span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">⚪ สำรอง</span>
+						</div>
+
+						<div v-if="getBenchPlayers(team.id).length === 0" class="bench-empty-hint">
+							ไม่มีตัวสำรองในทีมนี้
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Search & Team Filters (List View) -->
+		<div v-show="viewMode === 'list'" class="card" style="padding: 1rem;">
+			<div class="filter-bar">
+				<input type="text" v-model="searchQuery" class="search-input" placeholder="🔍 Search player by name or alias...">
+
+				<div class="team-filter-scroll">
+					<button class="team-filter-btn" :class="{ active: selectedTeamFilter === null }"
+						@click="selectedTeamFilter = null">
+						All Teams ({{ members.length }})
+					</button>
+					<button v-for="team in teamColors" :key="team.id" class="team-filter-btn"
+						:class="{ active: selectedTeamFilter === team.id }"
+						:style="selectedTeamFilter === team.id ? { backgroundColor: team.color.toLowerCase(), color: getContrastColor(team.color), borderColor: getBorderColor(team.color) } : {}"
+						@click="selectedTeamFilter = (selectedTeamFilter === team.id ? null : team.id)">
+						{{ team.color }} ({{ countByTeam(team.id) }})
+					</button>
+					<button class="team-filter-btn" :class="{ active: selectedTeamFilter === 0 }"
+						@click="selectedTeamFilter = (selectedTeamFilter === 0 ? null : 0)">
+						Unassigned ({{ countByTeam(0) }})
+					</button>
+				</div>
+			</div>
+
+			<!-- Player List Header -->
+			<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">
+				<span>Players ({{ filteredMembers.length }})</span>
+				<span v-if="loading">⏳ Loading...</span>
+			</div>
+
+			<!-- Player Cards List -->
+			<div class="player-list-grid">
+				<div v-if="filteredMembers.length === 0" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+					No players found matching current filters.
+				</div>
+
+				<div v-for="m in filteredMembers" :key="m.id" class="player-card"
+					:class="{ 'is-swap-target': swapTargetPlayerId === m.id }"
+					draggable="true"
+					@dragstart="onDragStart($event, m)"
+					@dragend="onDragEnd($event)"
+					@dragover.prevent.stop="onDragOverPlayer($event, m)"
+					@dragleave.stop="onDragLeavePlayer($event, m)"
+					@drop.prevent.stop="onDropOnPlayer($event, m)"
+					@contextmenu.prevent="openContextMenu($event, m)"
+					:title="m.alias + ' (ลากใส่ผู้เล่นคนอื่นเพื่อสลับทีม/ตำแหน่ง หรือคลิกขวา)'">
+					<div class="player-left">
+						<!-- Player Avatar / Team Badge -->
+						<div class="player-avatar"
+							:style="{ backgroundColor: m.team_color ? m.team_color.toLowerCase() : 'var(--background-color)', color: m.team_color ? getContrastColor(m.team_color) : 'var(--text-main)' }">
+							{{ m.alias ? m.alias.charAt(0).toUpperCase() : '?' }}
+						</div>
+
+						<!-- Player Meta -->
+						<div class="player-meta">
+							<div class="player-name-line">
+								<span class="player-name-text">{{ m.alias }}</span>
+								<span v-if="isPlayerChanged(m.id)" style="color: #f59e0b; font-size: 0.75rem; font-weight: 700;">● แก้ไขแล้ว</span>
+								<span v-if="m.team_color" class="team-badge-small"
+									:style="{ backgroundColor: m.team_color.toLowerCase(), color: getContrastColor(m.team_color), border: '1px solid ' + getBorderColor(m.team_color) }">
+									{{ m.team_color }}
+								</span>
+								<span v-else class="team-badge-small" style="background: var(--background-color); color: var(--text-muted);">
+									No Team
+								</span>
+							</div>
+							<div class="player-subtext">
+								{{ m.name !== m.alias ? m.name : '' }}
+								<span v-if="m.rating && m.rating > 0"> • Rating: {{ m.rating }}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Position Selector Button -->
+					<div>
+						<button class="pos-btn" :class="m.pos_id && m.pos_id > 0 ? 'assigned' : 'empty'"
+							@click="openPosPicker(m)">
+							<span v-if="m.pos_id && m.pos_id > 0">
+								{{ m.pos_icon || '⚽' }} {{ m.pos_code || 'POS' }}
+							</span>
+							<span v-else>
+								➕ Set Position
+							</span>
+							<span style="font-size: 0.7rem; opacity: 0.7;">▼</span>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Position Picker Modal -->
+		<div class="modal-overlay" v-if="showPosPicker" @click.self="showPosPicker = false">
+			<div class="modal-content">
+				<div class="card-title">
+					<div>
+						<div style="font-size: 1.1rem; font-weight: 700;">Select Position</div>
+						<div v-if="activeMember" style="font-size: 0.85rem; color: var(--primary-color); font-weight: 600;">
+							{{ activeMember.alias }}
+						</div>
+					</div>
+					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="showPosPicker = false">×</span>
+				</div>
+
+				<div class="pos-picker-grid">
+					<div v-for="pos in positions" :key="pos.id" class="pos-picker-option"
+						:class="{ selected: activeMember && activeMember.pos_id == pos.id }"
+						@click="selectPosition(pos)">
+						<div class="pos-picker-icon">{{ pos.icon }}</div>
+						<div class="pos-picker-code">{{ pos.code }}</div>
+						<div class="pos-picker-name">{{ pos.name }}</div>
+					</div>
+				</div>
+
+				<button class="pos-picker-clear" @click="selectPosition(null)">
+					<span>⚪</span>
+					<span>Clear / Unset Position</span>
+				</button>
+			</div>
+		</div>
+
+		<!-- Date Picker Modal -->
+		<div class="modal-overlay" v-if="showWeekPicker" @click.self="showWeekPicker = false">
+			<div class="modal-content">
+				<div class="card-title">
+					<span>Select Match Date</span>
+					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="showWeekPicker = false">×</span>
+				</div>
+				<div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 60vh; overflow-y: auto;">
+					<div v-for="w in weeks" :key="w.id" class="player-card"
+						:style="w.id === week.id ? { borderColor: 'var(--primary-color)', background: 'rgba(79, 70, 229, 0.08)' } : {}"
+						style="cursor: pointer;"
+						@click="changeWeek(w.number)">
+						<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+							<div>
+								<div style="font-weight: 700; font-size: 1rem;">📅 {{ w.date }}</div>
+							</div>
+							<span v-if="w.id === week.id" style="color: var(--primary-color); font-weight: bold;">Current ✓</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Change Password Modal -->
+		<div class="modal-overlay" v-if="showPasswordModal" @click.self="showPasswordModal = false">
+			<div class="modal-content" style="max-width: 420px; padding: 1.5rem;">
+				<div class="card-title" style="margin-bottom: 1.25rem;">
+					<span>🔑 เปลี่ยนรหัสผ่าน ({{ currentUser ? currentUser.username : '' }})</span>
+					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="showPasswordModal = false">×</span>
+				</div>
+
+				<form @submit.prevent="submitChangePassword">
+					<div style="margin-bottom: 1rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">รหัสผ่านปัจจุบัน</label>
+						<input type="password" v-model="pwdForm.current_password" class="login-input" required placeholder="กรอกรหัสผ่านเดิม" autocomplete="current-password">
+					</div>
+
+					<div style="margin-bottom: 1rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">รหัสผ่านใหม่</label>
+						<input type="password" v-model="pwdForm.new_password" class="login-input" required placeholder="อย่างน้อย 4 ตัวอักษร" autocomplete="new-password">
+					</div>
+
+					<div style="margin-bottom: 1.25rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">ยืนยันรหัสผ่านใหม่</label>
+						<input type="password" v-model="pwdForm.confirm_password" class="login-input" required placeholder="กรอกรหัสผ่านใหม่อีกครั้ง" autocomplete="new-password">
+					</div>
+
+					<div v-if="pwdMessage" :style="{
+						padding: '0.6rem 0.8rem',
+						borderRadius: '0.5rem',
+						marginBottom: '1rem',
+						fontSize: '0.85rem',
+						fontWeight: 600,
+						background: pwdIsError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+						color: pwdIsError ? 'var(--danger-color)' : 'var(--secondary-color)',
+						border: '1px solid ' + (pwdIsError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)')
+					}">
+						{{ pwdIsError ? '⚠️ ' : '✓ ' }}{{ pwdMessage }}
+					</div>
+
+					<div style="display: flex; gap: 0.75rem; justify-content: flex-end; align-items: center;">
+						<button type="button" class="btn-logout" @click="showPasswordModal = false">ยกเลิก</button>
+						<button type="submit" class="login-button" style="width: auto; padding: 0.5rem 1.25rem; font-size: 0.9rem;" :disabled="pwdLoading">
+							<span v-if="pwdLoading">⏳ กำลังบันทึก...</span>
+							<span v-else>💾 บันทึกรหัสผ่าน</span>
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- Context Menu for Right-Click Position Picker -->
+		<div class="context-menu"
+			v-if="contextMenu.visible"
+			:style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+			@click.stop>
+			<div class="context-menu-header">
+				<span>⚙️ เลือกตำแหน่ง</span>
+				<span style="font-weight: 800; color: var(--primary-color);">{{ contextMenu.player ? contextMenu.player.alias : '' }}</span>
+			</div>
+			<div v-for="pos in positions" :key="pos.id"
+				class="context-menu-item"
+				:class="{ active: contextMenu.player && contextMenu.player.pos_id == pos.id }"
+				@click="selectPositionFromContext(pos.id)">
+				<span>{{ pos.icon }} {{ pos.code }}</span>
+				<span style="font-size: 0.75rem; color: var(--text-muted);">{{ pos.name }}</span>
+			</div>
+			<div class="context-menu-divider"></div>
+			<div class="context-menu-item"
+				:class="{ active: contextMenu.player && (!contextMenu.player.pos_id || contextMenu.player.pos_id === 0) }"
+				@click="selectPositionFromContext(0)">
+				<span>⚪ ไม่ระบุ / สำรอง</span>
+				<span style="font-size: 0.75rem; color: var(--text-muted);">Bench</span>
+			</div>
+
+			<div class="context-menu-divider"></div>
+			<div class="context-menu-header" style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); padding: 0.35rem 0.85rem;">
+				<span>🔄 ย้ายไปทีม</span>
+				<span v-if="contextMenu.player" style="font-weight: 600; font-size: 0.75rem; color: var(--text-muted);">
+					(ปัจจุบัน: {{ contextMenu.player.team_color }})
+				</span>
+			</div>
+			<div v-for="team in teamColors" :key="'cm-team-' + team.id"
+				class="context-menu-item"
+				:class="{ active: contextMenu.player && contextMenu.player.team_id == team.id }"
+				@click="movePlayerToTeamFromContext(team.id)">
+				<div style="display: flex; align-items: center; gap: 0.45rem;">
+					<span class="team-dot" :style="{ backgroundColor: team.color.toLowerCase() }"></span>
+					<span>ทีม {{ team.color }}</span>
+				</div>
+				<span style="font-size: 0.75rem; color: var(--text-muted);">{{ getTeamMembers(team.id).length }} คน</span>
+			</div>
+			<div class="context-menu-item"
+				:class="{ active: contextMenu.player && (!contextMenu.player.team_id || contextMenu.player.team_id === 0) }"
+				@click="movePlayerToTeamFromContext(0)">
+				<div style="display: flex; align-items: center; gap: 0.45rem;">
+					<span class="team-dot" style="background-color: var(--text-muted);"></span>
+					<span>⚪ ปลดออกจากทีม (ไม่มีทีม)</span>
+				</div>
+				<span style="font-size: 0.75rem; color: var(--text-muted);">{{ unassignedMembers.length }} คน</span>
+			</div>
+		</div>
+
+		<!-- Toast Notification -->
+		<div class="toast-box" v-if="toastMessage">
+			<span>{{ toastIcon }}</span>
+			<span>{{ toastMessage }}</span>
+		</div>
+
+	</div>
+
+	<!-- Scripts -->
+	<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+	<script>
+		new Vue({
+			el: '#position-app',
+			data: {
+				loading: false,
+				week: { id: 0, number: 0, date: '' },
+				weeks: [],
+				positions: [],
+				teamColors: [],
+				members: [],
+				searchQuery: '',
+				selectedTeamFilter: null,
+				selectedPosFilter: null,
+				showPosPicker: false,
+				showWeekPicker: false,
+				activeMember: null,
+				isDarkTheme: true,
+				toastMessage: '',
+				toastIcon: '✓',
+				toastTimer: null,
+				base_url: window.location.origin + (window.location.pathname.startsWith('/web') ? '/web' : '/webhook'),
+				currentUser: null,
+				showPasswordModal: false,
+				pwdLoading: false,
+				pwdMessage: '',
+				pwdIsError: false,
+				pwdForm: {
+					current_password: '',
+					new_password: '',
+					confirm_password: ''
+				},
+				// Pitch view & Drag/Drop state
+				viewMode: 'pitch',
+				pitchGridCols: 2,
+				dragOverSlotKey: null,
+				dragOverBenchTeamId: null,
+				dragOverUnassigned: false,
+				activePitchTeamId: null,
+				pendingChanges: {}, // { [id]: { pos_id, team_id } }
+				saving: false,
+				draggedPlayer: null,
+				dragOverPosId: null,
+				dragOverTeamId: null,
+				dragOverOtherTeamId: null,
+				swapTargetPlayerId: null,
+				showOtherTeams: true,
+				tabHoverTimer: null,
+				contextMenu: {
+					visible: false,
+					x: 0,
+					y: 0,
+					player: null
+				}
+			},
+			computed: {
+				unsavedCount() {
+					return Object.keys(this.pendingChanges).length;
+				},
+				hasUnsavedChanges() {
+					return this.unsavedCount > 0;
+				},
+				unassignedMembers() {
+					if (!this.members) return [];
+					return this.members.filter(m => !m.team_id || m.team_id === 0);
+				},
+				currentPitchTeam() {
+					if (!this.teamColors || this.teamColors.length === 0) return null;
+					return this.teamColors.find(t => t.id === this.activePitchTeamId) || this.teamColors[0] || null;
+				},
+				otherTeams() {
+					if (!this.teamColors) return [];
+					return this.teamColors.filter(t => t.id !== this.activePitchTeamId);
+				},
+				filteredMembers() {
+					let list = this.members;
+
+					// Team filter
+					if (this.selectedTeamFilter !== null) {
+						if (this.selectedTeamFilter === 0) {
+							list = list.filter(m => !m.team_id || m.team_id === 0);
+						} else {
+							list = list.filter(m => m.team_id === this.selectedTeamFilter);
+						}
+					}
+
+					// Position filter
+					if (this.selectedPosFilter !== null) {
+						if (this.selectedPosFilter === 0) {
+							list = list.filter(m => !m.pos_id || m.pos_id === 0);
+						} else {
+							list = list.filter(m => m.pos_id === this.selectedPosFilter);
+						}
+					}
+
+					// Search filter
+					if (this.searchQuery && this.searchQuery.trim() !== '') {
+						const q = this.searchQuery.toLowerCase().trim();
+						list = list.filter(m => 
+							(m.alias && m.alias.toLowerCase().includes(q)) ||
+							(m.name && m.name.toLowerCase().includes(q)) ||
+							(m.pos_code && m.pos_code.toLowerCase().includes(q)) ||
+							(m.pos_name && m.pos_name.toLowerCase().includes(q))
+						);
+					}
+
+					return list;
+				}
+			},
+			mounted() {
+				// Theme setup
+				const savedTheme = localStorage.getItem('theme');
+				this.isDarkTheme = savedTheme ? (savedTheme === 'dark') : true;
+				this.applyTheme(this.isDarkTheme);
+
+				// Global event listeners to dismiss context menu
+				window.addEventListener('click', (e) => {
+					if (!e.target.closest('.context-menu')) {
+						this.closeContextMenu();
+					}
+				});
+				window.addEventListener('contextmenu', (e) => {
+					if (!e.target.closest('.pitch-player-card') && !e.target.closest('.player-card')) {
+						this.closeContextMenu();
+					}
+				});
+				window.addEventListener('keydown', (e) => {
+					if (e.key === 'Escape') {
+						this.closeContextMenu();
+					}
+				});
+
+				// Warn before leaving with unsaved changes
+				window.addEventListener('beforeunload', (e) => {
+					if (this.hasUnsavedChanges) {
+						e.preventDefault();
+						e.returnValue = '';
+					}
+				});
+
+				// Check auth and ensure root role
+				this.fetchCurrentUser();
+			},
+			methods: {
+				fetchPageData(weeknum = 0) {
+					this.loading = true;
+					axios.get(`${this.base_url}/get_info?cmd=get_position_page_data&weeknum=${weeknum}`)
+						.then(res => {
+							this.loading = false;
+							if (res.data.success) {
+								this.week = res.data.week;
+								this.weeks = res.data.weeks || [];
+								this.positions = res.data.positions || [];
+								this.teamColors = res.data.team_colors || [];
+								this.members = (res.data.members || []).map(m => ({
+									...m,
+									picture_url: m.picture_url || null,
+									_orig_pos_id: m.pos_id || 0,
+									_orig_pos_code: m.pos_code || null,
+									_orig_pos_name: m.pos_name || null,
+									_orig_pos_icon: m.pos_icon || null,
+									_orig_team_id: m.team_id || 0,
+									_orig_team_color: m.team_color || ''
+								}));
+								this.pendingChanges = {};
+
+								// Auto select first team if not selected or current team no longer exists
+								if ((!this.activePitchTeamId || !this.teamColors.some(t => t.id === this.activePitchTeamId)) && this.teamColors.length > 0) {
+									this.activePitchTeamId = this.teamColors[0].id;
+								}
+							} else if (res.data.error) {
+								this.showToast(res.data.error, '⚠️');
+							}
+						})
+						.catch(err => {
+							this.loading = false;
+							console.error('Error fetching position page data:', err);
+							this.showToast('Failed to load page data', '❌');
+						});
+				},
+				changeWeek(weeknum) {
+					if (this.hasUnsavedChanges) {
+						if (!confirm('คุณมีรายการแก้ไขตำแหน่งหรือทีมที่ยังไม่ได้บันทึก ต้องการเปลี่ยนสัปดาห์โดยไม่บันทึกหรือไม่?')) {
+							return;
+						}
+					}
+					this.showWeekPicker = false;
+					this.fetchPageData(weeknum);
+				},
+				getTeamMembers(teamId) {
+					if (!this.members) return [];
+					return this.members.filter(m => m.team_id === teamId);
+				},
+				getPlayersInSlot(teamId, posId) {
+					if (!this.members) return [];
+					return this.members.filter(m => m.team_id === teamId && m.pos_id === posId);
+				},
+				getPlayersInPos(teamId, posId) {
+					if (!this.members) return [];
+					return this.members.filter(m => m.team_id === teamId && m.pos_id === posId);
+				},
+				getMidfieldPlayers(teamId) {
+					if (!this.members) return [];
+					return this.members.filter(m => m.team_id === teamId && (m.pos_id === 3 || m.pos_id === 7));
+				},
+				getMidfieldStatusClass(teamId) {
+					const count = this.getMidfieldPlayers(teamId).length;
+					const is8 = this.is8PlayerTeam(teamId);
+					const min = 1;
+					const max = is8 ? 2 : 1;
+					if (count < min) return 'under';
+					if (count > max) return 'over';
+					return 'ok';
+				},
+				getPosTagClass(posCode) {
+					if (!posCode) return 'pos-cf';
+					const c = posCode.toUpperCase();
+					if (c === 'CF') return 'pos-cf';
+					if (c === 'AM') return 'pos-am';
+					if (c === 'MF') return 'pos-mf';
+					if (c === 'DM') return 'pos-dm';
+					if (c === 'DW') return 'pos-dw';
+					if (c === 'DF') return 'pos-df';
+					if (c === 'GK') return 'pos-gk';
+					return 'pos-cf';
+				},
+				onDragOverSlotKey(e, key) {
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+					this.dragOverSlotKey = key;
+				},
+				onDragLeaveSlotKey(e, key) {
+					if (this.dragOverSlotKey === key) {
+						this.dragOverSlotKey = null;
+					}
+				},
+				getBenchPlayers(teamId) {
+					if (!this.members) return [];
+					return this.members.filter(m => m.team_id === teamId && (!m.pos_id || m.pos_id === 0));
+				},
+				is8PlayerTeam(teamId) {
+					const teamMembers = this.getTeamMembers(teamId);
+					if (teamMembers.length >= 8) return true;
+					if (teamMembers.length > 0 && teamMembers.length < 8) return false;
+					const assigned = this.members.filter(m => m.team_id > 0);
+					const numTeams = (this.teamColors && this.teamColors.length) || 1;
+					return (assigned.length / numTeams) >= 7.5;
+				},
+				getPosMin(posId, teamId) {
+					const pos = this.positions.find(p => p.id === posId);
+					if (!pos) return 0;
+					const is8 = this.is8PlayerTeam(teamId);
+					if (is8 && pos.min_8 !== undefined && pos.min_8 !== null) {
+						return Number(pos.min_8);
+					}
+					return Number(pos.min !== undefined ? pos.min : 0);
+				},
+				getPosMax(posId, teamId) {
+					const pos = this.positions.find(p => p.id === posId);
+					if (!pos) return 99;
+					const is8 = this.is8PlayerTeam(teamId);
+					if (is8 && pos.max_8 !== undefined && pos.max_8 !== null) {
+						const max8 = Number(pos.max_8);
+						if (max8 === 0 && (posId === 1 || pos.code === 'GK')) {
+							return 1;
+						}
+						return max8;
+					}
+					return Number(pos.max !== undefined ? pos.max : 99);
+				},
+				getSlotStatusClass(teamId, posId) {
+					const count = this.getPlayersInSlot(teamId, posId).length;
+					const min = this.getPosMin(posId, teamId);
+					const max = this.getPosMax(posId, teamId);
+					if (count < min) return 'under';
+					if (count > max) return 'over';
+					return 'ok';
+				},
+				getSlotStatusText(teamId, posId) {
+					const count = this.getPlayersInSlot(teamId, posId).length;
+					const min = this.getPosMin(posId, teamId);
+					const max = this.getPosMax(posId, teamId);
+
+					if (min === max) {
+						if (count < min) return `ขาด ${min - count} (${count}/${min})`;
+						if (count > max) return `เกิน (${count}/${max})`;
+						return `ครบ (${count}/${min})`;
+					} else {
+						if (count < min) return `ขาด ${min - count} (${count}/${min})`;
+						if (count > max) return `เกิน (${count}/${max})`;
+						if (count === 0 && min === 0) return `0/${max}`;
+						return `✓ ${count}/${max}`;
+					}
+				},
+				isTeamFormationValid(teamId) {
+					if (!this.positions || this.positions.length === 0) return true;
+					for (const pos of this.positions) {
+						const min = this.getPosMin(pos.id, teamId);
+						const max = this.getPosMax(pos.id, teamId);
+						const count = this.getPlayersInSlot(teamId, pos.id).length;
+						if (count < min || count > max) {
+							return false;
+						}
+					}
+					return true;
+				},
+				teamHasChanges(teamId) {
+					if (!this.pendingChanges) return false;
+					return Object.keys(this.pendingChanges).some(id => {
+						const m = this.members.find(x => x.id === parseInt(id, 10));
+						return m && (m.team_id === teamId || m._orig_team_id === teamId);
+					});
+				},
+				isPlayerChanged(id) {
+					return this.pendingChanges && this.pendingChanges[id] !== undefined;
+				},
+				recordPlayerChange(player) {
+					if (!player) return;
+					const isPosSame = (player.pos_id || 0) === (player._orig_pos_id || 0);
+					const isTeamSame = (player.team_id || 0) === (player._orig_team_id || 0);
+
+					if (isPosSame && isTeamSame) {
+						this.$delete(this.pendingChanges, player.id);
+					} else {
+						this.$set(this.pendingChanges, player.id, {
+							pos_id: player.pos_id || 0,
+							team_id: player.team_id || 0
+						});
+					}
+				},
+				onDragStart(e, player) {
+					this.draggedPlayer = player;
+					e.dataTransfer.effectAllowed = 'move';
+					try {
+						e.dataTransfer.setData('text/plain', String(player.id));
+					} catch (err) {}
+					if (e.target && e.target.classList) {
+						e.target.classList.add('is-dragging');
+					}
+				},
+				onDragEnd(e) {
+					if (e.target && e.target.classList) {
+						e.target.classList.remove('is-dragging');
+					}
+					this.draggedPlayer = null;
+					this.dragOverPosId = null;
+					this.dragOverTeamId = null;
+					this.dragOverOtherTeamId = null;
+					this.dragOverSlotKey = null;
+					this.dragOverBenchTeamId = null;
+					this.dragOverUnassigned = false;
+					this.swapTargetPlayerId = null;
+					if (this.tabHoverTimer) {
+						clearTimeout(this.tabHoverTimer);
+						this.tabHoverTimer = null;
+					}
+				},
+				onDragOver(e, posId) {
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+					this.dragOverPosId = posId;
+				},
+				onDragLeave(e, posId) {
+					if (this.dragOverPosId === posId) {
+						this.dragOverPosId = null;
+					}
+				},
+				onDrop(e, posId) {
+					e.preventDefault();
+					this.dragOverPosId = null;
+					if (!this.draggedPlayer) return;
+
+					// If player came from another team, transfer to activePitchTeam
+					if (this.currentPitchTeam && this.draggedPlayer.team_id !== this.activePitchTeamId) {
+						const oldColor = this.draggedPlayer.team_color;
+						this.draggedPlayer.team_id = this.activePitchTeamId;
+						this.draggedPlayer.team_color = this.currentPitchTeam.color;
+						this.assignPlayerPosition(this.draggedPlayer, posId);
+						this.showToast(`ย้าย ${this.draggedPlayer.alias} (${oldColor} ➜ ${this.currentPitchTeam.color}) เรียบร้อยแล้ว`, '✓');
+					} else {
+						this.assignPlayerPosition(this.draggedPlayer, posId);
+					}
+					this.draggedPlayer = null;
+				},
+				onDragOverSlot(e, teamId, posId) {
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+					this.dragOverSlotKey = `${teamId}_${posId}`;
+				},
+				onDragLeaveSlot(e, teamId, posId) {
+					if (this.dragOverSlotKey === `${teamId}_${posId}`) {
+						this.dragOverSlotKey = null;
+					}
+				},
+				onDropToSlot(e, teamId, posId) {
+					e.preventDefault();
+					this.dragOverSlotKey = null;
+					if (!this.draggedPlayer) return;
+
+					const targetTeam = this.teamColors.find(t => t.id === teamId);
+					if (!targetTeam) return;
+
+					const oldTeamId = this.draggedPlayer.team_id || 0;
+					const oldTeamColor = this.draggedPlayer.team_color || 'ไม่มีทีม';
+
+					this.draggedPlayer.team_id = teamId;
+					this.draggedPlayer.team_color = targetTeam.color;
+					this.assignPlayerPosition(this.draggedPlayer, posId);
+
+					const pos = this.positions.find(p => p.id === posId);
+					const posLabel = pos ? pos.code : 'ตำแหน่ง';
+
+					if (oldTeamId !== teamId) {
+						this.showToast(`ย้าย ${this.draggedPlayer.alias} (${oldTeamColor} ➜ ${targetTeam.color}) เล่น ${posLabel} แล้ว`, '✓');
+					} else {
+						this.showToast(`เปลี่ยนตำแหน่ง ${this.draggedPlayer.alias} เป็น ${posLabel} แล้ว`, '✓');
+					}
+
+					this.draggedPlayer = null;
+				},
+				onDragOverBench(e, teamId) {
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+					this.dragOverBenchTeamId = teamId;
+				},
+				onDragLeaveBench(e, teamId) {
+					if (this.dragOverBenchTeamId === teamId) {
+						this.dragOverBenchTeamId = null;
+					}
+				},
+				onDropToTeamBench(e, teamId) {
+					e.preventDefault();
+					this.dragOverBenchTeamId = null;
+					if (!this.draggedPlayer) return;
+
+					const targetTeam = this.teamColors.find(t => t.id === teamId);
+					if (!targetTeam) return;
+
+					const oldTeamId = this.draggedPlayer.team_id || 0;
+					const oldTeamColor = this.draggedPlayer.team_color || 'ไม่มีทีม';
+
+					this.draggedPlayer.team_id = teamId;
+					this.draggedPlayer.team_color = targetTeam.color;
+					this.draggedPlayer.pos_id = 0;
+					this.draggedPlayer.pos_code = null;
+					this.draggedPlayer.pos_name = null;
+					this.draggedPlayer.pos_icon = null;
+					this.recordPlayerChange(this.draggedPlayer);
+
+					if (oldTeamId !== teamId) {
+						this.showToast(`ย้าย ${this.draggedPlayer.alias} (${oldTeamColor} ➜ ${targetTeam.color}) พักสำรองแล้ว`, '✓');
+					} else {
+						this.showToast(`ย้าย ${this.draggedPlayer.alias} ไปม้านั่งสำรองแล้ว`, '⚪');
+					}
+
+					this.draggedPlayer = null;
+				},
+				onDragOverUnassigned(e) {
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+					this.dragOverUnassigned = true;
+				},
+				onDragLeaveUnassigned(e) {
+					this.dragOverUnassigned = false;
+				},
+				onDropToUnassigned(e) {
+					e.preventDefault();
+					this.dragOverUnassigned = false;
+					if (!this.draggedPlayer) return;
+
+					const oldTeamColor = this.draggedPlayer.team_color || 'ไม่มีทีม';
+					this.draggedPlayer.team_id = 0;
+					this.draggedPlayer.team_color = '';
+					this.draggedPlayer.pos_id = 0;
+					this.draggedPlayer.pos_code = null;
+					this.draggedPlayer.pos_name = null;
+					this.draggedPlayer.pos_icon = null;
+					this.recordPlayerChange(this.draggedPlayer);
+
+					this.showToast(`ปลด ${this.draggedPlayer.alias} ออกจากทีม (${oldTeamColor} ➜ นอกสนาม) แล้ว`, '⚪');
+					this.draggedPlayer = null;
+				},
+				onDragOverPlayer(e, player) {
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+					if (this.draggedPlayer && this.draggedPlayer.id !== player.id) {
+						this.swapTargetPlayerId = player.id;
+					}
+				},
+				onDragLeavePlayer(e, player) {
+					if (this.swapTargetPlayerId === player.id) {
+						this.swapTargetPlayerId = null;
+					}
+				},
+				onDropOnPlayer(e, targetPlayer) {
+					e.preventDefault();
+					this.swapTargetPlayerId = null;
+					this.dragOverPosId = null;
+					if (!this.draggedPlayer) return;
+					this.swapPlayers(this.draggedPlayer, targetPlayer);
+					this.draggedPlayer = null;
+				},
+				swapPlayers(playerA, playerB) {
+					if (!playerA || !playerB || playerA.id === playerB.id) return;
+
+					const aTeamId = playerA.team_id || 0;
+					const aTeamColor = playerA.team_color || '';
+					const aPosId = playerA.pos_id || 0;
+					const aPosCode = playerA.pos_code;
+					const aPosName = playerA.pos_name;
+					const aPosIcon = playerA.pos_icon;
+
+					const bTeamId = playerB.team_id || 0;
+					const bTeamColor = playerB.team_color || '';
+					const bPosId = playerB.pos_id || 0;
+					const bPosCode = playerB.pos_code;
+					const bPosName = playerB.pos_name;
+					const bPosIcon = playerB.pos_icon;
+
+					// Swap team & position
+					playerA.team_id = bTeamId;
+					playerA.team_color = bTeamColor;
+					playerA.pos_id = bPosId;
+					playerA.pos_code = bPosCode;
+					playerA.pos_name = bPosName;
+					playerA.pos_icon = bPosIcon;
+
+					playerB.team_id = aTeamId;
+					playerB.team_color = aTeamColor;
+					playerB.pos_id = aPosId;
+					playerB.pos_code = aPosCode;
+					playerB.pos_name = bPosName;
+					playerB.pos_icon = bPosIcon;
+
+					this.recordPlayerChange(playerA);
+					this.recordPlayerChange(playerB);
+
+					const aLabel = aTeamColor ? `ทีม ${aTeamColor}` : 'ไม่มีทีม';
+					const bLabel = bTeamColor ? `ทีม ${bTeamColor}` : 'ไม่มีทีม';
+
+					if (aTeamId !== bTeamId) {
+						this.showToast(`สลับ ${playerA.alias} (${aLabel} ➜ ${bLabel}) กับ ${playerB.alias} (${bLabel} ➜ ${aLabel}) แล้ว`, '⇄');
+					} else {
+						this.showToast(`สลับตำแหน่ง ${playerA.alias} กับ ${playerB.alias} แล้ว`, '⇄');
+					}
+				},
+				onTeamTabDragOver(e, teamId) {
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+					this.dragOverTeamId = teamId;
+					if (!this.tabHoverTimer && this.activePitchTeamId !== teamId) {
+						this.tabHoverTimer = setTimeout(() => {
+							this.activePitchTeamId = teamId;
+							this.tabHoverTimer = null;
+						}, 500);
+					}
+				},
+				onTeamTabDragLeave(e, teamId) {
+					if (this.dragOverTeamId === teamId) {
+						this.dragOverTeamId = null;
+					}
+					if (this.tabHoverTimer) {
+						clearTimeout(this.tabHoverTimer);
+						this.tabHoverTimer = null;
+					}
+				},
+				onDropOnTeamTab(e, teamId) {
+					e.preventDefault();
+					this.dragOverTeamId = null;
+					this.dragOverOtherTeamId = null;
+					if (this.tabHoverTimer) {
+						clearTimeout(this.tabHoverTimer);
+						this.tabHoverTimer = null;
+					}
+					if (!this.draggedPlayer) return;
+					const targetTeam = this.teamColors.find(t => t.id === teamId);
+					if (!targetTeam) return;
+
+					if (this.draggedPlayer.team_id !== teamId) {
+						const oldColor = this.draggedPlayer.team_color;
+						this.draggedPlayer.team_id = teamId;
+						this.draggedPlayer.team_color = targetTeam.color;
+						this.draggedPlayer.pos_id = 0;
+						this.draggedPlayer.pos_code = null;
+						this.draggedPlayer.pos_name = null;
+						this.draggedPlayer.pos_icon = null;
+						this.recordPlayerChange(this.draggedPlayer);
+						this.showToast(`ย้าย ${this.draggedPlayer.alias} จากทีม ${oldColor} ไปยังทีม ${targetTeam.color} แล้ว`, '✓');
+					}
+					this.draggedPlayer = null;
+				},
+				onOtherTeamDragOver(e, teamId) {
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+					this.dragOverOtherTeamId = teamId;
+				},
+				onOtherTeamDragLeave(e, teamId) {
+					if (this.dragOverOtherTeamId === teamId) {
+						this.dragOverOtherTeamId = null;
+					}
+				},
+				movePlayerToTeamFromContext(teamId) {
+					if (!this.contextMenu.player) return;
+					const player = this.contextMenu.player;
+					if (teamId === 0) {
+						const oldColor = player.team_color || 'ไม่มีทีม';
+						player.team_id = 0;
+						player.team_color = '';
+						player.pos_id = 0;
+						player.pos_code = null;
+						player.pos_name = null;
+						player.pos_icon = null;
+						this.recordPlayerChange(player);
+						this.showToast(`ปลด ${player.alias} ออกจากทีม ${oldColor} แล้ว`, '⚪');
+					} else {
+						const targetTeam = this.teamColors.find(t => t.id === teamId);
+						if (targetTeam && player.team_id !== teamId) {
+							const oldColor = player.team_color || 'ไม่มีทีม';
+							player.team_id = teamId;
+							player.team_color = targetTeam.color;
+							player.pos_id = 0;
+							player.pos_code = null;
+							player.pos_name = null;
+							player.pos_icon = null;
+							this.recordPlayerChange(player);
+							this.showToast(`ย้าย ${player.alias} จาก ${oldColor} ไปยังทีม ${targetTeam.color} แล้ว`, '✓');
+						}
+					}
+					this.closeContextMenu();
+				},
+				openContextMenu(e, player) {
+					e.preventDefault();
+					this.contextMenu.player = player;
+					const menuWidth = 220;
+					const menuHeight = 440;
+					let x = e.clientX;
+					let y = e.clientY;
+					if (x + menuWidth > window.innerWidth) {
+						x = window.innerWidth - menuWidth - 10;
+					}
+					if (y + menuHeight > window.innerHeight) {
+						y = window.innerHeight - menuHeight - 10;
+					}
+					this.contextMenu.x = Math.max(10, x);
+					this.contextMenu.y = Math.max(10, y);
+					this.contextMenu.visible = true;
+				},
+				closeContextMenu() {
+					this.contextMenu.visible = false;
+					this.contextMenu.player = null;
+				},
+				selectPositionFromContext(posId) {
+					if (this.contextMenu.player) {
+						this.assignPlayerPosition(this.contextMenu.player, posId);
+					}
+					this.closeContextMenu();
+				},
+				assignPlayerPosition(player, posId) {
+					if (!player) return;
+					const newPosId = (posId === null || posId === undefined || isNaN(posId)) ? 0 : Number(posId);
+					const posMeta = this.positions.find(p => p.id === newPosId);
+
+					player.pos_id = newPosId;
+					if (posMeta) {
+						player.pos_code = posMeta.code;
+						player.pos_name = posMeta.name;
+						player.pos_icon = posMeta.icon;
+					} else {
+						player.pos_code = null;
+						player.pos_name = null;
+						player.pos_icon = null;
+					}
+
+					this.recordPlayerChange(player);
+				},
+				saveAllPositions() {
+					const keys = Object.keys(this.pendingChanges);
+					if (keys.length === 0) return;
+
+					this.saving = true;
+					const updates = keys.map(id => ({
+						id: parseInt(id, 10),
+						pos_id: this.pendingChanges[id].pos_id,
+						team_id: this.pendingChanges[id].team_id
+					}));
+
+					axios.post(`${this.base_url}/batch_update_positions`, { updates })
+						.then(res => {
+							this.saving = false;
+							if (res.data && res.data.success) {
+								keys.forEach(id => {
+									const member = this.members.find(m => m.id === parseInt(id, 10));
+									if (member) {
+										member._orig_pos_id = member.pos_id;
+										member._orig_pos_code = member.pos_code;
+										member._orig_pos_name = member.pos_name;
+										member._orig_pos_icon = member.pos_icon;
+										member._orig_team_id = member.team_id;
+										member._orig_team_color = member.team_color;
+									}
+								});
+								this.pendingChanges = {};
+								this.showToast(`บันทึกตำแหน่งและทีมสำเร็จ (${res.data.count || keys.length} รายการ)`, '✓');
+							} else {
+								this.showToast(res.data.error || 'เกิดข้อผิดพลาดในการบันทึก', '❌');
+							}
+						})
+						.catch(err => {
+							this.saving = false;
+							console.error('Error saving positions/teams:', err);
+							const errMsg = (err.response && err.response.data && err.response.data.error)
+								? err.response.data.error
+								: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
+							this.showToast(errMsg, '❌');
+						});
+				},
+				resetPositions() {
+					const keys = Object.keys(this.pendingChanges);
+					if (keys.length === 0) return;
+
+					keys.forEach(id => {
+						const member = this.members.find(m => m.id === parseInt(id, 10));
+						if (member) {
+							member.pos_id = member._orig_pos_id;
+							member.pos_code = member._orig_pos_code;
+							member.pos_name = member._orig_pos_name;
+							member.pos_icon = member._orig_pos_icon;
+							member.team_id = member._orig_team_id;
+							member.team_color = member._orig_team_color;
+						}
+					});
+
+					this.pendingChanges = {};
+					this.showToast('ยกเลิกการแก้ไขและคืนค่าเดิมแล้ว', '↺');
+				},
+				countByPos(posId) {
+					if (posId === 0) {
+						return this.members.filter(m => !m.pos_id || m.pos_id === 0).length;
+					}
+					return this.members.filter(m => m.pos_id === posId).length;
+				},
+				countByTeam(teamId) {
+					if (teamId === 0) {
+						return this.members.filter(m => !m.team_id || m.team_id === 0).length;
+					}
+					return this.members.filter(m => m.team_id === teamId).length;
+				},
+				openPosPicker(member) {
+					this.activeMember = member;
+					this.showPosPicker = true;
+				},
+				selectPosition(pos) {
+					if (!this.activeMember) return;
+					const newPosId = pos ? pos.id : 0;
+					this.assignPlayerPosition(this.activeMember, newPosId);
+					this.showPosPicker = false;
+				},
+				showToast(msg, icon = '✓') {
+					this.toastMessage = msg;
+					this.toastIcon = icon;
+					if (this.toastTimer) clearTimeout(this.toastTimer);
+					this.toastTimer = setTimeout(() => {
+						this.toastMessage = '';
+					}, 2500);
+				},
+				toggleTheme() {
+					this.isDarkTheme = !this.isDarkTheme;
+					this.applyTheme(this.isDarkTheme);
+				},
+				applyTheme(isDark) {
+					if (isDark) {
+						document.documentElement.setAttribute('data-theme', 'dark');
+						document.documentElement.classList.add('dark-theme');
+						document.body.classList.add('dark-theme');
+						localStorage.setItem('theme', 'dark');
+					} else {
+						document.documentElement.setAttribute('data-theme', 'light');
+						document.documentElement.classList.remove('dark-theme');
+						document.body.classList.remove('dark-theme');
+						localStorage.setItem('theme', 'light');
+					}
+				},
+				getContrastColor(colorName) {
+					if (!colorName) return '#1f2937';
+					const lower = colorName.toLowerCase();
+					const lightColors = ['white', 'yellow', 'gold', 'cream', 'cyan', 'lime', 'silver', 'beige', 'ivory', 'khaki', 'lavender', 'linen', 'mistyrose', 'moccasin', 'pale', 'snow', 'wheat', 'whitesmoke'];
+					if (lightColors.includes(lower) || lower.includes('light') || lower.includes('pale')) {
+						return '#1f2937';
+					}
+					return '#ffffff';
+				},
+				getBorderColor(colorName) {
+					if (!colorName) return 'var(--border-color)';
+					const lower = colorName.toLowerCase();
+					const lightColors = ['white', 'yellow', 'gold', 'cream', 'cyan', 'lime', 'silver', 'beige', 'ivory', 'khaki', 'lavender', 'linen', 'mistyrose', 'moccasin', 'pale', 'snow', 'wheat', 'whitesmoke'];
+					if (lightColors.includes(lower) || lower.includes('light') || lower.includes('pale')) {
+						return this.isDarkTheme ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)';
+					}
+					return this.isDarkTheme ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.4)';
+				},
+				fetchCurrentUser() {
+					axios.get('/webhook/auth/me')
+						.then(res => {
+							if (res.data && res.data.authenticated) {
+								this.currentUser = res.data.user;
+								if (this.currentUser.role !== 'root') {
+									window.location.href = '/webhook/match';
+									return;
+								}
+								// Load initial page data once verified root
+								this.fetchPageData(0);
+							} else {
+								window.location.href = '/webhook/login?redirect=' + encodeURIComponent(window.location.pathname);
+							}
+						})
+						.catch(() => {
+							window.location.href = '/webhook/login?redirect=' + encodeURIComponent(window.location.pathname);
+						});
+				},
+				logout() {
+					axios.post('/webhook/logout')
+						.then(() => {
+							window.location.href = '/webhook/login';
+						})
+						.catch(() => {
+							window.location.href = '/webhook/login';
+						});
+				},
+				openPasswordModal() {
+					this.pwdForm.current_password = '';
+					this.pwdForm.new_password = '';
+					this.pwdForm.confirm_password = '';
+					this.pwdMessage = '';
+					this.pwdIsError = false;
+					this.showPasswordModal = true;
+				},
+				submitChangePassword() {
+					if (this.pwdForm.new_password !== this.pwdForm.confirm_password) {
+						this.pwdMessage = 'รหัสผ่านใหม่และการยืนยันรหัสผ่านไม่ตรงกัน';
+						this.pwdIsError = true;
+						return;
+					}
+					this.pwdLoading = true;
+					this.pwdMessage = '';
+
+					axios.post('/webhook/change_password', this.pwdForm)
+						.then(res => {
+							this.pwdLoading = false;
+							if (res.data && res.data.success) {
+								this.pwdIsError = false;
+								this.pwdMessage = 'เปลี่ยนรหัสผ่านสำเร็จ!';
+								setTimeout(() => {
+									this.showPasswordModal = false;
+								}, 1500);
+							} else {
+								this.pwdIsError = true;
+								this.pwdMessage = res.data.error || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน';
+							}
+						})
+						.catch(err => {
+							this.pwdLoading = false;
+							this.pwdIsError = true;
+							if (err.response && err.response.data && err.response.data.error) {
+								this.pwdMessage = err.response.data.error;
+							} else {
+								this.pwdMessage = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+							}
+						});
+				}
+			}
+		});
+	</script>
+</body>
+
+</html>

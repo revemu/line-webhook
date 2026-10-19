@@ -1,0 +1,2175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<title>Soccer Match - Match Center</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/webhook/style.css">
+	<script>
+		(function () {
+			var saved = localStorage.getItem('theme');
+			var isDark = saved ? (saved === 'dark') : true;
+			if (isDark) {
+				document.documentElement.setAttribute('data-theme', 'dark');
+				document.documentElement.classList.add('dark-theme');
+			} else {
+				document.documentElement.setAttribute('data-theme', 'light');
+				document.documentElement.classList.remove('dark-theme');
+			}
+		})();
+	</script>
+</head>
+
+<body>
+	<div id="soccer-match" class="container">
+
+		<!-- Toast Notification -->
+		<transition name="fade">
+			<div v-if="toastMessage" class="match-toast">
+				<span>{{ toastMessage }}</span>
+			</div>
+		</transition>
+
+		<!-- Theme Toggle Button -->
+		<div class="theme-toggle" @click="toggleTheme"
+			:title="isDarkTheme ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+			<span v-if="isDarkTheme">☀️</span>
+			<span v-else>🌙</span>
+		</div>
+
+		<div class="header" style="margin-top: 0.5rem;">
+			<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+				<div>
+					<h1 style="margin: 0; font-size: 1.25rem;">⚽ {{ isManager ? 'Match Manager' : 'Match Center' }}</h1>
+				</div>
+				<div class="viewer-header-actions" v-if="!isManager">
+					<button class="viewer-refresh-btn" :class="{ 'is-spinning': isRefreshing }" @click="manualRefresh" title="รีเฟรช">
+						<span class="icon-spin">🔄</span>
+						<span>{{ autoRefresh ? refreshCountdown + 's' : 'รีเฟรช' }}</span>
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="top-nav-bar">
+			<div class="nav-tabs">
+				<a v-if="currentUser" href="/webhook/match" class="nav-tab" :class="{ active: isManager }">⚽ Manager</a>
+				<a href="/webhook/view" class="nav-tab" :class="{ active: !isManager }">📺 Viewer</a>
+				<a v-if="currentUser && currentUser.role === 'root'" href="/webhook/position" class="nav-tab">🛡️ Position</a>
+			</div>
+			<div class="user-status-pill" v-if="currentUser">
+				<span class="user-role-badge" :class="currentUser.role">
+					{{ currentUser.role === 'root' ? '👑 ' + currentUser.username : '👤 ' + currentUser.username }}
+				</span>
+				<button @click="openPasswordModal" class="btn-action-pill" title="เปลี่ยนรหัสผ่าน">🔑 รหัสผ่าน</button>
+				<button @click="logout" class="btn-logout" title="ออกจากระบบ">ออกจากระบบ</button>
+			</div>
+			<div v-else>
+				<a href="/webhook/login" class="btn-action-pill" style="text-decoration: none; font-size: 0.8rem;">
+					🔐 เข้าสู่ระบบ
+				</a>
+			</div>
+		</div>
+
+		<!-- Date Info & Switcher Card -->
+		<div class="card" style="padding: 0.6rem 0.85rem; margin-bottom: 0.75rem;">
+			<div class="week-info-bar">
+				<div>
+					<div style="font-size: 0.68rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">DATE</div>
+					<div style="font-size: 0.95rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem; margin-top: 1px;">
+						<span>📅 {{ week.date }}</span>
+					</div>
+				</div>
+
+				<div class="week-badge-pill" @click="showWeekPicker = true">
+					<span>📅 เปลี่ยนวัน</span>
+					<span style="font-size: 0.7rem;">▼</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Date Picker Modal -->
+		<div class="modal-overlay" v-if="showWeekPicker" @click.self="showWeekPicker = false">
+			<div class="modal-content">
+				<div class="card-title">
+					<span>เลือกวันที่</span>
+					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="showWeekPicker = false">×</span>
+				</div>
+				<div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 60vh; overflow-y: auto;">
+					<div v-for="w in weeks" :key="w.id" class="player-card"
+						:style="w.id === week.id ? { borderColor: 'var(--primary-color)', background: 'rgba(79, 70, 229, 0.08)' } : {}"
+						style="cursor: pointer;"
+						@click="changeWeek(w.number)">
+						<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+							<div>
+								<div style="font-weight: 700; font-size: 1rem;">📅 {{ w.date }}</div>
+							</div>
+							<span v-if="w.id === week.id" style="color: var(--primary-color); font-weight: bold;">Current ✓</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Change Password Modal -->
+		<div class="modal-overlay" v-if="showPasswordModal" @click.self="showPasswordModal = false">
+			<div class="modal-content" style="max-width: 420px; padding: 1.5rem;">
+				<div class="card-title" style="margin-bottom: 1.25rem;">
+					<span>🔑 รหัสผ่าน ({{ currentUser ? currentUser.username : '' }})</span>
+					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="showPasswordModal = false">×</span>
+				</div>
+
+				<form @submit.prevent="submitChangePassword">
+					<div style="margin-bottom: 1rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">รหัสผ่านปัจจุบัน</label>
+						<input type="password" v-model="pwdForm.current_password" class="login-input" required placeholder="กรอกรหัสผ่านเดิม" autocomplete="current-password">
+					</div>
+
+					<div style="margin-bottom: 1rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">รหัสผ่านใหม่</label>
+						<input type="password" v-model="pwdForm.new_password" class="login-input" required placeholder="อย่างน้อย 4 ตัวอักษร" autocomplete="new-password">
+					</div>
+
+					<div style="margin-bottom: 1.25rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">ยืนยันรหัสผ่านใหม่</label>
+						<input type="password" v-model="pwdForm.confirm_password" class="login-input" required placeholder="กรอกรหัสผ่านใหม่อีกครั้ง" autocomplete="new-password">
+					</div>
+
+					<div v-if="pwdMessage" :style="{
+						padding: '0.6rem 0.8rem',
+						borderRadius: '0.5rem',
+						marginBottom: '1rem',
+						fontSize: '0.85rem',
+						fontWeight: 600,
+						background: pwdIsError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+						color: pwdIsError ? 'var(--danger-color)' : 'var(--secondary-color)',
+						border: '1px solid ' + (pwdIsError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)')
+					}">
+						{{ pwdIsError ? '⚠️ ' : '✓ ' }}{{ pwdMessage }}
+					</div>
+
+					<div style="display: flex; gap: 0.75rem; justify-content: flex-end; align-items: center;">
+						<button type="button" class="btn-logout" @click="showPasswordModal = false">ยกเลิก</button>
+						<button type="submit" class="login-button" style="width: auto; padding: 0.5rem 1.25rem; font-size: 0.9rem;" :disabled="pwdLoading">
+							<span v-if="pwdLoading">⏳ บันทึก...</span>
+							<span v-else>💾 บันทึก</span>
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- Match Dropdown Selector Bar (0.4) -->
+		<div class="match-dropdown-bar" v-if="sortedMatchesAscending.length > 0">
+			<div class="match-dropdown-left" style="flex: 1;">
+				<div class="match-select-control">
+					<button type="button" class="match-step-btn" :disabled="!hasPrevMatch" @click="navigateMatch(-1)" title="ก่อนหน้า">◀</button>
+					<div class="match-select-wrapper">
+						<select id="update-match-select" class="match-select" :value="selectedMatchIndex" @change="selectMatch(Number($event.target.value))">
+							<option v-for="m in sortedMatchesAscending" :key="m.id" :value="m.match_num" :disabled="isMatchLocked(m)">
+								Match {{ m.match_num }} {{ m.team_a_color }} {{ (isMatchScheduled(m) && (!m.goal || m.goal.length === 0)) ? 'vs' : (m.team_a_goal + ' - ' + m.team_b_goal) }} {{ m.team_b_color }} ({{ isMatchLocked(m) ? '🔒 รอแข่ง' : getMatchStatusText(m) }})
+							</option>
+						</select>
+						<div class="match-select-display" v-if="currentSelectedMatch">
+							<span class="msd-match-num">{{ currentSelectedMatch.match_num }}</span>
+							<span class="msd-team-badge" 
+								:style="{ backgroundColor: currentSelectedMatch.team_a_color ? currentSelectedMatch.team_a_color.toLowerCase() : '#ccc', color: getContrastColor(currentSelectedMatch.team_a_color), border: '1px solid ' + getBorderColor(currentSelectedMatch.team_a_color) }">
+								{{ currentSelectedMatch.team_a_color }}
+							</span>
+							<span class="msd-score">{{ (isMatchScheduled(currentSelectedMatch) && (!currentSelectedMatch.goal || currentSelectedMatch.goal.length === 0)) ? 'vs' : (currentSelectedMatch.team_a_goal + ' - ' + currentSelectedMatch.team_b_goal) }}</span>
+							<span class="msd-team-badge" 
+								:style="{ backgroundColor: currentSelectedMatch.team_b_color ? currentSelectedMatch.team_b_color.toLowerCase() : '#ccc', color: getContrastColor(currentSelectedMatch.team_b_color), border: '1px solid ' + getBorderColor(currentSelectedMatch.team_b_color) }">
+								{{ currentSelectedMatch.team_b_color }}
+							</span>
+							<span class="msd-status" :class="getMatchStatusClass(currentSelectedMatch)">
+								{{ getMatchStatusText(currentSelectedMatch) }}
+							</span>
+							<span class="msd-arrow">▼</span>
+						</div>
+						<div class="match-select-display" v-else>
+							<span style="color: var(--text-muted); font-size: 0.8rem;">เลือกแมตช์</span>
+							<span class="msd-arrow">▼</span>
+						</div>
+					</div>
+					<button type="button" class="match-step-btn" :disabled="!hasNextMatch" @click="navigateMatch(1)" title="ถัดไป">▶</button>
+				</div>
+			</div>
+
+		</div>
+
+		<!-- ==================== MAIN STADIUM & PITCH CARD ==================== -->
+		<div class="match-stadium-card" v-if="currentSelectedMatch">
+
+			<!-- Stadium Live Scoreboard -->
+			<div class="stadium-scoreboard">
+				<!-- Top Row: Match Number & Status (Centered on top) -->
+				<div class="scoreboard-top-meta" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+					<span>MATCH {{ currentSelectedMatch.match_num }} / {{ matchCount }}</span>
+					<span v-if="isMatchLive(currentSelectedMatch)" class="viewer-badge-live" style="font-size: 0.65rem; padding: 1px 6px;">LIVE</span>
+					<span v-else-if="isMatchScheduled(currentSelectedMatch)" class="viewer-badge-sched" style="font-size: 0.65rem; padding: 1px 6px;">รอแข่ง</span>
+					<span v-else class="viewer-badge-ft" style="font-size: 0.65rem; padding: 1px 6px;">FT</span>
+				</div>
+
+				<!-- Main Single Row: Team A, Score, Team B -->
+				<div class="scoreboard-main-row">
+					<!-- Team A Details -->
+					<div class="scoreboard-team team-a" @click="activePitchTab = 'teamA'" style="cursor: pointer;" title="คลิกเพื่อดูผังสนาม A">
+						<span class="scoreboard-badge"
+							:style="{ backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_a_color), border: '1px solid ' + getBorderColor(currentSelectedMatch.team_a_color), outline: activePitchTab === 'teamA' ? '2px solid #ffffff' : 'none', outlineOffset: '2px' }">
+							{{ currentSelectedMatch.team_a_color }}
+						</span>
+						
+					</div>
+
+					<!-- Digits Score Display in Center -->
+					<div class="scoreboard-center">
+						<div class="scoreboard-digits">
+							<span>{{ currentSelectedMatch.team_a_goal }}</span>
+							<span class="scoreboard-colon">:</span>
+							<span>{{ currentSelectedMatch.team_b_goal }}</span>
+						</div>
+					</div>
+
+					<!-- Team B Details -->
+					<div class="scoreboard-team team-b" @click="activePitchTab = 'teamB'" style="cursor: pointer;" title="คลิกเพื่อดูผังสนาม B">
+						
+						<span class="scoreboard-badge"
+							:style="{ backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_b_color), border: '1px solid ' + getBorderColor(currentSelectedMatch.team_b_color), outline: activePitchTab === 'teamB' ? '2px solid #ffffff' : 'none', outlineOffset: '2px' }">
+							{{ currentSelectedMatch.team_b_color }}
+						</span>
+					</div>
+				</div>
+
+				<!-- Scoreboard Tools / Actions (Manager Only) -->
+				<div class="scoreboard-actions-row" v-if="isManager">
+					<div class="scoreboard-actions">
+						<button v-if="!isMatchFinished(currentSelectedMatch)" type="button" class="btn-scoreboard-tool btn-finish-match" @click="finishCurrentMatch()" title="จบแมตช์นี้แล้วขึ้นนัดถัดไป">
+							🏁 จบ Match
+						</button>
+						<button v-if="isMatchFinished(currentSelectedMatch)" type="button" class="btn-scoreboard-tool btn-reopen-match" @click="reopenCurrentMatch()" title="กลับมาแข่งขันต่อ / แก้ไขผล">
+							↩️ แข่งต่อ
+						</button>
+						<button type="button" class="btn-scoreboard-tool" @click="toggleClassicForm()" title="สลับฟอร์ม">
+							{{ showClassicForm ? '✕ ซ่อน' : '📋 ฟอร์ม' }}
+						</button>
+						<button v-if="currentSelectedMatch.match_num == matchCount" type="button" class="btn-scoreboard-tool btn-delete" @click="removeMatchbyID(currentSelectedMatch.id)" title="ลบแมตช์นี้">
+							🗑️ ลบ
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- ==================== OPTIONAL CLASSIC FORM (ABOVE PITCH VIEW) ==================== -->
+			<div class="card classic-goal-form-card" id="classic-goal-form" v-if="isManager" v-show="showClassicForm">
+				<div class="card-title">
+					<span>📋 บันทึก Match {{ currentSelectedMatch ? currentSelectedMatch.match_num : '' }}</span>
+					<span style="cursor: pointer; font-size: 1.1rem; line-height: 1;" @click="showClassicForm = false">✕</span>
+				</div>
+				<form v-on:submit.prevent="addGoal()">
+					<div class="form-row" style="gap: 0.45rem; align-items: center;">
+						<div style="flex: 0 0 auto;">
+							<div class="segmented-control-match">
+								<span v-if="all_match && all_match[selectedMatchIndex]"
+									style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+									<span class="match-option-score">Match {{ all_match[selectedMatchIndex].match_num }}</span>
+									<span class="team-badge-small"
+										:style="{ backgroundColor: all_match[selectedMatchIndex].team_a_color.toLowerCase(), color: getContrastColor(all_match[selectedMatchIndex].team_a_color), border: '1px solid ' + getBorderColor(all_match[selectedMatchIndex].team_a_color) }">{{
+										all_match[selectedMatchIndex].team_a_color }}</span>
+									<span class="match-option-digits">{{ all_match[selectedMatchIndex].team_a_goal }} - {{ all_match[selectedMatchIndex].team_b_goal }}</span>
+									<span class="team-badge-small"
+										:style="{ backgroundColor: all_match[selectedMatchIndex].team_b_color.toLowerCase(), color: getContrastColor(all_match[selectedMatchIndex].team_b_color), border: '1px solid ' + getBorderColor(all_match[selectedMatchIndex].team_b_color) }">{{
+										all_match[selectedMatchIndex].team_b_color }}</span>
+								</span>
+								<span v-else class="text-muted">เลือกแมตช์</span>
+							</div>
+							<input type="hidden" ref="match_id_goal" :value="selectedMatchIndex">
+						</div>
+
+						<!-- Segmented Control for Event Type -->
+						<div style="flex: 1; min-width: 170px;">
+							<div class="segmented-control">
+								<div class="segmented-option" :class="{ active: eventType == 0 }"
+									@click="eventType = 0; $refs.status_id_goal.value = 0">
+									⚽ Goal
+								</div>
+								<div class="segmented-option" :class="{ active: eventType == 3 }"
+									@click="eventType = 3; $refs.status_id_goal.value = 3">
+									👟 Assist
+								</div>
+								<div class="segmented-option" :class="{ active: eventType == 2 }"
+									@click="eventType = 2; $refs.status_id_goal.value = 2">
+									🥅 OG
+								</div>
+							</div>
+							<select ref="status_id_goal" class="form-control" style="display: none;" v-model="eventType">
+								<option value="0">Goal</option>
+								<option value="2">Own Goal</option>
+								<option value="3">Assist</option>
+							</select>
+						</div>
+
+						<!-- Toggle for Loan -->
+						<div style="flex: 0 0 auto; display: flex; align-items: center;">
+							<label class="toggle-switch">
+								<input type="checkbox" class="toggle-input" v-model="isLoan"
+									@change="$refs.status_team.value = isLoan ? 1 : 0; updateStatusTeam()">
+								<div class="toggle-track">
+									<div class="toggle-thumb"></div>
+								</div>
+								<span class="toggle-label">ยืมตัว</span>
+							</label>
+							<select ref="status_team" v-on:change="updateStatusTeam()" class="form-control" style="display: none;">
+								<option value="0">Normal</option>
+								<option value="1">Loan</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="form-row" style="margin-top: 0.4rem; gap: 0.45rem; align-items: center;">
+						<div style="flex: 2;">
+							<div class="form-control" @click="showPlayerPicker = true" :style="[
+									{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+									member[selectedPlayerIndex] ? {
+										backgroundColor: member[selectedPlayerIndex].color ? member[selectedPlayerIndex].color.toLowerCase() : defaultBgColor,
+										color: getContrastColor(member[selectedPlayerIndex].color),
+										borderColor: member[selectedPlayerIndex].color && member[selectedPlayerIndex].color.toLowerCase() == 'white' ? '#e5e7eb' : 'transparent'
+									} : { backgroundColor: defaultBgColor }
+								]">
+								<span v-if="member[selectedPlayerIndex]" style="font-weight: 700;">
+									{{ member[selectedPlayerIndex].alias }}
+								</span>
+								<span v-else class="text-muted">เลือกผู้เล่น</span>
+								<span :style="{ color: member[selectedPlayerIndex] ? getContrastColor(member[selectedPlayerIndex].color) : '' }"
+									:class="{ 'text-muted': !member[selectedPlayerIndex] }">▼</span>
+							</div>
+							<input type="hidden" ref="member_id_goal" :value="selectedPlayerIndex">
+						</div>
+
+						<!-- Player Picker Modal -->
+						<div class="modal-overlay" v-if="showPlayerPicker" @click.self="showPlayerPicker = false">
+							<div class="modal-content">
+								<div class="card-title">
+									<span>เลือกผู้เล่น</span>
+									<span style="cursor: pointer;" @click="showPlayerPicker = false">×</span>
+								</div>
+								<div class="player-grid">
+									<div v-for="(m, index) in member" :key="index" class="player-option"
+										:style="{ backgroundColor: m.color ? m.color.toLowerCase() : '#f3f4f6', color: getContrastColor(m.color), border: m.color && m.color.toLowerCase() == 'white' ? '1px solid #e5e7eb' : 'none' }"
+										@click="selectPlayer(index)">
+										{{ m.alias }}
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div style="flex: 1;" v-if="isLoan">
+							<div class="form-control" @click="showLoanTeamPicker = true" :style="[
+									{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+									selectedLoanTeam ? {
+										backgroundColor: selectedLoanTeam.name ? selectedLoanTeam.name.toLowerCase() : defaultBgColor,
+										color: getContrastColor(selectedLoanTeam.name),
+										borderColor: selectedLoanTeam.name && selectedLoanTeam.name.toLowerCase() == 'white' ? '#e5e7eb' : 'transparent'
+									} : { backgroundColor: defaultBgColor }
+								]">
+								<span v-if="selectedLoanTeam" style="font-weight: 700;">
+									{{ selectedLoanTeam.name }}
+								</span>
+								<span v-else class="text-muted">เลือกทีม</span>
+								<span :style="{ color: selectedLoanTeam ? getContrastColor(selectedLoanTeam.name) : '' }"
+									:class="{ 'text-muted': !selectedLoanTeam }">▼</span>
+							</div>
+
+							<div class="modal-overlay" v-if="showLoanTeamPicker" @click.self="showLoanTeamPicker = false">
+								<div class="modal-content">
+									<div class="card-title">
+										<span>เลือกทีม</span>
+										<span style="cursor: pointer;" @click="showLoanTeamPicker = false">×</span>
+									</div>
+									<div class="team-grid">
+										<div v-for="(team, index) in team_match" :key="index" class="team-option"
+											:style="{ backgroundColor: team.name ? team.name.toLowerCase() : '#ccc', color: getContrastColor(team.name), border: team.name && team.name.toLowerCase() == 'white' ? '1px solid #e5e7eb' : 'none' }"
+											@click="selectedLoanTeam = team; showLoanTeamPicker = false">
+											{{ team.name }}
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div style="flex: 0 0 auto;">
+							<button type="submit" class="add-button" style="height: 32px; padding: 0.22rem 0.85rem; font-size: 0.78rem;">บันทึก</button>
+						</div>
+					</div>
+				</form>
+			</div>
+
+			<!-- Pitch View Mode & Team Selector Tabs -->
+			<div class="pitch-view-selector-bar">
+				<div class="pitch-team-tabs">
+					<button type="button" class="pitch-team-tab" :class="{ 'is-active': activePitchTab === 'teamA' }"
+						@click="activePitchTab = 'teamA'"
+						:style="activePitchTab === 'teamA' ? { borderColor: currentSelectedMatch.team_a_color.toLowerCase(), color: '#ffffff' } : {}">
+						<span>{{ currentSelectedMatch.team_a_color }}</span>
+						
+					</button>
+
+					<button type="button" class="pitch-team-tab" :class="{ 'is-active': activePitchTab === 'teamB' }"
+						@click="activePitchTab = 'teamB'"
+						:style="activePitchTab === 'teamB' ? { borderColor: currentSelectedMatch.team_b_color.toLowerCase(), color: '#ffffff' } : {}">
+						<span>{{ currentSelectedMatch.team_b_color }}</span>
+						
+					</button>
+
+					<button type="button" class="pitch-team-tab dual-mode-tab" :class="{ 'is-active': activePitchTab === 'both' }"
+						@click="activePitchTab = 'both'" title="ดูผังสนามทั้ง 2 ทีมแบบแนวนอน">
+						<span>⚔️ สนามคู่</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- ==================== VERTICAL PITCH VIEW (MOBILE / 2-PER-ROW GRID) ==================== -->
+			<div class="vertical-pitch-container" v-if="activePitchTab === 'teamA' || activePitchTab === 'teamB'">
+				<!-- Vertical Pitch Header Bar -->
+				<div class="vp-header-bar">
+					<span class="vp-team-badge"
+						:style="{ backgroundColor: activeTeamColor.toLowerCase(), color: getContrastColor(activeTeamColor), border: '1px solid ' + getBorderColor(activeTeamColor) }">
+						{{ activeTeamColor }}
+					</span>
+				</div>
+
+
+				<!-- Pitch Field (Vertical 2-Player Grid) -->
+				<div class="match-pitch-vertical"
+					:class="{ 'drag-over': dragOverTeamSide === activeTeamSide }"
+					@dragover.prevent="onDragOverTeam($event, activeTeamSide)"
+					@dragleave="onDragLeaveTeam($event, activeTeamSide)"
+					@drop.prevent="onDropToTeam($event, activeTeamSide)">
+
+					<!-- Field Markings -->
+					<div class="vp-markings">
+						<div class="vp-half-line"></div>
+						<div class="vp-center-circle"></div>
+						<div class="vp-center-spot"></div>
+
+						<div class="vp-penalty-top"></div>
+						<div class="vp-goal-top"></div>
+
+						<div class="vp-penalty-bottom"></div>
+						<div class="vp-goal-bottom"></div>
+
+						<div class="vp-corner-tl"></div>
+						<div class="vp-corner-tr"></div>
+						<div class="vp-corner-bl"></div>
+						<div class="vp-corner-br"></div>
+					</div>
+
+					<!-- 2-Player Per Row Tactical Grid (เรียงตามตำแหน่ง แถวละ 2 คน) -->
+					<div class="vp-tactical-grid">
+						<div v-for="(p, index) in sortedActiveTeamPlayers" :key="p.id"
+							class="pitch-player-node"
+							:class="{ 'is-centered-last': isLastOdd(index, sortedActiveTeamPlayers.length) }">
+							<div class="pitch-player-avatar-wrap">
+								<div class="pitch-player-avatar-circle" :style="{ borderColor: activeTeamColor.toLowerCase() }">
+									<img v-if="p.picture_url" :src="p.picture_url" />
+									<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="player-score-bubbles">
+									<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+									<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+								</div>
+							</div>
+							<div class="pitch-name-pill">
+								<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'DF' }}</span>
+								<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+							</div>
+							<div class="pitch-player-actions" v-if="isManager">
+								<button type="button" class="btn-quick-goal" title="+1 ประตู" @click.stop="quickAddGoal(p, activeTeamSide, 0)">⚽</button>
+								<button type="button" class="btn-quick-assist" title="+1 แอสซิสต์" @click.stop="quickAddGoal(p, activeTeamSide, 3)">👟</button>
+								<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, activeTeamSide, 2)">OG</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- Empty Roster State -->
+					<div v-if="activeTeamPlayers.length === 0" style="display: flex; align-items: center; justify-content: center; height: 100%; color: rgba(255, 255, 255, 0.7); font-size: 0.85rem; font-weight: 700; z-index: 2;">
+						<span>ไม่มีผู้เล่น {{ activeTeamColor }}</span>
+					</div>
+				</div>
+
+				<!-- Loan Players Section (Below Pitch) -->
+				<div class="vp-loan-card" v-if="activeTeamLoanPlayers.length > 0"
+					:class="{ 'drag-over': dragOverTeamSide === activeTeamSide }"
+					@dragover.prevent="onDragOverTeam($event, activeTeamSide)"
+					@dragleave="onDragLeaveTeam($event, activeTeamSide)"
+					@drop.prevent="onDropToTeam($event, activeTeamSide)">
+					<div class="vp-loan-header">
+						<span>🏷️ ยืมตัว</span>
+					</div>
+					<div class="vp-loan-players">
+						<div v-for="p in activeTeamLoanPlayers" :key="p.id" class="pitch-player-node is-loan">
+							<div class="pitch-player-avatar-wrap">
+								<div class="btn-unloan-node" v-if="isManager" title="ยกเลิกยืมตัว" @click.stop="unloanPlayer(p.id, activeTeamSide)">✕</div>
+								<div class="pitch-player-avatar-circle">
+									<img v-if="p.picture_url" :src="p.picture_url" />
+									<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="player-score-bubbles">
+									<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+									<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+								</div>
+								<span class="pitch-loan-tag">ยืม</span>
+							</div>
+							<div class="pitch-name-pill">
+								<span class="pitch-pos-label" :style="{ backgroundColor: p.color ? p.color.toLowerCase() : '#f59e0b', color: getContrastColor(p.color) }">
+									{{ p.color || 'Loan' }}
+								</span>
+								<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+							</div>
+							<div class="pitch-player-actions" v-if="isManager">
+								<button type="button" class="btn-quick-goal" :title="'+1 ประตูให้ Team ' + activeTeamColor" @click.stop="quickAddGoal(p, activeTeamSide, 0)">⚽</button>
+								<button type="button" class="btn-quick-assist" :title="'+1 แอสซิสต์ให้ Team ' + activeTeamColor" @click.stop="quickAddGoal(p, activeTeamSide, 3)">👟</button>
+								<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, activeTeamSide, 2)">OG</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Football Pitch Field (Horizontal Tactical Layout) -->
+			<div class="match-pitch-wrapper" v-if="activePitchTab === 'both'">
+				<div class="match-pitch">
+
+					<!-- Pitch Field Markings (Center, Goals, Penalty Areas) -->
+					<div class="match-pitch-markings">
+						<div class="mp-half-line"></div>
+						<div class="mp-center-circle"></div>
+						<div class="mp-center-spot"></div>
+						<div class="mp-penalty-left"></div>
+						<div class="mp-goal-left"></div>
+						<div class="mp-penalty-right"></div>
+						<div class="mp-goal-right"></div>
+						<div class="mp-corner-tl"></div>
+						<div class="mp-corner-tr"></div>
+						<div class="mp-corner-bl"></div>
+						<div class="mp-corner-br"></div>
+					</div>
+
+					<!-- ==================== TEAM A PITCH HALF (LEFT) ==================== -->
+					<div class="pitch-team-half team-a"
+						:class="{ 'drag-over': dragOverTeamSide === 'teamA' }"
+						@dragover.prevent="onDragOverTeam($event, 'teamA')"
+						@dragleave="onDragLeaveTeam($event, 'teamA')"
+						@drop.prevent="onDropToTeam($event, 'teamA')">
+
+						<!-- Team A Pitch Header -->
+						<div class="pitch-half-header">
+							<span class="pitch-half-badge"
+								:style="{ backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_a_color) }">
+								{{ currentSelectedMatch.team_a_color }}
+							</span>
+						</div>
+
+
+
+						<!-- Tactical 3 Columns (Col 1: Defense/GK -> Col 2: Midfield -> Col 3: Attack) -->
+						<div class="pitch-half-formation three-cols">
+							<!-- Col 1: Defense & GK -->
+							<div class="pitch-form-col col-tactical-half">
+								<div v-for="p in teamACol1" :key="p.id" class="pitch-player-node">
+									<div class="pitch-player-avatar-wrap">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_a_color.toLowerCase() }">
+											<img v-if="p.picture_url" :src="p.picture_url" />
+											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+										</div>
+										<div class="player-score-bubbles">
+											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										</div>
+									</div>
+									<div class="pitch-name-pill">
+										<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'DF' }}</span>
+										<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+									</div>
+									<div class="pitch-player-actions" v-if="isManager">
+										<button type="button" class="btn-quick-goal" title="+1 ประตู" @click.stop="quickAddGoal(p, 'teamA', 0)">⚽</button>
+										<button type="button" class="btn-quick-assist" title="+1 แอสซิสต์" @click.stop="quickAddGoal(p, 'teamA', 3)">👟</button>
+										<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, 'teamA', 2)">OG</button>
+									</div>
+								</div>
+							</div>
+
+							<!-- Col 2: Midfield & Wings -->
+							<div class="pitch-form-col col-tactical-half">
+								<div v-for="p in teamACol2" :key="p.id" class="pitch-player-node">
+									<div class="pitch-player-avatar-wrap">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_a_color.toLowerCase() }">
+											<img v-if="p.picture_url" :src="p.picture_url" />
+											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+										</div>
+										<div class="player-score-bubbles">
+											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										</div>
+									</div>
+									<div class="pitch-name-pill">
+										<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'MF' }}</span>
+										<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+									</div>
+									<div class="pitch-player-actions" v-if="isManager">
+										<button type="button" class="btn-quick-goal" title="+1 ประตู" @click.stop="quickAddGoal(p, 'teamA', 0)">⚽</button>
+										<button type="button" class="btn-quick-assist" title="+1 แอสซิสต์" @click.stop="quickAddGoal(p, 'teamA', 3)">👟</button>
+										<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, 'teamA', 2)">OG</button>
+									</div>
+								</div>
+							</div>
+
+							<!-- Col 3: Attack -->
+							<div class="pitch-form-col col-tactical-half">
+								<div v-for="p in teamACol3" :key="p.id" class="pitch-player-node">
+									<div class="pitch-player-avatar-wrap">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_a_color.toLowerCase() }">
+											<img v-if="p.picture_url" :src="p.picture_url" />
+											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+										</div>
+										<div class="player-score-bubbles">
+											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										</div>
+									</div>
+									<div class="pitch-name-pill">
+										<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'CF' }}</span>
+										<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+									</div>
+									<div class="pitch-player-actions" v-if="isManager">
+										<button type="button" class="btn-quick-goal" title="+1 ประตู" @click.stop="quickAddGoal(p, 'teamA', 0)">⚽</button>
+										<button type="button" class="btn-quick-assist" title="+1 แอสซิสต์" @click.stop="quickAddGoal(p, 'teamA', 3)">👟</button>
+										<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, 'teamA', 2)">OG</button>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Loaned Players Zone for Team A -->
+						<div class="pitch-half-loan-section" v-if="teamALoanPlayers.length > 0">
+							<div class="pitch-half-loan-label">
+								<span>🏷️ ยืมตัว</span>
+							</div>
+							<div class="pitch-half-loan-players">
+								<div v-for="p in teamALoanPlayers" :key="p.id" class="pitch-player-node is-loan">
+									<div class="pitch-player-avatar-wrap">
+										<!-- Remove / Unloan button -->
+										<div class="btn-unloan-node" v-if="isManager" title="ยกเลิกยืมตัว" @click.stop="unloanPlayer(p.id, 'teamA')">✕</div>
+										<div class="pitch-player-avatar-circle">
+											<img v-if="p.picture_url" :src="p.picture_url" />
+											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+										</div>
+										<div class="player-score-bubbles">
+											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										</div>
+										<span class="pitch-loan-tag">ยืม</span>
+									</div>
+									<div class="pitch-name-pill">
+										<span class="pitch-pos-label" :style="{ backgroundColor: p.color ? p.color.toLowerCase() : '#f59e0b', color: getContrastColor(p.color) }">
+											{{ p.color || 'Loan' }}
+										</span>
+										<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+									</div>
+									<!-- Quick Action Buttons for Loaned Player (credits goal to Team A) -->
+									<div class="pitch-player-actions" v-if="isManager">
+										<button type="button" class="btn-quick-goal" title="+1 ประตูให้ Team A" @click.stop="quickAddGoal(p, 'teamA', 0)">⚽</button>
+										<button type="button" class="btn-quick-assist" title="+1 แอสซิสต์ให้ Team A" @click.stop="quickAddGoal(p, 'teamA', 3)">👟</button>
+										<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, 'teamA', 2)">OG</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ==================== TEAM B PITCH HALF (RIGHT) ==================== -->
+					<div class="pitch-team-half team-b"
+						:class="{ 'drag-over': dragOverTeamSide === 'teamB' }"
+						@dragover.prevent="onDragOverTeam($event, 'teamB')"
+						@dragleave="onDragLeaveTeam($event, 'teamB')"
+						@drop.prevent="onDropToTeam($event, 'teamB')">
+
+						<!-- Team B Pitch Header -->
+						<div class="pitch-half-header">
+							<span class="pitch-half-badge"
+								:style="{ backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_b_color) }">
+								{{ currentSelectedMatch.team_b_color }}
+							</span>
+						</div>
+
+
+
+						<!-- Tactical Formation Columns: 3 columns (teamBCol1: Attack near center, teamBCol2: Midfield, teamBCol3: Defense & GK near right goal) -->
+						<div class="pitch-half-formation three-cols">
+							<!-- Col 1: Attack (near center line) -->
+							<div class="pitch-form-col col-tactical-half">
+								<div v-for="p in teamBCol1" :key="p.id" class="pitch-player-node">
+									<div class="pitch-player-avatar-wrap">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_b_color.toLowerCase() }">
+											<img v-if="p.picture_url" :src="p.picture_url" />
+											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+										</div>
+										<div class="player-score-bubbles">
+											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										</div>
+									</div>
+									<div class="pitch-name-pill">
+										<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'CF' }}</span>
+										<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+									</div>
+									<div class="pitch-player-actions" v-if="isManager">
+										<button type="button" class="btn-quick-goal" title="+1 ประตูให้ Team B" @click.stop="quickAddGoal(p, 'teamB', 0)">⚽</button>
+										<button type="button" class="btn-quick-assist" title="+1 แอสซิสต์ให้ Team B" @click.stop="quickAddGoal(p, 'teamB', 3)">👟</button>
+										<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, 'teamB', 2)">OG</button>
+									</div>
+								</div>
+							</div>
+
+							<!-- Col 2: Midfield & Wings -->
+							<div class="pitch-form-col col-tactical-half">
+								<div v-for="p in teamBCol2" :key="p.id" class="pitch-player-node">
+									<div class="pitch-player-avatar-wrap">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_b_color.toLowerCase() }">
+											<img v-if="p.picture_url" :src="p.picture_url" />
+											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+										</div>
+										<div class="player-score-bubbles">
+											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										</div>
+									</div>
+									<div class="pitch-name-pill">
+										<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'MF' }}</span>
+										<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+									</div>
+									<div class="pitch-player-actions" v-if="isManager">
+										<button type="button" class="btn-quick-goal" title="+1 ประตูให้ Team B" @click.stop="quickAddGoal(p, 'teamB', 0)">⚽</button>
+										<button type="button" class="btn-quick-assist" title="+1 แอสซิสต์ให้ Team B" @click.stop="quickAddGoal(p, 'teamB', 3)">👟</button>
+										<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, 'teamB', 2)">OG</button>
+									</div>
+								</div>
+							</div>
+
+							<!-- Col 3: Defense & GK (near right goal) -->
+							<div class="pitch-form-col col-tactical-half">
+								<div v-for="p in teamBCol3" :key="p.id" class="pitch-player-node">
+									<div class="pitch-player-avatar-wrap">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_b_color.toLowerCase() }">
+											<img v-if="p.picture_url" :src="p.picture_url" />
+											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+										</div>
+										<div class="player-score-bubbles">
+											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										</div>
+									</div>
+									<div class="pitch-name-pill">
+										<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'DF' }}</span>
+										<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+									</div>
+									<div class="pitch-player-actions" v-if="isManager">
+										<button type="button" class="btn-quick-goal" title="+1 ประตูให้ Team B" @click.stop="quickAddGoal(p, 'teamB', 0)">⚽</button>
+										<button type="button" class="btn-quick-assist" title="+1 แอสซิสต์ให้ Team B" @click.stop="quickAddGoal(p, 'teamB', 3)">👟</button>
+										<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, 'teamB', 2)">OG</button>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Loaned Players Zone for Team B -->
+						<div class="pitch-half-loan-section" v-if="teamBLoanPlayers.length > 0">
+							<div class="pitch-half-loan-label">
+								<span>🏷️ ยืมตัว</span>
+							</div>
+							<div class="pitch-half-loan-players">
+								<div v-for="p in teamBLoanPlayers" :key="p.id" class="pitch-player-node is-loan">
+									<div class="pitch-player-avatar-wrap">
+										<div class="btn-unloan-node" v-if="isManager" title="ยกเลิกยืมตัว" @click.stop="unloanPlayer(p.id, 'teamB')">✕</div>
+										<div class="pitch-player-avatar-circle">
+											<img v-if="p.picture_url" :src="p.picture_url" />
+											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+										</div>
+										<div class="player-score-bubbles">
+											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										</div>
+										<span class="pitch-loan-tag">ยืม</span>
+									</div>
+									<div class="pitch-name-pill">
+										<span class="pitch-pos-label" :style="{ backgroundColor: p.color ? p.color.toLowerCase() : '#f59e0b', color: getContrastColor(p.color) }">
+											{{ p.color || 'Loan' }}
+										</span>
+										<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+									</div>
+									<div class="pitch-player-actions" v-if="isManager">
+										<button type="button" class="btn-quick-goal" title="+1 ประตูให้ Team B" @click.stop="quickAddGoal(p, 'teamB', 0)">⚽</button>
+										<button type="button" class="btn-quick-assist" title="+1 แอสซิสต์ให้ Team B" @click.stop="quickAddGoal(p, 'teamB', 3)">👟</button>
+										<button type="button" class="btn-quick-og" title="Own Goal" @click.stop="quickAddGoal(p, 'teamB', 2)">OG</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+				</div>
+			</div>
+
+			<!-- ==================== LOAN POOL PANEL (การยืมตัว วางไว้ก่อนเหตุการณ์ทำประตู) ==================== -->
+			<div class="loan-pool-panel" v-if="isManager && currentSelectedMatch"
+				:class="{ 'drag-over': dragOverTeamSide === 'pool' }"
+				@dragover.prevent="onDragOverTeam($event, 'pool')"
+				@dragleave="onDragLeaveTeam($event, 'pool')"
+				@drop.prevent="onDropToPool($event)">
+
+				<div class="loan-pool-header">
+					<div class="loan-pool-title">
+						<span>🔄 คลังยืมตัว</span>
+						<span class="loan-pool-count">({{ loanPoolPlayers.length }})</span>
+					</div>
+
+					<!-- Controls: Search & Filter Chips -->
+					<div class="loan-pool-controls">
+						<input type="text" v-model="loanSearchQuery" placeholder="🔍 ค้นหา..." class="loan-search-input">
+
+						<div class="loan-filter-chips">
+							<span class="loan-filter-chip" :class="{ active: loanTeamFilter === 'all' }" @click="loanTeamFilter = 'all'">
+								ทั้งหมด
+							</span>
+							<span v-for="c in availableLoanColors" :key="c" class="loan-filter-chip"
+								:class="{ active: loanTeamFilter.toLowerCase() === c.toLowerCase() }"
+								@click="loanTeamFilter = (loanTeamFilter.toLowerCase() === c.toLowerCase() ? 'all' : c)">
+								{{ c }}
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Grid of Draggable Loan Players -->
+				<div class="loan-player-grid">
+					<div v-for="p in loanPoolPlayers" :key="p.id"
+						class="loan-player-card"
+						draggable="true"
+						@dragstart="onDragStartLoan($event, p)"
+						@dragend="onDragEndLoan($event)"
+						:title="p.alias">
+
+						<div class="loan-player-info">
+							<div class="loan-player-avatar" :style="{ borderColor: p.color ? p.color.toLowerCase() : '#ccc' }">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div style="min-width: 0;">
+								<div class="loan-player-name">{{ p.alias }}</div>
+								<div class="loan-player-meta">
+									<span :style="{ color: p.color ? p.color.toLowerCase() : 'var(--text-muted)', fontWeight: 700 }">{{ p.color }}</span>
+									<span v-if="p.pos_code">({{ p.pos_code }})</span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Quick buttons for mobile or instant click -->
+						<div class="loan-quick-btns">
+							<button type="button" class="btn-loan-assign"
+								:style="{ backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_a_color) }"
+								@click="loanPlayer(p, 'teamA')"
+								:title="'ยืมตัวให้ ' + currentSelectedMatch.team_a_color">
+								ยืม {{ currentSelectedMatch.team_a_color }}
+							</button>
+							<button type="button" class="btn-loan-assign"
+								:style="{ backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_b_color) }"
+								@click="loanPlayer(p, 'teamB')"
+								:title="'ยืมตัวให้ ' + currentSelectedMatch.team_b_color">
+								ยืม {{ currentSelectedMatch.team_b_color }}
+							</button>
+						</div>
+					</div>
+
+					<div v-if="loanPoolPlayers.length === 0" style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-style: italic; padding: 0.6rem 0; font-size: 0.8rem;">
+						ไม่มีผู้เล่น
+					</div>
+				</div>
+			</div>
+
+			<!-- Current Match Live Events Timeline (ประวัติทำประตูในแมตช์นี้) -->
+			<div class="match-timeline-card">
+				<div class="match-timeline-header">
+					<span>📜 ประตู Match {{ currentSelectedMatch.match_num }}</span>
+				</div>
+
+				<div class="match-timeline-grid">
+					<!-- Team A Events -->
+					<div class="timeline-team-col">
+						<div class="timeline-team-title">
+							<span class="team-badge-small"
+								:style="{ backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_a_color) }">
+								{{ currentSelectedMatch.team_a_color }}
+							</span>
+							<span>({{ currentMatchTeamAEvents.length }})</span>
+						</div>
+
+						<div v-for="g in currentMatchTeamAEvents" :key="g.goal_id" class="timeline-event-item"
+							:class="{ 'is-goal': g.goal_status == 0, 'is-assist': g.goal_status == 3, 'is-og': g.goal_status == 2 }">
+							<div>
+								<span v-if="g.goal_status == 2">🥅 {{ g.name }} <strong>(OG)</strong></span>
+								<span v-else-if="g.goal_status == 3">👟 {{ g.name }}</span>
+								<span v-else>⚽ {{ g.name }}</span>
+							</div>
+							<button type="button" class="btn-event-remove" v-if="isManager" title="ลบรายการนี้" @click="quickRemoveGoal(g.goal_id)">×</button>
+						</div>
+
+						<div v-if="currentMatchTeamAEvents.length === 0" style="font-size: 0.78rem; color: var(--text-muted); font-style: italic; padding: 0.25rem 0;">
+							ไม่มีประตู
+						</div>
+					</div>
+
+					<!-- Team B Events -->
+					<div class="timeline-team-col">
+						<div class="timeline-team-title">
+							<span class="team-badge-small"
+								:style="{ backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_b_color) }">
+								{{ currentSelectedMatch.team_b_color }}
+							</span>
+							<span>({{ currentMatchTeamBEvents.length }})</span>
+						</div>
+
+						<div v-for="g in currentMatchTeamBEvents" :key="g.goal_id" class="timeline-event-item"
+							:class="{ 'is-goal': g.goal_status == 0, 'is-assist': g.goal_status == 3, 'is-og': g.goal_status == 2 }">
+							<div>
+								<span v-if="g.goal_status == 2">🥅 {{ g.name }} <strong>(OG)</strong></span>
+								<span v-else-if="g.goal_status == 3">👟 {{ g.name }}</span>
+								<span v-else>⚽ {{ g.name }}</span>
+							</div>
+							<button type="button" class="btn-event-remove" v-if="isManager" title="ลบรายการนี้" @click="quickRemoveGoal(g.goal_id)">×</button>
+						</div>
+
+						<div v-if="currentMatchTeamBEvents.length === 0" style="font-size: 0.78rem; color: var(--text-muted); font-style: italic; padding: 0.25rem 0;">
+							ไม่มีประตู
+						</div>
+					</div>
+				</div>
+			</div>
+
+		</div>
+
+		<!-- Empty State when no matches exist in this week -->
+		<div class="card" v-else style="text-align: center; padding: 2.5rem 1.5rem;">
+			<div style="font-size: 3rem; margin-bottom: 0.5rem;">⚽</div>
+			<div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem;">ยังไม่มีตารางการแข่งขันในสัปดาห์นี้</div>
+			<div style="font-size: 0.85rem; color: var(--text-muted);">
+				รอการสร้างตารางการแข่งขันอัตโนมัติ (/schedule) หรือเลือกวันที่อื่น
+			</div>
+		</div>
+
+
+
+		<!-- Week Standings Table -->
+		<div class="card">
+			<div class="card-title">🏆 ตารางคะแนน</div>
+			<div class="table-container">
+				<table class="table">
+					<thead>
+						<tr>
+							<th style="text-align: left; padding-left: 0.5rem;">Team</th>
+							<th class="text-center">W</th>
+							<th class="text-center">D</th>
+							<th class="text-center">L</th>
+							<th class="text-center table-pts">PTS</th>
+							<th class="text-center">G</th>
+							<th class="text-center">A</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr v-for="(item, index) in tableweek" :key="index">
+							<td style="font-weight: 600; text-align: left; padding-left: 0.5rem;">
+								<span class="team-badge"
+									:style="{ backgroundColor: item.color.toLowerCase(), color: getContrastColor(item.color), border: '1px solid ' + getBorderColor(item.color) }">
+									{{ item.color }}
+								</span>
+							</td>
+							<td class="text-center">{{ item.w }}</td>
+							<td class="text-center">{{ item.d }}</td>
+							<td class="text-center">{{ item.l }}</td>
+							<td class="text-center table-pts">{{ item.pts }}</td>
+							<td class="text-center">{{ item.G }}</td>
+							<td class="text-center">{{ item.A }}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Match List (All Matches Summary Cards) -->
+		<div style="margin-top: 0.85rem; margin-bottom: 0.35rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+			📑 แมตช์ทั้งหมด
+		</div>
+
+		<div v-for="(match, index) in orderedMatches" :key="match.id" class="match-card"
+			:class="{ 'selected-match-highlight': selectedMatchIndex && all_match[selectedMatchIndex] && match.id == all_match[selectedMatchIndex].id }"
+			:style="isMatchLocked(match) ? { opacity: 0.65 } : {}">
+			<div class="match-header-niche" :style="{ cursor: isMatchLocked(match) ? 'not-allowed' : 'pointer' }" @click="selectMatch(match.match_num)">
+				<div class="match-meta" style="display: flex; align-items: center; gap: 0.35rem;">
+					<span>Match {{ match.match_num }}</span>
+					<span v-if="isMatchLocked(match)" class="viewer-badge-sched" style="font-size: 0.58rem; padding: 1px 5px;">🔒 รอแข่ง</span>
+					<span v-else-if="isMatchLive(match)" class="viewer-badge-live" style="font-size: 0.58rem; padding: 1px 5px;">LIVE</span>
+					<span v-else-if="isMatchScheduled(match)" class="viewer-badge-sched" style="font-size: 0.58rem; padding: 1px 5px;">รอแข่ง</span>
+					<span v-else class="viewer-badge-ft" style="font-size: 0.58rem; padding: 1px 5px;">FT</span>
+				</div>
+
+				<div class="score-board">
+					<div class="team-display">
+						<span class="team-badge"
+							:style="{ backgroundColor: match.team_a_color.toLowerCase(), color: getContrastColor(match.team_a_color), border: '1px solid ' + getBorderColor(match.team_a_color) }">
+							{{ match.team_a_color }}
+						</span>
+					</div>
+
+					<div class="score-display">
+						{{ (isMatchScheduled(match) && (!match.goal || match.goal.length === 0)) ? 'vs' : (match.team_a_goal + ' - ' + match.team_b_goal) }}
+					</div>
+
+					<div class="team-display">
+						<span class="team-badge"
+							:style="{ backgroundColor: match.team_b_color.toLowerCase(), color: getContrastColor(match.team_b_color), border: '1px solid ' + getBorderColor(match.team_b_color) }">
+							{{ match.team_b_color }}
+						</span>
+					</div>
+				</div>
+
+				<button v-if="isManager && match.match_num == matchCount" class="btn-remove-match" title="Remove Match"
+					v-on:click.stop="removeMatchbyID(match.id)">×</button>
+			</div>
+
+			<div class="match-events">
+				<!-- Goals -->
+				<div class="event-section">
+					<div class="event-title">⚽ ประตู</div>
+					<div class="event-list">
+						<div v-for="(goal, index1) in match.goal" :key="goal.goal_id">
+							<span v-if="goal.goal_status == 2" class="event-pill og">
+								{{ goal.name }} (OG)
+								<span class="remove-x" v-if="isManager" v-on:click="removeGoalbyID(goal.goal_id)">×</span>
+							</span>
+							<span v-else-if="goal.goal_status != 3" class="event-pill">
+								{{ goal.name }}
+								<span class="remove-x" v-if="isManager" v-on:click="removeGoalbyID(goal.goal_id)">×</span>
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Assists -->
+				<div class="event-section">
+					<div class="event-title">👟 แอสซิสต์</div>
+					<div class="event-list">
+						<div v-for="(goal, index1) in match.goal" :key="goal.goal_id">
+							<span v-if="goal.goal_status == 3" class="event-pill">
+								{{ goal.name }}
+								<span class="remove-x" v-if="isManager" v-on:click="removeGoalbyID(goal.goal_id)">×</span>
+							</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+	</div>
+
+	<!-- Scripts -->
+	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+	<script>
+		new Vue({
+			el: '#soccer-match',
+			data: {
+				newTodoSelect: '',
+				isLoan: false,
+				matchCount: 0,
+				Txtgoal: '',
+				Txtassist: '',
+				tableweek: [],
+				member: [],
+				loan: [],
+				info: [],
+				next_match: [],
+				output: [],
+				all_match: [],
+				teamcolors: '',
+				base_url: window.location.origin + (window.location.pathname.startsWith('/web') ? '/web' : '/webhook'),
+				todos: [],
+				team_match: [],
+				eventType: 0,
+				showTeamPicker: false,
+				showPlayerPicker: false,
+				showMatchPicker: false,
+				showWeekPicker: false,
+				week: { id: 0, number: 0, date: '' },
+				weeks: [],
+				selectedPlayerIndex: 0,
+				selectedMatchIndex: 0,
+				pickingFor: null, // 'teamA' or 'teamB'
+				teamA: null,
+				teamB: null,
+				showLoanTeamPicker: false,
+				selectedLoanTeam: null,
+				isDarkTheme: true,
+				currentUser: null,
+				showPasswordModal: false,
+				pwdLoading: false,
+				pwdMessage: '',
+				pwdIsError: false,
+				pwdForm: {
+					current_password: '',
+					new_password: '',
+					confirm_password: ''
+				},
+
+				// New Match Pitch (0.4) Data Properties
+				toastMessage: '',
+				toastTimer: null,
+				draggedLoanPlayer: null,
+				dragOverTeamSide: null,
+				loanSearchQuery: '',
+				loanTeamFilter: 'all',
+				matchLoans: {}, // { [matchId]: { teamA: [memberId...], teamB: [memberId...] } }
+				showAddMatchForm: false,
+				showClassicForm: false,
+				submittingGoal: false,
+				activePitchTab: (typeof window !== 'undefined' && window.innerWidth > 900) ? 'both' : 'teamA',
+				isManager: window.location.pathname.includes('/match'),
+				autoRefresh: true,
+				refreshCountdown: 30,
+				timerInterval: null,
+				isRefreshing: false
+			},
+			computed: {
+				activeTeamSide() {
+					return this.activePitchTab === 'teamB' ? 'teamB' : 'teamA';
+				},
+				activeTeamColor() {
+					if (!this.currentSelectedMatch) return '';
+					return this.activeTeamSide === 'teamB' ? this.currentSelectedMatch.team_b_color : this.currentSelectedMatch.team_a_color;
+				},
+				activeTeamPlayers() {
+					return this.activeTeamSide === 'teamB' ? this.teamBPlayers : this.teamAPlayers;
+				},
+				activeTeamLoanPlayers() {
+					return this.activeTeamSide === 'teamB' ? this.teamBLoanPlayers : this.teamALoanPlayers;
+				},
+				activeTeamFormation() {
+					return this.activeTeamSide === 'teamB' ? this.teamBFormation : this.teamAFormation;
+				},
+				sortedActiveTeamPlayers() {
+					if (!this.activeTeamPlayers || !Array.isArray(this.activeTeamPlayers)) return [];
+					const players = [...this.activeTeamPlayers];
+					// Sort tactically: CF -> AM -> MF -> DW -> DM -> DF -> Unset -> GK
+					const posRank = { 4: 10, 7: 20, 3: 30, 5: 40, 6: 50, 2: 60, 1: 80 };
+					return players.sort((a, b) => {
+						const rankA = posRank[a.pos_id] !== undefined ? posRank[a.pos_id] : 70;
+						const rankB = posRank[b.pos_id] !== undefined ? posRank[b.pos_id] : 70;
+						if (rankA !== rankB) return rankA - rankB;
+						return (a.alias || '').localeCompare(b.alias || '');
+					});
+				},
+				defaultBgColor() {
+					return this.isDarkTheme ? '#1f2937' : 'white';
+				},
+				currentSelectedMatch() {
+					if (!this.all_match) return null;
+					return this.all_match[this.selectedMatchIndex] || null;
+				},
+				sortedMatchesAscending() {
+					if (!this.all_match) return [];
+					return Object.values(this.all_match).sort((a, b) => a.match_num - b.match_num);
+				},
+				hasPrevMatch() {
+					const matches = this.sortedMatchesAscending;
+					if (!matches || matches.length <= 1) return false;
+					const idx = matches.findIndex(m => m.match_num == this.selectedMatchIndex);
+					return idx > 0;
+				},
+				hasNextMatch() {
+					const matches = this.sortedMatchesAscending;
+					if (!matches || matches.length <= 1) return false;
+					const idx = matches.findIndex(m => m.match_num == this.selectedMatchIndex);
+					if (idx < 0 || idx >= matches.length - 1) return false;
+					const nextMatch = matches[idx + 1];
+					return !this.isMatchLocked(nextMatch);
+				},
+				orderedMatches() {
+					if (!this.all_match) return [];
+					let matches = Object.values(this.all_match);
+					// Sort by match_num descending
+					matches.sort((a, b) => b.match_num - a.match_num);
+
+					if (this.selectedMatchIndex && this.all_match[this.selectedMatchIndex]) {
+						const selectedMatch = this.all_match[this.selectedMatchIndex];
+						// Remove selected match from its current position
+						matches = matches.filter(m => m.id !== selectedMatch.id);
+						// Add to front
+						matches.unshift(selectedMatch);
+					}
+					return matches;
+				},
+				availableTeamsForPicker() {
+					if (!this.info.team_week) return [];
+					let teams = Object.values(this.info.team_week);
+					if (this.pickingFor === 'teamA' && this.teamB) {
+						teams = teams.filter(t => t.teamid != this.teamB.teamid);
+					} else if (this.pickingFor === 'teamB' && this.teamA) {
+						teams = teams.filter(t => t.teamid != this.teamA.teamid);
+					}
+					return teams;
+				},
+				sortedMatchesForPicker() {
+					if (!this.all_match) return [];
+					return Object.keys(this.all_match).map(key => ({
+						index: key,
+						match: this.all_match[key]
+					})).sort((a, b) => b.match.match_num - a.match.match_num);
+				},
+
+				// Players for currently selected match
+				teamAPlayers() {
+					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					const teamAId = this.currentSelectedMatch.team_a_id;
+					return this.info.allmembers.filter(m => m.team_id == teamAId);
+				},
+				teamBPlayers() {
+					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					const teamBId = this.currentSelectedMatch.team_b_id;
+					return this.info.allmembers.filter(m => m.team_id == teamBId);
+				},
+				teamALoanPlayers() {
+					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					const loanIds = this.getLoanIdsForCurrentMatch('teamA');
+					return this.info.allmembers.filter(m => loanIds.includes(m.id));
+				},
+				teamBLoanPlayers() {
+					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					const loanIds = this.getLoanIdsForCurrentMatch('teamB');
+					return this.info.allmembers.filter(m => loanIds.includes(m.id));
+				},
+				teamAFormation() {
+					return this.organizeFormation(this.teamAPlayers);
+				},
+				teamBFormation() {
+					return this.organizeFormation(this.teamBPlayers);
+				},
+				// 2-Column Tactical Pitch Formations
+				sortedTeamAPlayers() {
+					if (!this.teamAPlayers || !Array.isArray(this.teamAPlayers)) return [];
+					const posRank = { 1: 10, 2: 20, 6: 30, 5: 35, 3: 40, 7: 50, 4: 60 };
+					return [...this.teamAPlayers].sort((a, b) => (posRank[a.pos_id] || 38) - (posRank[b.pos_id] || 38) || (a.alias || '').localeCompare(b.alias || ''));
+				},
+				teamACol1() {
+					const p = this.sortedTeamAPlayers;
+					const c1 = Math.ceil(p.length / 3);
+					return p.slice(0, c1);
+				},
+				teamACol2() {
+					const p = this.sortedTeamAPlayers;
+					const c1 = Math.ceil(p.length / 3);
+					const rem = p.length - c1;
+					const c2 = Math.ceil(rem / 2);
+					return p.slice(c1, c1 + c2);
+				},
+				teamACol3() {
+					const p = this.sortedTeamAPlayers;
+					const c1 = Math.ceil(p.length / 3);
+					const rem = p.length - c1;
+					const c2 = Math.ceil(rem / 2);
+					return p.slice(c1 + c2);
+				},
+				sortedTeamBPlayers() {
+					if (!this.teamBPlayers || !Array.isArray(this.teamBPlayers)) return [];
+					const posRank = { 4: 10, 7: 20, 3: 30, 5: 35, 6: 40, 2: 50, 1: 60 };
+					return [...this.teamBPlayers].sort((a, b) => (posRank[a.pos_id] || 32) - (posRank[b.pos_id] || 32) || (a.alias || '').localeCompare(b.alias || ''));
+				},
+				teamBCol1() {
+					const p = this.sortedTeamBPlayers;
+					const c1 = Math.ceil(p.length / 3);
+					return p.slice(0, c1);
+				},
+				teamBCol2() {
+					const p = this.sortedTeamBPlayers;
+					const c1 = Math.ceil(p.length / 3);
+					const rem = p.length - c1;
+					const c2 = Math.ceil(rem / 2);
+					return p.slice(c1, c1 + c2);
+				},
+				teamBCol3() {
+					const p = this.sortedTeamBPlayers;
+					const c1 = Math.ceil(p.length / 3);
+					const rem = p.length - c1;
+					const c2 = Math.ceil(rem / 2);
+					return p.slice(c1 + c2);
+				},
+				loanPoolPlayers() {
+					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					const match = this.currentSelectedMatch;
+					const loanAIds = this.getLoanIdsForCurrentMatch('teamA');
+					const loanBIds = this.getLoanIdsForCurrentMatch('teamB');
+
+					let pool = this.info.allmembers.filter(m =>
+						m.team_id != match.team_a_id &&
+						m.team_id != match.team_b_id &&
+						!loanAIds.includes(m.id) &&
+						!loanBIds.includes(m.id)
+					);
+
+					if (this.loanTeamFilter !== 'all') {
+						pool = pool.filter(m => m.color && m.color.toLowerCase() === this.loanTeamFilter.toLowerCase());
+					}
+
+					if (this.loanSearchQuery.trim()) {
+						const q = this.loanSearchQuery.trim().toLowerCase();
+						pool = pool.filter(m => (m.alias && m.alias.toLowerCase().includes(q)) || (m.name && m.name.toLowerCase().includes(q)));
+					}
+
+					return pool;
+				},
+				availableLoanColors() {
+					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					const match = this.currentSelectedMatch;
+					const set = new Set();
+					this.info.allmembers.forEach(m => {
+						if (m.team_id != match.team_a_id && m.team_id != match.team_b_id && m.color) {
+							set.add(m.color);
+						}
+					});
+					return Array.from(set);
+				},
+				currentMatchTeamAEvents() {
+					if (!this.currentSelectedMatch || !this.currentSelectedMatch.goal) return [];
+					return this.currentSelectedMatch.goal.filter(g => this.isGoalForTeam(g, 'teamA'));
+				},
+				currentMatchTeamBEvents() {
+					if (!this.currentSelectedMatch || !this.currentSelectedMatch.goal) return [];
+					return this.currentSelectedMatch.goal.filter(g => this.isGoalForTeam(g, 'teamB'));
+				}
+			},
+			mounted() {
+				// Load theme preference from localStorage
+				const savedTheme = localStorage.getItem('theme');
+				this.isDarkTheme = savedTheme ? (savedTheme === 'dark') : true;
+				this.applyTheme(this.isDarkTheme);
+
+				this.fetchCurrentUser();
+				this.refreshMatch(0);
+
+				if (!this.isManager) {
+					this.startAutoRefreshTimer();
+				}
+			},
+			methods: {
+				manualRefresh() {
+					this.refreshCountdown = 30;
+					this.isRefreshing = true;
+					this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+					setTimeout(() => {
+						this.isRefreshing = false;
+					}, 400);
+				},
+				startAutoRefreshTimer() {
+					if (this.timerInterval) clearInterval(this.timerInterval);
+					this.refreshCountdown = 30;
+					this.timerInterval = setInterval(() => {
+						if (!this.autoRefresh) return;
+						this.refreshCountdown--;
+						if (this.refreshCountdown <= 0) {
+							this.refreshCountdown = 30;
+							this.isRefreshing = true;
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							setTimeout(() => {
+								this.isRefreshing = false;
+							}, 400);
+						}
+					}, 1000);
+				},
+				toggleClassicForm() {
+					this.showClassicForm = !this.showClassicForm;
+					if (this.showClassicForm) {
+						this.$nextTick(() => {
+							const el = document.getElementById('classic-goal-form');
+							if (el) {
+								el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+							}
+						});
+					}
+				},
+				showToast(msg) {
+					this.toastMessage = msg;
+					if (this.toastTimer) clearTimeout(this.toastTimer);
+					this.toastTimer = setTimeout(() => {
+						this.toastMessage = '';
+					}, 2800);
+				},
+				changeWeek(weeknum) {
+					this.showWeekPicker = false;
+					this.teamA = null;
+					this.teamB = null;
+					this.selectedMatchIndex = 0;
+					this.refreshMatch(weeknum, true);
+				},
+				refreshMatch: function (weeknum, update_team_lists = true, matchindex = 0) {
+					const url = (this.base_url || '/webhook') + '/match_view_data?weeknum=' + weeknum;
+					axios.get(url)
+						.then(response => {
+							this.info = response.data;
+							if (this.info.week && this.info.week.number) {
+								this.week = this.info.week;
+								this.weeks = this.info.weeks || [];
+							} else {
+								// Fetch week metadata fallback
+								axios.get(this.base_url + '/get_info?cmd=get_position_page_data&weeknum=' + weeknum)
+									.then(res2 => {
+										if (res2.data && res2.data.week) {
+											this.week = res2.data.week;
+											this.weeks = res2.data.weeks || [];
+										}
+									})
+									.catch(e => console.log('Fallback week fetch error:', e));
+							}
+							this.teamcolors = this.info.team_week || {};
+							this.next_match = this.info.next_match || {};
+							this.all_match = this.info.all_match || {};
+							this.tableweek = this.info.tableweek || [];
+
+							if (this.all_match) {
+								this.matchCount = Object.keys(this.all_match).length;
+							} else {
+								this.matchCount = 0;
+							}
+
+							this.loadSavedLoans();
+
+							const allm = this.info.allmembers || [];
+
+							if (update_team_lists) {
+								// Auto-select match: pick specified match, live match, or first unfinished match if not set
+								if (matchindex > 0 && this.all_match[matchindex]) {
+									this.selectedMatchIndex = matchindex;
+								} else if (!this.all_match || !this.all_match[this.selectedMatchIndex] || this.isMatchLocked(this.all_match[this.selectedMatchIndex])) {
+									if (this.matchCount > 0) {
+										// 1. If backend specified current_match_num and it exists
+										if (this.info && this.info.current_match_num && this.all_match[this.info.current_match_num]) {
+											this.selectedMatchIndex = this.info.current_match_num;
+										} else {
+											const sorted = Object.values(this.all_match).sort((a, b) => a.match_num - b.match_num);
+											const liveMatch = sorted.find(m => this.isMatchLive(m));
+											if (liveMatch) {
+												this.selectedMatchIndex = liveMatch.match_num;
+											} else {
+												const unfinished = sorted.find(m => !this.isMatchFinished(m));
+												if (unfinished) {
+													this.selectedMatchIndex = unfinished.match_num;
+												} else {
+													const maxMatchNum = Math.max(...Object.keys(this.all_match).map(Number));
+													this.selectedMatchIndex = maxMatchNum;
+												}
+											}
+										}
+									} else {
+										this.selectedMatchIndex = 0;
+									}
+								}
+
+								// Sync member and team_match for currently selected match
+								const targetIndex = (this.selectedMatchIndex && this.all_match[this.selectedMatchIndex]) ? this.selectedMatchIndex : 0;
+								if (targetIndex > 0 && this.all_match[targetIndex]) {
+									const m = this.all_match[targetIndex];
+									this.team_match = Object.values(this.info.team_week || {}).filter(team_week => team_week.teamid == m.team_a_id || team_week.teamid == m.team_b_id);
+									this.member = allm.filter(allmembers => allmembers.team_id == m.team_a_id || allmembers.team_id == m.team_b_id);
+								} else {
+									this.member = allm;
+								}
+								// Reset selected player when list updates
+								this.selectedPlayerIndex = 0;
+
+								// Auto-select default teams for new match form
+								if (this.info.team_week) {
+									const teams = Object.values(this.info.team_week);
+									if (teams.length >= 2) {
+										if (!this.teamA) {
+											this.teamA = teams[0];
+										}
+										if (!this.teamB) {
+											this.teamB = (teams[1].teamid !== this.teamA.teamid) ? teams[1] : teams[0];
+										}
+									}
+								}
+							}
+						})
+						.catch(e => {
+							console.log("Errors : " + e);
+						});
+				},
+				isLastOdd(index, total) {
+					return total % 2 !== 0 && index === total - 1;
+				},
+				organizeFormation(players) {
+					if (!players || !Array.isArray(players)) {
+						return { gk: [], df: [], dw: [], dm: [], mf: [], am: [], cf: [], unset: [] };
+					}
+					const gk = players.filter(p => p.pos_id == 1);
+					const df = players.filter(p => p.pos_id == 2);
+					const dw = players.filter(p => p.pos_id == 5);
+					const dm = players.filter(p => p.pos_id == 6);
+					const mf = players.filter(p => p.pos_id == 3);
+					const am = players.filter(p => p.pos_id == 7);
+					const cf = players.filter(p => p.pos_id == 4);
+					const unset = players.filter(p => !p.pos_id || p.pos_id == 0 || ![1, 2, 3, 4, 5, 6, 7].includes(Number(p.pos_id)));
+					return { gk, df, dw, dm, mf, am, cf, unset };
+				},
+				getPosStyle(posCode) {
+					const code = (posCode || '').toUpperCase();
+					switch (code) {
+						case 'GK': return { background: '#475569', color: '#ffffff' };
+						case 'DF': return { background: '#2563eb', color: '#ffffff' };
+						case 'DW': return { background: '#0284c7', color: '#ffffff' };
+						case 'DM': return { background: '#0d9488', color: '#ffffff' };
+						case 'MF': return { background: '#8b5cf6', color: '#ffffff' };
+						case 'AM': return { background: '#ea580c', color: '#ffffff' };
+						case 'CF': return { background: '#dc2626', color: '#ffffff' };
+						default: return { background: '#64748b', color: '#ffffff' };
+					}
+				},
+				addMatch() {
+					var formdata = new FormData();
+					formdata.append('matchnum', this.$refs.match_num.value);
+					formdata.append('weekid', this.$refs.week_id.value);
+					formdata.append('teamaid', this.$refs.team_a_id.value);
+					formdata.append('teambid', this.$refs.team_b_id.value);
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(response => {
+							this.output = response;
+							this.teamA = null;
+							this.teamB = null;
+							this.selectedMatchIndex = 0;
+							this.showAddMatchForm = false;
+							this.showToast('✅ สร้าง Match ' + this.$refs.match_num.value + ' สำเร็จ!');
+							this.refreshMatch(this.week.number || 0, true);
+						})
+						.catch(err => {
+							this.showToast('⚠️ ไม่สามารถสร้างแมตช์ได้');
+						});
+				},
+				openTeamPicker(side) {
+					this.pickingFor = side;
+					this.showTeamPicker = true;
+				},
+				swapTeams() {
+					[this.teamA, this.teamB] = [this.teamB, this.teamA];
+				},
+				selectTeam(team) {
+					if (this.pickingFor === 'teamA') {
+						this.teamA = team;
+					} else if (this.pickingFor === 'teamB') {
+						this.teamB = team;
+					}
+					this.showTeamPicker = false;
+				},
+				selectPlayer(index) {
+					this.selectedPlayerIndex = index;
+					this.showPlayerPicker = false;
+				},
+				navigateMatch(direction) {
+					const matches = this.sortedMatchesAscending;
+					if (!matches || matches.length === 0) return;
+					const currentIndex = matches.findIndex(m => m.match_num == this.selectedMatchIndex);
+					if (currentIndex === -1) return;
+					const target = matches[currentIndex + direction];
+					if (target && !this.isMatchLocked(target)) {
+						this.selectMatch(target.match_num);
+					}
+				},
+				selectMatch(index) {
+					if (this.all_match && this.all_match[index]) {
+						if (this.isMatchLocked(this.all_match[index])) {
+							this.showToast('🔒 แมตช์นี้ยังไม่ถึงคิวแข่ง (รอจบแมตช์ก่อนหน้า)');
+							return;
+						}
+					}
+					this.selectedMatchIndex = index;
+					this.showMatchPicker = false;
+					const allm = this.info.allmembers || [];
+					if (this.all_match && this.all_match[index]) {
+						const m = this.all_match[index];
+						this.team_match = Object.values(this.info.team_week || {}).filter(team_week => team_week.teamid == m.team_a_id || team_week.teamid == m.team_b_id);
+						this.member = allm.filter(allmembers => allmembers.team_id == m.team_a_id || allmembers.team_id == m.team_b_id);
+					}
+					this.$nextTick(() => {
+						this.updateStatus();
+					});
+				},
+				finishCurrentMatch() {
+					if (!this.currentSelectedMatch) return;
+					const match = this.currentSelectedMatch;
+					const nextMatchNum = match.match_num + 1;
+					const hasNext = this.all_match && this.all_match[nextMatchNum];
+
+					const scoreSummary = `${match.team_a_color} ${match.team_a_goal} - ${match.team_b_goal} ${match.team_b_color}`;
+					const confirmText = hasNext 
+						? `ยืนยันจบ Match ${match.match_num} (${scoreSummary}) หรือไม่?\nระบบจะขึ้น Match ${nextMatchNum} ให้ทันที` 
+						: `ยืนยันจบ Match ${match.match_num} (${scoreSummary}) หรือไม่?`;
+
+					if (!confirm(confirmText)) return;
+
+					const formdata = new FormData();
+					formdata.append('cmd', 'finish_match');
+					formdata.append('matchid', match.id);
+					formdata.append('weekid', this.week.id);
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(res => {
+							this.showToast(`🏁 จบ Match ${match.match_num} เรียบร้อยแล้ว`);
+							const targetNum = hasNext ? nextMatchNum : match.match_num;
+							this.selectedMatchIndex = targetNum;
+							this.refreshMatch(this.week.number || 0, true, targetNum);
+						})
+						.catch(err => {
+							this.showToast('⚠️ เกิดข้อผิดพลาดในการจบแมตช์');
+							console.error('finishCurrentMatch error:', err);
+						});
+				},
+				startCurrentMatch() {
+					if (!this.currentSelectedMatch) return;
+					const match = this.currentSelectedMatch;
+					const formdata = new FormData();
+					formdata.append('cmd', 'start_match');
+					formdata.append('matchid', match.id);
+					formdata.append('weekid', this.week.id);
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(res => {
+							this.showToast(`▶️ Match ${match.match_num} เริ่มแข่งขันแล้ว (LIVE)`);
+							this.refreshMatch(this.week.number || 0, false, match.match_num);
+						})
+						.catch(err => {
+							this.showToast('⚠️ เกิดข้อผิดพลาดในการเริ่มแมตช์');
+							console.error('startCurrentMatch error:', err);
+						});
+				},
+				reopenCurrentMatch() {
+					if (!this.currentSelectedMatch) return;
+					const match = this.currentSelectedMatch;
+					if (!confirm(`ต้องการเปิด Match ${match.match_num} ให้กลับมาแข่งขันต่อหรือไม่?`)) return;
+
+					const formdata = new FormData();
+					formdata.append('cmd', 'reopen_match');
+					formdata.append('matchid', match.id);
+					formdata.append('weekid', this.week.id);
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(res => {
+							this.showToast(`↩️ Match ${match.match_num} กลับมาแข่งขันต่อแล้ว`);
+							this.refreshMatch(this.week.number || 0, false, match.match_num);
+						})
+						.catch(err => {
+							this.showToast('⚠️ เกิดข้อผิดพลาดในการเปิดแมตช์');
+							console.error('reopenCurrentMatch error:', err);
+						});
+				},
+				// ==================== FAST 1-CLICK GOAL / ASSIST (0.4) ====================
+				quickAddGoal(player, side, statusId = 0) {
+					if (!this.currentSelectedMatch) return;
+					if (this.submittingGoal) return;
+					this.submittingGoal = true;
+
+					const match = this.currentSelectedMatch;
+					let teamId = (side === 'teamA') ? match.team_a_id : match.team_b_id;
+
+					// In soccer, an Own Goal (OG = 2) is credited to the OPPONENT team!
+					if (statusId === 2) {
+						teamId = (side === 'teamA') ? match.team_b_id : match.team_a_id;
+					}
+
+					const teamColor = (teamId === match.team_a_id) ? match.team_a_color : match.team_b_color;
+
+					const formdata = new FormData();
+					formdata.append('teamid', teamId);
+					formdata.append('memberid', player.id);
+					formdata.append('weekid', this.week.id);
+					formdata.append('statusid', statusId);
+					formdata.append('matchid', match.id);
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(response => {
+							this.submittingGoal = false;
+							const icon = statusId === 0 ? '⚽' : statusId === 3 ? '👟' : '🥅';
+							const label = statusId === 0 ? 'ยิงประตู (+1)' : statusId === 3 ? 'แอสซิสต์ (+1)' : 'ทำเข้าประตูตัวเอง (OG)';
+							this.showToast(icon + ' ' + player.alias + ' ' + label + ' ให้ทีม ' + teamColor);
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+						})
+						.catch(err => {
+							this.submittingGoal = false;
+							this.showToast('⚠️ เกิดข้อผิดพลาดในการบันทึกผล');
+							console.error('quickAddGoal error:', err);
+						});
+				},
+				quickRemoveGoal(goalId) {
+					const formdata = new FormData();
+					formdata.append('goalid', goalId);
+					formdata.append('weekid', this.week.id);
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(response => {
+							this.showToast('🗑️ ลบประตูเรียบร้อย');
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+						})
+						.catch(err => {
+							this.showToast('⚠️ เกิดข้อผิดพลาดในการลบ');
+							console.error('quickRemoveGoal error:', err);
+						});
+				},
+				getPlayerGoalsInMatch(playerId, alias) {
+					if (!this.currentSelectedMatch || !this.currentSelectedMatch.goal) return 0;
+					return this.currentSelectedMatch.goal.filter(g =>
+						(g.member_id == playerId || g.name == alias) && g.goal_status == 0
+					).length;
+				},
+				getPlayerAssistsInMatch(playerId, alias) {
+					if (!this.currentSelectedMatch || !this.currentSelectedMatch.goal) return 0;
+					return this.currentSelectedMatch.goal.filter(g =>
+						(g.member_id == playerId || g.name == alias) && g.goal_status == 3
+					).length;
+				},
+				isGoalForTeam(goal, side) {
+					if (!this.currentSelectedMatch) return false;
+					const targetTeamId = (side === 'teamA') ? this.currentSelectedMatch.team_a_id : this.currentSelectedMatch.team_b_id;
+					if (goal.team_id !== undefined && goal.team_id !== null && goal.team_id != 0) {
+						return goal.team_id == targetTeamId;
+					}
+					// Fallback based on member team
+					const member = (this.info.allmembers || []).find(m => m.id == goal.member_id || m.alias == goal.name);
+					if (member) {
+						if (goal.goal_status == 2) {
+							// OG awarded to opposite team
+							const oppTeamId = (side === 'teamA') ? this.currentSelectedMatch.team_b_id : this.currentSelectedMatch.team_a_id;
+							return member.team_id == oppTeamId;
+						}
+						return member.team_id == targetTeamId;
+					}
+					return side === 'teamA';
+				},
+
+				// ==================== DRAG AND DROP LOAN (0.4) ====================
+				getLoanIdsForCurrentMatch(side) {
+					if (!this.currentSelectedMatch) return [];
+					const matchId = this.currentSelectedMatch.id;
+					if (!this.matchLoans[matchId]) {
+						this.$set(this.matchLoans, matchId, { teamA: [], teamB: [] });
+					}
+
+					// Auto-detect loans from existing goals/assists in this match
+					if (this.currentSelectedMatch.goal && this.info.allmembers) {
+						const teamId = (side === 'teamA') ? this.currentSelectedMatch.team_a_id : this.currentSelectedMatch.team_b_id;
+						this.currentSelectedMatch.goal.forEach(g => {
+							if (g.team_id == teamId) {
+								const member = this.info.allmembers.find(m => m.id == g.member_id || m.alias == g.name);
+								if (member && member.team_id != this.currentSelectedMatch.team_a_id && member.team_id != this.currentSelectedMatch.team_b_id) {
+									if (!this.matchLoans[matchId][side].includes(member.id)) {
+										this.matchLoans[matchId][side].push(member.id);
+									}
+								}
+							}
+						});
+					}
+
+					return this.matchLoans[matchId][side] || [];
+				},
+				loanPlayer(player, side) {
+					if (!this.currentSelectedMatch) return;
+					const matchId = this.currentSelectedMatch.id;
+					if (!this.matchLoans[matchId]) {
+						this.$set(this.matchLoans, matchId, { teamA: [], teamB: [] });
+					}
+
+					const otherSide = (side === 'teamA') ? 'teamB' : 'teamA';
+					this.matchLoans[matchId][otherSide] = this.matchLoans[matchId][otherSide].filter(id => id !== player.id);
+
+					if (!this.matchLoans[matchId][side].includes(player.id)) {
+						this.matchLoans[matchId][side].push(player.id);
+					}
+
+					this.saveLoans();
+					const teamName = (side === 'teamA') ? this.currentSelectedMatch.team_a_color : this.currentSelectedMatch.team_b_color;
+					this.showToast('🏷️ ยืมตัว ' + player.alias + ' ให้ทีม ' + teamName + ' เรียบร้อย');
+				},
+				unloanPlayer(playerId, side) {
+					if (!this.currentSelectedMatch) return;
+					const matchId = this.currentSelectedMatch.id;
+					if (this.matchLoans[matchId] && this.matchLoans[matchId][side]) {
+						this.matchLoans[matchId][side] = this.matchLoans[matchId][side].filter(id => id !== playerId);
+						this.saveLoans();
+						this.showToast('ยกเลิกยืมตัวเรียบร้อย');
+					}
+				},
+				saveLoans() {
+					if (this.week && this.week.id) {
+						try {
+							localStorage.setItem('soccer_match_loans_' + this.week.id, JSON.stringify(this.matchLoans));
+						} catch (e) {}
+					}
+				},
+				loadSavedLoans() {
+					if (this.week && this.week.id) {
+						try {
+							const saved = localStorage.getItem('soccer_match_loans_' + this.week.id);
+							if (saved) {
+								this.matchLoans = JSON.parse(saved);
+							}
+						} catch (e) {}
+					}
+				},
+				onDragStartLoan(event, player) {
+					this.draggedLoanPlayer = player;
+					event.dataTransfer.setData('text/plain', String(player.id));
+					event.dataTransfer.effectAllowed = 'copyMove';
+				},
+				onDragEndLoan(event) {
+					this.draggedLoanPlayer = null;
+					this.dragOverTeamSide = null;
+				},
+				onDragOverTeam(event, side) {
+					event.preventDefault();
+					this.dragOverTeamSide = side;
+					event.dataTransfer.dropEffect = 'copy';
+				},
+				onDragLeaveTeam(event, side) {
+					if (this.dragOverTeamSide === side) {
+						this.dragOverTeamSide = null;
+					}
+				},
+				onDropToTeam(event, side) {
+					event.preventDefault();
+					this.dragOverTeamSide = null;
+					if (this.draggedLoanPlayer) {
+						this.loanPlayer(this.draggedLoanPlayer, side);
+						this.draggedLoanPlayer = null;
+					}
+				},
+				onDropToPool(event) {
+					event.preventDefault();
+					this.dragOverTeamSide = null;
+					if (this.draggedLoanPlayer) {
+						this.unloanPlayer(this.draggedLoanPlayer.id, 'teamA');
+						this.unloanPlayer(this.draggedLoanPlayer.id, 'teamB');
+						this.draggedLoanPlayer = null;
+					}
+				},
+
+				// ==================== LEGACY FORM COMPATIBILITY ====================
+				addGoal() {
+					var formdata = new FormData();
+					let memberindex = this.$refs.member_id_goal.value;
+					let matchindex = this.$refs.match_id_goal.value;
+					let current_team = this.member || [];
+					let status_team = this.$refs.status_team.value;
+					let statusid = this.$refs.status_id_goal.value;
+					let teamid = 0;
+					let teamA_id = this.all_match[matchindex] ? this.all_match[matchindex].team_a_id : 0;
+					let teamB_id = this.all_match[matchindex] ? this.all_match[matchindex].team_b_id : 0;
+
+					if (status_team == 1) {
+						teamid = this.selectedLoanTeam ? this.selectedLoanTeam.teamid : 0;
+					} else {
+						if (statusid == 2) {
+							if (current_team[memberindex] && current_team[memberindex].team_id == teamA_id) {
+								teamid = teamB_id;
+							} else {
+								teamid = teamA_id;
+							}
+						} else {
+							teamid = current_team[memberindex] ? current_team[memberindex].team_id : 0;
+						}
+					}
+
+					formdata.append('teamid', teamid);
+					formdata.append('memberid', current_team[memberindex] ? current_team[memberindex].id : 0);
+					formdata.append('weekid', this.$refs.week_id.value);
+					formdata.append('statusid', statusid);
+					formdata.append('matchid', this.all_match[matchindex] ? this.all_match[matchindex].id : 0);
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(response => {
+							this.output = response;
+							this.showToast('✅ บันทึกผลสำเร็จ');
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+						});
+				},
+				updateStatusTeam() {
+					let statusid = this.$refs.status_team.value;
+					let matchindex = this.$refs.match_id_goal.value;
+					const allm = this.info.allmembers || [];
+
+					if (this.matchCount > 0 && this.all_match[matchindex]) {
+						if (statusid == 1) {
+							this.member = allm.filter(allmembers => allmembers.team_id != this.all_match[matchindex].team_a_id && allmembers.team_id != this.all_match[matchindex].team_b_id);
+						} else {
+							this.member = allm.filter(allmembers => allmembers.team_id == this.all_match[matchindex].team_a_id || allmembers.team_id == this.all_match[matchindex].team_b_id);
+						}
+						this.refreshMatch(this.week.number || 0, false, matchindex);
+					}
+				},
+				updateStatus() {
+					let statusid = this.$refs.status_team ? this.$refs.status_team.value : 0;
+					let matchindex = this.selectedMatchIndex;
+					const allm = this.info.allmembers || [];
+
+					if (this.matchCount > 0 && this.all_match[matchindex]) {
+						this.team_match = Object.values(this.info.team_week || {}).filter(team_week => team_week.teamid == this.all_match[matchindex].team_a_id || team_week.teamid == this.all_match[matchindex].team_b_id);
+
+						if (statusid == 1) {
+							this.member = allm.filter(allmembers => allmembers.team_id != this.all_match[matchindex].team_a_id && allmembers.team_id != this.all_match[matchindex].team_b_id);
+						} else {
+							this.member = allm.filter(allmembers => allmembers.team_id == this.all_match[matchindex].team_a_id || allmembers.team_id == this.all_match[matchindex].team_b_id);
+						}
+						this.refreshMatch(this.week.number || 0, false, matchindex);
+					}
+				},
+				removeGoalbyID: function (goal_id) {
+					let goalid = goal_id;
+					var formdata = new FormData();
+					formdata.append('goalid', goalid);
+					formdata.append('weekid', this.$refs.week_id.value);
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(response => {
+							this.output = response;
+							this.showToast('🗑️ ลบประตูเรียบร้อย');
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+						});
+				},
+				removeMatchbyID: function (match_id) {
+					if (!confirm('ยืนยันที่จะลบแมตช์นี้หรือไม่?')) return;
+					let matchid = match_id;
+					var formdata = new FormData();
+					formdata.append('matchid', matchid);
+					formdata.append('cmd', 'remove');
+					formdata.append('weekid', this.$refs.week_id.value);
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(response => {
+							this.output = response;
+							this.showToast('🗑️ ลบแมตช์เรียบร้อย');
+							this.selectedMatchIndex = 0;
+							this.refreshMatch(this.week.number || 0);
+						});
+				},
+				getTextColor(colorName) {
+					if (!colorName) return '#1f2937';
+					const lower = colorName.toLowerCase();
+					if (lower === 'white') return '#1f2937';
+					if (lower === 'yellow') return '#d97706';
+					return lower;
+				},
+				getContrastColor(colorName) {
+					if (!colorName) return '#1f2937';
+					const lower = colorName.toLowerCase();
+					const lightColors = ['white', 'yellow', 'gold', 'cream', 'cyan', 'lime', 'silver', 'beige', 'ivory', 'khaki', 'lavender', 'linen', 'mistyrose', 'moccasin', 'pale', 'snow', 'wheat', 'whitesmoke'];
+					if (lightColors.includes(lower) || lower.includes('light') || lower.includes('pale')) {
+						return '#1f2937';
+					}
+					return '#ffffff';
+				},
+				getTeamColorEmoji(color) {
+					if (!color) return '⚪';
+					const c = color.toLowerCase().trim();
+					if (c === 'black') return '⚫';
+					if (c === 'white') return '⚪';
+					if (c === 'yellow' || c === 'gold') return '🟡';
+					if (c === 'red') return '🔴';
+					if (c === 'blue' || c === 'navy' || c === 'cyan') return '🔵';
+					if (c === 'green' || c === 'lime') return '🟢';
+					if (c === 'orange') return '🟠';
+					if (c === 'purple' || c === 'violet') return '🟣';
+					if (c === 'pink') return '🌸';
+					if (c === 'brown') return '🟤';
+					if (c === 'grey' || c === 'gray' || c === 'silver') return '🔘';
+					return '●';
+				},
+				getBorderColor(colorName) {
+					if (!colorName) return 'var(--border-color)';
+					const lower = colorName.toLowerCase();
+					const lightColors = ['white', 'yellow', 'gold', 'cream', 'cyan', 'lime', 'silver', 'beige', 'ivory', 'khaki', 'lavender', 'linen', 'mistyrose', 'moccasin', 'pale', 'snow', 'wheat', 'whitesmoke'];
+					if (lightColors.includes(lower) || lower.includes('light') || lower.includes('pale')) {
+						return this.isDarkTheme ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)';
+					}
+					return this.isDarkTheme ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.4)';
+				},
+				toggleTheme() {
+					this.isDarkTheme = !this.isDarkTheme;
+					this.applyTheme(this.isDarkTheme);
+				},
+				applyTheme(isDark) {
+					if (isDark) {
+						document.documentElement.setAttribute('data-theme', 'dark');
+						document.documentElement.classList.add('dark-theme');
+						document.body.classList.add('dark-theme');
+						localStorage.setItem('theme', 'dark');
+					} else {
+						document.documentElement.setAttribute('data-theme', 'light');
+						document.documentElement.classList.remove('dark-theme');
+						document.body.classList.remove('dark-theme');
+						localStorage.setItem('theme', 'light');
+					}
+				},
+				isMatchLocked(m) {
+					if (!m) return false;
+					if (m.is_locked !== undefined) return m.is_locked;
+					if (this.isWeekTimePassed()) return false;
+					if (this.isMatchFinished(m)) return false;
+					const activeNum = this.info?.current_match_num;
+					if (activeNum && m.match_num > activeNum) return true;
+					return false;
+				},
+				isMatchLive(m) {
+					if (!m) return false;
+					if (m.db_status === 'in_progress' || m.match_status === 'LIVE') return true;
+					if (m.db_status === 'finished' || m.match_status === 'FT') return false;
+					if (m.is_live !== undefined) return m.is_live;
+					if (m.status !== undefined && m.status !== null) return m.status === 0;
+
+					const allMatches = Object.values(this.all_match || {});
+					if (allMatches.length === 0) return false;
+					const maxMatchNum = Math.max(...allMatches.map(item => item.match_num));
+
+					if (m.match_num < maxMatchNum) {
+						return false;
+					}
+					return !this.isWeekTimePassed();
+				},
+				isMatchFinished(m) {
+					if (!m) return false;
+					if (m.db_status === 'finished' || m.match_status === 'FT') return true;
+					if (m.db_status === 'in_progress' || m.db_status === 'scheduled') return false;
+					if (m.is_finished !== undefined) return m.is_finished;
+					if (m.status === 1) return true;
+					return false;
+				},
+				isMatchScheduled(m) {
+					if (!m) return false;
+					if (this.isMatchFinished(m)) return false;
+					if (this.isMatchLive(m)) return false;
+					if (m.db_status === 'scheduled' || m.match_status === 'SCHEDULED') return true;
+					if (m.is_scheduled !== undefined) return m.is_scheduled;
+					if (m.status === 2) return true;
+					return false;
+				},
+				getMatchStatusBadge(m) {
+					if (!m) return 'FT';
+					if (this.isMatchLocked(m)) return 'SCHEDULED';
+					if (this.isMatchLive(m)) return 'LIVE';
+					if (this.isMatchScheduled(m)) return 'SCHEDULED';
+					return 'FT';
+				},
+				getMatchStatusText(m) {
+					if (!m) return 'FT';
+					if (this.isMatchLocked(m)) return 'รอแข่ง';
+					if (this.isMatchLive(m)) return 'LIVE';
+					if (this.isMatchScheduled(m)) return 'รอแข่ง';
+					return 'FT';
+				},
+				getMatchStatusClass(m) {
+					if (!m) return 'is-ft';
+					if (this.isMatchLocked(m)) return 'is-sched';
+					if (this.isMatchLive(m)) return 'is-live';
+					if (this.isMatchScheduled(m)) return 'is-sched';
+					return 'is-ft';
+				},
+				isWeekTimePassed() {
+					if (this.info && this.info.is_week_ended !== undefined) {
+						return this.info.is_week_ended;
+					}
+					if (!this.week || !this.week.date) return false;
+					try {
+						const timeRange = this.week.time_range || '17:30-20:00';
+						const endTimeStr = timeRange.split('-')[1]?.trim() || '20:00';
+						const [endH, endM] = endTimeStr.split(':').map(Number);
+						const endDateTime = new Date(`${this.week.date} ${endH || 20}:${endM || 0}:00 GMT+0700`);
+						if (!isNaN(endDateTime.getTime())) {
+							return Date.now() > endDateTime.getTime();
+						}
+					} catch (e) {}
+					return false;
+				},
+				fetchCurrentUser() {
+					axios.get('/webhook/auth/me')
+						.then(res => {
+							if (res.data && res.data.authenticated) {
+								this.currentUser = res.data.user;
+							} else {
+								window.location.href = '/webhook/login?redirect=' + encodeURIComponent(window.location.pathname);
+							}
+						})
+						.catch(() => {
+							window.location.href = '/webhook/login?redirect=' + encodeURIComponent(window.location.pathname);
+						});
+				},
+				logout() {
+					axios.post('/webhook/logout')
+						.then(() => {
+							window.location.href = '/webhook/login';
+						})
+						.catch(() => {
+							window.location.href = '/webhook/login';
+						});
+				},
+				openPasswordModal() {
+					this.pwdForm.current_password = '';
+					this.pwdForm.new_password = '';
+					this.pwdForm.confirm_password = '';
+					this.pwdMessage = '';
+					this.pwdIsError = false;
+					this.showPasswordModal = true;
+				},
+				submitChangePassword() {
+					if (this.pwdForm.new_password !== this.pwdForm.confirm_password) {
+						this.pwdMessage = 'รหัสผ่านใหม่และการยืนยันรหัสผ่านไม่ตรงกัน';
+						this.pwdIsError = true;
+						return;
+					}
+					this.pwdLoading = true;
+					this.pwdMessage = '';
+
+					axios.post('/webhook/change_password', this.pwdForm)
+						.then(res => {
+							this.pwdLoading = false;
+							if (res.data && res.data.success) {
+								this.pwdIsError = false;
+								this.pwdMessage = 'เปลี่ยนรหัสผ่านสำเร็จ!';
+								setTimeout(() => {
+									this.showPasswordModal = false;
+								}, 1500);
+							} else {
+								this.pwdIsError = true;
+								this.pwdMessage = res.data.error || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน';
+							}
+						})
+						.catch(err => {
+							this.pwdLoading = false;
+							this.pwdIsError = true;
+							if (err.response && err.response.data && err.response.data.error) {
+								this.pwdMessage = err.response.data.error;
+							} else {
+								this.pwdMessage = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+							}
+						});
+				}
+			}
+		})
+	</script>
+</body>
+
+</html>

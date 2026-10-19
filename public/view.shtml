@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="refresh" content="0; url=/webhook/view">
+	<title>Redirecting to Match Viewer...</title>
+	<script>
+		window.location.replace('/webhook/view');
+	</script>
+</head>
+<body>
+	<p>กำลังนำท่านไปยัง Match Viewer... หากไม่เปลี่ยนหน้าอัตโนมัติ กรุณาคลิก <a href="/webhook/view">ที่นี่</a></p>
+</body>
+</html>

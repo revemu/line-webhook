@@ -4,9 +4,25 @@
 
 ---
 
-## [Unreleased] - 2026-10-19
+## [0.6.0] - 2026-10-19
 
 ### Added / Changed
+- **Unified Monorepo Integration (Merge `soccerbotapi` into `line-webhook`)**:
+  - **รวมระบบ Soccer Bot API & Web Dashboard เข้ามาใน `line-webhook` แบบสมบูรณ์**:
+    - แก้ไขและดูแลโค้ดระบบ Bot และระบบ Web Dashboard ในที่เดียว ไม่ต้องแยกสองโปรเจกต์อีกต่อไป
+    - เพิ่มโมดูลเราเตอร์ `routes/web.js` รองรับ Endpoint ระบบทั้งหมด:
+      - `/web/match` (Interactive Pitch & Match Manager สำหรับบันทึกผลการแข่งขัน)
+      - `/web/view` & `/web/matches` (Read-only Match Viewer สำหรับผู้เล่นและผู้ชม)
+      - `/web/position` (Tactical Position Pitch แนวนอนสำหรับจัดวางตำแหน่งผู้เล่น)
+      - `/web/login`, `/web/logout`, `/web/auth/me`, `/web/change_password` (Authentication & RBAC แบบ Bcrypt/JWT)
+      - `/web/get_info`, `/web/match_view_data`, `/web/add_match`, `/web/update_position`, `/web/batch_update_positions` (RESTful APIs)
+    - นำเข้าไฟล์ส่วนแสดงผล Frontend ไว้ที่โฟลเดอร์ `public/` (`update.shtml`, `position.shtml`, `login.shtml`, `view.shtml`, `style.css`)
+    - ให้บริการ Static Asset อัตโนมัติที่ `/web` และ Root Redirect จาก `/` ไปยัง `/web/match`
+    - **Single Port Unified Server**: ให้บริการทั้ง LINE Bot Webhook และ Web Dashboard บนพอร์ตเดิมพอร์ตเดียว (`PORT=3001`) ไม่ต้องแยกพอร์ต รันเพียงโปรเซสเดียวจบ
+    - เชื่อมโยงฐานข้อมูล MySQL Connection Pool เดียวกันระหว่าง Bot และ Web Dashboard ประหยัดทรัพยากรและป้องกันปัญหา Connection ล้น
+    - เพิ่มฟังก์ชัน `ensureUserTable()` ใน `query.js` สำหรับตรวจสอบและสร้างตาราง `user_tbl` พร้อมบัญชีเริ่มต้น (`admin`, `root`) อัตโนมัติ
+    - ติดตั้ง Dependencies เพิ่มเติม: `bcryptjs`, `cookie-parser`, `cors`, `multer`, `winston`
+
 - **Database-Backed Schedule & Match Progression (`/schedule`, `/now`, `/live`)**:
   - **ยกเลิกการพึ่งพา `schedule.json` และเปลี่ยนมาใช้ MySQL (`match_stat_tbl`) เป็น Single Source of Truth (SSOT) 100%**:
     - เพิ่มฟังก์ชัน `getScheduleFromDb(week_id)` ใน `query.js` ดึงข้อมูลตารางแข่งขันและประมวลผล Match Progression Lifecycle โดยตรงจากตาราง `match_stat_tbl` และ `team_color_week_tbl`

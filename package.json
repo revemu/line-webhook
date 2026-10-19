@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "server": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prune:images": "node prune_images.js"
   },
@@ -13,15 +15,20 @@
   "dependencies": {
     "@line/bot-sdk": "^9.9.0",
     "axios": "^1.11.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "crypto": "^1.0.1",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "jimp": "^1.6.0",
     "jsqr": "^1.4.0",
+    "multer": "^2.4.0",
     "mysql2": "^3.14.3",
     "qrcode-reader": "^1.0.4",
     "svg2img": "^1.0.0-beta.2",
     "thai-qr-payment": "^1.1.0",
+    "winston": "^3.19.0",
     "zbarimg": "^1.1.1",
     "zxing-wasm": "^3.1.3"
   }

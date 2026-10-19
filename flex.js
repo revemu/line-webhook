@@ -958,7 +958,7 @@ function buildLiveFlex(matchInfo, theme) {
       },
       {
         type: 'text',
-        text: 'ดูสดผ่านเว็บ: boxch2.kdnstream.com/web/view',
+        text: 'ดูสดผ่านเว็บ: boxch2.kdnstream.com/webhook/view',
         size: 'xs',
         color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
         weight: 'bold',

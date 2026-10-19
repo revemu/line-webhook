@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Redirecting...</title>
+    <!-- Redirecting to another page using meta tag -->
+    <meta http-equiv="refresh" content="0; url=/webhook/match" />
+</head>
+
+<body>
+    <p>If you are not redirected automatically, follow this <a href="/webhook/match">link
+            to the new match manager</a>.</p>
+</body>
+
+</html>

@@ -1,24 +1,35 @@
-# 📚 Project Knowledge: LINE Webhook (Football Management Bot)
+# 📚 Project Knowledge: LINE Webhook & Soccer Bot Unified System
 
-> **เอกสารรวบรวมข้อมูล สถาปัตยกรรม และคู่มือการทำงานของระบบ LINE Webhook Bot**
+> **เอกสารรวบรวมข้อมูล สถาปัตยกรรม และคู่มือการทำงานของระบบ LINE Webhook Bot & Soccer Bot Web Dashboard**
 
 ---
 
 ## 1. ข้อมูลภาพรวม (Project Overview)
 
-ระบบ **LINE Webhook** นี้เป็น Node.js Application ออกแบบมาสำหรับบริหารจัดการกลุ่มกิจกรรมกีฬา/เตะฟุตบอลประจำสัปดาห์ ผ่าน LINE Official Account / LINE Group โดยมีความสามารถหลักดังนี้:
+ระบบ **LINE Webhook & Soccer Bot** เป็น Node.js Unified Application สำหรับบริหารจัดการกลุ่มกิจกรรมกีฬา/เตะฟุตบอลประจำสัปดาห์แบบครบวงจร ครอบคลุมทั้ง LINE Bot และ Web Management Dashboard:
 - **ระบบลงทะเบียนและจัดทีมฟุตบอลอัตโนมัติ (`/randomteam`)**: มีอัลกอริทึมเฉลี่ยสมดุล (Rating, ตำแหน่ง GK/DF/MF/CF, Priority, Avoid Pair และ Bound Group)
 - **ระบบชำระเงินและตรวจสอบสลิป (Payment & Slip Verification)**: สร้าง QR Code พร้อมเพย์ และถอดรหัส QR จากรูปสลิปที่ส่งเข้าห้องแชทเพื่อตรวจสอบยอดเงินและสถานะอัตโนมัติ
 - **ระบบจัดตารางงานเบื้องหลัง (Task Scheduler & Worker Threads)**: รองรับการรัน background jobs เช่น การแจ้งเตือนเตะบอล, สรุปยอดค่าสนาม, แจ้งเตือนสลิป
 - **ระบบ Flex Message UI**: แสดงผลสวยงามผ่าน LINE Flex Carousel, Bubble และการ Generate ภาพกราฟิกผังผู้เล่น
+- **ระบบเว็บแดชบอร์ดและการแข่งขัน (Web Dashboard & Match Manager - `/web/match`)**: บันทึกผลการแข่งขันแบบอินเตอร์แอคทีฟ (Interactive Pitch View), เพิ่มประตู/แอสซิสต์, ยืมตัวผู้เล่นข้ามทีม, คุมวงจรสถานะแมตช์ (LIVE / รอแข่ง / จบแมตช์)
+- **ระบบผู้ชมแบบเรียลไทม์ (Read-Only Match Viewer - `/web/view`)**: หน้าแสดงผลสนามฟุตบอลและผลการแข่งขันแบบอ่านอย่างเดียว สำหรับสมาชิกในกลุ่มและผู้ชมทั่วไป
+- **ระบบวางแผนยุทธวิธี (Tactical Position Manager - `/web/position`)**: จัดวางและสลับตัวผู้เล่นข้ามทีมบนผังสนามแนวนอนแบบ Drag & Drop พร้อมตรวจสอบโควตาตำแหน่ง (`pos_tbl`)
+- **ระบบยืนยันตัวตนและการเข้าถึง (Authentication & RBAC)**: รองรับสิทธิ์ `admin` และ `root` ผ่านระบบ Bcrypt Password และ Signed HMAC-SHA256 Token
 
 ---
 
 ## 2. Tech Stack & Dependencies
 
-- **Runtime & Framework**: Node.js, Express.js (`^5.1.0`)
+- **Runtime & Framework**: Node.js (v18+), Express.js (`^5.1.0`)
 - **LINE SDK**: `@line/bot-sdk` (`^9.9.0`)
-- **Database**: MySQL (`mysql2` connection pool)
+- **Database**: MySQL (`mysql2` connection pool แบบรวมศูนย์)
+- **Web Dashboard & Authentication**:
+  - `bcryptjs` (`^3.0.3`): แฮชรหัสผ่านความปลอดภัยสูง
+  - `cookie-parser` (`^1.4.7`): จัดการ Cookie Token (`soccer_auth`)
+  - `cors` (`^2.8.6`): ควบคุม Cross-Origin Resource Sharing
+  - `multer` (`^2.4.0`): จัดการ Multipart Form Data (`upload.none()`)
+  - `winston` (`^3.19.0`): ระบบบันทึก Log สำหรับ API
+  - Frontend: Vue.js 2 (CDN), Axios, Vanilla CSS3 (Flexbox/Grid), Server-Side Includes (`.shtml`)
 - **Image Processing & QR Decoding**:
   - `zxing-wasm`: ตัวถอดรหัส QR Code ประสิทธิภาพสูงผ่าน WebAssembly (พร้อม Fallback โหลด local WASM)
   - `jsqr`, `qrcode-reader`, `zbarimg`: เครื่องมือถอดรหัสสำรอง
@@ -35,16 +46,28 @@
 
 ```text
 line-webhook/
-├── index.js                    # จุดเริ่มต้น Express server, รับ Webhook จาก LINE, Routing
+├── index.js                    # จุดเริ่มต้น Express server รวมทั้ง Bot Webhook และ Web Dashboard
+├── server.js                   # Entry point launcher เสริม (Backward compatibility รัน index.js)
 ├── cmd.js                      # Parser คำสั่ง Bot ทั้งหมด (Slash commands / Text commands)
-├── query.js                    # รวมคำสั่ง SQL Database Queries (MySQL2 Pool)
+├── query.js                    # รวมคำสั่ง SQL Database Queries (MySQL2 Pool รวมศูนย์)
 ├── flex.js                     # ตัวสร้าง LINE Flex Message Templates (JSON structure)
 ├── lineClient.js               # Initializer LINE Bot Client และ Helper ฟังก์ชันส่งข้อความ
 ├── slip.js                     # ตรรกะการตรวจสอบสลิปเงินและถอดรหัส QR Code จากสลิป
 ├── qr_gen.js                   # การสร้างภาพ QR Code PromptPay สำหรับเรียกเก็บเงิน
 ├── team_img.js                 # ระบบสร้างภาพกราฟิกทีม/ผังนักเตะ
 ├── schedule.json               # ค่าคอนฟิกตารางเวลา/เทมเพลตงาน
+├── schema_user.sql             # โครงสร้างตารางผู้ใช้งานระบบ Web Dashboard (`user_tbl`)
 ├── randomteam_flowchart.md     # Flowchart อธิบายอัลกอริทึมการสุ่มทีม
+│
+├── routes/                     # ตัวจัดการเส้นทาง API และเว็บ
+│   └── web.js                  # รวม API & Web Dashboard Endpoints (Match, View, Position, Auth)
+│
+├── public/                     # ไฟล์ส่วนแสดงผล Frontend (Web Dashboard)
+│   ├── login.shtml             # หน้าล็อกอินเข้าสู่ระบบ
+│   ├── match.shtml / update.shtml # หน้าบันทึกผลการแข่งขันและผังสนามบอล (Admin/Root)
+│   ├── position.shtml          # หน้าจัดตำแหน่งผู้เล่นเชิงยุทธวิธี (Tactical Pitch สำหรับ Root)
+│   ├── view.shtml              # หน้าแสดงผลการแข่งขันแบบอ่านอย่างเดียว
+│   └── style.css               # สไตล์ชีทส่วนกลาง (Pitch, Theme, Player Cards)
 │
 ├── scheduler/                  # ระบบ Background Job Scheduler
 │   ├── index.js                # Initializer และ Controller ของ Scheduler
@@ -63,7 +86,8 @@ line-webhook/
 │   ├── line_group_id_tbl.sql
 │   ├── match_stat_schedule.sql
 │   ├── member_ny_week_tbl.sql
-│   └── scheduled_task_tbl.sql
+│   ├── scheduled_task_tbl.sql
+│   └── schema_user.sql
 │
 ├── assets/ & fonts/            # ไฟล์ฟอนต์และ Asset รูปภาพที่ใช้สร้างกราฟิก
 ├── img/ & qr/ & temp/          # ที่จัดเก็บรูปภาพชั่วคราวและ QR code ที่ถูกสร้างขึ้น

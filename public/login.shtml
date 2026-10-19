@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<title>เข้าสู่ระบบ - Soccer Bot Manager</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/webhook/style.css">
+	<script>
+		(function () {
+			var saved = localStorage.getItem('theme');
+			var isDark = saved ? (saved === 'dark') : true;
+			if (isDark) {
+				document.documentElement.setAttribute('data-theme', 'dark');
+				document.documentElement.classList.add('dark-theme');
+			} else {
+				document.documentElement.setAttribute('data-theme', 'light');
+				document.documentElement.classList.remove('dark-theme');
+			}
+		})();
+	</script>
+</head>
+
+<body>
+	<div id="login-app" class="container">
+		<!-- Theme Toggle Button -->
+		<div class="theme-toggle" @click="toggleTheme"
+			:title="isDarkTheme ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+			<span v-if="isDarkTheme">☀️</span>
+			<span v-else>🌙</span>
+		</div>
+
+		<div class="login-wrapper">
+			<div class="login-card">
+				<div class="login-header">
+					<div class="login-logo">⚽</div>
+					<h1 class="login-title">Soccer Bot Manager</h1>
+					<p class="login-subtitle">กรุณาเข้าสู่ระบบเพื่อเข้าใช้งานระบบจัดการ</p>
+				</div>
+
+				<div v-if="errorMessage" class="login-error">
+					<span>⚠️</span>
+					<span>{{ errorMessage }}</span>
+				</div>
+
+				<form @submit.prevent="handleLogin">
+					<div class="login-form-group">
+						<label class="login-label" for="username">ชื่อผู้ใช้ (Username)</label>
+						<input id="username" type="text" v-model="username" class="login-input"
+							placeholder="admin หรือ root" required autocomplete="username" autofocus>
+					</div>
+
+					<div class="login-form-group">
+						<label class="login-label" for="password">รหัสผ่าน (Password)</label>
+						<input id="password" type="password" v-model="password" class="login-input"
+							placeholder="กรอกรหัสผ่าน" required autocomplete="current-password">
+					</div>
+
+					<button type="submit" class="login-button" :disabled="loading" style="margin-top: 1.5rem;">
+						<span v-if="loading">⏳ กำลังเข้าสู่ระบบ...</span>
+						<span v-else>🔐 เข้าสู่ระบบ</span>
+					</button>
+				</form>
+
+				<div class="login-footer-info">
+					<div style="font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">สิทธิ์การใช้งาน:</div>
+					<div>• <strong>admin:</strong> จัดการผลการแข่งขันและทำประตู (Match Manager)</div>
+					<div>• <strong>root:</strong> สิทธิ์สูงสุด สามารถจัดการตำแหน่งผู้เล่น (Position Manager) และการแข่งขันได้</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Scripts -->
+	<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+	<script>
+		new Vue({
+			el: '#login-app',
+			data: {
+				username: '',
+				password: '',
+				errorMessage: '',
+				loading: false,
+				isDarkTheme: true
+			},
+			mounted() {
+				// Load theme preference
+				const savedTheme = localStorage.getItem('theme');
+				if (savedTheme === 'light') {
+					this.isDarkTheme = false;
+					document.documentElement.removeAttribute('data-theme');
+				} else {
+					this.isDarkTheme = true;
+					document.documentElement.setAttribute('data-theme', 'dark');
+				}
+
+				// Check if already logged in
+				axios.get('/webhook/auth/me')
+					.then(res => {
+						if (res.data && res.data.authenticated) {
+							const urlParams = new URLSearchParams(window.location.search);
+							const redirect = urlParams.get('redirect');
+							if (redirect && (redirect.startsWith('/webhook/') || redirect.startsWith('/web/'))) {
+								if (redirect.includes('position') && res.data.user.role !== 'root') {
+									window.location.href = '/webhook/match';
+								} else {
+									window.location.href = redirect;
+								}
+							} else {
+								window.location.href = res.data.user.role === 'root' ? '/webhook/position' : '/webhook/match';
+							}
+						}
+					})
+					.catch(() => {});
+			},
+			methods: {
+				handleLogin() {
+					this.errorMessage = '';
+					this.loading = true;
+
+					const urlParams = new URLSearchParams(window.location.search);
+					const redirect = urlParams.get('redirect');
+
+					axios.post('/webhook/login', {
+						username: this.username,
+						password: this.password,
+						redirect: redirect
+					})
+					.then(res => {
+						this.loading = false;
+						if (res.data && res.data.success) {
+							window.location.href = res.data.redirect || '/webhook/match';
+						} else {
+							this.errorMessage = res.data.error || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+						}
+					})
+					.catch(err => {
+						this.loading = false;
+						if (err.response && err.response.data && err.response.data.error) {
+							this.errorMessage = err.response.data.error;
+						} else {
+							this.errorMessage = 'เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง';
+						}
+					});
+				},
+				toggleTheme() {
+					this.isDarkTheme = !this.isDarkTheme;
+					this.applyTheme(this.isDarkTheme);
+				},
+				applyTheme(isDark) {
+					if (isDark) {
+						document.documentElement.setAttribute('data-theme', 'dark');
+						document.documentElement.classList.add('dark-theme');
+						document.body.classList.add('dark-theme');
+						localStorage.setItem('theme', 'dark');
+					} else {
+						document.documentElement.setAttribute('data-theme', 'light');
+						document.documentElement.classList.remove('dark-theme');
+						document.body.classList.remove('dark-theme');
+						localStorage.setItem('theme', 'light');
+					}
+				}
+			},
+			mounted() {
+				const savedTheme = localStorage.getItem('theme');
+				this.isDarkTheme = savedTheme ? (savedTheme === 'dark') : true;
+				this.applyTheme(this.isDarkTheme);
+			}
+		});
+	</script>
+</body>
+
+</html>
