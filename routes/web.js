@@ -622,16 +622,46 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
             }
         }
 
-        // Remove match
+        // Remove match (Safety constraint: Only allow deleting from back to front)
         if (data.matchid !== undefined && (data.cmd === 'remove_match' || data.cmd === 'delete_match' || data.cmd === 'remove')) {
-            await doUpdate(`DELETE FROM match_goal_tbl WHERE match_id = ${data.matchid}`);
-            await doUpdate(`DELETE FROM match_stat_tbl WHERE id = ${data.matchid}`);
-            logger.info(`remove match_id ${data.matchid}`);
-            msg = 'Match removed successfully';
-            if (data.weekid !== undefined) {
-                await updateTableWeek(data.weekid);
+            const matchId = parseInt(data.matchid, 10);
+            if (isNaN(matchId) || matchId <= 0) {
+                return res.status(400).json({ error: 'รหัสแมตช์ (matchid) ไม่ถูกต้อง' });
             }
-            return res.json({ success: true, message: msg });
+
+            const [targetMatch] = await doQuery(`SELECT id, match_num, week_id, status FROM match_stat_tbl WHERE id = ${matchId}`);
+            if (!targetMatch) {
+                return res.status(404).json({ error: 'ไม่พบข้อมูลแมตช์ที่ต้องการลบ (อาจถูกลบไปแล้ว)' });
+            }
+
+            const weekId = targetMatch.week_id;
+
+            // Safety check: Can ONLY delete the last match (highest match_num)
+            const [maxRow] = await doQuery(`SELECT MAX(match_num) as max_match_num FROM match_stat_tbl WHERE week_id = ${weekId}`);
+            const maxMatchNum = maxRow ? maxRow.max_match_num : targetMatch.match_num;
+
+            if (targetMatch.match_num < maxMatchNum) {
+                return res.status(400).json({
+                    error: `ไม่อนุญาตให้ลบ Match ${targetMatch.match_num}: กฎความปลอดภัยกำหนดให้ลบได้เฉพาะแมตช์สุดท้าย (Match ${maxMatchNum}) เท่านั้น (ต้องลบจากหลังมาหน้า)`
+                });
+            }
+
+            // 1. Delete all goals & assists in this match
+            await doUpdate(`DELETE FROM match_goal_tbl WHERE match_id = ${matchId}`);
+
+            // 2. Delete the match record
+            await doUpdate(`DELETE FROM match_stat_tbl WHERE id = ${matchId}`);
+            logger.info(`Match ${targetMatch.match_num} (id: ${matchId}) deleted successfully from week ${weekId} by ${req.user ? req.user.username : 'admin'}`);
+
+            // 3. Recalculate standings table for this week
+            await updateTableWeek(weekId);
+
+            return res.json({
+                success: true,
+                message: `ลบ Match ${targetMatch.match_num} เรียบร้อยแล้ว`,
+                deleted_match_num: targetMatch.match_num,
+                weekid: weekId
+            });
         }
 
         // If weekid is sent but no other conditions matched, still update table

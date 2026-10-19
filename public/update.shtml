@@ -116,6 +116,62 @@
 			</div>
 		</div>
 
+		<!-- Match Deletion Safety Confirmation Modal -->
+		<div class="modal-overlay" v-if="showDeleteModal" @click.self="closeDeleteModal">
+			<div class="modal-content" style="max-width: 440px; border-top: 4px solid #ef4444;">
+				<div class="card-title" style="color: #ef4444; margin-bottom: 0.75rem;">
+					<span>⚠️ ยืนยันการลบแมตช์ (Safety Check)</span>
+					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="closeDeleteModal">×</span>
+				</div>
+
+				<div v-if="matchToDelete" style="font-size: 0.9rem; line-height: 1.5; color: var(--text-main);">
+					<div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem;">
+						<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+							<strong style="font-size: 1.05rem;">Match {{ matchToDelete.match_num }} (แมตช์สุดท้าย)</strong>
+							<span v-if="isMatchLive(matchToDelete)" class="viewer-badge-live">LIVE</span>
+							<span v-else-if="isMatchScheduled(matchToDelete)" class="viewer-badge-sched">รอแข่ง</span>
+							<span v-else class="viewer-badge-ft">FT</span>
+						</div>
+						<div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
+							<span class="team-badge-small" :style="{ backgroundColor: matchToDelete.team_a_color.toLowerCase(), color: getContrastColor(matchToDelete.team_a_color) }">
+								{{ matchToDelete.team_a_color }}
+							</span>
+							<span>{{ matchToDelete.team_a_goal }} - {{ matchToDelete.team_b_goal }}</span>
+							<span class="team-badge-small" :style="{ backgroundColor: matchToDelete.team_b_color.toLowerCase(), color: getContrastColor(matchToDelete.team_b_color) }">
+								{{ matchToDelete.team_b_color }}
+							</span>
+						</div>
+						<div v-if="matchToDelete.goal && matchToDelete.goal.length > 0" style="margin-top: 0.5rem; font-size: 0.8rem; color: #ef4444; font-weight: 600;">
+							⚠️ มีประวัติการทำประตู/แอสซิสต์ {{ matchToDelete.goal.length }} รายการที่จะถูกลบออกด้วย
+						</div>
+					</div>
+
+					<div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+						<p style="margin: 0 0 0.4rem 0;">• <strong>กฎความปลอดภัย:</strong> ลบได้เฉพาะแมตช์สุดท้ายของสัปดาห์เท่านั้น (ลบจากหลังมาหน้า)</p>
+						<p style="margin: 0;">• เมื่อลบแล้ว ระบบจะคืนค่าและคำนวณตารางคะแนนใหม่ทันที และการกระทำนี้<strong>ไม่สามารถย้อนกลับได้</strong></p>
+					</div>
+
+					<div style="margin-bottom: 1.25rem; display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;" @click="confirmDeleteChecked = !confirmDeleteChecked">
+						<input type="checkbox" v-model="confirmDeleteChecked" style="margin-top: 3px; cursor: pointer; width: 16px; height: 16px;">
+						<label style="font-size: 0.85rem; font-weight: 600; cursor: pointer; user-select: none;">
+							ฉันยืนยันว่าต้องการลบ Match {{ matchToDelete.match_num }} ออกจากตารางแข่งแน่นอน
+						</label>
+					</div>
+
+					<div style="display: flex; gap: 0.6rem; justify-content: flex-end;">
+						<button type="button" class="btn-action-pill" @click="closeDeleteModal" style="background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main);">
+							ยกเลิก
+						</button>
+						<button type="button" class="btn-action-pill" :disabled="!confirmDeleteChecked || isDeletingMatch"
+							@click="executeDeleteMatch"
+							:style="{ backgroundColor: confirmDeleteChecked ? '#ef4444' : '#9ca3af', color: '#ffffff', cursor: confirmDeleteChecked ? 'pointer' : 'not-allowed', fontWeight: 'bold' }">
+							{{ isDeletingMatch ? 'กำลังลบ...' : '🗑️ ยืนยันลบแมตช์นี้' }}
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Change Password Modal -->
 		<div class="modal-overlay" v-if="showPasswordModal" @click.self="showPasswordModal = false">
 			<div class="modal-content" style="max-width: 420px; padding: 1.5rem;">
@@ -257,8 +313,8 @@
 						<button type="button" class="btn-scoreboard-tool" @click="toggleClassicForm()" title="สลับฟอร์ม">
 							{{ showClassicForm ? '✕ ซ่อน' : '📋 ฟอร์ม' }}
 						</button>
-						<button v-if="currentSelectedMatch.match_num == matchCount" type="button" class="btn-scoreboard-tool btn-delete" @click="removeMatchbyID(currentSelectedMatch.id)" title="ลบแมตช์นี้">
-							🗑️ ลบ
+						<button v-if="isLastMatchSelected" type="button" class="btn-scoreboard-tool btn-delete" @click="promptDeleteMatch(currentSelectedMatch)" title="ลบแมตช์สุดท้าย">
+							🗑️ ลบ Match {{ currentSelectedMatch.match_num }}
 						</button>
 					</div>
 				</div>
@@ -1045,8 +1101,8 @@
 					</div>
 				</div>
 
-				<button v-if="isManager && match.match_num == matchCount" class="btn-remove-match" title="Remove Match"
-					v-on:click.stop="removeMatchbyID(match.id)">×</button>
+				<button v-if="isManager && match.match_num == maxMatchNum" class="btn-remove-match" title="ลบแมตช์สุดท้ายนี้"
+					v-on:click.stop="promptDeleteMatch(match)">🗑️ ลบ</button>
 			</div>
 
 			<div class="match-events">
@@ -1149,7 +1205,11 @@
 				autoRefresh: true,
 				refreshCountdown: 30,
 				timerInterval: null,
-				isRefreshing: false
+				isRefreshing: false,
+				showDeleteModal: false,
+				matchToDelete: null,
+				confirmDeleteChecked: false,
+				isDeletingMatch: false
 			},
 			computed: {
 				activeTeamSide() {
@@ -1186,6 +1246,14 @@
 				currentSelectedMatch() {
 					if (!this.all_match) return null;
 					return this.all_match[this.selectedMatchIndex] || null;
+				},
+				maxMatchNum() {
+					if (!this.all_match || Object.keys(this.all_match).length === 0) return 0;
+					return Math.max(...Object.values(this.all_match).map(m => Number(m.match_num) || 0));
+				},
+				isLastMatchSelected() {
+					if (!this.currentSelectedMatch) return false;
+					return Number(this.currentSelectedMatch.match_num) === this.maxMatchNum && this.maxMatchNum > 0;
 				},
 				sortedMatchesAscending() {
 					if (!this.all_match) return [];
@@ -1949,30 +2017,86 @@
 					let goalid = goal_id;
 					var formdata = new FormData();
 					formdata.append('goalid', goalid);
-					formdata.append('weekid', this.$refs.week_id.value);
+					const weekId = this.week ? (this.week.id || this.week.number) : '';
+					if (weekId) {
+						formdata.append('weekid', weekId);
+					}
 
-					axios.post(this.base_url + '/add_match', formdata)
+					axios.post((this.base_url || '/webhook') + '/add_match', formdata)
 						.then(response => {
 							this.output = response;
 							this.showToast('🗑️ ลบประตูเรียบร้อย');
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
+						})
+						.catch(err => {
+							this.showToast('❌ ลบประตูล้มเหลว: ' + err.message);
+						});
+				},
+				promptDeleteMatch(match) {
+					if (!match) return;
+					if (Number(match.match_num) !== this.maxMatchNum) {
+						this.showToast(`⚠️ สามารถลบได้เฉพาะแมตช์สุดท้าย (Match ${this.maxMatchNum}) เท่านั้น (ลบจากหลังมาหน้า)`);
+						return;
+					}
+					this.matchToDelete = match;
+					this.confirmDeleteChecked = false;
+					this.showDeleteModal = true;
+				},
+				closeDeleteModal() {
+					this.showDeleteModal = false;
+					this.matchToDelete = null;
+					this.confirmDeleteChecked = false;
+					this.isDeletingMatch = false;
+				},
+				executeDeleteMatch() {
+					if (!this.matchToDelete || !this.confirmDeleteChecked || this.isDeletingMatch) return;
+					if (Number(this.matchToDelete.match_num) !== this.maxMatchNum) {
+						this.showToast(`⚠️ สามารถลบได้เฉพาะแมตช์สุดท้าย (Match ${this.maxMatchNum}) เท่านั้น`);
+						this.closeDeleteModal();
+						return;
+					}
+
+					this.isDeletingMatch = true;
+					const targetId = this.matchToDelete.id;
+					const targetNum = this.matchToDelete.match_num;
+					const weekId = this.week ? (this.week.id || this.week.number) : '';
+
+					var formdata = new FormData();
+					formdata.append('matchid', targetId);
+					formdata.append('cmd', 'remove');
+					if (weekId) {
+						formdata.append('weekid', weekId);
+					}
+
+					axios.post((this.base_url || '/webhook') + '/add_match', formdata)
+						.then(response => {
+							this.isDeletingMatch = false;
+							this.closeDeleteModal();
+							if (response.data && response.data.error) {
+								this.showToast('❌ ' + response.data.error);
+								return;
+							}
+							this.showToast(`🗑️ ลบ Match ${targetNum} เรียบร้อยแล้ว`);
+							// Automatically switch selection to previous match
+							this.selectedMatchIndex = Math.max(0, targetNum - 1);
+							this.refreshMatch(this.week.number || this.week.id || 0);
+						})
+						.catch(err => {
+							this.isDeletingMatch = false;
+							const errDetail = err.response && err.response.data && err.response.data.error ? err.response.data.error : err.message;
+							this.showToast('❌ ลบแมตช์ล้มเหลว: ' + errDetail);
 						});
 				},
 				removeMatchbyID: function (match_id) {
-					if (!confirm('ยืนยันที่จะลบแมตช์นี้หรือไม่?')) return;
-					let matchid = match_id;
-					var formdata = new FormData();
-					formdata.append('matchid', matchid);
-					formdata.append('cmd', 'remove');
-					formdata.append('weekid', this.$refs.week_id.value);
-
-					axios.post(this.base_url + '/add_match', formdata)
-						.then(response => {
-							this.output = response;
-							this.showToast('🗑️ ลบแมตช์เรียบร้อย');
-							this.selectedMatchIndex = 0;
-							this.refreshMatch(this.week.number || 0);
-						});
+					let match = null;
+					if (this.all_match) {
+						match = Object.values(this.all_match).find(m => m.id == match_id);
+					}
+					if (match) {
+						this.promptDeleteMatch(match);
+					} else {
+						this.showToast('⚠️ ไม่พบข้อมูลแมตช์ที่ต้องการลบ');
+					}
 				},
 				getTextColor(colorName) {
 					if (!colorName) return '#1f2937';
