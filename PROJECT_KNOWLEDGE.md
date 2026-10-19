@@ -61,6 +61,7 @@ line-webhook/
 │
 ├── migrations/                 # สคริปต์ SQL Migration
 │   ├── line_group_id_tbl.sql
+│   ├── match_stat_schedule.sql
 │   ├── member_ny_week_tbl.sql
 │   └── scheduled_task_tbl.sql
 │
@@ -143,6 +144,21 @@ line-webhook/
     - ยกเลิกเฉพาะผู้ติดตาม: `-guest`, `-guests`, `-follower`, `delguest`, `-ny guest`
     - ยกเลิกทั้งหมด: `x0`, `-x1`, `-x2`, `-ny`
     - รองรับการ mention เช่น `x2 @ชื่อสมาชิก`, `-guest @ชื่อสมาชิก`
+
+### 4.6 ระบบจัดตารางแข่งและ Match Lifecycle (`/schedule`, `/now`, `/live`)
+- **การบันทึกลง Database (`match_stat_tbl`)**:
+  - เมื่อรันคำสั่ง `/schedule` ระบบจะคำนวณผัง Round-Robin พร้อมเวลาเริ่ม-สิ้นสุด และทำการบันทึกทั้ง 18 แมตช์ลงในตาราง `match_stat_tbl` โดยตรง (`saveScheduleToDb`)
+  - โครงสร้างคอลัมน์รองรับ: `round` (รอบที่), `start_time` (เวลาเริ่ม), `end_time` (เวลาจบ), `status` (`scheduled`, `in_progress`, `finished`)
+  - รองรับการป้องกันการเขียนทับผลการแข่งขันของแมตช์ที่แข่งเสร็จแล้ว เว้นแต่จะระบุคำสั่ง reset/force
+  - ระบบยังคงสร้างไฟล์ `schedule.json` ควบคู่กันเป็น Local Cache Fallback
+- **วงจรสถานะแมตช์ (Match Lifecycle State Machine)**:
+  - `scheduled`: รอเริ่มแข่ง (แสดง `vs` และระบุหัวข้อ "แมตช์ถัดไป (รอเริ่ม)" ใน `/now` โดยไม่คิดผล 0-0 ในตารางสถิติ)
+  - `in_progress`: กำลังแข่งขัน (แสดงสถานะสด 🟢 LIVE พร้อมสกอร์ปัจจุบัน)
+  - `finished`: จบการแข่งขันแล้ว (บันทึกสกอร์จริงและผู้ยิง/แอสซิสต์)
+- **การเลื่อน Cursor นัดถัดไปอัตโนมัติ (`getCurrentMatch`)**:
+  - เมื่อกรรมการ/หน้าเว็บบันทึกผลจบแมตช์ $N$ (`status = 'finished'`) ระบบจะเลื่อน Current Match ไปยังแมตช์ $N+1$ ที่มีสถานะ `scheduled` ทันที เพื่อแจ้งเตือนคู่ถัดไปให้เตรียมตัวลงสนาม
+  - หากกำลังมีแมตช์ที่แข่งอยู่ (`status = 'in_progress'`) บอทจะล็อกไปที่แมตช์นั้นเป็น Current Match แบบ Realtime
+- **การแยกคำนวณสถิติ**: ฟังก์ชันคำนวณ Clean Sheet, Goals Against (GA) และสรุปผลงาน (`getMatchWeek`) จะกรองเฉพาะแมตช์ที่เตะแล้วเท่านั้น (`status = 'finished'` หรือ `'in_progress'`)
 
 ---
 

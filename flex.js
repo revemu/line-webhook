@@ -387,7 +387,7 @@ function buildScheduleFlex(sched, theme) {
  * @param {object} matchInfo - result from getCurrentMatch()
  */
 function buildNowFlex(matchInfo, theme) {
-  const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table } = matchInfo;
+  const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table, matchStatus } = matchInfo;
   const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
 
   const makeHeaderContents = (iconType, iconText, titleText, matchNo, startTime, useLightColor, iconWidth, iconHeight) => {
@@ -495,7 +495,14 @@ function buildNowFlex(matchInfo, theme) {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
-        contents: makeHeaderContents('image', `${getBaseUrl()}/img/green_pulse_true.png`, 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
+        contents: makeHeaderContents(
+          'image',
+          `${getBaseUrl()}/img/green_pulse_true.png`,
+          matchStatus === 'in_progress' ? 'กำลังแข่ง (LIVE)' : (matchStatus === 'all_finished' ? 'จบการแข่งขัน' : (matchStatus === 'scheduled' ? 'แมตช์ถัดไป (รอเริ่ม)' : 'แมตช์ปัจจุบัน')),
+          cur.matchNo,
+          cur.startTime,
+          true
+        )
       },
       // Score row: TeamA  score  TeamB
       {
@@ -988,13 +995,16 @@ function buildLiveFlex(matchInfo, theme) {
     const dbMatch = dbMatches && dbMatches.find(dm => dm.match_num === m.matchNo);
     let vsText = 'vs';
     if (dbMatch) {
-      let scoreA = dbMatch.team_a_goal;
-      let scoreB = dbMatch.team_b_goal;
-      if (dbMatch.team_a_id === m.teamBId) {
-        scoreA = dbMatch.team_b_goal;
-        scoreB = dbMatch.team_a_goal;
+      const isPlayedOrLive = dbMatch.status === 'in_progress' || dbMatch.status === 'finished' || (dbMatch.status === undefined && dbMatch.team_a_goal !== null && dbMatch.team_a_goal !== undefined);
+      if (isPlayedOrLive) {
+        let scoreA = dbMatch.team_a_goal ?? 0;
+        let scoreB = dbMatch.team_b_goal ?? 0;
+        if (dbMatch.team_a_id === m.teamBId) {
+          scoreA = dbMatch.team_b_goal ?? 0;
+          scoreB = dbMatch.team_a_goal ?? 0;
+        }
+        vsText = `${scoreA} - ${scoreB}`;
       }
-      vsText = `${scoreA} - ${scoreB}`;
     }
 
     const matchNumContents = [];

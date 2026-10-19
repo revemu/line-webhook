@@ -142,6 +142,7 @@ async function testConnection() {
     connection.release();
     await ensureLineGroupTable();
     await ensureScheduledTaskTable();
+    await ensureMatchStatScheduleColumns();
   } catch (error) {
     logger.error('❌ Error connecting to MySQL database:', error.message);
   }
@@ -189,6 +190,26 @@ async function ensureScheduledTaskTable() {
     } catch (colErr2) { }
   } catch (err) {
     logger.error('Error ensuring scheduled_task_tbl:', err.message);
+  }
+}
+
+async function ensureMatchStatScheduleColumns() {
+  try {
+    const colCheck = await executeQuery("SHOW COLUMNS FROM match_stat_tbl LIKE 'status'");
+    if (!colCheck || colCheck.length === 0) {
+      await executeQuery(`
+        ALTER TABLE match_stat_tbl
+          ADD COLUMN round INT NULL DEFAULT 1 COMMENT 'รอบการแข่งขัน' AFTER match_num,
+          ADD COLUMN start_time VARCHAR(10) NULL COMMENT 'เวลาเริ่ม เช่น 18:00' AFTER round,
+          ADD COLUMN end_time VARCHAR(10) NULL COMMENT 'เวลาสิ้นสุด เช่น 18:08' AFTER start_time,
+          ADD COLUMN status ENUM('scheduled', 'in_progress', 'finished') NOT NULL DEFAULT 'finished' COMMENT 'สถานะแมตช์' AFTER team_b_goal,
+          ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      `);
+      logger.info('✅ Auto-migrated match_stat_tbl with schedule and status columns');
+    }
+  } catch (err) {
+    // Graceful: MySQL user may not have ALTER privilege or manual migration will be used
+    logger.warn('Notice: match_stat_tbl schema check (manual migration: migrations/match_stat_schedule.sql):', err.message);
   }
 }
 
@@ -1498,10 +1519,16 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const teamGaMap = {};
     const teamCleanSheetsMap = {};
     const teamWinsMap = {};
-    const matchScores = await executeQuery(
-      "SELECT id, team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
+    const matchScoresRaw = await executeQuery(
+      "SELECT * FROM match_stat_tbl WHERE week_id = ?",
       [week_id]
     );
+    const matchScores = (matchScoresRaw || []).filter(m => {
+      if (m.status !== undefined && m.status !== null) {
+        return m.status === 'finished' || m.status === 'in_progress';
+      }
+      return m.team_a_goal !== null && m.team_a_goal !== undefined;
+    });
     if (matchScores && matchScores.length > 0) {
       matchScores.forEach(m => {
         const gaA = Number(m.team_b_goal) || 0;
@@ -2324,10 +2351,16 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
   const teamGaMap = {};
   const teamCleanSheetsMap = {};
   const teamWinsMap = {};
-  const matchScores = await executeQuery(
-    "SELECT id, team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
+  const matchScoresRaw = await executeQuery(
+    "SELECT * FROM match_stat_tbl WHERE week_id = ?",
     [week_id]
   );
+  const matchScores = (matchScoresRaw || []).filter(m => {
+    if (m.status !== undefined && m.status !== null) {
+      return m.status === 'finished' || m.status === 'in_progress';
+    }
+    return m.team_a_goal !== null && m.team_a_goal !== undefined;
+  });
   if (matchScores && matchScores.length > 0) {
     matchScores.forEach(m => {
       const gaA = Number(m.team_b_goal) || 0;
@@ -2900,7 +2933,13 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     const team_colors = await getTeamColorWeek(week_id);
     const tableRows = await queryTableWeek(week_id);
     const leaders = await getWeekLeaderStats(week_id, groupId);
-    const matches = await queryMatchWeek(week_id);
+    const rawMatches = await queryMatchWeek(week_id);
+    const matches = (rawMatches || []).filter(m => {
+      if (m.status !== undefined && m.status !== null) {
+        return m.status === 'finished' || m.status === 'in_progress';
+      }
+      return m.team_a_goal !== null && m.team_a_goal !== undefined;
+    });
 
     // Pre-fetch goal and assist boxes for matches
     const matchDetailsMap = {};
@@ -4023,6 +4062,87 @@ async function getDebtList(type = 0) {
 
 }
 
+async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
+  if (!week_id || !Array.isArray(scheduleMatches) || scheduleMatches.length === 0) return false;
+
+  try {
+    // 1. Query existing records for this week
+    const existing = await executeQuery(
+      "SELECT * FROM match_stat_tbl WHERE week_id = ? ORDER BY match_num ASC",
+      [week_id]
+    );
+
+    const existingMap = new Map();
+    if (existing && existing.length > 0) {
+      for (const row of existing) {
+        existingMap.set(row.match_num, row);
+      }
+    }
+
+    // 2. Insert or update fixtures
+    for (const m of scheduleMatches) {
+      const matchNum = m.matchNo;
+      const ex = existingMap.get(matchNum);
+
+      if (ex) {
+        const isPlayed = ex.status === 'finished' || ex.status === 'in_progress' || (ex.status === undefined && ex.team_a_goal !== null && ex.team_a_goal !== undefined);
+        if (isPlayed && !forceRegen) {
+          // Preserve played results! Only update time slots if needed
+          try {
+            await executeQuery(
+              "UPDATE match_stat_tbl SET round = ?, start_time = ?, end_time = ? WHERE id = ?",
+              [m.round, m.startTime, m.endTime, ex.id]
+            );
+          } catch (e) { }
+        } else {
+          // Overwrite/update scheduled fixture
+          try {
+            await executeQuery(
+              "UPDATE match_stat_tbl SET round = ?, start_time = ?, end_time = ?, team_a_id = ?, team_b_id = ?, team_a_goal = NULL, team_b_goal = NULL, status = 'scheduled' WHERE id = ?",
+              [m.round, m.startTime, m.endTime, m.teamAId, m.teamBId, ex.id]
+            );
+          } catch (updateColErr) {
+            await executeQuery(
+              "UPDATE match_stat_tbl SET team_a_id = ?, team_b_id = ? WHERE id = ?",
+              [m.teamAId, m.teamBId, ex.id]
+            );
+          }
+        }
+      } else {
+        // Insert new match row
+        try {
+          await executeQuery(
+            "INSERT INTO match_stat_tbl (week_id, match_num, round, start_time, end_time, team_a_id, team_b_id, team_a_goal, team_b_goal, status) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'scheduled')",
+            [week_id, matchNum, m.round, m.startTime, m.endTime, m.teamAId, m.teamBId]
+          );
+        } catch (insertColErr) {
+          await executeQuery(
+            "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id) VALUES (?, ?, ?, ?)",
+            [week_id, matchNum, m.teamAId, m.teamBId]
+          );
+        }
+      }
+    }
+
+    // 3. Clean up extra scheduled matches if team count decreased (e.g. from 18 to 9 matches)
+    if (existing && existing.length > scheduleMatches.length) {
+      for (const row of existing) {
+        if (row.match_num > scheduleMatches.length) {
+          const isPlayed = row.status === 'finished' || row.status === 'in_progress' || (row.team_a_goal !== null && row.team_a_goal !== undefined);
+          if (!isPlayed || forceRegen) {
+            await executeQuery("DELETE FROM match_stat_tbl WHERE id = ?", [row.id]);
+          }
+        }
+      }
+    }
+
+    logger.info(`[schedule] Saved ${scheduleMatches.length} matches into match_stat_tbl for week ${week_id}`);
+    return true;
+  } catch (err) {
+    logger.warn('[schedule] Failed to save schedule into match_stat_tbl (run migrations/match_stat_schedule.sql):', err.message);
+    return false;
+  }
+}
 
 async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = null, totalHours = null, endTimeStr = null, forceRegen = false, targetTeamCount = null) {
   // Fetch current week team colors
@@ -4070,9 +4190,23 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
           const rows = await queryMatchWeek(week_id);
           if (rows && rows.length > 0) {
             dbMatches = rows;
-            const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
-            currentMatchNo = maxDbMatchNum;
-            nextMatchNo = Math.min(maxDbMatchNum + 1, existing.matches.length);
+            const inProg = dbMatches.find(r => r.status === 'in_progress');
+            if (inProg) {
+              currentMatchNo = inProg.match_num;
+              const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+              nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, existing.matches.length);
+            } else {
+              const firstSched = dbMatches.find(r => r.status === 'scheduled');
+              if (firstSched) {
+                currentMatchNo = firstSched.match_num;
+                const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+                nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, existing.matches.length);
+              } else {
+                const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
+                currentMatchNo = maxDbMatchNum;
+                nextMatchNo = Math.min(maxDbMatchNum + 1, existing.matches.length);
+              }
+            }
           }
         } catch (err) {
           logger.error('[schedule] failed to query match_stat_tbl:', err.message);
@@ -4508,22 +4642,36 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     };
   });
 
-  // ── Sync with match_stat_tbl to find current & next match ──
+  // ── Save to match_stat_tbl & Sync to find current & next match ──
   let currentMatchNo = 1;
   let nextMatchNo = 2;
   let dbMatches = [];
   try {
+    await saveScheduleToDb(week_id, scheduleMatches, forceRegen);
+
     const rows = await queryMatchWeek(week_id);
     if (rows && rows.length > 0) {
       dbMatches = rows;
-      // Highest match_num recorded in DB = the match currently in progress (or last played)
-      const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
-      currentMatchNo = maxDbMatchNum;
-      nextMatchNo = Math.min(maxDbMatchNum + 1, scheduleMatches.length);
+      const inProg = dbMatches.find(r => r.status === 'in_progress');
+      if (inProg) {
+        currentMatchNo = inProg.match_num;
+        const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+        nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, scheduleMatches.length);
+      } else {
+        const firstSched = dbMatches.find(r => r.status === 'scheduled');
+        if (firstSched) {
+          currentMatchNo = firstSched.match_num;
+          const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+          nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, scheduleMatches.length);
+        } else {
+          const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
+          currentMatchNo = maxDbMatchNum;
+          nextMatchNo = Math.min(maxDbMatchNum + 1, scheduleMatches.length);
+        }
+      }
     }
-    // else: no records → start from match 1 / next is match 2
   } catch (err) {
-    logger.error('[schedule] failed to query match_stat_tbl:', err.message);
+    logger.error('[schedule] failed to save/sync with match_stat_tbl:', err.message);
   }
 
   const currentMatch = scheduleMatches.find(m => m.matchNo === currentMatchNo) || scheduleMatches[0];
@@ -4640,16 +4788,48 @@ async function getCurrentMatch(groupId = null) {
   let currentMatchNo = 1;
   let nextMatchNo = Math.min(2, schedMatches.length);
   let currentDbRow = null;
+  let matchStatus = 'scheduled'; // 'scheduled' | 'in_progress' | 'all_finished'
 
   let dbMatches = [];
   const week = await queryWeekID();
   if (week && week.length > 0) {
     dbMatches = await queryMatchWeek(week[0].id);
     if (dbMatches && dbMatches.length > 0) {
-      const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
-      currentMatchNo = maxDbMatchNum;
-      nextMatchNo = Math.min(maxDbMatchNum + 1, schedMatches.length);
-      currentDbRow = dbMatches.find(r => r.match_num === maxDbMatchNum);
+      const hasStatusCol = dbMatches.some(r => r.status !== undefined && r.status !== null);
+
+      if (hasStatusCol) {
+        // 1. Is there an in-progress match?
+        const inProgress = dbMatches.find(r => r.status === 'in_progress');
+        if (inProgress) {
+          currentMatchNo = inProgress.match_num;
+          currentDbRow = inProgress;
+          matchStatus = 'in_progress';
+          const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+          nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, schedMatches.length);
+        } else {
+          // 2. Find first scheduled match (Upcoming / Next Up)
+          const firstSched = dbMatches.find(r => r.status === 'scheduled');
+          if (firstSched) {
+            currentMatchNo = firstSched.match_num;
+            currentDbRow = firstSched;
+            matchStatus = 'scheduled';
+            const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+            nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, schedMatches.length);
+          } else {
+            // 3. All matches are finished!
+            currentMatchNo = schedMatches.length;
+            currentDbRow = dbMatches.find(r => r.match_num === currentMatchNo) || dbMatches[dbMatches.length - 1];
+            matchStatus = 'all_finished';
+            nextMatchNo = currentMatchNo;
+          }
+        }
+      } else {
+        // Fallback for legacy DB without status column:
+        const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
+        currentMatchNo = maxDbMatchNum;
+        nextMatchNo = Math.min(maxDbMatchNum + 1, schedMatches.length);
+        currentDbRow = dbMatches.find(r => r.match_num === maxDbMatchNum);
+      }
     }
   }
 
@@ -4669,15 +4849,25 @@ async function getCurrentMatch(groupId = null) {
   const assets = await fetchDisplayAssets();
 
   if (currentDbRow) {
-    score = {
-      teamA: currentDbRow.team_a_goal ?? 0,
-      teamB: currentDbRow.team_b_goal ?? 0
-    };
+    if (matchStatus === 'in_progress' || matchStatus === 'all_finished' || currentDbRow.status === 'finished') {
+      score = {
+        teamA: currentDbRow.team_a_goal ?? 0,
+        teamB: currentDbRow.team_b_goal ?? 0
+      };
+    } else if (matchStatus === 'scheduled') {
+      score = null;
+    } else if (currentDbRow.team_a_goal !== null && currentDbRow.team_a_goal !== undefined) {
+      score = {
+        teamA: currentDbRow.team_a_goal ?? 0,
+        teamB: currentDbRow.team_b_goal ?? 0
+      };
+    }
   }
 
   if (dbMatches && dbMatches.length > 0) {
     // Sort descending by match_num to pick the latest 3 played matches
-    const sortedDbMatches = [...dbMatches].sort((a, b) => b.match_num - a.match_num);
+    const playedDbMatches = dbMatches.filter(r => r.status === 'finished' || r.status === 'in_progress' || (r.status === undefined && r.team_a_goal !== null && r.team_a_goal !== undefined));
+    const sortedDbMatches = [...playedDbMatches].sort((a, b) => b.match_num - a.match_num);
     const recentDbMatches = sortedDbMatches.slice(0, 3);
 
     for (const matchRow of recentDbMatches) {
@@ -4710,7 +4900,7 @@ async function getCurrentMatch(groupId = null) {
   const imageUrl = imgTpl ? imgTpl.url : null;
 
   const webLiveUrl = process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/web/view';
-  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, recentMatchDetails, weekId: sched.weekId, date: sched.date, imageUrl, teamColors: assets.teamColors, webLiveUrl };
+  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, recentMatchDetails, weekId: sched.weekId, date: sched.date, imageUrl, teamColors: assets.teamColors, webLiveUrl, matchStatus };
 }
 
 async function getTheme() {
@@ -7847,6 +8037,8 @@ module.exports = {
   getDebtList,
   getScheduleText,
   getCurrentMatch,
+  saveScheduleToDb,
+  ensureMatchStatScheduleColumns,
   getTheme,
   setTheme,
   updateMemberAutoReg,

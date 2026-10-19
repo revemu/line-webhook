@@ -4,9 +4,29 @@
 
 ---
 
-## [Unreleased] - 2026-10-17
+## [Unreleased] - 2026-10-19
 
 ### Added / Changed
+- **Database-Backed Schedule & Match Progression (`/schedule`, `/now`, `/live`)**:
+  - **บันทึกตารางแข่งลง MySQL (`match_stat_tbl`) โดยตรง**:
+    - ปรับปรุงให้คำสั่ง `/schedule` บันทึกคู่แข่งขัน 18 แมตช์ (round, start_time, end_time, team_a_id, team_b_id, status = 'scheduled') ลงในตาราง `match_stat_tbl` โดยอัตโนมัติ พร้อมทั้งเขียน `schedule.json` เป็น fallback cache
+    - เพิ่มฟังก์ชัน `saveScheduleToDb(week_id, scheduleMatches, forceRegen)` ใน `query.js` ป้องกันการเขียนทับผลการแข่งขันของแมตช์ที่แข่งเสร็จแล้ว (เว้นแต่จะระบุคำสั่ง force / reset)
+    - เพิ่ม Migration SQL `migrations/match_stat_schedule.sql` สำหรับเพิ่มคอลัมน์ `round`, `start_time`, `end_time`, `status` และ `updated_at` ใน `match_stat_tbl`
+    - เพิ่มฟังก์ชัน `ensureMatchStatScheduleColumns()` ใน `query.js` เพื่อตรวจสอบโครงสร้างตารางตอนเริ่มต้นอย่างปลอดภัย
+  - **ระบบ Match Lifecycle & Automatic Cursor Progression (รองรับการจบแต่ละแมตช์ก่อนขึ้นนัดถัดไป)**:
+    - ปรับปรุงฟังก์ชัน `getCurrentMatch()` ให้ตรวจสอบสถานะการแข่งขันแบบ Realtime:
+      - หากมีแมตช์ที่กำลังแข่งขัน (`status = 'in_progress'`): ชี้ไปที่แมตช์นั้นเป็น Current Match (แสดงสด 🟢 LIVE)
+      - หากไม่มีแมตช์ที่กำลังแข่ง (จบแมตช์ล่าสุดไปแล้ว): ระบบจะขยับ Current Match ไปยังแมตช์คิวถัดไปที่มีสถานะ `status = 'scheduled'` (รอเริ่มแข่ง) ทันที เพื่อให้ผู้เล่นทราบคู่ประกบและเวลาลงสนามล่วงหน้า
+      - หากแข่งจบครบทุกคู่: แสดงสถานะจบการแข่งขันทั้งหมด (`all_finished`)
+    - ปรับปรุง `buildNowFlex` และ `buildLiveFlex` ใน `flex.js`:
+      - แมตช์ที่รอแข่ง (`status = 'scheduled'`) จะแสดงผล `vs` และระบุหัวข้อ `แมตช์ถัดไป (รอเริ่ม)` โดยไม่แสดงผลเสมอ 0 - 0 ล่วงหน้า
+      - แมตช์ที่แข่งจบแล้วหรือกำลังแข่ง จะแสดงผลสกอร์จริงและรายละเอียดผู้ยิง/แอสซิสต์
+  - **ปรับปรุง Query สถิติตารางคะแนน (Clean Sheet / GA / Standings)**:
+    - ปรับการคำนวณใน `queryTableWeek`, `getMatchWeek` และ Clean Sheet Map ให้พิจารณาเฉพาะแมตช์ที่เตะแล้วเท่านั้น ป้องกันการนำแมตช์ที่ยังไม่เตะไปคำนวณเป็นผลเสมอ 0-0
+
+---
+
+## [0.5.5] - 2026-10-17
 - **Live Match View & Web Stream Link (`/live`)**:
   - **เพิ่มลิงก์ดูถ่ายทอดสด / ผลการแข่งขันผ่านเว็บ (`https://boxch2.kdnstream.com/web/view`)**:
     - เพิ่มแถบ Banner ใต้หัวข้อ Live! Match สำหรับคลิกเปิดดูผ่านเว็บได้ทันที
