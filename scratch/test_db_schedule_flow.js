@@ -66,6 +66,26 @@ const schedObj = {
 // Test Flex builder compatibility
 const flexResult = flex.buildScheduleFlex(schedObj, 'black');
 assert.strictEqual(flexResult.type, 'bubble');
+
+// Find match rows inside flexResult.body.contents (match rows have margin: 'xs')
+const matchRows = flexResult.body.contents.filter(c => c.type === 'box' && c.margin === 'xs');
+assert.strictEqual(matchRows.length, 3);
+
+// Match 1: finished (2 - 1)
+const m1Vs = matchRows[0].contents[2].contents[1];
+assert.strictEqual(m1Vs.text, '2 - 1');
+assert.strictEqual(m1Vs.weight, 'bold');
+
+// Match 2: in_progress (1 - 0)
+const m2Vs = matchRows[1].contents[2].contents[1];
+assert.strictEqual(m2Vs.text, '1 - 0');
+assert.strictEqual(m2Vs.weight, 'bold');
+
+// Match 3: scheduled (unplayed, team_a_goal: null) -> MUST be 'vs', NOT 'null - null'
+const m3Vs = matchRows[2].contents[2].contents[1];
+assert.strictEqual(m3Vs.text, 'vs');
+assert.strictEqual(m3Vs.weight, 'regular');
+console.log('✔ Match 1 score: "2 - 1", Match 2 score: "1 - 0", Match 3 unplayed: "vs" (no "null - null")');
 console.log('✔ buildScheduleFlex works seamlessly with DB-generated schedule object');
 
 const nowFlex = flex.buildNowFlex({

@@ -300,14 +300,19 @@ function buildScheduleFlex(sched, theme) {
       // Check if match was played
       const dbMatch = sched.dbMatches && sched.dbMatches.find(dm => dm.match_num === m.matchNo);
       let vsText = 'vs';
+      let isPlayed = false;
       if (dbMatch) {
-        let scoreA = dbMatch.team_a_goal;
-        let scoreB = dbMatch.team_b_goal;
-        if (dbMatch.team_a_id === m.teamBId) {
-          scoreA = dbMatch.team_b_goal;
-          scoreB = dbMatch.team_a_goal;
+        const isPlayedOrLive = dbMatch.status === 'in_progress' || dbMatch.status === 'finished' || (dbMatch.status === undefined && dbMatch.team_a_goal !== null && dbMatch.team_a_goal !== undefined);
+        if (isPlayedOrLive) {
+          isPlayed = true;
+          let scoreA = dbMatch.team_a_goal ?? 0;
+          let scoreB = dbMatch.team_b_goal ?? 0;
+          if (dbMatch.team_a_id === m.teamBId) {
+            scoreA = dbMatch.team_b_goal ?? 0;
+            scoreB = dbMatch.team_a_goal ?? 0;
+          }
+          vsText = `${scoreA} - ${scoreB}`;
         }
-        vsText = `${scoreA} - ${scoreB}`;
       }
 
       bodyContents.push({
@@ -329,7 +334,7 @@ function buildScheduleFlex(sched, theme) {
             alignItems: 'center',
             contents: [
               { type: 'text', text: m.teamA || '?', size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
-              { type: 'text', text: vsText, size: 'sm', color: colors.textMuted, align: 'center', flex: 1, weight: dbMatch ? 'bold' : 'regular' },
+              { type: 'text', text: vsText, size: 'sm', color: colors.textMuted, align: 'center', flex: 1, weight: isPlayed ? 'bold' : 'regular' },
               { type: 'text', text: m.teamB || '?', size: 'sm', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
             ]
           }
