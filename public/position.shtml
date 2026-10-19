@@ -41,9 +41,9 @@
 
 		<div class="top-nav-bar">
 			<div class="nav-tabs">
-				<a href="/webhook/match" class="nav-tab">⚽ Match Manager</a>
-				<a href="/webhook/view" class="nav-tab">📺 Match Viewer</a>
-				<a href="/webhook/position" class="nav-tab active">🛡️ Position Manager</a>
+				<a :href="'/webhook/match' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">⚽ Match Manager</a>
+				<a :href="'/webhook/view' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">📺 Match Viewer</a>
+				<a :href="'/webhook/position' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab active">🛡️ Position Manager</a>
 			</div>
 			<div class="user-status-pill" v-if="currentUser">
 				<span class="user-role-badge" :class="currentUser.role">
@@ -925,10 +925,11 @@
 					<div v-for="w in weeks" :key="w.id" class="player-card"
 						:style="w.id === week.id ? { borderColor: 'var(--primary-color)', background: 'rgba(79, 70, 229, 0.08)' } : {}"
 						style="cursor: pointer;"
-						@click="changeWeek(w.number)">
+						@click="changeWeek(w.number || w.id)">
 						<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
 							<div>
 								<div style="font-weight: 700; font-size: 1rem;">📅 {{ w.date }}</div>
+								<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Week {{ w.number || w.id }}</div>
 							</div>
 							<span v-if="w.id === week.id" style="color: var(--primary-color); font-weight: bold;">Current ✓</span>
 						</div>
@@ -1068,7 +1069,7 @@
 				toastMessage: '',
 				toastIcon: '✓',
 				toastTimer: null,
-				base_url: window.location.origin + (window.location.pathname.startsWith('/web') ? '/web' : '/webhook'),
+				base_url: window.location.origin + (window.location.pathname.startsWith('/web/') ? '/web' : '/webhook'),
 				currentUser: null,
 				showPasswordModal: false,
 				pwdLoading: false,
@@ -1234,6 +1235,10 @@
 						}
 					}
 					this.showWeekPicker = false;
+					if (window.history && window.history.replaceState) {
+						const newUrl = window.location.pathname + (weeknum ? '?weeknum=' + weeknum : '');
+						window.history.replaceState(null, '', newUrl);
+					}
 					this.fetchPageData(weeknum);
 				},
 				getTeamMembers(teamId) {
@@ -1857,7 +1862,9 @@
 									return;
 								}
 								// Load initial page data once verified root
-								this.fetchPageData(0);
+								const urlParams = new URLSearchParams(window.location.search);
+								const initialWeek = urlParams.get('weeknum') || urlParams.get('week') || urlParams.get('week_id') || 0;
+								this.fetchPageData(initialWeek);
 							} else {
 								window.location.href = '/webhook/login?redirect=' + encodeURIComponent(window.location.pathname);
 							}

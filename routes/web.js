@@ -710,10 +710,11 @@ async function queryWeekTable(weekid) {
 
 async function queryWeekId(weeknum = 0) {
     let sql;
-    if (weeknum == 0) {
-        sql = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, time_range FROM week_tbl ORDER BY number DESC LIMIT 1";
+    const num = parseInt(weeknum, 10);
+    if (!num || isNaN(num) || num <= 0) {
+        sql = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
     } else {
-        sql = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, time_range FROM week_tbl WHERE number = ${weeknum}`;
+        sql = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, time_range FROM week_tbl WHERE number = ${num} OR id = ${num} ORDER BY id DESC LIMIT 1`;
     }
 
     const result = await doQuery(sql);
@@ -767,8 +768,8 @@ async function queryAllPositions() {
     return await doQuery(sql);
 }
 
-async function queryRecentWeeks(limit = 15) {
-    const sql = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY number DESC LIMIT ${limit}`;
+async function queryRecentWeeks(limit = 20) {
+    const sql = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY id DESC LIMIT ${limit}`;
     return await doQuery(sql);
 }
 

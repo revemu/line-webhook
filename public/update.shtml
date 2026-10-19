@@ -57,9 +57,9 @@
 
 		<div class="top-nav-bar">
 			<div class="nav-tabs">
-				<a v-if="currentUser" href="/webhook/match" class="nav-tab" :class="{ active: isManager }">⚽ Manager</a>
-				<a href="/webhook/view" class="nav-tab" :class="{ active: !isManager }">📺 Viewer</a>
-				<a v-if="currentUser && currentUser.role === 'root'" href="/webhook/position" class="nav-tab">🛡️ Position</a>
+				<a v-if="currentUser" :href="'/webhook/match' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab" :class="{ active: isManager }">⚽ Manager</a>
+				<a :href="'/webhook/view' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab" :class="{ active: !isManager }">📺 Viewer</a>
+				<a v-if="currentUser && currentUser.role === 'root'" :href="'/webhook/position' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">🛡️ Position</a>
 			</div>
 			<div class="user-status-pill" v-if="currentUser">
 				<span class="user-role-badge" :class="currentUser.role">
@@ -103,10 +103,11 @@
 					<div v-for="w in weeks" :key="w.id" class="player-card"
 						:style="w.id === week.id ? { borderColor: 'var(--primary-color)', background: 'rgba(79, 70, 229, 0.08)' } : {}"
 						style="cursor: pointer;"
-						@click="changeWeek(w.number)">
+						@click="changeWeek(w.number || w.id)">
 						<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
 							<div>
 								<div style="font-weight: 700; font-size: 1rem;">📅 {{ w.date }}</div>
+								<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Week {{ w.number || w.id }}</div>
 							</div>
 							<span v-if="w.id === week.id" style="color: var(--primary-color); font-weight: bold;">Current ✓</span>
 						</div>
@@ -1103,7 +1104,7 @@
 				output: [],
 				all_match: [],
 				teamcolors: '',
-				base_url: window.location.origin + (window.location.pathname.startsWith('/web') ? '/web' : '/webhook'),
+				base_url: window.location.origin + (window.location.pathname.startsWith('/web/') ? '/web' : '/webhook'),
 				todos: [],
 				team_match: [],
 				eventType: 0,
@@ -1364,7 +1365,9 @@
 				this.applyTheme(this.isDarkTheme);
 
 				this.fetchCurrentUser();
-				this.refreshMatch(0);
+				const urlParams = new URLSearchParams(window.location.search);
+				const initialWeek = urlParams.get('weeknum') || urlParams.get('week') || urlParams.get('week_id') || 0;
+				this.refreshMatch(initialWeek);
 
 				if (!this.isManager) {
 					this.startAutoRefreshTimer();
@@ -1374,7 +1377,7 @@
 				manualRefresh() {
 					this.refreshCountdown = 30;
 					this.isRefreshing = true;
-					this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+					this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
 					setTimeout(() => {
 						this.isRefreshing = false;
 					}, 400);
@@ -1388,7 +1391,7 @@
 						if (this.refreshCountdown <= 0) {
 							this.refreshCountdown = 30;
 							this.isRefreshing = true;
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
 							setTimeout(() => {
 								this.isRefreshing = false;
 							}, 400);
@@ -1418,19 +1421,23 @@
 					this.teamA = null;
 					this.teamB = null;
 					this.selectedMatchIndex = 0;
+					if (window.history && window.history.replaceState) {
+						const newUrl = window.location.pathname + (weeknum ? '?weeknum=' + weeknum : '');
+						window.history.replaceState(null, '', newUrl);
+					}
 					this.refreshMatch(weeknum, true);
 				},
 				refreshMatch: function (weeknum, update_team_lists = true, matchindex = 0) {
-					const url = (this.base_url || '/webhook') + '/match_view_data?weeknum=' + weeknum;
+					const url = (this.base_url || '/webhook') + '/match_view_data?weeknum=' + (weeknum || 0);
 					axios.get(url)
 						.then(response => {
 							this.info = response.data;
-							if (this.info.week && this.info.week.number) {
+							if (this.info && this.info.week) {
 								this.week = this.info.week;
 								this.weeks = this.info.weeks || [];
 							} else {
 								// Fetch week metadata fallback
-								axios.get(this.base_url + '/get_info?cmd=get_position_page_data&weeknum=' + weeknum)
+								axios.get(this.base_url + '/get_info?cmd=get_position_page_data&weeknum=' + (weeknum || 0))
 									.then(res2 => {
 										if (res2.data && res2.data.week) {
 											this.week = res2.data.week;
