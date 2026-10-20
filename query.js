@@ -499,7 +499,7 @@ async function setMemberWeekPriority(member_id, week_id, priority) {
 
 async function resetMemberTeam() {
   const week = await queryWeekID();
-  let query = `update member_team_week_tbl set team_id=0 where week_id=${week[0].id}`;
+  let query = `update member_team_week_tbl set team_id=0, pos_id=0 where week_id=${week[0].id}`;
 
   const res = await executeQuery(query);
   //logger.info(res) ;
@@ -6927,13 +6927,18 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     }
   } catch (e) { }
 
-  // 3.5 Position Min/Max Limits from pos_tbl (for 7-player: min/max, for 8-player: min_8/max_8)
+  // 3.5 Position Min/Max Limits & ID mapping from pos_tbl (for 7-player: min/max, for 8-player: min_8/max_8)
+  await ensurePosTables();
   const posLimitsMap = {};
+  const posCodeToIdMap = {};
+  const posCodeToNameMap = {};
   try {
-    const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+    const posRows = await executeQuery("SELECT id, code, name, min, max, min_8, max_8 FROM pos_tbl");
     if (posRows && posRows.length > 0) {
       posRows.forEach(r => {
         const code = (r.code || '').toUpperCase();
+        if (r.id) posCodeToIdMap[code] = Number(r.id);
+        if (r.name) posCodeToNameMap[code] = r.name;
         posLimitsMap[code] = {
           min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
           max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
@@ -6948,6 +6953,8 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       if (posRows && posRows.length > 0) {
         posRows.forEach(r => {
           const code = (r.code || '').toUpperCase();
+          if (r.id) posCodeToIdMap[code] = Number(r.id);
+          if (r.name) posCodeToNameMap[code] = r.name;
           posLimitsMap[code] = {
             min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
             max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
@@ -6957,6 +6964,17 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
         });
       }
     } catch (e2) { }
+  }
+
+  // Ensure goalkeepers have GK pos_id in member_team_week_tbl if available
+  if (goalieMembers.length > 0 && posCodeToIdMap['GK']) {
+    const goalieMtwIds = goalieMembers.map(r => r.mtw_id).filter(Boolean);
+    if (goalieMtwIds.length > 0) {
+      await executeQuery(
+        `UPDATE member_team_week_tbl SET pos_id = ? WHERE id IN (${goalieMtwIds.join(',')}) AND (pos_id IS NULL OR pos_id = 0)`,
+        [posCodeToIdMap['GK']]
+      );
+    }
   }
 
   const defaultLimits = {
@@ -6990,6 +7008,10 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     const yAvg = yearStatsMap[m.member_id] || 0;
     const rankVal = parseFloat(m.rank || 0) || 0;
     m.rating = yAvg > 0 ? yAvg : (rankVal > 0 ? rankVal : 0);
+    m.yearStats = {
+      avgRating: yAvg > 0 ? yAvg.toFixed(1) : (m.rating > 0 ? m.rating.toFixed(1) : '-'),
+      rating: m.rating > 0 ? m.rating.toFixed(1) : '-'
+    };
     m.posCode = (m.pos_code || 'MF').toUpperCase();
   }
 
@@ -7222,12 +7244,30 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     }
   }
 
-  // 9. Persist Team Assignments into Database (member_team_week_tbl)
+  // 9. Allocate Tactical Formation Positions & Persist Team + Position Assignments into Database (member_team_week_tbl)
+  const is8PlayerWeek = teams.some(t => t.members.length >= 8);
   for (const team of teams) {
+    const isTeam8Player = (team.members.length >= 8) || is8PlayerWeek;
+    allocateFormationSlots(team.members, isTeam8Player, posLimitsMap);
+
+    team.positionCounts = { GK: 0, DF: 0, DW: 0, DM: 0, MF: 0, AM: 0, CF: 0, OTHER: 0 };
     for (const member of team.members) {
+      const assignedPosCode = (member.effectivePos || member.posCode || member.pos_code || 'MF').toUpperCase();
+      const assignedPosId = posCodeToIdMap[assignedPosCode] || Number(member.week_pos_id) || Number(member.member_pos_id) || 0;
+
+      member.posCode = assignedPosCode;
+      member.pos_code = assignedPosCode;
+      member.week_pos_id = assignedPosId;
+      if (posCodeToNameMap[assignedPosCode]) {
+        member.pos_name = posCodeToNameMap[assignedPosCode];
+      }
+
+      const countKey = team.positionCounts[assignedPosCode] !== undefined ? assignedPosCode : 'OTHER';
+      team.positionCounts[countKey]++;
+
       await executeQuery(
-        "UPDATE member_team_week_tbl SET team_id = ? WHERE member_id = ? AND week_id = ?",
-        [team.teamId, member.member_id, weekId]
+        "UPDATE member_team_week_tbl SET team_id = ?, pos_id = ? WHERE member_id = ? AND week_id = ?",
+        [team.teamId, assignedPosId, member.member_id, weekId]
       );
     }
   }
