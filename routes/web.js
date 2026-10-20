@@ -401,7 +401,7 @@ router.get(['/webhook/matches', '/web/matches'], (req, res) => {
 router.get(['/webhook/match_view_data', '/web/match_view_data'], async (req, res) => {
     try {
         const { weeknum } = req.query;
-        const result = await getLastMatchWeek(weeknum || 0);
+        const result = await getLastMatchWeek(weeknum || 0, req.user);
         res.json(result);
     } catch (error) {
         logger.error(`Error in match_view_data: ${error.message}`);
@@ -425,13 +425,17 @@ router.get(['/webhook/get_info', '/web/get_info'], requireAuth, async (req, res)
 
         switch (cmd) {
             case 'get_last_matchweek':
-                const result = await getLastMatchWeek(weeknum || 0);
+                const result = await getLastMatchWeek(weeknum || 0, req.user);
                 res.json(result);
                 break;
 
             case 'get_team_members':
                 if (!matchid) {
                     return res.status(400).json({ error: 'matchid is required' });
+                }
+                const isLocked = await isMatchRosterLocked(matchid, req.user);
+                if (isLocked) {
+                    return res.json([]);
                 }
                 const members = await queryTeamMembers(matchid);
                 logger.info(`get_team_members: ${JSON.stringify(members)}`);
@@ -452,7 +456,7 @@ router.get(['/webhook/get_info', '/web/get_info'], requireAuth, async (req, res)
                 break;
 
             default:
-                const defaultResult = await getLastMatchWeek(5);
+                const defaultResult = await getLastMatchWeek(5, req.user);
                 res.json(defaultResult);
         }
     } catch (error) {
@@ -742,9 +746,9 @@ async function queryWeekId(weeknum = 0) {
     let sql;
     const num = parseInt(weeknum, 10);
     if (!num || isNaN(num) || num <= 0) {
-        sql = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
+        sql = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date, time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
     } else {
-        sql = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, time_range FROM week_tbl WHERE number = ${num} OR id = ${num} ORDER BY id DESC LIMIT 1`;
+        sql = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date, time_range FROM week_tbl WHERE number = ${num} OR id = ${num} ORDER BY id DESC LIMIT 1`;
     }
 
     const result = await doQuery(sql);
@@ -754,6 +758,7 @@ async function queryWeekId(weeknum = 0) {
             success: true,
             id: result[0].id,
             date: result[0].date,
+            raw_date: result[0].raw_date,
             time_range: result[0].time_range || '17:30-20:00',
             number: result[0].number,
             sql: sql
@@ -842,9 +847,73 @@ async function queryPositionPageData(weeknum = 0) {
     };
 }
 
-// ==================== MAIN FUNCTIONS ====================
+// ==================== MAIN FUNCTIONS & ROSTER PROTECTION ====================
 
-async function getLastMatchWeek(weeknum = 0) {
+/**
+ * Check if current time in Bangkok is before 20:00 on Friday of the match week.
+ * @param {string} dateStr Format 'YYYY-MM-DD'
+ * @returns {boolean}
+ */
+function isBeforeFriday2000(dateStr) {
+    if (!dateStr) return false;
+    const parts = String(dateStr).split('-').map(Number);
+    if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+        return false;
+    }
+    const [y, m, d] = parts;
+    const matchDate = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+    const matchDow = matchDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+    // Difference in days to reach the Friday of this match week
+    const diffToFriday = (matchDow - 5 + 7) % 7;
+    const fridayDate = new Date(matchDate.getTime() - diffToFriday * 24 * 60 * 60 * 1000);
+    const fy = fridayDate.getUTCFullYear();
+    const fm = String(fridayDate.getUTCMonth() + 1).padStart(2, '0');
+    const fd = String(fridayDate.getUTCDate()).padStart(2, '0');
+    // Cutoff is Friday 20:00:00 in Bangkok (UTC+7)
+    const cutoffTime = new Date(`${fy}-${fm}-${fd}T20:00:00+07:00`).getTime();
+    return Date.now() < cutoffTime;
+}
+
+/**
+ * Check if team rosters should be locked (hidden) for a given week.
+ * Only locked if target week is the current/latest week AND before Friday 20:00 AND user is not root.
+ * @param {number|string} weekid
+ * @param {object|null} currentUser
+ * @returns {Promise<boolean>}
+ */
+async function isWeekRosterLocked(weekid, currentUser = null) {
+    if (currentUser && currentUser.role === 'root') {
+        return false;
+    }
+    const [latestWeek] = await doQuery("SELECT id, DATE_FORMAT(date, '%Y-%m-%d') as raw_date FROM week_tbl ORDER BY id DESC LIMIT 1");
+    if (!latestWeek) return false;
+
+    const targetWeekId = parseInt(weekid, 10);
+    if (targetWeekId !== latestWeek.id) {
+        return false;
+    }
+
+    return isBeforeFriday2000(latestWeek.raw_date);
+}
+
+/**
+ * Check if a match belongs to a week whose team roster is locked.
+ * @param {number|string} matchid
+ * @param {object|null} currentUser
+ * @returns {Promise<boolean>}
+ */
+async function isMatchRosterLocked(matchid, currentUser = null) {
+    if (currentUser && currentUser.role === 'root') {
+        return false;
+    }
+    const mid = parseInt(matchid, 10);
+    if (!mid || isNaN(mid)) return false;
+    const [match] = await doQuery(`SELECT week_id FROM match_stat_tbl WHERE id = ${mid}`);
+    if (!match) return false;
+    return await isWeekRosterLocked(match.week_id, currentUser);
+}
+
+async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     const weekInfo = await queryWeekId(weeknum);
 
     if (!weekInfo.success) {
@@ -854,9 +923,25 @@ async function getLastMatchWeek(weeknum = 0) {
     const { id: weekid, date: weekdate, number: weeknumber } = weekInfo;
     const data = {};
 
+    // Check if team rosters should be locked for the current week before Friday 20:00
+    const isLocked = await isWeekRosterLocked(weekid, currentUser);
+    data.is_roster_locked = isLocked;
+    if (isLocked) {
+        data.roster_lock_message = 'รายชื่อทีมสำหรับสัปดาห์นี้จะเปิดแสดงหลังเวลา 20:00 น. ของวันศุกร์';
+    }
+
     // Get all members
     const members = await queryRegisteredMembers(weekid);
-    data.allmembers = members || [];
+    if (isLocked) {
+        // Strip team assignment and color to prevent knowing randomized teams early
+        data.allmembers = (members || []).map(m => ({
+            ...m,
+            team_id: 0,
+            color: null
+        }));
+    } else {
+        data.allmembers = members || [];
+    }
 
     // Get team colors
     const teamColors = await queryAllTeamColors(weekid);
@@ -977,7 +1062,10 @@ async function getLastMatchWeek(weeknum = 0) {
     data.is_week_ended = isWeekTimeEnded;
     data.all_match = allMatchData;
 
-    if (activeMatch) {
+    if (isLocked) {
+        data.current_match_num = 1;
+        data.members = [];
+    } else if (activeMatch) {
         data.current_match_num = activeMatch.match_num;
         data.current_match_id = activeMatch.id;
         data.members = await queryTeamMembers(activeMatch.id);
@@ -1133,5 +1221,8 @@ router.queryAllPositions = queryAllPositions;
 router.addMatchWeek = addMatchWeek;
 router.addMatchGoal = addMatchGoal;
 router.removeMatchGoal = removeMatchGoal;
+router.isBeforeFriday2000 = isBeforeFriday2000;
+router.isWeekRosterLocked = isWeekRosterLocked;
+router.isMatchRosterLocked = isMatchRosterLocked;
 
 module.exports = router;

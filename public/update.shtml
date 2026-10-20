@@ -302,7 +302,7 @@
 				</div>
 
 				<!-- Scoreboard Tools / Actions (Manager Only) -->
-				<div class="scoreboard-actions-row" v-if="isManager">
+				<div class="scoreboard-actions-row" v-if="isManager && !info.is_roster_locked">
 					<div class="scoreboard-actions">
 						<button v-if="!isMatchFinished(currentSelectedMatch)" type="button" class="btn-scoreboard-tool btn-finish-match" @click="finishCurrentMatch()" title="จบแมตช์นี้แล้วขึ้นนัดถัดไป">
 							🏁 จบ Match
@@ -321,7 +321,7 @@
 			</div>
 
 			<!-- ==================== OPTIONAL CLASSIC FORM (ABOVE PITCH VIEW) ==================== -->
-			<div class="card classic-goal-form-card" id="classic-goal-form" v-if="isManager" v-show="showClassicForm">
+			<div class="card classic-goal-form-card" id="classic-goal-form" v-if="isManager && !info.is_roster_locked" v-show="showClassicForm">
 				<div class="card-title">
 					<span>📋 บันทึก Match {{ currentSelectedMatch ? currentSelectedMatch.match_num : '' }}</span>
 					<span style="cursor: pointer; font-size: 1.1rem; line-height: 1;" @click="showClassicForm = false">✕</span>
@@ -465,7 +465,7 @@
 			</div>
 
 			<!-- Pitch View Mode & Team Selector Tabs -->
-			<div class="pitch-view-selector-bar">
+			<div class="pitch-view-selector-bar" v-if="!info.is_roster_locked">
 				<div class="pitch-team-tabs">
 					<button type="button" class="pitch-team-tab" :class="{ 'is-active': activePitchTab === 'teamA' }"
 						@click="activePitchTab = 'teamA'"
@@ -488,8 +488,24 @@
 				</div>
 			</div>
 
-			<!-- ==================== VERTICAL PITCH VIEW (MOBILE / 2-PER-ROW GRID) ==================== -->
-			<div class="vertical-pitch-container" v-if="activePitchTab === 'teamA' || activePitchTab === 'teamB'">
+						<!-- ==================== ROSTER LOCKED NOTICE ==================== -->
+			<div class="roster-locked-container" v-if="info.is_roster_locked">
+				<div class="roster-locked-card">
+					<div class="roster-locked-icon">🔒</div>
+					<h3 class="roster-locked-title">รายชื่อทีมจะเปิดเผยวันศุกร์ เวลา 20:00 น.</h3>
+					<p class="roster-locked-desc">
+						ระบบยังไม่แสดงรายชื่อและผังผู้เล่นสำหรับสัปดาห์ปัจจุบัน<br>
+						เพื่อป้องกันการรู้รายชื่อทีมที่อาจจะสุ่มไว้ล่วงหน้า โดยจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์ครับ
+					</p>
+					<div class="roster-locked-badge">
+						<span>📅 Match Week {{ week ? (week.number || week.id) : '' }}</span>
+						<span>⏰ ปลดล็อกอัตโนมัติ: วันศุกร์ 20:00 น.</span>
+					</div>
+				</div>
+			</div>
+
+<!-- ==================== VERTICAL PITCH VIEW (MOBILE / 2-PER-ROW GRID) ==================== -->
+			<div class="vertical-pitch-container" v-if="!info.is_roster_locked && (activePitchTab === 'teamA' || activePitchTab === 'teamB')">
 				<!-- Vertical Pitch Header Bar -->
 				<div class="vp-header-bar">
 					<span class="vp-team-badge"
@@ -597,7 +613,7 @@
 			</div>
 
 			<!-- Football Pitch Field (Horizontal Tactical Layout) -->
-			<div class="match-pitch-wrapper" v-if="activePitchTab === 'both'">
+			<div class="match-pitch-wrapper" v-if="!info.is_roster_locked && activePitchTab === 'both'">
 				<div class="match-pitch">
 
 					<!-- Pitch Field Markings (Center, Goals, Penalty Areas) -->
@@ -881,7 +897,7 @@
 			</div>
 
 			<!-- ==================== LOAN POOL PANEL (การยืมตัว วางไว้ก่อนเหตุการณ์ทำประตู) ==================== -->
-			<div class="loan-pool-panel" v-if="isManager && currentSelectedMatch"
+			<div class="loan-pool-panel" v-if="isManager && currentSelectedMatch && !info.is_roster_locked"
 				:class="{ 'drag-over': dragOverTeamSide === 'pool' }"
 				@dragover.prevent="onDragOverTeam($event, 'pool')"
 				@dragleave="onDragLeaveTeam($event, 'pool')"
@@ -1308,22 +1324,22 @@
 
 				// Players for currently selected match
 				teamAPlayers() {
-					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					if (!this.currentSelectedMatch || !this.info.allmembers || this.info.is_roster_locked) return [];
 					const teamAId = this.currentSelectedMatch.team_a_id;
 					return this.info.allmembers.filter(m => m.team_id == teamAId);
 				},
 				teamBPlayers() {
-					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					if (!this.currentSelectedMatch || !this.info.allmembers || this.info.is_roster_locked) return [];
 					const teamBId = this.currentSelectedMatch.team_b_id;
 					return this.info.allmembers.filter(m => m.team_id == teamBId);
 				},
 				teamALoanPlayers() {
-					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					if (!this.currentSelectedMatch || !this.info.allmembers || this.info.is_roster_locked) return [];
 					const loanIds = this.getLoanIdsForCurrentMatch('teamA');
 					return this.info.allmembers.filter(m => loanIds.includes(m.id));
 				},
 				teamBLoanPlayers() {
-					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					if (!this.currentSelectedMatch || !this.info.allmembers || this.info.is_roster_locked) return [];
 					const loanIds = this.getLoanIdsForCurrentMatch('teamB');
 					return this.info.allmembers.filter(m => loanIds.includes(m.id));
 				},
@@ -1383,7 +1399,7 @@
 					return p.slice(c1 + c2);
 				},
 				loanPoolPlayers() {
-					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					if (!this.currentSelectedMatch || !this.info.allmembers || this.info.is_roster_locked) return [];
 					const match = this.currentSelectedMatch;
 					const loanAIds = this.getLoanIdsForCurrentMatch('teamA');
 					const loanBIds = this.getLoanIdsForCurrentMatch('teamB');
@@ -1407,7 +1423,7 @@
 					return pool;
 				},
 				availableLoanColors() {
-					if (!this.currentSelectedMatch || !this.info.allmembers) return [];
+					if (!this.currentSelectedMatch || !this.info.allmembers || this.info.is_roster_locked) return [];
 					const match = this.currentSelectedMatch;
 					const set = new Set();
 					this.info.allmembers.forEach(m => {
@@ -1560,7 +1576,9 @@
 
 								// Sync member and team_match for currently selected match
 								const targetIndex = (this.selectedMatchIndex && this.all_match[this.selectedMatchIndex]) ? this.selectedMatchIndex : 0;
-								if (targetIndex > 0 && this.all_match[targetIndex]) {
+								if (this.info.is_roster_locked) {
+									this.member = [];
+								} else if (targetIndex > 0 && this.all_match[targetIndex]) {
 									const m = this.all_match[targetIndex];
 									this.team_match = Object.values(this.info.team_week || {}).filter(team_week => team_week.teamid == m.team_a_id || team_week.teamid == m.team_b_id);
 									this.member = allm.filter(allmembers => allmembers.team_id == m.team_a_id || allmembers.team_id == m.team_b_id);
@@ -1678,7 +1696,9 @@
 					this.selectedMatchIndex = index;
 					this.showMatchPicker = false;
 					const allm = this.info.allmembers || [];
-					if (this.all_match && this.all_match[index]) {
+					if (this.info.is_roster_locked) {
+						this.member = [];
+					} else if (this.all_match && this.all_match[index]) {
 						const m = this.all_match[index];
 						this.team_match = Object.values(this.info.team_week || {}).filter(team_week => team_week.teamid == m.team_a_id || team_week.teamid == m.team_b_id);
 						this.member = allm.filter(allmembers => allmembers.team_id == m.team_a_id || allmembers.team_id == m.team_b_id);

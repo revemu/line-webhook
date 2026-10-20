@@ -5045,3 +5045,79 @@ select.form-control {
         font-size: 0.8rem;
     }
 }
+
+
+/* ==================== ROSTER LOCKED NOTICE ==================== */
+.roster-locked-container {
+    padding: 3rem 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 280px;
+    background: var(--card-bg);
+    border: 1.5px dashed var(--border-color);
+    border-radius: var(--radius);
+    margin: 1rem 0;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.roster-locked-card {
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.roster-locked-icon {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+    animation: roster-lock-pulse 2.2s infinite ease-in-out;
+}
+
+@keyframes roster-lock-pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.08);
+        opacity: 0.88;
+    }
+}
+
+.roster-locked-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.roster-locked-desc {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+.roster-locked-badge {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.roster-locked-badge span {
+    padding: 0.35rem 0.8rem;
+    border-radius: 9999px;
+    background: rgba(79, 70, 229, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(79, 70, 229, 0.2);
+}
