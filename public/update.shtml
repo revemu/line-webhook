@@ -8,7 +8,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="/webhook/style.css?v=0.5.1">
+	<link rel="stylesheet" href="/webhook/style.css?v=0.5.2">
 	<script>
 		(function () {
 			var saved = localStorage.getItem('theme');
@@ -519,8 +519,27 @@
 									<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
 								<div class="player-score-bubbles">
-									<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-									<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+									<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+										class="bubble-goal" :class="{ 'is-removable': isManager }"
+										:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+										@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+										<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+										<span v-if="isManager" class="bubble-remove-x">×</span>
+									</button>
+									<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+										class="bubble-assist" :class="{ 'is-removable': isManager }"
+										:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+										@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+										<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										<span v-if="isManager" class="bubble-remove-x">×</span>
+									</button>
+									<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+										class="bubble-og" :class="{ 'is-removable': isManager }"
+										:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+										@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+										<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+										<span v-if="isManager" class="bubble-remove-x">×</span>
+									</button>
 								</div>
 							</div>
 							<div class="pitch-name-pill">
@@ -559,8 +578,27 @@
 									<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
 								<div class="player-score-bubbles">
-									<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-									<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+									<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+										class="bubble-goal" :class="{ 'is-removable': isManager }"
+										:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+										@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+										<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+										<span v-if="isManager" class="bubble-remove-x">×</span>
+									</button>
+									<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+										class="bubble-assist" :class="{ 'is-removable': isManager }"
+										:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+										@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+										<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+										<span v-if="isManager" class="bubble-remove-x">×</span>
+									</button>
+									<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+										class="bubble-og" :class="{ 'is-removable': isManager }"
+										:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+										@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+										<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+										<span v-if="isManager" class="bubble-remove-x">×</span>
+									</button>
 								</div>
 								<span class="pitch-loan-tag">ยืม</span>
 							</div>
@@ -627,8 +665,27 @@
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
-											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+											<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-goal" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+												<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-assist" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+												<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-og" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+												<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
 										</div>
 									</div>
 									<div class="pitch-name-pill">
@@ -652,8 +709,27 @@
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
-											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+											<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-goal" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+												<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-assist" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+												<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-og" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+												<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
 										</div>
 									</div>
 									<div class="pitch-name-pill">
@@ -677,8 +753,27 @@
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
-											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+											<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-goal" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+												<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-assist" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+												<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-og" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+												<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
 										</div>
 									</div>
 									<div class="pitch-name-pill">
@@ -709,8 +804,27 @@
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
-											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+											<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-goal" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+												<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-assist" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+												<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-og" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+												<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
 										</div>
 										<span class="pitch-loan-tag">ยืม</span>
 									</div>
@@ -759,8 +873,27 @@
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
-											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+											<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-goal" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+												<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-assist" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+												<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-og" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+												<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
 										</div>
 									</div>
 									<div class="pitch-name-pill">
@@ -784,8 +917,27 @@
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
-											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+											<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-goal" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+												<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-assist" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+												<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-og" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+												<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
 										</div>
 									</div>
 									<div class="pitch-name-pill">
@@ -809,8 +961,27 @@
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
-											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+											<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-goal" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+												<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-assist" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+												<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-og" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+												<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
 										</div>
 									</div>
 									<div class="pitch-name-pill">
@@ -840,8 +1011,27 @@
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
-											<span v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" class="bubble-goal">⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
-											<span v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" class="bubble-assist">👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+											<button v-if="getPlayerGoalsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-goal" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบประตูของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 0)">
+												<span>⚽{{ getPlayerGoalsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerAssistsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-assist" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบแอสซิสต์ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 3)">
+												<span>👟{{ getPlayerAssistsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
+											<button v-if="getPlayerOGsInMatch(p.id, p.alias) > 0" type="button"
+												class="bubble-og" :class="{ 'is-removable': isManager }"
+												:title="isManager ? 'คลิกเพื่อลบ OG ของ ' + p.alias + ' (-1)' : ''"
+												@click.stop="isManager && quickRemovePlayerEvent(p, 2)">
+												<span>🥅{{ getPlayerOGsInMatch(p.id, p.alias) }}</span>
+												<span v-if="isManager" class="bubble-remove-x">×</span>
+											</button>
 										</div>
 										<span class="pitch-loan-tag">ยืม</span>
 									</div>
@@ -1819,6 +2009,43 @@
 					return this.currentSelectedMatch.goal.filter(g =>
 						(g.member_id == playerId || g.name == alias) && g.goal_status == 3
 					).length;
+				},
+				getPlayerOGsInMatch(playerId, alias) {
+					if (!this.currentSelectedMatch || !this.currentSelectedMatch.goal) return 0;
+					return this.currentSelectedMatch.goal.filter(g =>
+						(g.member_id == playerId || g.name == alias) && g.goal_status == 2
+					).length;
+				},
+				quickRemovePlayerEvent(player, statusId) {
+					if (!this.isManager || !this.currentSelectedMatch || !this.currentSelectedMatch.goal) return;
+					if (this.submittingGoal) return;
+
+					const matchingEvents = this.currentSelectedMatch.goal.filter(g =>
+						(g.member_id == player.id || g.name == player.alias) && Number(g.goal_status) === Number(statusId)
+					);
+					if (matchingEvents.length === 0) return;
+
+					const targetEvent = matchingEvents[matchingEvents.length - 1];
+					if (!targetEvent || !targetEvent.goal_id) return;
+
+					this.submittingGoal = true;
+					const formdata = new FormData();
+					formdata.append('goalid', targetEvent.goal_id);
+					formdata.append('weekid', this.week.id);
+
+					const label = statusId === 0 ? 'ประตู' : statusId === 3 ? 'แอสซิสต์' : 'OG';
+
+					axios.post(this.base_url + '/add_match', formdata)
+						.then(response => {
+							this.submittingGoal = false;
+							this.showToast(`🗑️ ลบ${label}ของ ${player.alias} (-1)`);
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+						})
+						.catch(err => {
+							this.submittingGoal = false;
+							this.showToast('⚠️ เกิดข้อผิดพลาดในการลบ');
+							console.error('quickRemovePlayerEvent error:', err);
+						});
 				},
 				isGoalForTeam(goal, side) {
 					if (!this.currentSelectedMatch) return false;

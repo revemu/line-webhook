@@ -3846,45 +3846,84 @@ select.form-control {
     color: #ffffff;
 }
 
-/* Badges for Goals & Assists in current match */
+/* Badges for Goals, Assists & OG in current match */
 .player-score-bubbles {
     position: absolute;
-    top: -5px;
-    right: -8px;
+    top: 50%;
+    left: calc(100% - 7px);
+    transform: translateY(-50%);
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 2px;
-    z-index: 5;
+    z-index: 8;
+}
+
+.bubble-goal,
+.bubble-assist,
+.bubble-og {
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 900;
+    padding: 1.5px 5px;
+    border-radius: 999px;
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+    line-height: 1.1;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
+    cursor: default;
+    transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
 
 .bubble-goal {
-    background: #ef4444;
-    color: #ffffff;
-    font-size: 0.65rem;
-    font-weight: 900;
-    padding: 1px 5px;
-    border-radius: 999px;
-    border: 1.5px solid #ffffff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-    line-height: 1.1;
-    display: inline-flex;
-    align-items: center;
-    gap: 1px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
 .bubble-assist {
-    background: #3b82f6;
-    color: #ffffff;
-    font-size: 0.65rem;
-    font-weight: 900;
-    padding: 1px 5px;
-    border-radius: 999px;
-    border: 1.5px solid #ffffff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-    line-height: 1.1;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.bubble-og {
+    background: linear-gradient(135deg, #f97316, #c2410c);
+}
+
+.bubble-goal.is-removable,
+.bubble-assist.is-removable,
+.bubble-og.is-removable {
+    cursor: pointer;
+    padding-right: 4px;
+}
+
+.bubble-goal.is-removable:hover,
+.bubble-assist.is-removable:hover,
+.bubble-og.is-removable:hover {
+    transform: scale(1.1);
+    filter: brightness(1.1);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
+}
+
+.bubble-goal.is-removable:active,
+.bubble-assist.is-removable:active,
+.bubble-og.is-removable:active {
+    transform: scale(0.95);
+}
+
+.bubble-remove-x {
     display: inline-flex;
     align-items: center;
-    gap: 1px;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.28);
+    color: #ffffff;
+    font-size: 0.64rem;
+    font-weight: 900;
+    line-height: 1;
 }
 
 /* Loan Player Visual Styling */
@@ -5108,8 +5147,8 @@ select.form-control {
         padding: 0.15rem 0.4rem;
     }
     .pitch-form-col.col-tactical-half {
-        padding: 0.2rem 0.05rem;
-        gap: 0.25rem;
+        padding: 0.25rem 0.05rem;
+        gap: 0.4rem;
     }
     .pitch-player-avatar-circle {
         width: 36px;
@@ -5135,9 +5174,9 @@ select.form-control {
         font-size: 0.72rem;
         padding: 2px 5px;
     }
-    .bubble-goal, .bubble-assist {
+    .bubble-goal, .bubble-assist, .bubble-og {
         font-size: 0.62rem;
-        padding: 0 3px;
+        padding: 1.5px 4px;
     }
     .match-pitch-vertical {
         min-height: 340px;
