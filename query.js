@@ -6395,7 +6395,7 @@ async function checkTeamWeekAccess(param = '') {
       if (bkk.currentDateTimeStr < cutoffDateTimeStr) {
         return {
           allowed: false,
-          message: '⚠️ ยังไม่มีการสุ่มทีม ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. หลังจาการสุ่มทีมครับ'
+          message: '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ'
         };
       }
       return { allowed: true };
@@ -6407,7 +6407,7 @@ async function checkTeamWeekAccess(param = '') {
       if (bkk.currentTimeStr < '20:00') {
         return {
           allowed: false,
-          message: '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ'
+          message: '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ'
         };
       }
       return { allowed: true };
@@ -6416,7 +6416,7 @@ async function checkTeamWeekAccess(param = '') {
     } else {
       return {
         allowed: false,
-        message: '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ'
+        message: '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ'
       };
     }
   } catch (err) {

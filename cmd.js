@@ -726,7 +726,7 @@ const COMMAND_REGISTRY = {
         if (db.checkTeamWeekAccess) {
             const accessCheck = await db.checkTeamWeekAccess(param);
             if (!accessCheck.allowed) {
-                return [{ type: 'text', text: accessCheck.message || '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ' }];
+                return [{ type: 'text', text: accessCheck.message || '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ' }];
             }
         }
         const week = await db.queryWeekID(param);
@@ -745,7 +745,7 @@ const COMMAND_REGISTRY = {
         if (db.checkTeamWeekAccess) {
             const accessCheck = await db.checkTeamWeekAccess(cleanParam);
             if (!accessCheck.allowed) {
-                return [{ type: 'text', text: accessCheck.message || '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ' }];
+                return [{ type: 'text', text: accessCheck.message || '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ' }];
             }
         }
         const imageUrls = await teamImg.generateTeamFormationImages(cleanParam, groupId);
@@ -771,7 +771,7 @@ const COMMAND_REGISTRY = {
         if (db.checkTeamWeekAccess) {
             const accessCheck = await db.checkTeamWeekAccess(param);
             if (!accessCheck.allowed) {
-                return [{ type: 'text', text: accessCheck.message || '⚠️ ผังทีมสำหรับสัปดาห์ปัจจุบันจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์เท่านั้นครับ' }];
+                return [{ type: 'text', text: accessCheck.message || '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ' }];
             }
         }
         const bubbles = await db.getTeamFormation(param, groupId);

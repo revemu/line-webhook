@@ -927,7 +927,7 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     const isLocked = await isWeekRosterLocked(weekid, currentUser);
     data.is_roster_locked = isLocked;
     if (isLocked) {
-        data.roster_lock_message = 'รายชื่อทีมสำหรับสัปดาห์นี้จะเปิดแสดงหลังเวลา 20:00 น. ของวันศุกร์';
+        data.roster_lock_message = 'ระบบจะทำการสุ่มทีมวันศุกร์ เวลา 20:00 น.';
     }
 
     // Get all members

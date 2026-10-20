@@ -467,15 +467,14 @@
 			<!-- ==================== ROSTER LOCKED NOTICE ==================== -->
 			<div class="roster-locked-container" v-if="info.is_roster_locked">
 				<div class="roster-locked-card">
-					<div class="roster-locked-icon">🔒</div>
-					<h3 class="roster-locked-title">รายชื่อทีมจะเปิดเผยวันศุกร์ เวลา 20:00 น.</h3>
+					<div class="roster-locked-icon">🎲</div>
+					<h3 class="roster-locked-title">ระบบจะทำการสุ่มทีมวันศุกร์ เวลา 20:00 น.</h3>
 					<p class="roster-locked-desc">
-						ระบบยังไม่แสดงรายชื่อและผังผู้เล่นสำหรับสัปดาห์ปัจจุบัน<br>
-						เพื่อป้องกันการรู้รายชื่อทีมที่อาจจะสุ่มไว้ล่วงหน้า โดยจะเปิดให้ดูได้หลังเวลา 20:00 น. ของวันศุกร์ครับ
+						ผังการเล่นและรายชื่อทีมจะแสดงผลอัตโนมัติหลังการสุ่มทีมครับ
 					</p>
 					<div class="roster-locked-badge">
 						<span>📅 Match Week {{ week ? (week.number || week.id) : '' }}</span>
-						<span>⏰ ปลดล็อกอัตโนมัติ: วันศุกร์ 20:00 น.</span>
+						<span>⏰ เวลาสุ่มทีม: วันศุกร์ 20:00 น.</span>
 					</div>
 				</div>
 			</div>
