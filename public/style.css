@@ -3067,6 +3067,70 @@ select.form-control {
     gap: 0.35rem;
 }
 
+.scoreboard-selector-row {
+    justify-content: center;
+    gap: 0.45rem;
+    margin: 0.15rem 0;
+}
+
+.scoreboard-select-wrapper {
+    position: relative;
+    flex: 1;
+    max-width: 480px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.scoreboard-select-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    background: linear-gradient(180deg, rgba(2, 6, 23, 0.85) 0%, rgba(15, 23, 42, 0.92) 100%);
+    border: 1.5px solid rgba(99, 102, 241, 0.55);
+    border-radius: 0.75rem;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.65), 0 0 12px rgba(99, 102, 241, 0.18);
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+.match-select:hover + .scoreboard-select-display,
+.match-select:focus + .scoreboard-select-display {
+    border-color: #818cf8;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.65), 0 0 0 3px rgba(99, 102, 241, 0.25);
+}
+
+.scoreboard-step-btn {
+    width: 38px;
+    height: 48px;
+    border-radius: 0.65rem;
+    background: rgba(15, 23, 42, 0.85);
+    color: #f8fafc;
+    border: 1.5px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.scoreboard-step-btn:hover:not(:disabled) {
+    background: var(--primary-color);
+    border-color: #818cf8;
+    color: #ffffff;
+}
+
+.scoreboard-select-arrow {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.65);
+    margin-left: 0.15rem;
+    flex-shrink: 0;
+    pointer-events: none;
+    line-height: 1;
+}
+
 .scoreboard-team {
     display: flex;
     align-items: center;
@@ -3095,6 +3159,9 @@ select.form-control {
 }
 
 .scoreboard-badge {
+    position: relative;
+    z-index: 3;
+    cursor: pointer;
     padding: 0.35rem 0.85rem;
     border-radius: 999px;
     font-weight: 800;
@@ -3119,31 +3186,43 @@ select.form-control {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0 0.35rem;
+    padding: 0 0.25rem;
     flex-shrink: 0;
     user-select: none;
     transition: transform 0.2s ease;
-}
-
-.scoreboard-center:hover .scoreboard-digits {
-    filter: brightness(1.2);
+    pointer-events: none;
 }
 
 .scoreboard-digits {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.3rem;
     font-family: 'Inter', monospace;
-    font-size: 1.85rem;
+    font-size: 1.65rem;
     font-weight: 900;
     line-height: 1;
     letter-spacing: 0.04em;
     text-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
 }
 
+.scoreboard-digit-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.15rem;
+    height: 2.3rem;
+    padding: 0 0.35rem;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.45rem;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75);
+    font-variant-numeric: tabular-nums;
+    color: #f8fafc;
+}
+
 .scoreboard-colon {
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 1.55rem;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 1.45rem;
     margin-top: -2px;
 }
 
@@ -4927,7 +5006,19 @@ select.form-control {
         padding: 1px 7px;
     }
     .scoreboard-main-row {
-        gap: 0.2rem;
+        gap: 0.25rem;
+    }
+    .scoreboard-selector-row {
+        gap: 0.35rem;
+    }
+    .scoreboard-select-display {
+        padding: 0.35rem 0.55rem;
+        gap: 0.35rem;
+    }
+    .scoreboard-step-btn {
+        width: 34px;
+        height: 44px;
+        font-size: 0.78rem;
     }
     .scoreboard-team {
         min-width: 0;
@@ -4937,15 +5028,20 @@ select.form-control {
         font-size: 0.68rem;
     }
     .scoreboard-digits {
-        font-size: 1.6rem;
-        gap: 0.35rem;
+        font-size: 1.45rem;
+        gap: 0.25rem;
+    }
+    .scoreboard-digit-box {
+        min-width: 1.85rem;
+        height: 2.05rem;
+        padding: 0 0.25rem;
     }
     .scoreboard-colon {
-        font-size: 1.35rem;
+        font-size: 1.25rem;
     }
     .scoreboard-badge {
-        font-size: 0.88rem;
-        padding: 0.28rem 0.7rem;
+        font-size: 0.85rem;
+        padding: 0.28rem 0.68rem;
     }
     .scoreboard-actions-row {
         padding-top: 0.25rem;

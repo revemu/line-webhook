@@ -219,102 +219,86 @@
 			</div>
 		</div>
 
-		<!-- Match Dropdown Selector Bar (0.4) -->
-		<div class="match-dropdown-bar" v-if="sortedMatchesAscending.length > 0">
-			<div class="match-dropdown-left" style="flex: 1;">
-				<div class="match-select-control">
-					<button type="button" class="match-step-btn" :disabled="!hasPrevMatch" @click="navigateMatch(-1)" title="ก่อนหน้า">◀</button>
-					<div class="match-select-wrapper">
-						<select id="update-match-select" class="match-select" :value="selectedMatchIndex" @change="selectMatch(Number($event.target.value))">
-							<option v-for="m in sortedMatchesAscending" :key="m.id" :value="m.match_num" :disabled="isMatchLocked(m)">
-								Match {{ m.match_num }} {{ m.team_a_color }} {{ (isMatchScheduled(m) && (!m.goal || m.goal.length === 0)) ? 'vs' : (m.team_a_goal + ' - ' + m.team_b_goal) }} {{ m.team_b_color }}{{ isMatchFinished(m) ? ' (FT)' : (isMatchLocked(m) ? ' (🔒 รอแข่ง)' : '') }}
-							</option>
-						</select>
-						<div class="match-select-display" v-if="currentSelectedMatch">
-							<span class="msd-match-num">{{ currentSelectedMatch.match_num }}</span>
-							<span class="msd-team-badge" 
-								:style="{ backgroundColor: currentSelectedMatch.team_a_color ? currentSelectedMatch.team_a_color.toLowerCase() : '#ccc', color: getContrastColor(currentSelectedMatch.team_a_color), border: '1px solid ' + getBorderColor(currentSelectedMatch.team_a_color) }">
-								{{ currentSelectedMatch.team_a_color }}
-							</span>
-							<span class="msd-score">{{ (isMatchScheduled(currentSelectedMatch) && (!currentSelectedMatch.goal || currentSelectedMatch.goal.length === 0)) ? 'vs' : (currentSelectedMatch.team_a_goal + ' - ' + currentSelectedMatch.team_b_goal) }}</span>
-							<span class="msd-team-badge" 
-								:style="{ backgroundColor: currentSelectedMatch.team_b_color ? currentSelectedMatch.team_b_color.toLowerCase() : '#ccc', color: getContrastColor(currentSelectedMatch.team_b_color), border: '1px solid ' + getBorderColor(currentSelectedMatch.team_b_color) }">
-								{{ currentSelectedMatch.team_b_color }}
-							</span>
-							<span class="msd-status" v-if="getMatchStatusText(currentSelectedMatch)" :class="getMatchStatusClass(currentSelectedMatch)">
-								{{ getMatchStatusText(currentSelectedMatch) }}
-							</span>
-							<span class="msd-arrow">▼</span>
-						</div>
-						<div class="match-select-display" v-else>
-							<span style="color: var(--text-muted); font-size: 0.8rem;">เลือกแมตช์</span>
-							<span class="msd-arrow">▼</span>
-						</div>
-					</div>
-					<button type="button" class="match-step-btn" :disabled="!hasNextMatch" @click="navigateMatch(1)" title="ถัดไป">▶</button>
-				</div>
-			</div>
-
-		</div>
-
 		<!-- ==================== MAIN STADIUM & PITCH CARD ==================== -->
 		<div class="match-stadium-card" v-if="currentSelectedMatch">
 
-			<!-- Stadium Live Scoreboard -->
+			<!-- Stadium Live Scoreboard (Integrated Match Selector) -->
 			<div class="stadium-scoreboard">
 				<!-- Top Row: Match Number & Status (Centered on top) -->
 				<div class="scoreboard-top-meta" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
 					<span>MATCH {{ currentSelectedMatch.match_num }} / {{ matchCount }}</span>
-					<span v-if="isMatchFinished(currentSelectedMatch)" class="viewer-badge-ft">FT</span>
+					<span class="msd-status" v-if="getMatchStatusText(currentSelectedMatch)" :class="getMatchStatusClass(currentSelectedMatch)">
+						{{ getMatchStatusText(currentSelectedMatch) }}
+					</span>
 					<span v-if="activePitchTab !== 'both'" @click="activePitchTab = 'both'" class="scoreboard-dual-toggle" style="cursor: pointer;" title="คลิกเพื่อกลับไปดูสนามคู่">⚔️ ดูสนามคู่</span>
 				</div>
 
-				<!-- Main Single Row: Team A, Score, Team B -->
-				<div class="scoreboard-main-row">
-					<!-- Team A Details -->
-					<div class="scoreboard-team team-a" @click="togglePitchTeam('teamA')" style="cursor: pointer;" :title="activePitchTab === 'teamA' ? 'คลิกเพื่อกลับไปดูสนามคู่' : 'คลิกเพื่อดูผังทีม ' + currentSelectedMatch.team_a_color">
-						<span class="scoreboard-badge"
-							:class="{ 'is-selected': activePitchTab === 'teamA' }"
-							:style="{
-								backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(),
-								color: getContrastColor(currentSelectedMatch.team_a_color),
-								border: '1px solid ' + getBorderColor(currentSelectedMatch.team_a_color),
-								outline: activePitchTab === 'teamA' ? '2.5px solid #ffffff' : 'none',
-								outlineOffset: '2px',
-								boxShadow: activePitchTab === 'teamA' ? '0 0 12px rgba(255, 255, 255, 0.45), 0 4px 10px rgba(0, 0, 0, 0.35)' : '0 2px 6px rgba(0, 0, 0, 0.3)',
-								transform: activePitchTab === 'teamA' ? 'scale(1.05)' : 'scale(1)',
-								opacity: (activePitchTab === 'both' || activePitchTab === 'teamA') ? '1' : '0.55'
-							}">
-							{{ currentSelectedMatch.team_a_color }}
-						</span>
-					</div>
+				<!-- Main Single Row: Match Stepper + Scoreboard Dropdown Selector -->
+				<div class="scoreboard-main-row scoreboard-selector-row">
+					<button type="button" class="match-step-btn scoreboard-step-btn" :disabled="!hasPrevMatch" @click="navigateMatch(-1)" title="แมตช์ก่อนหน้า">◀</button>
 
-					<!-- Digits Score Display in Center -->
-					<div class="scoreboard-center" @click="activePitchTab = 'both'" style="cursor: pointer;" title="คลิกเพื่อดูสนามคู่">
-						<div class="scoreboard-digits">
-							<span>{{ currentSelectedMatch.team_a_goal }}</span>
-							<span class="scoreboard-colon">:</span>
-							<span>{{ currentSelectedMatch.team_b_goal }}</span>
+					<div class="match-select-wrapper scoreboard-select-wrapper">
+						<select id="update-match-select" class="match-select" :value="selectedMatchIndex" @change="selectMatch(Number($event.target.value))" title="คลิกเพื่อเปลี่ยนแมตช์">
+							<option v-for="m in sortedMatchesAscending" :key="m.id" :value="m.match_num" :disabled="isMatchLocked(m)">
+								Match {{ m.match_num }} : {{ m.team_a_color }} {{ m.team_a_goal }} : {{ m.team_b_goal }} {{ m.team_b_color }}{{ isMatchFinished(m) ? ' (FT)' : (isMatchLocked(m) ? ' (🔒 รอแข่ง)' : (isMatchScheduled(m) ? ' (รอแข่ง)' : '')) }}
+							</option>
+						</select>
+
+						<div class="scoreboard-select-display">
+							<!-- Team A Details -->
+							<div class="scoreboard-team team-a">
+								<span class="scoreboard-badge"
+									:class="{ 'is-selected': activePitchTab === 'teamA' }"
+									@click.stop="togglePitchTeam('teamA')"
+									:title="activePitchTab === 'teamA' ? 'คลิกเพื่อกลับไปดูสนามคู่' : 'คลิกเพื่อดูผังทีม ' + currentSelectedMatch.team_a_color"
+									:style="{
+										backgroundColor: currentSelectedMatch.team_a_color ? currentSelectedMatch.team_a_color.toLowerCase() : '#ccc',
+										color: getContrastColor(currentSelectedMatch.team_a_color),
+										border: '1px solid ' + getBorderColor(currentSelectedMatch.team_a_color),
+										outline: activePitchTab === 'teamA' ? '2.5px solid #ffffff' : 'none',
+										outlineOffset: '2px',
+										boxShadow: activePitchTab === 'teamA' ? '0 0 12px rgba(255, 255, 255, 0.45), 0 4px 10px rgba(0, 0, 0, 0.35)' : '0 2px 6px rgba(0, 0, 0, 0.3)',
+										transform: activePitchTab === 'teamA' ? 'scale(1.05)' : 'scale(1)',
+										opacity: (activePitchTab === 'both' || activePitchTab === 'teamA') ? '1' : '0.55'
+									}">
+									{{ currentSelectedMatch.team_a_color }}
+								</span>
+							</div>
+
+							<!-- Digits Score Display in Center -->
+							<div class="scoreboard-center">
+								<div class="scoreboard-digits">
+									<span class="scoreboard-digit-box">{{ currentSelectedMatch.team_a_goal }}</span>
+									<span class="scoreboard-colon">:</span>
+									<span class="scoreboard-digit-box">{{ currentSelectedMatch.team_b_goal }}</span>
+								</div>
+							</div>
+
+							<!-- Team B Details -->
+							<div class="scoreboard-team team-b">
+								<span class="scoreboard-badge"
+									:class="{ 'is-selected': activePitchTab === 'teamB' }"
+									@click.stop="togglePitchTeam('teamB')"
+									:title="activePitchTab === 'teamB' ? 'คลิกเพื่อกลับไปดูสนามคู่' : 'คลิกเพื่อดูผังทีม ' + currentSelectedMatch.team_b_color"
+									:style="{
+										backgroundColor: currentSelectedMatch.team_b_color ? currentSelectedMatch.team_b_color.toLowerCase() : '#ccc',
+										color: getContrastColor(currentSelectedMatch.team_b_color),
+										border: '1px solid ' + getBorderColor(currentSelectedMatch.team_b_color),
+										outline: activePitchTab === 'teamB' ? '2.5px solid #ffffff' : 'none',
+										outlineOffset: '2px',
+										boxShadow: activePitchTab === 'teamB' ? '0 0 12px rgba(255, 255, 255, 0.45), 0 4px 10px rgba(0, 0, 0, 0.35)' : '0 2px 6px rgba(0, 0, 0, 0.3)',
+										transform: activePitchTab === 'teamB' ? 'scale(1.05)' : 'scale(1)',
+										opacity: (activePitchTab === 'both' || activePitchTab === 'teamB') ? '1' : '0.55'
+									}">
+									{{ currentSelectedMatch.team_b_color }}
+								</span>
+							</div>
+
+							<span class="scoreboard-select-arrow" aria-hidden="true">▼</span>
 						</div>
 					</div>
 
-					<!-- Team B Details -->
-					<div class="scoreboard-team team-b" @click="togglePitchTeam('teamB')" style="cursor: pointer;" :title="activePitchTab === 'teamB' ? 'คลิกเพื่อกลับไปดูสนามคู่' : 'คลิกเพื่อดูผังทีม ' + currentSelectedMatch.team_b_color">
-						<span class="scoreboard-badge"
-							:class="{ 'is-selected': activePitchTab === 'teamB' }"
-							:style="{
-								backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(),
-								color: getContrastColor(currentSelectedMatch.team_b_color),
-								border: '1px solid ' + getBorderColor(currentSelectedMatch.team_b_color),
-								outline: activePitchTab === 'teamB' ? '2.5px solid #ffffff' : 'none',
-								outlineOffset: '2px',
-								boxShadow: activePitchTab === 'teamB' ? '0 0 12px rgba(255, 255, 255, 0.45), 0 4px 10px rgba(0, 0, 0, 0.35)' : '0 2px 6px rgba(0, 0, 0, 0.3)',
-								transform: activePitchTab === 'teamB' ? 'scale(1.05)' : 'scale(1)',
-								opacity: (activePitchTab === 'both' || activePitchTab === 'teamB') ? '1' : '0.55'
-							}">
-							{{ currentSelectedMatch.team_b_color }}
-						</span>
-					</div>
+					<button type="button" class="match-step-btn scoreboard-step-btn" :disabled="!hasNextMatch" @click="navigateMatch(1)" title="แมตช์ถัดไป">▶</button>
 				</div>
 
 				<!-- Scoreboard Tools / Actions (Manager Only) -->
