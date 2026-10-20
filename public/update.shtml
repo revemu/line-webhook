@@ -128,9 +128,8 @@
 					<div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem;">
 						<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
 							<strong style="font-size: 1.05rem;">Match {{ matchToDelete.match_num }} (แมตช์สุดท้าย)</strong>
-							<span v-if="isMatchLive(matchToDelete)" class="viewer-badge-live">LIVE</span>
-							<span v-else-if="isMatchScheduled(matchToDelete)" class="viewer-badge-sched">รอแข่ง</span>
-							<span v-else class="viewer-badge-ft">FT</span>
+							<span v-if="isMatchFinished(matchToDelete)" class="viewer-badge-ft">FT</span>
+							<span v-else class="viewer-badge-sched">รอแข่ง</span>
 						</div>
 						<div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
 							<span class="team-badge-small" :style="{ backgroundColor: matchToDelete.team_a_color.toLowerCase(), color: getContrastColor(matchToDelete.team_a_color) }">
@@ -228,7 +227,7 @@
 					<div class="match-select-wrapper">
 						<select id="update-match-select" class="match-select" :value="selectedMatchIndex" @change="selectMatch(Number($event.target.value))">
 							<option v-for="m in sortedMatchesAscending" :key="m.id" :value="m.match_num" :disabled="isMatchLocked(m)">
-								Match {{ m.match_num }} {{ m.team_a_color }} {{ (isMatchScheduled(m) && (!m.goal || m.goal.length === 0)) ? 'vs' : (m.team_a_goal + ' - ' + m.team_b_goal) }} {{ m.team_b_color }} ({{ isMatchLocked(m) ? '🔒 รอแข่ง' : getMatchStatusText(m) }})
+								Match {{ m.match_num }} {{ m.team_a_color }} {{ (isMatchScheduled(m) && (!m.goal || m.goal.length === 0)) ? 'vs' : (m.team_a_goal + ' - ' + m.team_b_goal) }} {{ m.team_b_color }}{{ isMatchFinished(m) ? ' (FT)' : (isMatchLocked(m) ? ' (🔒 รอแข่ง)' : '') }}
 							</option>
 						</select>
 						<div class="match-select-display" v-if="currentSelectedMatch">
@@ -242,7 +241,7 @@
 								:style="{ backgroundColor: currentSelectedMatch.team_b_color ? currentSelectedMatch.team_b_color.toLowerCase() : '#ccc', color: getContrastColor(currentSelectedMatch.team_b_color), border: '1px solid ' + getBorderColor(currentSelectedMatch.team_b_color) }">
 								{{ currentSelectedMatch.team_b_color }}
 							</span>
-							<span class="msd-status" :class="getMatchStatusClass(currentSelectedMatch)">
+							<span class="msd-status" v-if="getMatchStatusText(currentSelectedMatch)" :class="getMatchStatusClass(currentSelectedMatch)">
 								{{ getMatchStatusText(currentSelectedMatch) }}
 							</span>
 							<span class="msd-arrow">▼</span>
@@ -266,9 +265,7 @@
 				<!-- Top Row: Match Number & Status (Centered on top) -->
 				<div class="scoreboard-top-meta" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
 					<span>MATCH {{ currentSelectedMatch.match_num }} / {{ matchCount }}</span>
-					<span v-if="isMatchLive(currentSelectedMatch)" class="viewer-badge-live" style="font-size: 0.65rem; padding: 1px 6px;">LIVE</span>
-					<span v-else-if="isMatchScheduled(currentSelectedMatch)" class="viewer-badge-sched" style="font-size: 0.65rem; padding: 1px 6px;">รอแข่ง</span>
-					<span v-else class="viewer-badge-ft" style="font-size: 0.65rem; padding: 1px 6px;">FT</span>
+					<span v-if="isMatchFinished(currentSelectedMatch)" class="viewer-badge-ft" style="font-size: 0.65rem; padding: 1px 6px;">FT</span>
 				</div>
 
 				<!-- Main Single Row: Team A, Score, Team B -->
@@ -1092,9 +1089,8 @@
 				<div class="match-meta" style="display: flex; align-items: center; gap: 0.35rem;">
 					<span>Match {{ match.match_num }}</span>
 					<span v-if="isMatchLocked(match)" class="viewer-badge-sched" style="font-size: 0.58rem; padding: 1px 5px;">🔒 รอแข่ง</span>
-					<span v-else-if="isMatchLive(match)" class="viewer-badge-live" style="font-size: 0.58rem; padding: 1px 5px;">LIVE</span>
 					<span v-else-if="isMatchScheduled(match)" class="viewer-badge-sched" style="font-size: 0.58rem; padding: 1px 5px;">รอแข่ง</span>
-					<span v-else class="viewer-badge-ft" style="font-size: 0.58rem; padding: 1px 5px;">FT</span>
+					<span v-else-if="isMatchFinished(match)" class="viewer-badge-ft" style="font-size: 0.58rem; padding: 1px 5px;">FT</span>
 				</div>
 
 				<div class="score-board">
@@ -2221,23 +2217,23 @@
 				getMatchStatusBadge(m) {
 					if (!m) return 'FT';
 					if (this.isMatchLocked(m)) return 'SCHEDULED';
-					if (this.isMatchLive(m)) return 'LIVE';
 					if (this.isMatchScheduled(m)) return 'SCHEDULED';
-					return 'FT';
+					if (this.isMatchFinished(m)) return 'FT';
+					return '';
 				},
 				getMatchStatusText(m) {
-					if (!m) return 'FT';
+					if (!m) return '';
 					if (this.isMatchLocked(m)) return 'รอแข่ง';
-					if (this.isMatchLive(m)) return 'LIVE';
+					if (this.isMatchFinished(m)) return 'FT';
 					if (this.isMatchScheduled(m)) return 'รอแข่ง';
-					return 'FT';
+					return '';
 				},
 				getMatchStatusClass(m) {
-					if (!m) return 'is-ft';
+					if (!m) return '';
 					if (this.isMatchLocked(m)) return 'is-sched';
-					if (this.isMatchLive(m)) return 'is-live';
+					if (this.isMatchFinished(m)) return 'is-ft';
 					if (this.isMatchScheduled(m)) return 'is-sched';
-					return 'is-ft';
+					return '';
 				},
 				isWeekTimePassed() {
 					if (this.info && this.info.is_week_ended !== undefined) {

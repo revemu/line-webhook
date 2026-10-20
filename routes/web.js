@@ -1004,13 +1004,9 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     // Determine current active match:
     let activeMatch = allMatches.find(m => m.status === 'in_progress');
 
-    // If no in-progress match, find the first scheduled / unfinished match
+    // If no in-progress match, find the first scheduled / unfinished match for display
     if (!activeMatch && !isWeekTimeEnded) {
         activeMatch = allMatches.find(m => m.status === 'scheduled');
-        if (activeMatch) {
-            await doUpdate(`UPDATE match_stat_tbl SET status = 'in_progress' WHERE id = ${activeMatch.id}`);
-            activeMatch.status = 'in_progress';
-        }
     }
 
     // Fallback: if all matches are finished or legacy data
@@ -1046,8 +1042,8 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
             team_b_goal: match.team_b_goal ?? 0,
             raw_team_a_goal: match.team_a_goal,
             raw_team_b_goal: match.team_b_goal,
-            status: isFinished ? 1 : (isLive ? 0 : 2), // 0 = LIVE, 1 = FT, 2 = SCHEDULED
-            match_status: isFinished ? 'FT' : (isLive ? 'LIVE' : 'SCHEDULED'),
+            status: isFinished ? 1 : (isLive ? 0 : 2), // 0 = in_progress, 1 = FT, 2 = SCHEDULED
+            match_status: isFinished ? 'FT' : (isLive ? '' : 'SCHEDULED'),
             db_status: match.status || (isFinished ? 'finished' : (isLive ? 'in_progress' : 'scheduled')),
             is_live: isLive,
             is_finished: isFinished,
