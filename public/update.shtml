@@ -266,21 +266,31 @@
 				<div class="scoreboard-top-meta" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
 					<span>MATCH {{ currentSelectedMatch.match_num }} / {{ matchCount }}</span>
 					<span v-if="isMatchFinished(currentSelectedMatch)" class="viewer-badge-ft">FT</span>
+					<span v-if="activePitchTab !== 'both'" @click="activePitchTab = 'both'" class="scoreboard-dual-toggle" style="cursor: pointer;" title="คลิกเพื่อกลับไปดูสนามคู่">⚔️ ดูสนามคู่</span>
 				</div>
 
 				<!-- Main Single Row: Team A, Score, Team B -->
 				<div class="scoreboard-main-row">
 					<!-- Team A Details -->
-					<div class="scoreboard-team team-a" @click="activePitchTab = 'teamA'" style="cursor: pointer;" title="คลิกเพื่อดูผังสนาม A">
+					<div class="scoreboard-team team-a" @click="togglePitchTeam('teamA')" style="cursor: pointer;" :title="activePitchTab === 'teamA' ? 'คลิกเพื่อกลับไปดูสนามคู่' : 'คลิกเพื่อดูผังทีม ' + currentSelectedMatch.team_a_color">
 						<span class="scoreboard-badge"
-							:style="{ backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_a_color), border: '1px solid ' + getBorderColor(currentSelectedMatch.team_a_color), outline: activePitchTab === 'teamA' ? '2px solid #ffffff' : 'none', outlineOffset: '2px' }">
+							:class="{ 'is-selected': activePitchTab === 'teamA' }"
+							:style="{
+								backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(),
+								color: getContrastColor(currentSelectedMatch.team_a_color),
+								border: '1px solid ' + getBorderColor(currentSelectedMatch.team_a_color),
+								outline: activePitchTab === 'teamA' ? '2.5px solid #ffffff' : 'none',
+								outlineOffset: '2px',
+								boxShadow: activePitchTab === 'teamA' ? '0 0 12px rgba(255, 255, 255, 0.45), 0 4px 10px rgba(0, 0, 0, 0.35)' : '0 2px 6px rgba(0, 0, 0, 0.3)',
+								transform: activePitchTab === 'teamA' ? 'scale(1.05)' : 'scale(1)',
+								opacity: (activePitchTab === 'both' || activePitchTab === 'teamA') ? '1' : '0.55'
+							}">
 							{{ currentSelectedMatch.team_a_color }}
 						</span>
-						
 					</div>
 
 					<!-- Digits Score Display in Center -->
-					<div class="scoreboard-center">
+					<div class="scoreboard-center" @click="activePitchTab = 'both'" style="cursor: pointer;" title="คลิกเพื่อดูสนามคู่">
 						<div class="scoreboard-digits">
 							<span>{{ currentSelectedMatch.team_a_goal }}</span>
 							<span class="scoreboard-colon">:</span>
@@ -289,10 +299,19 @@
 					</div>
 
 					<!-- Team B Details -->
-					<div class="scoreboard-team team-b" @click="activePitchTab = 'teamB'" style="cursor: pointer;" title="คลิกเพื่อดูผังสนาม B">
-						
+					<div class="scoreboard-team team-b" @click="togglePitchTeam('teamB')" style="cursor: pointer;" :title="activePitchTab === 'teamB' ? 'คลิกเพื่อกลับไปดูสนามคู่' : 'คลิกเพื่อดูผังทีม ' + currentSelectedMatch.team_b_color">
 						<span class="scoreboard-badge"
-							:style="{ backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_b_color), border: '1px solid ' + getBorderColor(currentSelectedMatch.team_b_color), outline: activePitchTab === 'teamB' ? '2px solid #ffffff' : 'none', outlineOffset: '2px' }">
+							:class="{ 'is-selected': activePitchTab === 'teamB' }"
+							:style="{
+								backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(),
+								color: getContrastColor(currentSelectedMatch.team_b_color),
+								border: '1px solid ' + getBorderColor(currentSelectedMatch.team_b_color),
+								outline: activePitchTab === 'teamB' ? '2.5px solid #ffffff' : 'none',
+								outlineOffset: '2px',
+								boxShadow: activePitchTab === 'teamB' ? '0 0 12px rgba(255, 255, 255, 0.45), 0 4px 10px rgba(0, 0, 0, 0.35)' : '0 2px 6px rgba(0, 0, 0, 0.3)',
+								transform: activePitchTab === 'teamB' ? 'scale(1.05)' : 'scale(1)',
+								opacity: (activePitchTab === 'both' || activePitchTab === 'teamB') ? '1' : '0.55'
+							}">
 							{{ currentSelectedMatch.team_b_color }}
 						</span>
 					</div>
@@ -461,31 +480,7 @@
 				</form>
 			</div>
 
-			<!-- Pitch View Mode & Team Selector Tabs -->
-			<div class="pitch-view-selector-bar" v-if="!info.is_roster_locked">
-				<div class="pitch-team-tabs">
-					<button type="button" class="pitch-team-tab" :class="{ 'is-active': activePitchTab === 'teamA' }"
-						@click="activePitchTab = 'teamA'"
-						:style="activePitchTab === 'teamA' ? { borderColor: currentSelectedMatch.team_a_color.toLowerCase(), color: '#ffffff' } : {}">
-						<span>{{ currentSelectedMatch.team_a_color }}</span>
-						
-					</button>
-
-					<button type="button" class="pitch-team-tab" :class="{ 'is-active': activePitchTab === 'teamB' }"
-						@click="activePitchTab = 'teamB'"
-						:style="activePitchTab === 'teamB' ? { borderColor: currentSelectedMatch.team_b_color.toLowerCase(), color: '#ffffff' } : {}">
-						<span>{{ currentSelectedMatch.team_b_color }}</span>
-						
-					</button>
-
-					<button type="button" class="pitch-team-tab dual-mode-tab" :class="{ 'is-active': activePitchTab === 'both' }"
-						@click="activePitchTab = 'both'" title="ดูผังสนามทั้ง 2 ทีมแบบแนวนอน">
-						<span>⚔️ สนามคู่</span>
-					</button>
-				</div>
-			</div>
-
-						<!-- ==================== ROSTER LOCKED NOTICE ==================== -->
+			<!-- ==================== ROSTER LOCKED NOTICE ==================== -->
 			<div class="roster-locked-container" v-if="info.is_roster_locked">
 				<div class="roster-locked-card">
 					<div class="roster-locked-icon">🔒</div>
@@ -1204,7 +1199,7 @@
 				showAddMatchForm: false,
 				showClassicForm: false,
 				submittingGoal: false,
-				activePitchTab: (typeof window !== 'undefined' && window.innerWidth > 900) ? 'both' : 'teamA',
+				activePitchTab: 'both',
 				isManager: window.location.pathname.includes('/match'),
 				autoRefresh: true,
 				refreshCountdown: 30,
@@ -1680,6 +1675,13 @@
 						this.selectMatch(target.match_num);
 					}
 				},
+				togglePitchTeam(teamSide) {
+					if (this.activePitchTab === teamSide) {
+						this.activePitchTab = 'both';
+					} else {
+						this.activePitchTab = teamSide;
+					}
+				},
 				selectMatch(index) {
 					if (this.all_match && this.all_match[index]) {
 						if (this.isMatchLocked(this.all_match[index])) {
@@ -1689,6 +1691,7 @@
 					}
 					this.selectedMatchIndex = index;
 					this.showMatchPicker = false;
+					this.activePitchTab = 'both';
 					const allm = this.info.allmembers || [];
 					if (this.info.is_roster_locked) {
 						this.member = [];

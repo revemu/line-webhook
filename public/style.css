@@ -3032,6 +3032,31 @@ select.form-control {
     margin-bottom: 0.15rem;
 }
 
+.scoreboard-dual-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 2px 9px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    letter-spacing: normal;
+    text-transform: none;
+    transition: all 0.2s ease;
+    user-select: none;
+    cursor: pointer;
+}
+
+.scoreboard-dual-toggle:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translateY(-1px);
+}
+
 .scoreboard-main-row {
     display: flex;
     flex-direction: row;
@@ -3081,6 +3106,12 @@ select.form-control {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     flex-shrink: 0;
     white-space: nowrap;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+}
+
+.scoreboard-badge:hover {
+    filter: brightness(1.08);
 }
 
 .scoreboard-center {
@@ -3090,6 +3121,12 @@ select.form-control {
     justify-content: center;
     padding: 0 0.35rem;
     flex-shrink: 0;
+    user-select: none;
+    transition: transform 0.2s ease;
+}
+
+.scoreboard-center:hover .scoreboard-digits {
+    filter: brightness(1.2);
 }
 
 .scoreboard-digits {
@@ -4884,6 +4921,10 @@ select.form-control {
     .scoreboard-top-meta {
         font-size: 0.8rem;
         margin-bottom: 0.1rem;
+    }
+    .scoreboard-dual-toggle {
+        font-size: 0.68rem;
+        padding: 1px 7px;
     }
     .scoreboard-main-row {
         gap: 0.2rem;
