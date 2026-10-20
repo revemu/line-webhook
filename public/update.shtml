@@ -8,7 +8,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="/webhook/style.css">
+	<link rel="stylesheet" href="/webhook/style.css?v=0.5.1">
 	<script>
 		(function () {
 			var saved = localStorage.getItem('theme');
@@ -314,7 +314,7 @@
 							{{ showClassicForm ? '✕ ซ่อน' : '📋 ฟอร์ม' }}
 						</button>
 						<button v-if="isLastMatchSelected" type="button" class="btn-scoreboard-tool btn-delete" @click="promptDeleteMatch(currentSelectedMatch)" title="ลบแมตช์สุดท้าย">
-							🗑️ ลบ Match {{ currentSelectedMatch.match_num }}
+							🗑️ Match {{ currentSelectedMatch.match_num }}
 						</button>
 					</div>
 				</div>
@@ -1085,7 +1085,7 @@
 				</div>
 
 				<button v-if="isManager && match.match_num == maxMatchNum" class="btn-remove-match" title="ลบแมตช์สุดท้ายนี้"
-					v-on:click.stop="promptDeleteMatch(match)">🗑️ ลบ</button>
+					v-on:click.stop="promptDeleteMatch(match)">🗑️</button>
 			</div>
 
 			<div class="match-events">
