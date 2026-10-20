@@ -265,7 +265,7 @@
 				<!-- Top Row: Match Number & Status (Centered on top) -->
 				<div class="scoreboard-top-meta" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
 					<span>MATCH {{ currentSelectedMatch.match_num }} / {{ matchCount }}</span>
-					<span v-if="isMatchFinished(currentSelectedMatch)" class="viewer-badge-ft" style="font-size: 0.65rem; padding: 1px 6px;">FT</span>
+					<span v-if="isMatchFinished(currentSelectedMatch)" class="viewer-badge-ft">FT</span>
 				</div>
 
 				<!-- Main Single Row: Team A, Score, Team B -->
@@ -304,7 +304,7 @@
 						<button v-if="!isMatchFinished(currentSelectedMatch)" type="button" class="btn-scoreboard-tool btn-finish-match" @click="finishCurrentMatch()" title="จบแมตช์นี้แล้วขึ้นนัดถัดไป">
 							🏁 จบ Match
 						</button>
-						<button v-if="isMatchFinished(currentSelectedMatch)" type="button" class="btn-scoreboard-tool btn-reopen-match" @click="reopenCurrentMatch()" title="กลับมาแข่งขันต่อ / แก้ไขผล">
+						<button v-if="isMatchFinished(currentSelectedMatch) && !isWeekEnded" type="button" class="btn-scoreboard-tool btn-reopen-match" @click="reopenCurrentMatch()" title="กลับมาแข่งขันต่อ / แก้ไขผล">
 							↩️ แข่งต่อ
 						</button>
 						<button type="button" class="btn-scoreboard-tool" @click="toggleClassicForm()" title="สลับฟอร์ม">
@@ -503,14 +503,6 @@
 
 <!-- ==================== VERTICAL PITCH VIEW (MOBILE / 2-PER-ROW GRID) ==================== -->
 			<div class="vertical-pitch-container" v-if="!info.is_roster_locked && (activePitchTab === 'teamA' || activePitchTab === 'teamB')">
-				<!-- Vertical Pitch Header Bar -->
-				<div class="vp-header-bar">
-					<span class="vp-team-badge"
-						:style="{ backgroundColor: activeTeamColor.toLowerCase(), color: getContrastColor(activeTeamColor), border: '1px solid ' + getBorderColor(activeTeamColor) }">
-						{{ activeTeamColor }}
-					</span>
-				</div>
-
 
 				<!-- Pitch Field (Vertical 2-Player Grid) -->
 				<div class="match-pitch-vertical"
@@ -1224,6 +1216,12 @@
 				isDeletingMatch: false
 			},
 			computed: {
+				isWeekEnded() {
+					if (this.weeks && this.weeks.length > 0 && this.week && this.week.id && this.weeks[0].id) {
+						if (this.week.id !== this.weeks[0].id) return true;
+					}
+					return this.isWeekTimePassed();
+				},
 				activeTeamSide() {
 					return this.activePitchTab === 'teamB' ? 'teamB' : 'teamA';
 				},
