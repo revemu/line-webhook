@@ -1520,6 +1520,164 @@ async function getTableWeek(week_id = 0) {
   }
 }
 
+// ───────────────────────────── MVP Rating Engine (shared) ─────────────────────────────
+// Fill order used when assigning a team-fit position to players without an explicit position
+// (mirrors the generic fill order of allocateFormationSlots)
+const MVP_POS_FILL_ORDER = ['MF', 'DW', 'DF', 'DM', 'AM', 'CF'];
+// Minimum number of positive player-week samples before the P95 benchmark is trusted (else use MAX)
+const MVP_BENCHMARK_MIN_SAMPLES = 20;
+const MVP_BENCHMARK_PERCENTILE = 0.95;
+
+function mvpPosNum(pos, keys, fallback) {
+  for (const k of keys) {
+    if (pos && pos[k] !== undefined && pos[k] !== null && pos[k] !== '') {
+      const v = parseFloat(pos[k]);
+      if (!isNaN(v)) return v;
+    }
+  }
+  return fallback;
+}
+
+/**
+ * Unified per-player MVP raw score formula (single source of truth).
+ * RawTotal = G·goal + A·assist + CS·cs + W·win + D·draw − GA·conceded + max(0, GF − G)·team_goal − OG·og
+ * Per-match raw = RawTotal / matches
+ */
+function computePlayerRawScore(stats, pos) {
+  const g = Number(stats.g) || 0;
+  const a = Number(stats.a) || 0;
+  const og = Number(stats.og) || 0;
+  const cs = Number(stats.cleanSheets) || 0;
+  const w = Number(stats.wins) || 0;
+  const d = Number(stats.draws) || 0;
+  const gf = Number(stats.goalsScored) || 0;
+  const ga = Number(stats.goalsConceded) || 0;
+  const matches = Number(stats.matches) > 0 ? Number(stats.matches) : 1;
+
+  const pts = {
+    goal: mvpPosNum(pos, ['pts_goal'], 4.0),
+    assist: mvpPosNum(pos, ['pts_assist'], 3.0),
+    cs: mvpPosNum(pos, ['pts_clean_sheet'], 0.0),
+    conceded: mvpPosNum(pos, ['pts_conceded', 'pts_goal_against'], 0.0),
+    teamGoal: mvpPosNum(pos, ['pts_team_goal'], 0.0),
+    og: mvpPosNum(pos, ['pts_og'], 2.0),
+    win: mvpPosNum(pos, ['pts_wins', 'pts_win'], 3.0),
+    draw: mvpPosNum(pos, ['pts_draws', 'pts_draw'], 1.0)
+  };
+
+  const teamGoalsExcl = Math.max(0, gf - g);
+  const total = (g * pts.goal) + (a * pts.assist) + (cs * pts.cs) + (w * pts.win) + (d * pts.draw)
+    - (ga * pts.conceded) + (teamGoalsExcl * pts.teamGoal) - (og * pts.og);
+  const raw = total / matches;
+
+  const breakdown = `(${g}G×${pts.goal}) + (${a}A×${pts.assist}) + (${cs}CS×${pts.cs}) + (${w}W×${pts.win}) + (${d}D×${pts.draw})` +
+    ` − (${ga}GA×${pts.conceded}) + (${teamGoalsExcl}TeamGF×${pts.teamGoal}) − (${og}OG×${pts.og}) = ${total.toFixed(4)}`;
+
+  return { total, raw, matches, pts, teamGoalsExcl, breakdown };
+}
+
+/**
+ * Resolve the position for each player in a week. Explicit week position → member default position →
+ * team-fit position (fills the team's unmet pos_tbl minimums first, then remaining capacity, in MVP_POS_FILL_ORDER).
+ * Returns { [member_id]: { pos, isTeamFit } }
+ */
+function resolveWeekPlayerPositions(players, posMap, allPositions) {
+  const byCode = {};
+  allPositions.forEach(p => { byCode[(p.code || '').toUpperCase()] = p; });
+  const fallbackPos = byCode.MF || byCode.CF || allPositions[0] || { code: 'MF', pts_goal: 5, pts_assist: 3, pts_clean_sheet: 0.5, pts_team_goal: 0.5, pts_og: 2, pts_wins: 3, pts_draws: 1 };
+
+  const result = {};
+  const teams = {};
+  players.forEach(m => {
+    const key = m.member_id || m.id;
+    let pos = null;
+    if (m.week_pos_id > 0 && posMap[m.week_pos_id]) pos = posMap[m.week_pos_id];
+    else if (m.member_pos_id > 0 && posMap[m.member_pos_id]) pos = posMap[m.member_pos_id];
+    const tId = Number(m.team_id) || 0;
+    if (!teams[tId]) teams[tId] = { counts: {}, unassigned: [], size: 0 };
+    teams[tId].size++;
+    if (pos) {
+      const c = (pos.code || '').toUpperCase();
+      teams[tId].counts[c] = (teams[tId].counts[c] || 0) + 1;
+      result[key] = { pos, isTeamFit: false };
+    } else {
+      teams[tId].unassigned.push(key);
+    }
+  });
+
+  Object.values(teams).forEach(team => {
+    if (team.unassigned.length === 0) return;
+    const is8 = team.size >= 8;
+    const lim = (code) => {
+      const p = byCode[code] || {};
+      const min = is8 && p.min_8 !== null && p.min_8 !== undefined ? Number(p.min_8) : Number(p.min || 0);
+      const max = is8 && p.max_8 !== null && p.max_8 !== undefined ? Number(p.max_8) : Number(p.max !== undefined ? p.max : 2);
+      return { min: isNaN(min) ? 0 : min, max: isNaN(max) ? 2 : max };
+    };
+    team.unassigned.sort((x, y) => Number(x) - Number(y));
+    team.unassigned.forEach(key => {
+      let chosen = MVP_POS_FILL_ORDER.find(c => byCode[c] && (team.counts[c] || 0) < lim(c).min);
+      if (!chosen) chosen = MVP_POS_FILL_ORDER.find(c => byCode[c] && (team.counts[c] || 0) < lim(c).max);
+      const pos = chosen ? byCode[chosen] : fallbackPos;
+      const c = (pos.code || '').toUpperCase();
+      team.counts[c] = (team.counts[c] || 0) + 1;
+      result[key] = { pos, isTeamFit: true };
+    });
+  });
+  return result;
+}
+
+function percentileBenchmark(values) {
+  const vals = (values || []).map(Number).filter(v => !isNaN(v) && v > 0).sort((a, b) => a - b);
+  if (vals.length === 0) return 0;
+  if (vals.length < MVP_BENCHMARK_MIN_SAMPLES) return vals[vals.length - 1];
+  const idx = Math.max(0, Math.ceil(MVP_BENCHMARK_PERCENTILE * vals.length) - 1);
+  return vals[idx];
+}
+
+/**
+ * Year benchmark (rating 10.0 reference) = P95 of all positive per-match raw scores of the year.
+ * extraRaws/excludeWeekId allow including the live (unsaved) week without double counting.
+ */
+async function getYearMvpBenchmark(year, extraRaws = [], excludeWeekId = null) {
+  let rows = [];
+  try {
+    rows = await executeQuery(`
+      SELECT m.raw_score FROM mvp_week_tbl m
+      JOIN week_tbl w ON m.week_id = w.id
+      WHERE YEAR(w.date) = ? AND m.raw_score > 0 ${excludeWeekId ? 'AND m.week_id <> ?' : ''}
+    `, excludeWeekId ? [year, excludeWeekId] : [year]);
+  } catch (e) { }
+  return percentileBenchmark([...(rows || []).map(r => r.raw_score), ...extraRaws]);
+}
+
+async function saveYearMvpBenchmark(year, bench) {
+  const key = `max_mvp_score_${year}`;
+  const ex = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
+  if (ex && ex.length > 0) {
+    await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [bench.toFixed(4), key]);
+  } else {
+    await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, bench.toFixed(4)]);
+  }
+}
+
+/** Re-normalize stored ratings (mvp_week_tbl + member_team_week_tbl) of a year against its benchmark */
+async function renormalizeYearRatings(year, bench) {
+  if (!bench || bench <= 0) return;
+  await executeQuery(`
+    UPDATE mvp_week_tbl m JOIN week_tbl w ON m.week_id = w.id
+    SET m.rating = IF(m.raw_score > 0, LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2)), 0)
+    WHERE YEAR(w.date) = ?
+  `, [bench, year]);
+  await executeQuery(`
+    UPDATE member_team_week_tbl mtw
+    JOIN mvp_week_tbl m ON m.week_id = mtw.week_id AND m.member_id = mtw.member_id
+    JOIN week_tbl w ON m.week_id = w.id
+    SET mtw.rating = m.rating
+    WHERE YEAR(w.date) = ?
+  `, [year]);
+}
+
 async function getWeekLeaderStats(week_id, groupId = null) {
   try {
     const goalsQuery = `
@@ -1559,6 +1717,8 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const teamGaMap = {};
     const teamCleanSheetsMap = {};
     const teamWinsMap = {};
+    const teamDrawsMap = {};
+    const teamGfMap = {};
     const matchScoresRaw = await executeQuery(
       "SELECT * FROM match_stat_tbl WHERE week_id = ?",
       [week_id]
@@ -1578,13 +1738,17 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
         if (m.team_a_id) {
           teamGaMap[m.team_a_id] = (teamGaMap[m.team_a_id] || 0) + gaA;
+          teamGfMap[m.team_a_id] = (teamGfMap[m.team_a_id] || 0) + gA;
           if (gaA === 0) teamCleanSheetsMap[m.team_a_id] = (teamCleanSheetsMap[m.team_a_id] || 0) + 1;
           if (gA > gB) teamWinsMap[m.team_a_id] = (teamWinsMap[m.team_a_id] || 0) + 1;
+          if (gA === gB) teamDrawsMap[m.team_a_id] = (teamDrawsMap[m.team_a_id] || 0) + 1;
         }
         if (m.team_b_id) {
           teamGaMap[m.team_b_id] = (teamGaMap[m.team_b_id] || 0) + gaB;
+          teamGfMap[m.team_b_id] = (teamGfMap[m.team_b_id] || 0) + gB;
           if (gaB === 0) teamCleanSheetsMap[m.team_b_id] = (teamCleanSheetsMap[m.team_b_id] || 0) + 1;
           if (gB > gA) teamWinsMap[m.team_b_id] = (teamWinsMap[m.team_b_id] || 0) + 1;
+          if (gA === gB) teamDrawsMap[m.team_b_id] = (teamDrawsMap[m.team_b_id] || 0) + 1;
         }
       });
     }
@@ -1610,7 +1774,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const allPositions = await getAllPositions();
     const posMap = {};
     allPositions.forEach(p => { posMap[p.id] = p; });
-    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0, pts_wins: 1.5 };
+    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_team_goal: 0.75, pts_og: 2.0, pts_wins: 3.0, pts_draws: 1.0 };
 
     logger.info(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
     if (tableRows && tableRows.length > 0) {
@@ -1643,7 +1807,9 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       });
     }
 
-    // Pass 1: Compute raw MVP scores with position weights from pos_tbl + match wins * pts_wins - own goals * pts_og
+    // Pass 1: Compute raw MVP scores via the shared formula (computePlayerRawScore) with pos_tbl weights.
+    // Players without an explicit position get a team-fit position (resolveWeekPlayerPositions)
+    const resolvedPositions = resolveWeekPlayerPositions(goalRes.filter(m => !isTempReserveMember(m.name)), posMap, allPositions);
     const rawScoresList = goalRes.map(m => {
       if (isTempReserveMember(m.name)) return null;
 
@@ -1654,20 +1820,13 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
       const cleanSheets = teamCleanSheetsMap[teamId] || 0;
       const wins = teamWinsMap[teamId] || 0;
+      const draws = teamDrawsMap[teamId] || 0;
+      const goalsScored = teamGfMap[teamId] || 0;
 
-      let pos = defaultPos;
-      if (m.week_pos_id > 0 && posMap[m.week_pos_id]) {
-        pos = posMap[m.week_pos_id];
-      } else if (m.member_pos_id > 0 && posMap[m.member_pos_id]) {
-        pos = posMap[m.member_pos_id];
-      }
-
-      const ptsGoal = parseFloat(pos.pts_goal) || 4.0;
-      const ptsAssist = parseFloat(pos.pts_assist) || 3.0;
-      const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
-      const ptsConceded = parseFloat(pos.pts_conceded || pos.pts_goal_against) || 0.0;
-      const ptsOg = parseFloat(pos.pts_og) || 2.0;
-      const ptsWins = parseFloat(pos.pts_wins !== undefined ? pos.pts_wins : (pos.pts_win !== undefined ? pos.pts_win : 1.5)) || 1.5;
+      const memKey = m.member_id || m.id;
+      const resolved = resolvedPositions[memKey];
+      const pos = resolved ? resolved.pos : defaultPos;
+      const isTeamFitPos = resolved ? resolved.isTeamFit : true;
 
       const goalsConceded = teamGaMap[teamId] || 0;
       const teamDetails = teamInfoMap[teamId];
@@ -1677,7 +1836,6 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         ? matchScores.filter(ms => ms.team_a_id === teamId || ms.team_b_id === teamId).map(ms => ms.id)
         : [];
       const allPlayerMatchIds = new Set(primaryMatchIds);
-      const memKey = m.member_id || m.id;
       if (memberPlayedMatchIdsMap[memKey]) {
         memberPlayedMatchIdsMap[memKey].forEach(mId => allPlayerMatchIds.add(mId));
       }
@@ -1685,12 +1843,14 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         ? allPlayerMatchIds.size
         : ((teamDetails && teamDetails.matches > 0) ? teamDetails.matches : 1);
 
-      // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
-      const rawScoreTotal = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
-      // Normalized Per-Match Raw MVP score
-      const rawScore = matches > 0 ? (rawScoreTotal / matches) : rawScoreTotal;
+      const calc = computePlayerRawScore({ g, a, og, cleanSheets, wins, draws, goalsScored, goalsConceded, matches }, pos);
 
-      return { member: m, g, og, a, cleanSheets, wins, goalsConceded, matches, pos, ptsGoal, ptsAssist, ptsCleanSheet, ptsConceded, ptsOg, ptsWins, rawScoreTotal, rawScore };
+      return {
+        member: m, g, og, a, cleanSheets, wins, draws, goalsScored, goalsConceded, matches, pos, isTeamFitPos,
+        ptsGoal: calc.pts.goal, ptsAssist: calc.pts.assist, ptsCleanSheet: calc.pts.cs, ptsConceded: calc.pts.conceded,
+        ptsTeamGoal: calc.pts.teamGoal, ptsOg: calc.pts.og, ptsWins: calc.pts.win, ptsDraws: calc.pts.draw,
+        breakdown: calc.breakdown, rawScoreTotal: calc.total, rawScore: calc.raw
+      };
     }).filter(item => item !== null);
 
     let maxGoals = 0;
@@ -1712,41 +1872,20 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       }
     } catch (e) { }
 
-    // Retrieve benchmark reference max MVP score for current year from template_tpl / mvp_week_tbl
+    // Benchmark (rating 10.0 reference) = P95 of all positive per-match raw scores of this year,
+    // including this (live) week's scores and excluding its previously saved copy
     await ensureMvpWeekTable();
-    let refMaxScore = 0;
+    let prevBenchmark = 0;
     try {
       const tplRes = await executeQuery("SELECT value FROM template_tpl WHERE name = ?", [`max_mvp_score_${weekYear}`]);
       if (tplRes && tplRes.length > 0 && tplRes[0].value) {
-        refMaxScore = parseFloat(tplRes[0].value);
+        prevBenchmark = parseFloat(tplRes[0].value) || 0;
       }
     } catch (e) { }
-
-    if (!refMaxScore || refMaxScore <= 0) {
-      try {
-        const maxDbRes = await executeQuery(`
-          SELECT MAX(m.raw_score) as max_raw 
-          FROM mvp_week_tbl m
-          JOIN week_tbl w ON m.week_id = w.id
-          WHERE YEAR(w.date) = ?
-        `, [weekYear]);
-        if (maxDbRes && maxDbRes[0] && maxDbRes[0].max_raw) {
-          refMaxScore = parseFloat(maxDbRes[0].max_raw);
-        }
-      } catch (e) { }
-    }
-
-    let isNewYearRecord = false;
-    if (maxRawMvpScore > refMaxScore) {
-      isNewYearRecord = true;
-      refMaxScore = maxRawMvpScore;
-    }
-
-    // Fallback if benchmark not set yet for this year: use max raw MVP score of current week
-    if (!refMaxScore || isNaN(refMaxScore) || refMaxScore <= 0) {
-      refMaxScore = maxRawMvpScore;
-      isNewYearRecord = true;
-    }
+    let refMaxScore = await getYearMvpBenchmark(weekYear, rawScoresList.map(r => r.rawScore), week_id);
+    if (!refMaxScore || isNaN(refMaxScore) || refMaxScore <= 0) refMaxScore = maxRawMvpScore;
+    // Benchmark moved noticeably (> 0.5%) → re-normalize the stored ratings of the whole year
+    const benchmarkChanged = refMaxScore > 0 && (!prevBenchmark || Math.abs(refMaxScore - prevBenchmark) / prevBenchmark > 0.005);
 
     // Pass 2: Normalize to 1-10 rating scale against refMaxScore
     const formattedList = rawScoresList.map(item => {
@@ -1772,12 +1911,12 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const teamDetails = teamInfoMap[m.team_id];
       const teamName = teamDetails ? teamDetails.color : `ID ${m.team_id}`;
 
-      logger.info(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
-      logger.info(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-      logger.info(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
-      logger.info(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
+      logger.info(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}${item.isTeamFitPos ? ' (team-fit)' : ''}]`);
+      logger.info(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Match Draw: +${item.ptsDraws}, Team Goal Bonus: +${item.ptsTeamGoal}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
+      logger.info(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Wins (W): ${wins}, Draws (D): ${item.draws}, Team Goals For (GF): ${item.goalsScored}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
+      logger.info(`   └─ Raw MVP Score (Total): ${item.breakdown}`);
       logger.info(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches Played (${matches}) = ${rawScore.toFixed(4)}`);
-      logger.info(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / Benchmark Ref ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
+      logger.info(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / P95 Benchmark ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
       logger.info(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
 
       const info = resolveMemberDisplayInfo(m, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
@@ -1788,16 +1927,21 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         assists: a,
         cleanSheets,
         wins,
+        draws: item.draws,
+        goalsScored: item.goalsScored,
         goalsConceded,
         matches,
         pos,
+        isTeamFitPos: item.isTeamFitPos,
         teamName,
         ptsGoal,
         ptsAssist,
         ptsCleanSheet,
         ptsConceded,
+        ptsTeamGoal: item.ptsTeamGoal,
         ptsOg,
         ptsWins,
+        ptsDraws: item.ptsDraws,
         rawScoreTotal,
         rawScore,
         score: normalizedScore,
@@ -1810,11 +1954,9 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const mvps = maxRawMvpScore > 0 ? formattedList.filter(item => item.rawScore === maxRawMvpScore) : [];
     const maxMvpScore = mvps.length > 0 ? mvps[0].score : 0;
 
-    // Save/update all player week records into mvp_week_tbl & update yearly cache incrementally
+    // Save/update all player week records into mvp_week_tbl
     if (formattedList && formattedList.length > 0) {
       await saveWeekMvpRecords(week_id, formattedList);
-      const weekMemberIds = formattedList.map(item => item.member_id || item.id).filter(Boolean);
-      await updateYearStatCache(weekYear, weekMemberIds);
     }
 
     // Update player ratings into member_team_week_tbl for this week
@@ -1832,26 +1974,20 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       }
     }
 
-    // If this week sets a new highest MVP score record for this year, update template_tpl & normalize mvp_week_tbl ratings
-    if (isNewYearRecord && refMaxScore > 0) {
-      try {
-        const key = `max_mvp_score_${weekYear}`;
-        const ex = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
-        if (ex && ex.length > 0) {
-          await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [refMaxScore.toFixed(4), key]);
-        } else {
-          await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, refMaxScore.toFixed(4)]);
-        }
-        logger.info(`🔥 [New Year Record] Updated ${key} in template_tpl to ${refMaxScore.toFixed(4)}`);
-
-        // Recalculate normalized rating in mvp_week_tbl for this year
-        await executeQuery(`
-          UPDATE mvp_week_tbl m
-          JOIN week_tbl w ON m.week_id = w.id
-          SET m.rating = LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2))
-          WHERE YEAR(w.date) = ? AND m.raw_score > 0
-        `, [refMaxScore, weekYear]);
-      } catch (e) { }
+    // P95 benchmark moved → persist it & re-normalize stored ratings of the whole year, then refresh the full year cache.
+    // Otherwise only refresh the yearly cache of this week's members.
+    try {
+      if (benchmarkChanged) {
+        await saveYearMvpBenchmark(weekYear, refMaxScore);
+        await renormalizeYearRatings(weekYear, refMaxScore);
+        logger.info(`📊 [Benchmark] Year ${weekYear} P95 benchmark ${prevBenchmark.toFixed(4)} → ${refMaxScore.toFixed(4)} (year ratings re-normalized)`);
+        await updateYearStatCache(weekYear);
+      } else if (formattedList && formattedList.length > 0) {
+        const weekMemberIds = formattedList.map(item => item.member_id || item.id).filter(Boolean);
+        await updateYearStatCache(weekYear, weekMemberIds);
+      }
+    } catch (e) {
+      logger.error("Error updating MVP benchmark / year cache:", e.message);
     }
 
     logger.info(` [MVP Winner(s)] Max Raw: ${maxRawMvpScore.toFixed(4)} | Benchmark Ref: ${refMaxScore.toFixed(4)} | Leader Rating: ${maxMvpScore.toFixed(1)}/10 | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
@@ -1936,9 +2072,51 @@ async function ensurePosTables() {
         if (!existingCols.has('max_8')) {
           await executeQuery("ALTER TABLE pos_tbl ADD COLUMN max_8 INT DEFAULT NULL");
         }
+        // MVP rating weight columns
+        if (!existingCols.has('pts_og')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_og DECIMAL(6,2) DEFAULT 2.00");
+        }
+        if (!existingCols.has('pts_wins')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_wins DECIMAL(6,2) DEFAULT 3.00");
+        }
+        if (!existingCols.has('pts_draws')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_draws DECIMAL(6,2) DEFAULT 1.00");
+        }
+        if (!existingCols.has('pts_team_goal')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_team_goal DECIMAL(6,2) DEFAULT 0.00");
+        }
       }
     } catch (colErr) {
       logger.error("Error ensuring pos_tbl columns:", colErr.message);
+    }
+
+    // One-time migration to MVP rating weights v2 (flag stored in template_tpl so later admin edits are never overwritten)
+    // conceded = deduction per team goal conceded, team_goal = bonus per team goal scored (excluding the player's own goals)
+    try {
+      const flag = await executeQuery("SELECT id FROM template_tpl WHERE name = 'pos_weights_v2'");
+      if (!flag || flag.length === 0) {
+        const weightsV2 = [
+          // code, goal, assist, clean_sheet, conceded, team_goal, og, wins, draws
+          ['GK', 10, 6, 5, 0.50, 0.00, 2, 3, 1],
+          ['DF', 6, 3, 3, 0.50, 0.00, 2, 3, 1],
+          ['DM', 6, 3, 2, 0.25, 0.25, 2, 3, 1],
+          ['DW', 5, 3, 2, 0.25, 0.25, 2, 3, 1],
+          ['MF', 5, 3, 0.5, 0.00, 0.50, 2, 3, 1],
+          ['AM', 4, 3, 0, 0.00, 0.50, 2, 3, 1],
+          ['CF', 5, 3, 0, 0.00, 0.75, 2, 3, 1]
+        ];
+        for (const [code, goal, assist, cs, conc, tg, og, wins, draws] of weightsV2) {
+          await executeQuery(
+            `UPDATE pos_tbl SET pts_goal = ?, pts_assist = ?, pts_clean_sheet = ?, pts_conceded = ?, pts_team_goal = ?, pts_og = ?, pts_wins = ?, pts_draws = ?
+             WHERE UPPER(code) = ?`,
+            [goal, assist, cs, conc, tg, og, wins, draws, code]
+          );
+        }
+        await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('pos_weights_v2', ?)", [new Date().toISOString()]);
+        logger.info("🌱 [Migration] pos_tbl MVP rating weights updated to v2 (team goal bonus, draws, hybrid DM/DW)");
+      }
+    } catch (migErr) {
+      logger.error("Error migrating pos_tbl weights v2:", migErr.message);
     }
   } catch (err) {
     logger.error("Error creating position tables:", err.message);
@@ -2019,16 +2197,30 @@ async function getEffectiveMemberPosition(member_id, week_id = 0) {
   }
 }
 
-async function updatePositionPoints(pos_code, pts_goal = 0, pts_assist = 0, pts_clean_sheet = 0, pts_conceded = 0, pts_og = 0) {
+async function updatePositionPoints(pos_code, pts_goal = 0, pts_assist = 0, pts_clean_sheet = 0, pts_conceded = 0, pts_og = 0, pts_wins = null, pts_draws = null, pts_team_goal = null) {
   await ensurePosTables();
   try {
-    const sql = `
+    let sql = `
       UPDATE pos_tbl 
-      SET pts_goal = ?, pts_assist = ?, pts_clean_sheet = ?, pts_conceded = ?, pts_og = ? 
-      WHERE UPPER(code) = UPPER(?)
+      SET pts_goal = ?, pts_assist = ?, pts_clean_sheet = ?, pts_conceded = ?, pts_og = ?
     `;
-    await executeQuery(sql, [pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og, pos_code]);
-    return { success: true, pos_code: pos_code.toUpperCase(), pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og };
+    const params = [pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og];
+    if (pts_wins !== null && pts_wins !== undefined) {
+      sql += ", pts_wins = ?";
+      params.push(pts_wins);
+    }
+    if (pts_draws !== null && pts_draws !== undefined) {
+      sql += ", pts_draws = ?";
+      params.push(pts_draws);
+    }
+    if (pts_team_goal !== null && pts_team_goal !== undefined) {
+      sql += ", pts_team_goal = ?";
+      params.push(pts_team_goal);
+    }
+    sql += " WHERE UPPER(code) = UPPER(?)";
+    params.push(pos_code);
+    await executeQuery(sql, params);
+    return { success: true, pos_code: pos_code.toUpperCase(), pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og, pts_wins, pts_draws, pts_team_goal };
   } catch (err) {
     logger.error("Error updating position points:", err.message);
     return { success: false, error: err.message };
@@ -2391,6 +2583,8 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
   const teamGaMap = {};
   const teamCleanSheetsMap = {};
   const teamWinsMap = {};
+  const teamDrawsMap = {};
+  const teamGfMap = {};
   const matchScoresRaw = await executeQuery(
     "SELECT * FROM match_stat_tbl WHERE week_id = ?",
     [week_id]
@@ -2410,13 +2604,17 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
 
       if (m.team_a_id) {
         teamGaMap[m.team_a_id] = (teamGaMap[m.team_a_id] || 0) + gaA;
+        teamGfMap[m.team_a_id] = (teamGfMap[m.team_a_id] || 0) + gA;
         if (gaA === 0) teamCleanSheetsMap[m.team_a_id] = (teamCleanSheetsMap[m.team_a_id] || 0) + 1;
         if (gA > gB) teamWinsMap[m.team_a_id] = (teamWinsMap[m.team_a_id] || 0) + 1;
+        if (gA === gB) teamDrawsMap[m.team_a_id] = (teamDrawsMap[m.team_a_id] || 0) + 1;
       }
       if (m.team_b_id) {
         teamGaMap[m.team_b_id] = (teamGaMap[m.team_b_id] || 0) + gaB;
+        teamGfMap[m.team_b_id] = (teamGfMap[m.team_b_id] || 0) + gB;
         if (gaB === 0) teamCleanSheetsMap[m.team_b_id] = (teamCleanSheetsMap[m.team_b_id] || 0) + 1;
         if (gB > gA) teamWinsMap[m.team_b_id] = (teamWinsMap[m.team_b_id] || 0) + 1;
+        if (gA === gB) teamDrawsMap[m.team_b_id] = (teamDrawsMap[m.team_b_id] || 0) + 1;
       }
     });
   }
@@ -2442,7 +2640,7 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
   const allPositions = await getAllPositions();
   const posMap = {};
   allPositions.forEach(p => { posMap[p.id] = p; });
-  const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0, pts_wins: 1.5 };
+  const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_team_goal: 0.75, pts_og: 2.0, pts_wins: 3.0, pts_draws: 1.0 };
 
   const teamMvpFactorMap = {};
   const teamDetailsMap = {};
@@ -2475,6 +2673,9 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
     };
   });
 
+  // Players without an explicit position get a team-fit position (same rule as getWeekLeaderStats)
+  const resolvedPositions = resolveWeekPlayerPositions(goalRes.filter(m => !isTempReserveMember(m.name)), posMap, allPositions);
+
   return goalRes.map(m => {
     if (isTempReserveMember(m.name)) return null;
 
@@ -2485,20 +2686,13 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
 
     const cleanSheets = teamCleanSheetsMap[teamId] || 0;
     const wins = teamWinsMap[teamId] || 0;
+    const draws = teamDrawsMap[teamId] || 0;
+    const goalsScored = teamGfMap[teamId] || 0;
 
-    let pos = defaultPos;
-    if (m.week_pos_id > 0 && posMap[m.week_pos_id]) {
-      pos = posMap[m.week_pos_id];
-    } else if (m.member_pos_id > 0 && posMap[m.member_pos_id]) {
-      pos = posMap[m.member_pos_id];
-    }
-
-    const ptsGoal = parseFloat(pos.pts_goal) || 4.0;
-    const ptsAssist = parseFloat(pos.pts_assist) || 3.0;
-    const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
-    const ptsConceded = parseFloat(pos.pts_conceded || pos.pts_goal_against) || 0.0;
-    const ptsOg = parseFloat(pos.pts_og) || 2.0;
-    const ptsWins = parseFloat(pos.pts_wins !== undefined ? pos.pts_wins : (pos.pts_win !== undefined ? pos.pts_win : 1.5)) || 1.5;
+    const memKey = m.member_id || m.id;
+    const resolved = resolvedPositions[memKey];
+    const pos = resolved ? resolved.pos : defaultPos;
+    const isTeamFitPos = resolved ? resolved.isTeamFit : true;
 
     const goalsConceded = teamGaMap[teamId] || 0;
     const td = teamDetailsMap[teamId] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor: 1 };
@@ -2508,7 +2702,6 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
       ? matchScores.filter(ms => ms.team_a_id === teamId || ms.team_b_id === teamId).map(ms => ms.id)
       : [];
     const allPlayerMatchIds = new Set(primaryMatchIds);
-    const memKey = m.member_id || m.id;
     if (memberPlayedMatchIdsMap[memKey]) {
       memberPlayedMatchIdsMap[memKey].forEach(mId => allPlayerMatchIds.add(mId));
     }
@@ -2516,16 +2709,14 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
       ? allPlayerMatchIds.size
       : ((td && td.matches > 0) ? td.matches : 1);
 
-    // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
-    const rawScoreTotal = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
-    // Per-Match Raw MVP score
-    const rawScore = matches > 0 ? (rawScoreTotal / matches) : rawScoreTotal;
+    // Shared formula (single source of truth)
+    const calc = computePlayerRawScore({ g, a, og, cleanSheets, wins, draws, goalsScored, goalsConceded, matches }, pos);
+    const rawScoreTotal = calc.total;
+    const rawScore = calc.raw;
 
     if (verbose) {
-      logger.info(` [Player ${m.name}] (Team: ${td.teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
-      logger.info(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-      logger.info(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
-      logger.info(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
+      logger.info(` [Player ${m.name}] (Team: ${td.teamName}) [Position: ${pos.code} ${pos.icon || ''}${isTeamFitPos ? ' (team-fit)' : ''}]`);
+      logger.info(`   └─ Raw MVP Score (Total): ${calc.breakdown}`);
       logger.info(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches (${matches}) = ${rawScore.toFixed(4)}`);
     }
 
@@ -2538,16 +2729,23 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
       assists: a,
       cleanSheets,
       wins,
+      draws,
+      goalsScored,
       goalsConceded,
       matches,
+      teamName: td.teamName,
       posCode: pos.code,
       posIcon: pos.icon || '',
-      ptsGoal,
-      ptsAssist,
-      ptsCleanSheet,
-      ptsConceded,
-      ptsOg,
-      ptsWins,
+      isTeamFitPos,
+      ptsGoal: calc.pts.goal,
+      ptsAssist: calc.pts.assist,
+      ptsCleanSheet: calc.pts.cs,
+      ptsConceded: calc.pts.conceded,
+      ptsTeamGoal: calc.pts.teamGoal,
+      ptsOg: calc.pts.og,
+      ptsWins: calc.pts.win,
+      ptsDraws: calc.pts.draw,
+      breakdown: calc.breakdown,
       rawScoreTotal,
       rawScore,
     };
@@ -2638,48 +2836,47 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       }
     }
 
-    // Query max raw score from mvp_week_tbl
-    let maxSql = "SELECT MAX(m.raw_score) as max_raw FROM mvp_week_tbl m";
-    let maxParams = [];
+    // Compute P95 percentile benchmark for each year from mvp_week_tbl (ratings scale: 10.0 at P95)
+    let yearlyScoresSql = `
+      SELECT YEAR(w.date) as yr, m.raw_score
+      FROM mvp_week_tbl m
+      JOIN week_tbl w ON m.week_id = w.id
+      WHERE m.raw_score > 0
+    `;
+    let yearlyScoresParams = [];
     if (year) {
-      maxSql += " JOIN week_tbl w ON m.week_id = w.id WHERE YEAR(w.date) = ?";
-      maxParams.push(year);
+      yearlyScoresSql += " AND YEAR(w.date) = ?";
+      yearlyScoresParams.push(year);
     }
-    const maxDbRes = await executeQuery(maxSql, maxParams);
-    const maxRawScore = (maxDbRes && maxDbRes[0] && maxDbRes[0].max_raw) ? parseFloat(maxDbRes[0].max_raw) : 0;
+    yearlyScoresSql += " ORDER BY YEAR(w.date) ASC, m.raw_score ASC";
 
+    const allYearRawsRes = await executeQuery(yearlyScoresSql, yearlyScoresParams);
+    const yearlyScoresMap = {};
+    if (allYearRawsRes && allYearRawsRes.length > 0) {
+      for (const r of allYearRawsRes) {
+        if (!yearlyScoresMap[r.yr]) yearlyScoresMap[r.yr] = [];
+        yearlyScoresMap[r.yr].push(parseFloat(r.raw_score));
+      }
+    }
+
+    const yearlyBenchMap = {};
+    for (const [yr, scores] of Object.entries(yearlyScoresMap)) {
+      const bench = percentileBenchmark(scores);
+      yearlyBenchMap[yr] = bench;
+      await saveYearMvpBenchmark(yr, bench);
+      await renormalizeYearRatings(yr, bench);
+      logger.info(`📌 [P95 Benchmark] Year ${yr}: ${bench.toFixed(4)} (N=${scores.length} samples, ratings re-normalized)`);
+    }
+
+    // Determine overall reference benchmark
+    const currentCalYear = year || new Date().getFullYear();
+    const maxRawScore = yearlyBenchMap[currentCalYear] || (Object.values(yearlyBenchMap)[0] || 0);
     if (maxRawScore > 0) {
       const existing = await executeQuery("SELECT id FROM template_tpl WHERE name = 'max_mvp_score'");
       if (existing && existing.length > 0) {
         await executeQuery("UPDATE template_tpl SET value = ? WHERE name = 'max_mvp_score'", [maxRawScore.toFixed(4)]);
       } else {
         await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('max_mvp_score', ?)", [maxRawScore.toFixed(4)]);
-      }
-
-      // Update normalized 1-10 rating for each year independently
-      if (year) {
-        await executeQuery(`
-          UPDATE mvp_week_tbl m
-          JOIN week_tbl w ON m.week_id = w.id
-          SET m.rating = LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2))
-          WHERE YEAR(w.date) = ? AND m.raw_score > 0
-        `, [maxRawScore, year]);
-        logger.info(`✅ [MVP Sync] Updated normalized 1-10 rating for all records in year ${year} (Benchmark: ${maxRawScore.toFixed(4)})`);
-      } else {
-        await executeQuery(`
-          UPDATE mvp_week_tbl m
-          JOIN week_tbl w ON m.week_id = w.id
-          JOIN (
-            SELECT YEAR(w2.date) as yr, MAX(m2.raw_score) as yr_max
-            FROM mvp_week_tbl m2
-            JOIN week_tbl w2 ON m2.week_id = w2.id
-            WHERE m2.raw_score > 0
-            GROUP BY YEAR(w2.date)
-          ) yr_stats ON YEAR(w.date) = yr_stats.yr
-          SET m.rating = LEAST(10.00, ROUND((m.raw_score / yr_stats.yr_max) * 10, 2))
-          WHERE m.raw_score > 0 AND yr_stats.yr_max > 0
-        `);
-        logger.info(`✅ [MVP Sync] Updated normalized 1-10 rating for all records based on each year's best benchmark`);
       }
     }
 
@@ -2693,54 +2890,6 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     } else {
       await updateYearStatCache();
     }
-
-    // Query yearly max scores and persist each year's benchmark into template_tpl ('max_mvp_score_YYYY')
-    const yearlyMaxRes = await executeQuery(`
-      SELECT YEAR(w.date) as yr, MAX(m.raw_score) as yr_max
-      FROM mvp_week_tbl m
-      JOIN week_tbl w ON m.week_id = w.id
-      WHERE m.raw_score > 0
-      GROUP BY YEAR(w.date)
-    `);
-    const yearlyMaxMap = {};
-    if (yearlyMaxRes && yearlyMaxRes.length > 0) {
-      for (const r of yearlyMaxRes) {
-        const yr = r.yr;
-        const yrMax = parseFloat(r.yr_max);
-        yearlyMaxMap[yr] = yrMax;
-        const key = `max_mvp_score_${yr}`;
-        const ex = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
-        if (ex && ex.length > 0) {
-          await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [yrMax.toFixed(4), key]);
-        } else {
-          await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, yrMax.toFixed(4)]);
-        }
-      }
-      logger.info(`📌 Saved yearly benchmarks to template_tpl: ${Object.entries(yearlyMaxMap).map(([yr, val]) => `${yr}: ${val.toFixed(4)}`).join(' | ')}`);
-    }
-
-    // Update rating in member_team_week_tbl for ALL participants of every week
-    logger.info(`\n⚙️ [MVP Sync] Updating rating in member_team_week_tbl for all participants...`);
-    for (const w of weeks) {
-      const pScores = weekScoresCache[w.id] || await calculateWeekRawMvp(w.id);
-      if (!pScores || pScores.length === 0) continue;
-      const wDate = w.date ? new Date(w.date) : new Date();
-      const wYear = wDate.getFullYear();
-      const yrBench = yearlyMaxMap[wYear] || maxRawScore;
-      if (!yrBench || yrBench <= 0) continue;
-
-      for (const p of pScores) {
-        if (!p || !p.member_id) continue;
-        const pRating = p.rawScore > 0 ? Math.min(10.0, (p.rawScore / yrBench) * 10) : 0;
-        try {
-          await executeQuery(
-            "UPDATE member_team_week_tbl SET rating = ? WHERE week_id = ? AND member_id = ?",
-            [pRating.toFixed(2), w.id, p.member_id]
-          );
-        } catch (e) { }
-      }
-    }
-    logger.info(`✅ [MVP Sync] Completed updating member_team_week_tbl ratings across ${weeks.length} weeks`);
 
     // ── Sync best MVP winner(s) of each year into hof_tbl (Hall of Fame) ──
     try {
@@ -2796,7 +2945,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         const pDate = p.date ? new Date(p.date) : null;
         const pYear = pDate ? pDate.getFullYear() : (year || new Date().getFullYear());
         const dateStr = pDate ? await getFormatDate(pDate, 'short') : '';
-        const yrBenchmark = yearlyMaxMap[pYear] || maxRawScore;
+        const yrBenchmark = yearlyBenchMap[pYear] || maxRawScore;
         const normalizedRating = yrBenchmark > 0 ? Math.min(10.0, (parseFloat(p.raw_score) / yrBenchmark) * 10) : parseFloat(p.rating || 0);
 
         topPerformances.push({
@@ -2834,11 +2983,11 @@ async function calcAndSaveMaxMvpScore(options = {}) {
 
       if (detail) {
         logger.info(`#${i + 1} [Player ${detail.name}] (${p.dateStr}) [Week ID: ${p.week_id}] (Team: ${detail.teamName}) [Position: ${detail.posCode} ${detail.posIcon}]`);
-        logger.info(`   └─ Position Category Points: Goal: +${detail.ptsGoal}, Assist: +${detail.ptsAssist}, Clean Sheet: +${detail.ptsCleanSheet}, Match Win: +${detail.ptsWins}, Goal Conceded Deduct: -${detail.ptsConceded}, Own Goal Deduct: -${detail.ptsOg}`);
-        logger.info(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Goals Against (GA): ${detail.goalsConceded}, Matches Played (M): ${detail.matches}`);
-        logger.info(`   └─ Raw MVP Score (Total): (${detail.goals} * ${detail.ptsGoal}) + (${detail.assists} * ${detail.ptsAssist}) + (${detail.cleanSheets} * ${detail.ptsCleanSheet}) + (${detail.wins} * ${detail.ptsWins}) - (${detail.goalsConceded} * ${detail.ptsConceded}) - (${detail.own_goals} * ${detail.ptsOg}) = ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)}`);
+        logger.info(`   └─ Position Category Points: Goal: +${detail.ptsGoal}, Assist: +${detail.ptsAssist}, Clean Sheet: +${detail.ptsCleanSheet}, Match Win: +${detail.ptsWins}, Match Draw: +${detail.ptsDraws}, Team Goal Bonus: +${detail.ptsTeamGoal}, Goal Conceded Deduct: -${detail.ptsConceded}, Own Goal Deduct: -${detail.ptsOg}`);
+        logger.info(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Draws (D): ${detail.draws}, Goals For (GF): ${detail.goalsScored}, Goals Against (GA): ${detail.goalsConceded}, Matches Played (M): ${detail.matches}`);
+        logger.info(`   └─ Raw MVP Score (Total): ${detail.breakdown || (detail.rawScoreTotal ? detail.rawScoreTotal.toFixed(4) : '')}`);
         logger.info(`   └─ Per-Match Raw MVP Score: ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)} / ${detail.matches} = ${detail.rawScore.toFixed(4)}`);
-        logger.info(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Year Benchmark Ref ${refBench.toFixed(4)}) * 10 = ${rating} / 10`);
+        logger.info(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Year P95 Benchmark ${refBench.toFixed(4)}) * 10 = ${rating} / 10`);
         logger.info(`   => Final MVP Rating = ${rating} / 10\n`);
       } else {
         logger.info(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
@@ -2847,7 +2996,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         logger.info(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
       }
     }
-    logger.info(`📌 Benchmark Max Raw Score Saved to DB (10.00 Ref): ${maxRawScore.toFixed(4)}`);
+    logger.info(`📌 Benchmark P95 Raw Score Saved to DB (10.00 Ref): ${maxRawScore.toFixed(4)}`);
     logger.info(`======================================================\n`);
 
     return { maxRawScore, topPerformances, weeksChecked: weeks.length, newInserted: newInsertedCount, skipped: skippedCount, year };
@@ -8268,6 +8417,10 @@ module.exports = {
   getSlipById,
   setMemberDebt,
   updateWeekTimeRange,
+  getWeekLeaderStats,
+  calculateWeekRawMvp,
+  computePlayerRawScore,
+  resolveWeekPlayerPositions,
   calcAndSaveMaxMvpScore,
   ensureMvpWeekTable,
   saveWeekMvpRecords,

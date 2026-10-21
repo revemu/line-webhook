@@ -1250,7 +1250,7 @@ const COMMAND_REGISTRY = {
         }
 
         let msg = `🏆 รายละเอียดคะแนน MVP สูงสุดอ้างอิง ${res.year ? `ปี ${res.year}` : 'ทุกสัปดาห์'}\n`;
-        msg += `📌 Reference Benchmark (10.00 คะแนน): ${res.maxRawScore.toFixed(4)}\n`;
+        msg += `📌 Reference Benchmark (P95 = 10.00 คะแนน): ${res.maxRawScore.toFixed(4)}\n`;
         msg += `📊 สรุปการซิงค์: ${res.weeksChecked} สัปดาห์ (ข้ามสัปดาห์เดิม ${res.skipped} | เพิ่มใหม่ ${res.newInserted}${reset ? ' | รีเซ็ตแล้ว' : ''})\n\n`;
         msg += `🔥 รายละเอียด Top 5 ผลงาน MVP สูงสุด:\n\n`;
 
