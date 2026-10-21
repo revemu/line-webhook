@@ -1373,7 +1373,7 @@
 				showClassicForm: false,
 				submittingGoal: false,
 				activePitchTab: 'both',
-				isManager: window.location.pathname.includes('/match'),
+				isManager: window.location.pathname.includes('/match') && !window.location.pathname.includes('/view') && !window.location.pathname.includes('/matches'),
 				autoRefresh: true,
 				refreshCountdown: 30,
 				timerInterval: null,
@@ -2463,16 +2463,23 @@
 					return false;
 				},
 				fetchCurrentUser() {
-					axios.get('/webhook/auth/me')
+					const authUrl = (this.base_url || '/webhook') + '/auth/me';
+					axios.get(authUrl)
 						.then(res => {
 							if (res.data && res.data.authenticated) {
 								this.currentUser = res.data.user;
 							} else {
-								window.location.href = '/webhook/login?redirect=' + encodeURIComponent(window.location.pathname);
+								this.currentUser = null;
+								if (this.isManager) {
+									window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
+								}
 							}
 						})
 						.catch(() => {
-							window.location.href = '/webhook/login?redirect=' + encodeURIComponent(window.location.pathname);
+							this.currentUser = null;
+							if (this.isManager) {
+								window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
+							}
 						});
 				},
 				logout() {
