@@ -106,6 +106,7 @@ class PendingTaskManager {
       text_message: task.text_message || null,
       groupId: task.groupId || task.group_id || null,
       rawGroupId: task.rawGroupId || task.raw_group_id || task.groupId || null,
+      preparedMessages: task.preparedMessages || null,
       expireMinutes,
       enqueuedAt: now,
       expiresAt

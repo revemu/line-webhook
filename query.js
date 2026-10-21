@@ -7899,7 +7899,18 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
     const taskIdKey = task.id;
     try {
       let taskMsgCount = 0;
-      if (task.type === 'command') {
+
+      // 1. If messages were pre-resolved at schedule time (Standard Approach 1), deliver directly!
+      if (task.preparedMessages && Array.isArray(task.preparedMessages) && task.preparedMessages.length > 0) {
+        logger.info(`[Scheduler] Delivering ${task.preparedMessages.length} pre-resolved message(s) for pending task '${taskIdKey}' via chat reply (instant delivery, zero re-run)...`);
+        for (const item of task.preparedMessages) {
+          if (finalMessages.length < 5) {
+            finalMessages.push(item);
+            taskMsgCount++;
+          }
+        }
+        executedTaskIds.push(taskIdKey);
+      } else if (task.type === 'command') {
         const cmdModule = require('./cmd');
         const rawCmd = (task.command || '').trim();
         const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;

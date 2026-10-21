@@ -38,13 +38,81 @@ logger.info('[SchedulerWorker] Starting background scheduler worker thread...');
 })();
 
 /**
- * Executes a single task safely with logging and push notification.
- * Supports task types: 'command' and 'text'.
+ * Evaluates and resolves a scheduled task's message payload under SYSTEM_BOT context.
+ * Standardized across all task types (command, text).
+ * If the command returns null/empty or the text resolves to empty, returns an empty array [].
+ * @param {Object} task 
+ * @param {string|null} targetGroupId 
+ * @returns {Promise<Array<Object>>} Array of LINE message objects
+ */
+async function evaluateTaskMessages(task, targetGroupId) {
+  const msgs = [];
+  const groupTag = targetGroupId ? db.getGroupTag(targetGroupId) : '[System/LogOnly]';
+
+  if (task.type === 'command') {
+    const rawCmd = (task.command || '').trim();
+    if (!rawCmd) {
+      logger.warn(`[SchedulerWorker] Command task '${task.id}' has empty command, skipping evaluation.`);
+      return msgs;
+    }
+
+    const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
+    logger.info(`[SchedulerWorker] Evaluating command: "${cleanCmd}" for ${groupTag} [mode: ${task.deliveryMode || 'push'}]`);
+
+    const botMember = {
+      id: 0,
+      line_user_id: 'SYSTEM_BOT',
+      name: 'System',
+      admin: 2,
+      debt: 0
+    };
+
+    const textMsg = (task.text_message || '').trim();
+    if (textMsg) {
+      const textMsgObj = await db.resolveScheduleTemplateText(textMsg, targetGroupId);
+      if (textMsgObj && (textMsgObj.text || textMsgObj.contents)) {
+        msgs.push(textMsgObj);
+      }
+    }
+
+    const reply = await cmd.process_cmd(cleanCmd, botMember, null, targetGroupId);
+    if (reply) {
+      if (Array.isArray(reply)) {
+        msgs.push(...reply);
+      } else {
+        msgs.push(reply);
+      }
+    }
+  } else if (task.type === 'text') {
+    const textMsg = (task.text_message || '').trim();
+    if (!textMsg) {
+      logger.warn(`[SchedulerWorker] Text task '${task.id}' has empty text_message, skipping evaluation.`);
+      return msgs;
+    }
+
+    logger.info(`[SchedulerWorker] Resolving text template for ${groupTag} [mode: ${task.deliveryMode || 'push'}]`);
+    const pushMsg = await db.resolveScheduleTemplateText(textMsg, targetGroupId);
+    if (pushMsg && (pushMsg.text || pushMsg.contents)) {
+      msgs.push(pushMsg);
+    }
+  } else {
+    logger.warn(`[SchedulerWorker] Unknown task type '${task.type}' for task '${task.id}'`);
+  }
+
+  return msgs;
+}
+
+/**
+ * Executes a single task safely with standardized content evaluation,
+ * zero redundant queueing for empty outputs, and instant chat reply without re-running.
  * @param {Object} task 
  * @param {string} triggerSource 
  */
 async function runTask(task, triggerSource = 'schedule') {
   const isReplyOnChat = task.deliveryMode === 'reply_on_chat';
+  const isLogOnly = task.deliveryMode === 'log_only';
+  const now = new Date();
+
   try {
     let targetGroupId = task.groupId || null;
 
@@ -62,13 +130,45 @@ async function runTask(task, triggerSource = 'schedule') {
       targetGroupId = await db.resolveLineGroupId(targetGroupId);
     }
 
+    if (!isLogOnly && !targetGroupId) {
+      logger.warn(`[SchedulerWorker] Execution aborted for task '${task.id}': No target groupId available`);
+      return;
+    }
+
+    logger.info(`[SchedulerWorker] Starting execution of task '${task.id}' (${task.name}) [type: ${task.type}, source: ${triggerSource}, mode: ${task.deliveryMode || 'push'}]`);
+
+    // Standard Content Resolution Phase:
+    const msgs = await evaluateTaskMessages(task, targetGroupId);
+
+    // Standard Empty-Content Rule:
+    // If a task produces no messages (e.g. no debt, empty condition, no-op),
+    // complete it immediately without queueing or pushing.
+    if (!msgs || msgs.length === 0) {
+      logger.info(`[SchedulerWorker] Task '${task.id}' (${task.name}) evaluated: No messages to deliver (empty output). Completed immediately without action.`);
+      await taskRegistry.markTaskExecuted(task.id, now);
+      if (parentPort) {
+        parentPort.postMessage({
+          type: 'TASK_COMPLETED',
+          taskId: task.id,
+          success: true,
+          timestamp: now.toISOString()
+        });
+      }
+      return;
+    }
+
+    // Standard Delivery Phase when messages exist:
     if (isReplyOnChat) {
+      // Approach 1 (Pre-resolved Messages):
+      // Enqueue with pre-generated messages so chat reply delivers immediately with ZERO duplicate command execution!
+      logger.info(`[SchedulerWorker] Enqueueing task '${task.id}' (${msgs.length} prepared message(s)) for chat reply...`);
       if (parentPort) {
         parentPort.postMessage({
           type: 'ENQUEUE_PENDING_TASK',
           task: {
             ...task,
             groupId: targetGroupId || task.groupId,
+            preparedMessages: msgs,
             expiresAt: task.calculatedExpiresAt || task.expiresAt || undefined
           }
         });
@@ -76,92 +176,16 @@ async function runTask(task, triggerSource = 'schedule') {
       return;
     }
 
-    logger.info(`[SchedulerWorker] Starting execution of task '${task.id}' (${task.name}) [type: ${task.type}, source: ${triggerSource}]`);
-    const now = new Date();
-    const isLogOnly = task.deliveryMode === 'log_only';
-
-    if (!isLogOnly && !targetGroupId) {
-      logger.warn(`[SchedulerWorker] Execution aborted for task '${task.id}': No target groupId available`);
-      return;
-    }
-
     let pushResult = null;
+    const groupTag = targetGroupId ? db.getGroupTag(targetGroupId) : '[System/LogOnly]';
 
-    if (task.type === 'command') {
-      const rawCmd = (task.command || '').trim();
-      if (!rawCmd) {
-        logger.warn(`[SchedulerWorker] Command task '${task.id}' has empty command, skipping.`);
-        return;
-      }
-
-      const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
-      const groupTag = targetGroupId ? db.getGroupTag(targetGroupId) : '[System/LogOnly]';
-      logger.info(`[SchedulerWorker] Running command: "${cleanCmd}" for ${groupTag} [mode: ${task.deliveryMode || 'push'}]`);
-
-      const botMember = {
-        id: 0,
-        line_user_id: 'SYSTEM_BOT',
-        name: 'System',
-        admin: 2,
-        debt: 0
-      };
-
-      const reply = await cmd.process_cmd(cleanCmd, botMember, null, targetGroupId);
-
-      const msgs = [];
-      const textMsg = (task.text_message || '').trim();
-      if (textMsg) {
-        const textMsgObj = await db.resolveScheduleTemplateText(textMsg, targetGroupId);
-        if (textMsgObj && (textMsgObj.text || textMsgObj.contents)) {
-          msgs.push(textMsgObj);
-        }
-      }
-
-      if (reply) {
-        if (Array.isArray(reply)) {
-          msgs.push(...reply);
-        } else {
-          msgs.push(reply);
-        }
-      }
-
-      if (isLogOnly) {
-        if (msgs.length > 0) {
-          const logText = msgs.map(m => m.text || JSON.stringify(m)).join('\n');
-          logger.info(`[SchedulerWorker] [LOG_ONLY] Command '${cleanCmd}' output:\n${logText}`);
-        } else {
-          logger.info(`[SchedulerWorker] [LOG_ONLY] Command '${cleanCmd}' executed with no output.`);
-        }
-        pushResult = true;
-      } else {
-        if (msgs.length > 0) {
-          logger.info(`[SchedulerWorker] Pushing command response (${msgs.length} message(s)) to group:${groupTag}...`);
-          pushResult = await lineClient.pushMessage(targetGroupId, msgs);
-        } else {
-          logger.info(`[SchedulerWorker] Command '${cleanCmd}' completed without reply message.`);
-          pushResult = true;
-        }
-      }
-    } else if (task.type === 'text') {
-      const textMsg = (task.text_message || '').trim();
-      if (!textMsg) {
-        logger.warn(`[SchedulerWorker] Text task '${task.id}' has empty text_message, skipping.`);
-        return;
-      }
-
-      const groupTag = targetGroupId ? db.getGroupTag(targetGroupId) : '[System/LogOnly]';
-      logger.info(`[SchedulerWorker] Resolving text task for ${groupTag} [mode: ${task.deliveryMode || 'push'}]`);
-      const pushMsg = await db.resolveScheduleTemplateText(textMsg, targetGroupId);
-
-      if (isLogOnly) {
-        logger.info(`[SchedulerWorker] [LOG_ONLY] Text task output:\n${pushMsg ? (pushMsg.text || JSON.stringify(pushMsg)) : textMsg}`);
-        pushResult = true;
-      } else {
-        pushResult = await lineClient.pushMessage(targetGroupId, [pushMsg]);
-      }
+    if (isLogOnly) {
+      const logText = msgs.map(m => m.text || JSON.stringify(m)).join('\n');
+      logger.info(`[SchedulerWorker] [LOG_ONLY] Task '${task.id}' output:\n${logText}`);
+      pushResult = true;
     } else {
-      logger.warn(`[SchedulerWorker] Unknown task type '${task.type}' for task '${task.id}'`);
-      return;
+      logger.info(`[SchedulerWorker] Pushing response (${msgs.length} message(s)) to group:${groupTag}...`);
+      pushResult = await lineClient.pushMessage(targetGroupId, msgs);
     }
 
     await taskRegistry.markTaskExecuted(task.id, now);
