@@ -50,7 +50,7 @@
 					<div class="login-form-group">
 						<label class="login-label" for="username">ชื่อผู้ใช้ (Username)</label>
 						<input id="username" type="text" v-model="username" class="login-input"
-							placeholder="admin หรือ root" required autocomplete="username" autofocus>
+							placeholder="กรอกชื่อผู้ใช้" required autocomplete="username" autofocus>
 					</div>
 
 					<div class="login-form-group">
@@ -64,12 +64,6 @@
 						<span v-else>🔐 เข้าสู่ระบบ</span>
 					</button>
 				</form>
-
-				<div class="login-footer-info">
-					<div style="font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">สิทธิ์การใช้งาน:</div>
-					<div>• <strong>admin:</strong> จัดการผลการแข่งขันและทำประตู (Match Manager)</div>
-					<div>• <strong>root:</strong> สิทธิ์สูงสุด สามารถจัดการตำแหน่งผู้เล่น (Position Manager) และการแข่งขันได้</div>
-				</div>
 			</div>
 		</div>
 	</div>
@@ -90,13 +84,8 @@
 			mounted() {
 				// Load theme preference
 				const savedTheme = localStorage.getItem('theme');
-				if (savedTheme === 'light') {
-					this.isDarkTheme = false;
-					document.documentElement.removeAttribute('data-theme');
-				} else {
-					this.isDarkTheme = true;
-					document.documentElement.setAttribute('data-theme', 'dark');
-				}
+				this.isDarkTheme = savedTheme ? (savedTheme === 'dark') : true;
+				this.applyTheme(this.isDarkTheme);
 
 				// Check if already logged in
 				axios.get('/webhook/auth/me')
@@ -164,11 +153,6 @@
 						localStorage.setItem('theme', 'light');
 					}
 				}
-			},
-			mounted() {
-				const savedTheme = localStorage.getItem('theme');
-				this.isDarkTheme = savedTheme ? (savedTheme === 'dark') : true;
-				this.applyTheme(this.isDarkTheme);
 			}
 		});
 	</script>
