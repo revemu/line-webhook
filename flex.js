@@ -946,7 +946,7 @@ function buildLiveFlex(matchInfo, theme) {
     alignItems: 'center',
     action: {
       type: 'uri',
-      label: 'ดูสดผ่านเว็บ',
+      label: 'ดูผลการแข่งขันผ่านเว็บ',
       uri: targetWebUrl
     },
     contents: [
@@ -958,7 +958,7 @@ function buildLiveFlex(matchInfo, theme) {
       },
       {
         type: 'text',
-        text: 'ดูสดผ่านเว็บ: boxch2.kdnstream.com/webhook/view',
+        text: 'ดูผลการแข่งขันผ่านเว็บ',
         size: 'xs',
         color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
         weight: 'bold',
@@ -1352,21 +1352,7 @@ function buildLiveFlex(matchInfo, theme) {
       paddingTop: 'none',
       spacing: 'xs',
       contents: [
-        makeBoxUriButton('🌐 ดูถ่ายทอดสด / ผลการแข่งขันผ่านเว็บ', targetWebUrl, '#0284c7'),
-        {
-          type: 'text',
-          text: targetWebUrl,
-          size: 'xxs',
-          color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
-          align: 'center',
-          decoration: 'underline',
-          margin: 'xs',
-          action: {
-            type: 'uri',
-            label: 'Web Link',
-            uri: targetWebUrl
-          }
-        }
+        makeBoxUriButton('🌐 ดูผลการแข่งขันผ่านเว็บ', targetWebUrl, '#0284c7')
       ]
     }
   };

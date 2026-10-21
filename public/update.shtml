@@ -1454,17 +1454,8 @@
 				orderedMatches() {
 					if (!this.all_match) return [];
 					let matches = Object.values(this.all_match);
-					// Sort by match_num descending
-					matches.sort((a, b) => b.match_num - a.match_num);
-
-					if (this.selectedMatchIndex && this.all_match[this.selectedMatchIndex]) {
-						const selectedMatch = this.all_match[this.selectedMatchIndex];
-						// Remove selected match from its current position
-						matches = matches.filter(m => m.id !== selectedMatch.id);
-						// Add to front
-						matches.unshift(selectedMatch);
-					}
-					return matches;
+					// Sort by match_num ascending (น้อยไปมาก)
+					return matches.sort((a, b) => a.match_num - b.match_num);
 				},
 				availableTeamsForPicker() {
 					if (!this.info.team_week) return [];
@@ -1481,7 +1472,7 @@
 					return Object.keys(this.all_match).map(key => ({
 						index: key,
 						match: this.all_match[key]
-					})).sort((a, b) => b.match.match_num - a.match.match_num);
+					})).sort((a, b) => a.match.match_num - b.match.match_num);
 				},
 
 				// Players for currently selected match

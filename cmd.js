@@ -1224,7 +1224,7 @@ const COMMAND_REGISTRY = {
         const webLiveUrl = (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
         return { 
             type: 'flex', 
-            altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''} | ดูสดผ่านเว็บ: ${webLiveUrl}`, 
+            altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''} | ดูผลการแข่งขันผ่านเว็บ`, 
             contents: flex.buildLiveFlex(matchInfo, theme) 
         };
     },
