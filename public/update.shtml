@@ -8,7 +8,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="/webhook/style.css?v=0.5.2">
+	<link rel="stylesheet" href="/webhook/style.css?v=0.6.2">
 	<script>
 		(function () {
 			var saved = localStorage.getItem('theme');
@@ -25,7 +25,7 @@
 </head>
 
 <body>
-	<div id="soccer-match" class="container">
+	<div id="soccer-match" class="container" :class="{ 'is-fullscreen': isFullscreen }">
 
 		<!-- Toast Notification -->
 		<transition name="fade">
@@ -39,6 +39,13 @@
 			:title="isDarkTheme ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
 			<span v-if="isDarkTheme">☀️</span>
 			<span v-else>🌙</span>
+		</div>
+
+		<!-- Floating Fullscreen Toggle Button -->
+		<div class="fullscreen-toggle" @click="toggleFullscreen"
+			:title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
+			<span v-if="isFullscreen">🗗</span>
+			<span v-else>⛶</span>
 		</div>
 
 		<div class="header" style="margin-top: 0.5rem;">
@@ -231,6 +238,9 @@
 						{{ getMatchStatusText(currentSelectedMatch) }}
 					</span>
 					<span v-if="activePitchTab !== 'both'" @click="activePitchTab = 'both'" class="scoreboard-dual-toggle" style="cursor: pointer;" title="คลิกเพื่อกลับไปดูสนามคู่">⚔️ ดูสนามคู่</span>
+					<span @click="toggleFullscreen" class="scoreboard-dual-toggle scoreboard-fs-toggle" style="cursor: pointer;" :title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
+						{{ isFullscreen ? '🗗 ออกจากเต็มจอ' : '⛶ เต็มจอ' }}
+					</span>
 				</div>
 
 				<!-- Main Single Row: Match Stepper + Scoreboard Dropdown Selector -->
@@ -312,6 +322,9 @@
 						</button>
 						<button type="button" class="btn-scoreboard-tool" @click="toggleClassicForm()" title="สลับฟอร์ม">
 							{{ showClassicForm ? '✕ ซ่อน' : '📋 ฟอร์ม' }}
+						</button>
+						<button type="button" class="btn-scoreboard-tool btn-fs-tool" :class="{ 'is-active': isFullscreen }" @click="toggleFullscreen" :title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
+							{{ isFullscreen ? '🗗 ปกติ' : '⛶ เต็มจอ' }}
 						</button>
 						<button v-if="isLastMatchSelected" type="button" class="btn-scoreboard-tool btn-delete" @click="promptDeleteMatch(currentSelectedMatch)" title="ลบแมตช์สุดท้าย">
 							🗑️ Match {{ currentSelectedMatch.match_num }}
@@ -1319,6 +1332,7 @@
 		new Vue({
 			el: '#soccer-match',
 			data: {
+				isFullscreen: false,
 				newTodoSelect: '',
 				isLoan: false,
 				matchCount: 0,
@@ -1600,6 +1614,20 @@
 				const savedTheme = localStorage.getItem('theme');
 				this.isDarkTheme = savedTheme ? (savedTheme === 'dark') : true;
 				this.applyTheme(this.isDarkTheme);
+
+				// Fullscreen change listener to sync state (e.g. Esc key or F11)
+				const onFullscreenChange = () => {
+					this.isFullscreen = !!(
+						document.fullscreenElement ||
+						document.webkitFullscreenElement ||
+						document.mozFullScreenElement ||
+						document.msFullscreenElement
+					);
+				};
+				document.addEventListener('fullscreenchange', onFullscreenChange);
+				document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+				document.addEventListener('mozfullscreenchange', onFullscreenChange);
+				document.addEventListener('MSFullscreenChange', onFullscreenChange);
 
 				this.fetchCurrentUser();
 				const urlParams = new URLSearchParams(window.location.search);
@@ -2356,6 +2384,48 @@
 						return this.isDarkTheme ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)';
 					}
 					return this.isDarkTheme ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.4)';
+				},
+				toggleFullscreen() {
+					const isCurrentlyFullscreen = !!(
+						document.fullscreenElement ||
+						document.webkitFullscreenElement ||
+						document.mozFullScreenElement ||
+						document.msFullscreenElement ||
+						this.isFullscreen
+					);
+
+					if (!isCurrentlyFullscreen) {
+						const elem = document.documentElement;
+						if (elem.requestFullscreen) {
+							elem.requestFullscreen().catch(err => {
+								console.warn('Fullscreen request failed:', err);
+								this.isFullscreen = true;
+							});
+						} else if (elem.webkitRequestFullscreen) {
+							elem.webkitRequestFullscreen();
+						} else if (elem.mozRequestFullScreen) {
+							elem.mozRequestFullScreen();
+						} else if (elem.msRequestFullscreen) {
+							elem.msRequestFullscreen();
+						} else {
+							this.isFullscreen = true;
+						}
+					} else {
+						if (document.exitFullscreen) {
+							document.exitFullscreen().catch(err => {
+								console.warn('Exit fullscreen failed:', err);
+								this.isFullscreen = false;
+							});
+						} else if (document.webkitExitFullscreen) {
+							document.webkitExitFullscreen();
+						} else if (document.mozCancelFullScreen) {
+							document.mozCancelFullScreen();
+						} else if (document.msExitFullscreen) {
+							document.msExitFullscreen();
+						} else {
+							this.isFullscreen = false;
+						}
+					}
 				},
 				toggleTheme() {
 					this.isDarkTheme = !this.isDarkTheme;

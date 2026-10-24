@@ -2741,6 +2741,65 @@ select.form-control {
 
 #soccer-match.container {
     max-width: 1180px;
+    transition: max-width 0.25s ease, padding 0.25s ease;
+}
+
+/* Fullscreen Mode for Soccer Match (Match Manager & Viewer) */
+#soccer-match.container.is-fullscreen,
+:fullscreen #soccer-match.container,
+:-webkit-full-screen #soccer-match.container,
+:-moz-full-screen #soccer-match.container {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+}
+
+#soccer-match.is-fullscreen .match-pitch {
+    min-height: 480px;
+    height: 520px;
+}
+
+#soccer-match.is-fullscreen .match-pitch-vertical {
+    min-height: 460px;
+}
+
+#soccer-match.is-fullscreen .pitch-player-avatar-circle {
+    width: 46px;
+    height: 46px;
+}
+
+#soccer-match.is-fullscreen .btn-quick-goal,
+#soccer-match.is-fullscreen .btn-quick-assist,
+#soccer-match.is-fullscreen .btn-quick-og {
+    padding: 3px 8px;
+    font-size: 0.82rem;
+}
+
+#soccer-match.is-fullscreen .scoreboard-digits {
+    font-size: 2.25rem;
+}
+
+.scoreboard-fs-toggle {
+    margin-left: 0.35rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 0.72rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.scoreboard-fs-toggle:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.05);
+}
+
+.btn-scoreboard-tool.btn-fs-tool.is-active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
 }
 
 #position-app.container {
