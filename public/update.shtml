@@ -220,14 +220,16 @@
 			</div>
 		</div>
 
-		<!-- ==================== MAIN STADIUM & PITCH CARD ==================== -->
-		<div :class="{ 'pitch-modal-backdrop': isPitchModal }" @click.self="closePitchModal">
-			<div class="match-stadium-card" :class="{ 'pitch-modal-card': isPitchModal }" v-if="currentSelectedMatch">
+		<!-- Backdrop for Modal Pitch Mode -->
+		<div class="pitch-modal-backdrop" v-if="isPitchModal" @click="closePitchModal"></div>
 
-				<!-- Modal Close Button (When in Modal Mode) -->
-				<button v-if="isPitchModal" type="button" class="btn-pitch-modal-close" @click="closePitchModal" title="ปิดหน้าต่างขยายสนาม (Esc)">
-					<span>✕ ปิด</span>
-				</button>
+		<!-- ==================== MAIN STADIUM & PITCH CARD ==================== -->
+		<div class="match-stadium-card" :class="{ 'pitch-modal-card': isPitchModal }" v-if="currentSelectedMatch">
+
+			<!-- Modal Close Button (When in Modal Mode) -->
+			<button v-if="isPitchModal" type="button" class="btn-pitch-modal-close" @click="closePitchModal" title="ปิดหน้าต่างขยายสนาม (Esc)">
+				<span>✕ ปิด</span>
+			</button>
 
 			<!-- Stadium Live Scoreboard (Integrated Match Selector) -->
 			<div class="stadium-scoreboard">
@@ -238,7 +240,7 @@
 						{{ getMatchStatusText(currentSelectedMatch) }}
 					</span>
 					<span v-if="activePitchTab !== 'both'" @click="activePitchTab = 'both'" class="scoreboard-dual-toggle" style="cursor: pointer;" title="คลิกเพื่อกลับไปดูสนามคู่">⚔️ ดูสนามคู่</span>
-					<span @click="openPitchModal" class="scoreboard-dual-toggle scoreboard-fs-toggle" style="cursor: pointer;" title="ขยายผังสนามแบบหน้าต่าง Modal ขนาดใหญ่">
+					<span v-if="!isPitchModal" @click="openPitchModal" class="scoreboard-dual-toggle scoreboard-fs-toggle" style="cursor: pointer;" title="ขยายผังสนามแบบหน้าต่าง Modal ขนาดใหญ่">
 						🔍 ขยายสนาม
 					</span>
 				</div>
@@ -1201,7 +1203,6 @@
 				</div>
 			</div>
 
-			</div>
 		</div>
 
 		<!-- Empty State when no matches exist in this week -->

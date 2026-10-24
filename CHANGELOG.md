@@ -6,6 +6,12 @@
 
 ## [0.6.2] - 2026-10-24
 
+### Fixed
+- **Restore Pitch Rendering & Decouple Modal Backdrop (`public/update.shtml`, `public/style.css`)**:
+  - แก้ไขข้อผิดพลาดโครงสร้างแท็ก Vue Template (`v-if` / `v-else`) ที่การครอบ `div` ซ้อนทับการ์ดสนามทำให้บล็อก `<div class="card" v-else>` ขาดคู่ `v-if` ส่งผลให้ Vue runtime compiler ทำงานล้มเหลวและสนามแข่งขันหายไปจากหน้าจอ
+  - แยกแท็ก `<div class="pitch-modal-backdrop" v-if="isPitchModal" @click="closePitchModal"></div>` ออกมาเป็นอิสระ และคงลำดับ Sibling ของ `<div class="match-stadium-card" v-if="currentSelectedMatch">` คู่กับ `<div class="card" v-else>` อย่างถูกต้อง
+  - ปรับการจัดตำแหน่งของการ์ดสนามในโหมด Modal เป็น `position: fixed` อยู่กึ่งกลางหน้าจอ (`top: 50%`, `left: 50%`, `transform: translate(-50%, -50%)`) พร้อมกำหนด `z-index: 9999` ลอยอยู่เหนือ Backdrop (`z-index: 9990`) ช่วยให้แสดงผลสนามได้อย่างถูกต้องทั้งในมุมมองปกติและโหมดขยายสนาม
+
 ### Added
 - **Expanded Modal Stadium Pitch (โหมดขยายผังสนามแบบหน้าต่าง Modal ขนาดใหญ่ โดยไม่ใช้ F11 เพื่อเลือกกดปุ่มประตูได้ง่าย)**:
   - **เปิดผังสนามเป็นหน้าต่าง Modal Overlay ขนาดใหญ่ (`public/update.shtml`, `public/style.css`)**:

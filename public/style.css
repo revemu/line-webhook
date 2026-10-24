@@ -5475,7 +5475,7 @@ select.form-control {
     height: 100vh !important;
     background: rgba(0, 0, 0, 0.75) !important;
     backdrop-filter: blur(5px) !important;
-    z-index: 9999 !important;
+    z-index: 9990 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -5495,10 +5495,15 @@ body.pitch-modal-open {
 
 /* Modal Content Card */
 .match-stadium-card.pitch-modal-card {
-    width: 98vw !important;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 96vw !important;
     max-width: 1400px !important;
-    height: 94vh !important;
-    max-height: 94vh !important;
+    height: 92vh !important;
+    max-height: 92vh !important;
+    z-index: 9999 !important;
     background: var(--card-bg) !important;
     border: 1px solid var(--border-color) !important;
     border-radius: 1.25rem !important;
@@ -5506,8 +5511,7 @@ body.pitch-modal-open {
     margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6) !important;
-    position: relative !important;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7) !important;
     overflow-y: auto !important;
     box-sizing: border-box !important;
     animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
