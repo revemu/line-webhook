@@ -42,9 +42,9 @@
 		</div>
 
 		<!-- Floating Fullscreen Toggle Button -->
-		<div class="fullscreen-toggle" @click="toggleFullscreen"
+		<div class="fullscreen-toggle" @click="togglePitchFullscreen"
 			:title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
-			<span v-if="isFullscreen">🗗</span>
+			<span v-if="isPitchFullscreen">🗗</span>
 			<span v-else>⛶</span>
 		</div>
 
@@ -227,7 +227,12 @@
 		</div>
 
 		<!-- ==================== MAIN STADIUM & PITCH CARD ==================== -->
-		<div class="match-stadium-card" v-if="currentSelectedMatch">
+		<div class="match-stadium-card" :class="{ 'pitch-fullscreen': isPitchFullscreen }" v-if="currentSelectedMatch">
+
+			<!-- Floating Exit Button when in Fullscreen Pitch -->
+			<button v-if="isPitchFullscreen" type="button" class="btn-pitch-fs-exit" @click="togglePitchFullscreen" title="ย่อสนามกลับ (Esc)">
+				<span>🗗 ย่อสนาม (Esc)</span>
+			</button>
 
 			<!-- Stadium Live Scoreboard (Integrated Match Selector) -->
 			<div class="stadium-scoreboard">
@@ -238,8 +243,8 @@
 						{{ getMatchStatusText(currentSelectedMatch) }}
 					</span>
 					<span v-if="activePitchTab !== 'both'" @click="activePitchTab = 'both'" class="scoreboard-dual-toggle" style="cursor: pointer;" title="คลิกเพื่อกลับไปดูสนามคู่">⚔️ ดูสนามคู่</span>
-					<span @click="toggleFullscreen" class="scoreboard-dual-toggle scoreboard-fs-toggle" style="cursor: pointer;" :title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
-						{{ isFullscreen ? '🗗 ออกจากเต็มจอ' : '⛶ เต็มจอ' }}
+					<span @click="togglePitchFullscreen" class="scoreboard-dual-toggle scoreboard-fs-toggle" style="cursor: pointer;" :title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
+						{{ isPitchFullscreen ? '🗗 ย่อสนาม' : '⛶ ขยายสนามเต็มจอ' }}
 					</span>
 				</div>
 
@@ -323,8 +328,8 @@
 						<button type="button" class="btn-scoreboard-tool" @click="toggleClassicForm()" title="สลับฟอร์ม">
 							{{ showClassicForm ? '✕ ซ่อน' : '📋 ฟอร์ม' }}
 						</button>
-						<button type="button" class="btn-scoreboard-tool btn-fs-tool" :class="{ 'is-active': isFullscreen }" @click="toggleFullscreen" :title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
-							{{ isFullscreen ? '🗗 ปกติ' : '⛶ เต็มจอ' }}
+						<button type="button" class="btn-scoreboard-tool btn-fs-tool" :class="{ 'is-active': isPitchFullscreen }" @click="togglePitchFullscreen" :title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
+							{{ isPitchFullscreen ? '🗗 ย่อสนาม' : '⛶ ขยายสนามเต็มจอ' }}
 						</button>
 						<button v-if="isLastMatchSelected" type="button" class="btn-scoreboard-tool btn-delete" @click="promptDeleteMatch(currentSelectedMatch)" title="ลบแมตช์สุดท้าย">
 							🗑️ Match {{ currentSelectedMatch.match_num }}
@@ -1332,7 +1337,7 @@
 		new Vue({
 			el: '#soccer-match',
 			data: {
-				isFullscreen: false,
+				isPitchFullscreen: false, isFullscreen: false,
 				newTodoSelect: '',
 				isLoan: false,
 				matchCount: 0,
@@ -1615,14 +1620,26 @@
 				this.isDarkTheme = savedTheme ? (savedTheme === 'dark') : true;
 				this.applyTheme(this.isDarkTheme);
 
-				// Fullscreen change listener to sync state (e.g. Esc key or F11)
+				// Escape key listener for fullscreen pitch
+				window.addEventListener('keydown', (e) => {
+					if (e.key === 'Escape' && this.isPitchFullscreen) {
+						this.togglePitchFullscreen();
+					}
+				});
+
+				// Fullscreen change listener to sync state
 				const onFullscreenChange = () => {
-					this.isFullscreen = !!(
+					const hasFsElem = !!(
 						document.fullscreenElement ||
 						document.webkitFullscreenElement ||
 						document.mozFullScreenElement ||
 						document.msFullscreenElement
 					);
+					this.isFullscreen = hasFsElem;
+					if (!hasFsElem && this.isPitchFullscreen) {
+						this.isPitchFullscreen = false;
+						document.body.classList.remove('pitch-fullscreen-active');
+					}
 				};
 				document.addEventListener('fullscreenchange', onFullscreenChange);
 				document.addEventListener('webkitfullscreenchange', onFullscreenChange);
@@ -2385,47 +2402,29 @@
 					}
 					return this.isDarkTheme ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.4)';
 				},
-				toggleFullscreen() {
-					const isCurrentlyFullscreen = !!(
-						document.fullscreenElement ||
-						document.webkitFullscreenElement ||
-						document.mozFullScreenElement ||
-						document.msFullscreenElement ||
-						this.isFullscreen
-					);
-
-					if (!isCurrentlyFullscreen) {
+				togglePitchFullscreen() {
+					this.isPitchFullscreen = !this.isPitchFullscreen;
+					if (this.isPitchFullscreen) {
+						document.body.classList.add('pitch-fullscreen-active');
 						const elem = document.documentElement;
 						if (elem.requestFullscreen) {
-							elem.requestFullscreen().catch(err => {
-								console.warn('Fullscreen request failed:', err);
-								this.isFullscreen = true;
-							});
+							elem.requestFullscreen().catch(() => {});
 						} else if (elem.webkitRequestFullscreen) {
 							elem.webkitRequestFullscreen();
-						} else if (elem.mozRequestFullScreen) {
-							elem.mozRequestFullScreen();
-						} else if (elem.msRequestFullscreen) {
-							elem.msRequestFullscreen();
-						} else {
-							this.isFullscreen = true;
 						}
 					} else {
-						if (document.exitFullscreen) {
-							document.exitFullscreen().catch(err => {
-								console.warn('Exit fullscreen failed:', err);
-								this.isFullscreen = false;
-							});
-						} else if (document.webkitExitFullscreen) {
-							document.webkitExitFullscreen();
-						} else if (document.mozCancelFullScreen) {
-							document.mozCancelFullScreen();
-						} else if (document.msExitFullscreen) {
-							document.msExitFullscreen();
-						} else {
-							this.isFullscreen = false;
+						document.body.classList.remove('pitch-fullscreen-active');
+						if (document.fullscreenElement || document.webkitFullscreenElement) {
+							if (document.exitFullscreen) {
+								document.exitFullscreen().catch(() => {});
+							} else if (document.webkitExitFullscreen) {
+								document.webkitExitFullscreen();
+							}
 						}
 					}
+				},
+				toggleFullscreen() {
+					this.togglePitchFullscreen();
 				},
 				toggleTheme() {
 					this.isDarkTheme = !this.isDarkTheme;
