@@ -5569,13 +5569,123 @@ body.pitch-modal-open {
 }
 
 .match-stadium-card.pitch-modal-card .match-pitch {
-    min-width: 720px !important;
-    min-height: 440px !important;
+    min-width: 860px !important;
+    min-height: 460px !important;
     height: auto !important;
     width: 100% !important;
     border-width: 3px !important;
     border-radius: 0.85rem !important;
     display: flex !important;
+}
+
+/* Dual Pitch Tactical Columns & Nodes in Modal (Spacious, perfectly aligned, no button overlapping) */
+.match-stadium-card.pitch-modal-card .pitch-team-half {
+    min-width: 420px !important;
+    padding: 0.5rem 0.6rem 0.4rem 0.6rem !important;
+}
+
+.match-stadium-card.pitch-modal-card .pitch-team-half.team-a {
+    padding-left: 1.25rem !important;
+}
+
+.match-stadium-card.pitch-modal-card .pitch-team-half.team-b {
+    padding-right: 1.25rem !important;
+}
+
+.match-stadium-card.pitch-modal-card .pitch-half-formation.three-cols {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-around !important;
+    align-items: stretch !important;
+    gap: 0.4rem !important;
+    width: 100% !important;
+}
+
+.match-stadium-card.pitch-modal-card .pitch-form-col.col-tactical-half {
+    flex: 1 !important;
+    min-width: 110px !important;
+    max-width: 138px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    padding: 0.2rem 0.15rem !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+}
+
+.match-stadium-card.pitch-modal-card .pitch-form-col.col-tactical-half .pitch-player-node {
+    width: 100% !important;
+    max-width: 122px !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    position: relative !important;
+    overflow: visible !important;
+}
+
+/* Dual Pitch Specific Player Name Pill in Modal */
+.match-stadium-card.pitch-modal-card .match-pitch .pitch-name-pill {
+    max-width: 112px !important;
+    padding: 2px 6px 2px 4px !important;
+    gap: 3px !important;
+}
+
+.match-stadium-card.pitch-modal-card .match-pitch .pitch-pos-label {
+    font-size: 0.68rem !important;
+    padding: 1.5px 4px !important;
+}
+
+.match-stadium-card.pitch-modal-card .match-pitch .pitch-name-text {
+    font-size: 0.78rem !important;
+    max-width: 74px !important;
+}
+
+/* Dual Pitch Action Buttons in Modal (Compact, touch-optimized, perfectly separated without collision) */
+.match-stadium-card.pitch-modal-card .match-pitch .pitch-player-actions {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    margin-top: 3px !important;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+    max-width: 100% !important;
+    width: auto !important;
+}
+
+.match-stadium-card.pitch-modal-card .match-pitch .btn-quick-goal,
+.match-stadium-card.pitch-modal-card .match-pitch .btn-quick-assist {
+    padding: 4px 7px !important;
+    font-size: 0.85rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    border-radius: 999px !important;
+    min-width: 32px !important;
+    height: 28px !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4) !important;
+    flex-shrink: 0 !important;
+}
+
+.match-stadium-card.pitch-modal-card .match-pitch .btn-quick-og {
+    padding: 4px 6px !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    border-radius: 999px !important;
+    min-width: 28px !important;
+    height: 28px !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35) !important;
+    flex-shrink: 0 !important;
 }
 
 /* Vertical Single Team Pitch in Modal (Top forwards & bottom defenders never cut off) */
@@ -5716,5 +5826,53 @@ body.pitch-modal-open {
     .match-stadium-card.pitch-modal-card .btn-quick-og {
         padding: 6px 8px !important;
         font-size: 0.8rem !important;
+    }
+
+    /* Dual Pitch Field & Buttons on Mobile Modal (Zero Overlapping, Easy Tap) */
+    .match-stadium-card.pitch-modal-card .match-pitch {
+        min-width: 800px !important;
+        min-height: 440px !important;
+    }
+    .match-stadium-card.pitch-modal-card .pitch-team-half {
+        min-width: 390px !important;
+    }
+    .match-stadium-card.pitch-modal-card .pitch-form-col.col-tactical-half {
+        min-width: 102px !important;
+        max-width: 126px !important;
+    }
+    .match-stadium-card.pitch-modal-card .pitch-form-col.col-tactical-half .pitch-player-node {
+        max-width: 114px !important;
+    }
+    .match-stadium-card.pitch-modal-card .match-pitch .pitch-player-avatar-circle {
+        width: 44px !important;
+        height: 44px !important;
+    }
+    .match-stadium-card.pitch-modal-card .match-pitch .pitch-player-avatar-circle .avatar-char {
+        font-size: 1.15rem !important;
+    }
+    .match-stadium-card.pitch-modal-card .match-pitch .pitch-name-pill {
+        max-width: 102px !important;
+        padding: 1.5px 5px 1.5px 3px !important;
+    }
+    .match-stadium-card.pitch-modal-card .match-pitch .pitch-name-text {
+        font-size: 0.74rem !important;
+        max-width: 66px !important;
+    }
+    .match-stadium-card.pitch-modal-card .match-pitch .pitch-player-actions {
+        gap: 2.5px !important;
+        margin-top: 2px !important;
+    }
+    .match-stadium-card.pitch-modal-card .match-pitch .btn-quick-goal,
+    .match-stadium-card.pitch-modal-card .match-pitch .btn-quick-assist {
+        padding: 3px 6px !important;
+        font-size: 0.8rem !important;
+        min-width: 29px !important;
+        height: 26px !important;
+    }
+    .match-stadium-card.pitch-modal-card .match-pitch .btn-quick-og {
+        padding: 3px 5px !important;
+        font-size: 0.68rem !important;
+        min-width: 25px !important;
+        height: 26px !important;
     }
 }
