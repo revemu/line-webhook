@@ -7,6 +7,11 @@
 ## [0.6.2] - 2026-10-24
 
 ### Fixed
+- **Restore Dual Pitch Visibility & Fix Single-Team Pitch Clipping in Modal (`public/style.css`, `public/update.shtml`)**:
+  - **แก้ไขปัญหาผังสนามคู่ไม่แสดงผลในโหมด Modal บนมือถือ**: เปลี่ยนเลย์เอาต์ `.match-pitch-wrapper` จากเดิมที่ใช้ Flexbox พร้อม `overflow: hidden` (ซึ่งทำให้ความสูงของสนามหดตัวเหลือ 0px เมื่ออยู่ใน Flex Container) ให้เป็น `display: block` พร้อม `overflow-x: auto` และกำหนด `min-width: 720px; min-height: 440px;` ทำให้ผังสนามคู่ทั้งสองฝั่งแสดงผลได้อย่างครบถ้วนและเลื่อนซ้าย-ขวาเพื่อเลือกนักเตะได้อย่างราบรื่น
+  - **แก้ไขปัญหาผังสนามเดี่ยว (รายทีม) โดนขอบสนามบังผู้เล่นด้านบนและด้านล่าง**: นำการจัดตำแหน่งแบบ `justify-content: center` ออก เปลี่ยนเป็น `justify-content: flex-start` พร้อมเพิ่ม Padding ด้านบนและด้านล่าง (`1.5rem`) และตั้งค่า `height: auto; overflow: visible;` ทำให้นักเตะแถวหน้า (CF/AM) และกองหลัง/ผู้รักษาประตู (DF/GK) แสดงผลอยู่ในกรอบสนามแข่งขันอย่างชัดเจน ไม่โดนขอบบน ขอบล่าง หรือการ์ดเหตุการณ์บังอีกต่อไป
+  - **ซิงก์ปุ่มสลับสถานะใน Scoreboard Toolbar**: อัปเดตปุ่มกดขยายสนามในแถบเครื่องมือให้สลับข้อความเป็น `🗗 ย่อสนาม` เมื่ออยู่ในโหมด Modal เพื่อให้ผู้ใช้สามารถกดคลิกเพื่อปิดหน้าต่างขยายสนามได้จากปุ่มนี้โดยตรง
+
 - **Restore Pitch Rendering & Decouple Modal Backdrop (`public/update.shtml`, `public/style.css`)**:
   - แก้ไขข้อผิดพลาดโครงสร้างแท็ก Vue Template (`v-if` / `v-else`) ที่การครอบ `div` ซ้อนทับการ์ดสนามทำให้บล็อก `<div class="card" v-else>` ขาดคู่ `v-if` ส่งผลให้ Vue runtime compiler ทำงานล้มเหลวและสนามแข่งขันหายไปจากหน้าจอ
   - แยกแท็ก `<div class="pitch-modal-backdrop" v-if="isPitchModal" @click="closePitchModal"></div>` ออกมาเป็นอิสระ และคงลำดับ Sibling ของ `<div class="match-stadium-card" v-if="currentSelectedMatch">` คู่กับ `<div class="card" v-else>` อย่างถูกต้อง

@@ -326,7 +326,7 @@
 							{{ showClassicForm ? '✕ ซ่อน' : '📋 ฟอร์ม' }}
 						</button>
 						<button type="button" class="btn-scoreboard-tool btn-fs-tool" :class="{ 'is-active': isPitchModal }" @click="togglePitchModal" title="ขยายผังสนามแบบหน้าต่าง Modal ขนาดใหญ่">
-							🔍 ขยายสนาม
+							{{ isPitchModal ? '🗗 ย่อสนาม' : '🔍 ขยายสนาม' }}
 						</button>
 						<button v-if="isLastMatchSelected" type="button" class="btn-scoreboard-tool btn-delete" @click="promptDeleteMatch(currentSelectedMatch)" title="ลบแมตช์สุดท้าย">
 							🗑️ Match {{ currentSelectedMatch.match_num }}
