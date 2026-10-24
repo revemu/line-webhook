@@ -818,6 +818,38 @@ select.form-control {
     transform: scale(0.95);
 }
 
+/* Floating Fullscreen Toggle Button */
+.fullscreen-toggle {
+    position: fixed;
+    top: 1rem;
+    right: 4.5rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+    z-index: 100;
+    font-size: 1.35rem;
+    color: var(--text-main);
+}
+
+.fullscreen-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.fullscreen-toggle:active {
+    transform: scale(0.95);
+}
+
 /* Modern Add Button */
 .add-button {
 
@@ -2709,6 +2741,55 @@ select.form-control {
 
 #soccer-match.container {
     max-width: 1180px;
+}
+
+#position-app.container {
+    max-width: 1240px;
+    transition: max-width 0.25s ease, padding 0.25s ease;
+}
+
+/* Fullscreen & Expanded Mode for Position App */
+#position-app.container.is-fullscreen,
+:fullscreen #position-app.container,
+:-webkit-full-screen #position-app.container,
+:-moz-full-screen #position-app.container {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+}
+
+#position-app.is-fullscreen .pitch-field.tactical-pitch {
+    min-height: 420px;
+    height: 440px;
+}
+
+#position-app.is-fullscreen .multi-pitch-grid {
+    gap: 1.5rem;
+}
+
+:fullscreen,
+:-webkit-full-screen,
+:-moz-full-screen {
+    background-color: var(--background-color);
+    overflow-y: auto;
+}
+
+/* Fullscreen Toggle Button in Action Bar */
+.btn-fullscreen-toggle {
+    border: 1px solid var(--border-color);
+}
+
+.btn-fullscreen-toggle:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-fullscreen-toggle.active {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
 }
 
 /* Container & Stadium Card */
@@ -4984,6 +5065,13 @@ select.form-control {
         top: 0.5rem;
         right: 0.5rem;
         font-size: 1.05rem;
+    }
+    .fullscreen-toggle {
+        width: 2.2rem;
+        height: 2.2rem;
+        top: 0.5rem;
+        right: 3.2rem;
+        font-size: 0.95rem;
     }
     .card {
         padding: 0.65rem 0.6rem;

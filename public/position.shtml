@@ -8,7 +8,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="style.css?v=0.6.2">
 	<script>
 		(function () {
 			var saved = localStorage.getItem('theme');
@@ -25,13 +25,20 @@
 </head>
 
 <body>
-	<div id="position-app" class="container">
+	<div id="position-app" class="container" :class="{ 'is-fullscreen': isFullscreen }">
 
 		<!-- Theme Toggle Button -->
 		<div class="theme-toggle" @click="toggleTheme"
 			:title="isDarkTheme ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
 			<span v-if="isDarkTheme">☀️</span>
 			<span v-else>🌙</span>
+		</div>
+
+		<!-- Fullscreen Toggle Floating Button -->
+		<div class="fullscreen-toggle" @click="toggleFullscreen"
+			:title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
+			<span v-if="isFullscreen">🗗</span>
+			<span v-else>⛶</span>
 		</div>
 
 		<!-- Navigation Header -->
@@ -111,6 +118,13 @@
 					</button>
 					<button class="view-mode-btn" :class="{ active: pitchGridCols === 1 }" @click="pitchGridCols = 1" title="แสดง 1 คอลัมน์">
 						📑 1 คอลัมน์
+					</button>
+				</div>
+
+				<div class="view-mode-tabs" style="margin-left: 0.35rem;">
+					<button type="button" class="view-mode-btn btn-fullscreen-toggle" :class="{ active: isFullscreen }" @click="toggleFullscreen" :title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
+						<span v-if="isFullscreen">🗗 ออกจากเต็มจอ</span>
+						<span v-else>⛶ ขยายเต็มจอ</span>
 					</button>
 				</div>
 
@@ -1083,6 +1097,7 @@
 				// Pitch view & Drag/Drop state
 				viewMode: 'pitch',
 				pitchGridCols: 2,
+				isFullscreen: false,
 				dragOverSlotKey: null,
 				dragOverBenchTeamId: null,
 				dragOverUnassigned: false,
@@ -1179,6 +1194,20 @@
 						this.closeContextMenu();
 					}
 				});
+
+				// Fullscreen change listener to sync state (e.g. Esc key or F11)
+				const onFullscreenChange = () => {
+					this.isFullscreen = !!(
+						document.fullscreenElement ||
+						document.webkitFullscreenElement ||
+						document.mozFullScreenElement ||
+						document.msFullscreenElement
+					);
+				};
+				document.addEventListener('fullscreenchange', onFullscreenChange);
+				document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+				document.addEventListener('mozfullscreenchange', onFullscreenChange);
+				document.addEventListener('MSFullscreenChange', onFullscreenChange);
 
 				// Warn before leaving with unsaved changes
 				window.addEventListener('beforeunload', (e) => {
@@ -1816,6 +1845,48 @@
 					this.toastTimer = setTimeout(() => {
 						this.toastMessage = '';
 					}, 2500);
+				},
+				toggleFullscreen() {
+					const isCurrentlyFullscreen = !!(
+						document.fullscreenElement ||
+						document.webkitFullscreenElement ||
+						document.mozFullScreenElement ||
+						document.msFullscreenElement ||
+						this.isFullscreen
+					);
+
+					if (!isCurrentlyFullscreen) {
+						const elem = document.documentElement;
+						if (elem.requestFullscreen) {
+							elem.requestFullscreen().catch(err => {
+								console.warn('Fullscreen request failed:', err);
+								this.isFullscreen = true;
+							});
+						} else if (elem.webkitRequestFullscreen) {
+							elem.webkitRequestFullscreen();
+						} else if (elem.mozRequestFullScreen) {
+							elem.mozRequestFullScreen();
+						} else if (elem.msRequestFullscreen) {
+							elem.msRequestFullscreen();
+						} else {
+							this.isFullscreen = true;
+						}
+					} else {
+						if (document.exitFullscreen) {
+							document.exitFullscreen().catch(err => {
+								console.warn('Exit fullscreen failed:', err);
+								this.isFullscreen = false;
+							});
+						} else if (document.webkitExitFullscreen) {
+							document.webkitExitFullscreen();
+						} else if (document.mozCancelFullScreen) {
+							document.mozCancelFullScreen();
+						} else if (document.msExitFullscreen) {
+							document.msExitFullscreen();
+						} else {
+							this.isFullscreen = false;
+						}
+					}
 				},
 				toggleTheme() {
 					this.isDarkTheme = !this.isDarkTheme;
