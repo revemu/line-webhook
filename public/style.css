@@ -7170,3 +7170,310 @@ body.pitch-modal-open {
     font-style: italic;
     padding: 0.75rem 0;
 }
+
+
+/* ==================== PITCH VIEW & PLAYER ICONS STYLES ==================== */
+.view-toggle-pill-group {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    gap: 2px;
+}
+
+.btn-view-toggle-pill {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-view-toggle-pill:hover {
+    color: var(--text-color);
+}
+
+.btn-view-toggle-pill.is-active {
+    background: var(--primary-color);
+    color: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Team Vertical Soccer Pitch */
+.team-pitch-vertical {
+    position: relative;
+    background: linear-gradient(180deg, #15803d 0%, #16a34a 50%, #15803d 100%);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    border-radius: 0.75rem;
+    width: 100%;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    user-select: none;
+    padding: 1.25rem 0.5rem 0.75rem;
+    box-sizing: border-box;
+}
+
+.team-pitch-vertical::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.035),
+        rgba(255, 255, 255, 0.035) 40px,
+        rgba(0, 0, 0, 0.04) 40px,
+        rgba(0, 0, 0, 0.04) 80px
+    );
+    pointer-events: none;
+    z-index: 1;
+}
+
+.team-pitch-tactical-layout {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    min-height: 340px;
+    gap: 0.75rem;
+}
+
+.pitch-tactical-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    width: 100%;
+    gap: 0.4rem;
+}
+
+.mini-pitch-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+    max-width: 82px;
+    transition: transform 0.15s ease;
+}
+
+.mini-pitch-node:hover {
+    transform: scale(1.08);
+    z-index: 5;
+}
+
+.mini-pitch-node .pitch-player-avatar-circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    background: #1e293b;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mini-pitch-node .pitch-player-avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mini-score-rating {
+    position: absolute;
+    top: -5px;
+    right: -10px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 999px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+    z-index: 4;
+}
+
+.mini-team-mvp-badge {
+    position: absolute;
+    bottom: -3px;
+    left: -4px;
+    font-size: 0.65rem;
+    z-index: 4;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+}
+
+.mini-pitch-node .pitch-name-pill {
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 1.5px 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    max-width: 80px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.mini-pitch-node .pitch-pos-label {
+    font-size: 0.55rem;
+    font-weight: 800;
+    padding: 0 3px;
+    border-radius: 3px;
+    line-height: 1.2;
+}
+
+.mini-pitch-node .pitch-name-text {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Match Card Inline Soccer Pitch (Team A vs Team B Field) */
+.inline-soccer-pitch-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 0.65rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.inline-soccer-pitch {
+    position: relative;
+    background: linear-gradient(180deg, #15803d 0%, #16a34a 50%, #15803d 100%);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    border-radius: 10px;
+    min-width: 580px;
+    min-height: 250px;
+    display: flex;
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.inline-soccer-pitch::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.035),
+        rgba(255, 255, 255, 0.035) 45px,
+        rgba(0, 0, 0, 0.04) 45px,
+        rgba(0, 0, 0, 0.04) 90px
+    );
+    pointer-events: none;
+    z-index: 1;
+}
+
+.inline-pitch-half {
+    flex: 1;
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    padding: 0.65rem 0.5rem;
+}
+
+.inline-pitch-badge {
+    align-self: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    margin-bottom: 0.35rem;
+}
+
+.inline-tactical-cols {
+    display: flex;
+    flex: 1;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+}
+
+.inline-tactical-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-around;
+    height: 100%;
+    gap: 0.45rem;
+}
+
+.inline-pitch-node .pitch-player-avatar-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+    background: #1e293b;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.inline-pitch-node .pitch-player-avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.inline-loan-chip {
+    position: absolute;
+    bottom: -2px;
+    right: -4px;
+    font-size: 0.55rem;
+    font-weight: 800;
+    background: #f59e0b;
+    color: #000000;
+    padding: 0 3px;
+    border-radius: 3px;
+    line-height: 1.2;
+}
+
+.inline-pitch-node .pitch-name-pill {
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 1.5px 5px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    max-width: 72px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.inline-pitch-node .pitch-pos-label {
+    font-size: 0.52rem;
+    font-weight: 800;
+    padding: 0 2px;
+    border-radius: 3px;
+    line-height: 1.2;
+}
+
+.inline-pitch-node .pitch-name-text {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

@@ -1240,9 +1240,17 @@
 					<span>👥 สรุปนักเตะแต่ละทีม & เรทติ้งเรียลไทม์</span>
 					<span class="realtime-live-badge">⚡ Live Ratings</span>
 				</div>
-				<div class="team-summary-actions">
+				<div class="team-summary-actions" style="display: flex; align-items: center; gap: 0.5rem;">
+					<div class="view-toggle-pill-group">
+						<button type="button" class="btn-view-toggle-pill" :class="{ 'is-active': teamSummaryView === 'pitch' }" @click="teamSummaryView = 'pitch'" title="ดูเป็นผังสนามฟุตบอล">
+							🏟️ ผังสนาม
+						</button>
+						<button type="button" class="btn-view-toggle-pill" :class="{ 'is-active': teamSummaryView === 'list' }" @click="teamSummaryView = 'list'" title="ดูเป็นรายชื่อตาราง">
+							📋 รายชื่อ
+						</button>
+					</div>
 					<button type="button" class="btn-summary-toggle" @click="showTeamSummary = !showTeamSummary">
-						<span>{{ showTeamSummary ? '▲ ย่อสรุป' : '▼ ดูสรุปนักเตะ' }}</span>
+						<span>{{ showTeamSummary ? '▲ ย่อสรุป' : '▼ ดูสรุป' }}</span>
 					</button>
 				</div>
 			</div>
@@ -1304,7 +1312,108 @@
 							<div class="team-col-record">{{ team.pts }} pts ({{ team.win }}W-{{ team.draw }}D-{{ team.loss }}L)</div>
 						</div>
 
-						<div class="team-player-roster">
+						<!-- 1. PITCH VIEW (ผังสนามรูปฟุตบอล พร้อม icon นักเตะ) -->
+						<div v-if="teamSummaryView === 'pitch'" class="team-pitch-vertical">
+							<!-- Field Markings -->
+							<div class="vp-markings">
+								<div class="vp-half-line"></div>
+								<div class="vp-center-circle"></div>
+								<div class="vp-penalty-top"></div>
+								<div class="vp-goal-top"></div>
+								<div class="vp-penalty-bottom"></div>
+								<div class="vp-goal-bottom"></div>
+							</div>
+
+							<!-- Tactical Rows on Field: Attackers (Top) -> Midfielders -> Defenders -> Goalkeeper (Bottom) -->
+							<div class="team-pitch-tactical-layout">
+								<!-- Forward Line (CF) -->
+								<div class="pitch-tactical-row row-fw" v-if="getTeamTacticalRows(team.players).fw.length > 0">
+									<div v-for="p in getTeamTacticalRows(team.players).fw" :key="p.id" class="pitch-player-node mini-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
+												⭐{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}
+											</div>
+											<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="mini-team-mvp-badge" title="Team MVP">👑</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'CF' }}</span>
+											<span class="pitch-name-text">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Midfield Line (MF / DM / AM) -->
+								<div class="pitch-tactical-row row-mf" v-if="getTeamTacticalRows(team.players).mf.length > 0">
+									<div v-for="p in getTeamTacticalRows(team.players).mf" :key="p.id" class="pitch-player-node mini-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
+												⭐{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}
+											</div>
+											<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="mini-team-mvp-badge" title="Team MVP">👑</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'MF' }}</span>
+											<span class="pitch-name-text">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Defense Line (DF / DW) -->
+								<div class="pitch-tactical-row row-df" v-if="getTeamTacticalRows(team.players).df.length > 0">
+									<div v-for="p in getTeamTacticalRows(team.players).df" :key="p.id" class="pitch-player-node mini-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
+												⭐{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}
+											</div>
+											<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="mini-team-mvp-badge" title="Team MVP">👑</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'DF' }}</span>
+											<span class="pitch-name-text">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Goalkeeper Line (GK) -->
+								<div class="pitch-tactical-row row-gk" v-if="getTeamTacticalRows(team.players).gk.length > 0">
+									<div v-for="p in getTeamTacticalRows(team.players).gk" :key="p.id" class="pitch-player-node mini-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
+												⭐{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}
+											</div>
+											<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="mini-team-mvp-badge" title="Team MVP">👑</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'GK' }}</span>
+											<span class="pitch-name-text">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<div v-if="team.players.length === 0" class="team-player-empty" style="color: #fff; z-index: 2;">
+								{{ info.is_roster_locked ? 'ระบบสุ่มทีมวันศุกร์ 20:00' : 'ไม่มีรายชื่อ' }}
+							</div>
+						</div>
+
+						<!-- 2. LIST VIEW (สำรองกรณีผู้ใช้เลือกดูเป็นตาราง) -->
+						<div v-else class="team-player-roster">
 							<div v-for="(p, pIdx) in team.players" :key="p.id" class="team-player-card">
 								<div class="player-card-rank">#{{ pIdx + 1 }}</div>
 								<div class="player-card-avatar" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
@@ -1480,57 +1589,134 @@
 					<button type="button" class="btn-close-inline-pitch" @click.stop="toggleMatchPitch(match.match_num)">✕ ปิด</button>
 				</div>
 
-				<div class="inline-pitch-grid">
-					<!-- Team A Lineup -->
-					<div class="inline-pitch-team-col">
-						<div class="inline-team-title" :style="{ backgroundColor: match.team_a_color ? match.team_a_color.toLowerCase() : '#333', color: getContrastColor(match.team_a_color) }">
-							<span>{{ match.team_a_color }}</span>
-							<span class="inline-team-count">({{ getTeamPlayers(match.team_a_id, match.match_num).length }})</span>
+				<div class="inline-soccer-pitch-wrapper">
+					<div class="inline-soccer-pitch">
+						<!-- Field Markings -->
+						<div class="match-pitch-markings">
+							<div class="mp-half-line"></div>
+							<div class="mp-center-circle"></div>
+							<div class="mp-center-spot"></div>
+							<div class="mp-penalty-left"></div>
+							<div class="mp-goal-left"></div>
+							<div class="mp-penalty-right"></div>
+							<div class="mp-goal-right"></div>
 						</div>
-						<div class="inline-player-list">
-							<div v-for="p in getTeamPlayers(match.team_a_id, match.match_num)" :key="p.id" class="inline-player-row">
-								<div class="inline-player-avatar" :style="{ borderColor: match.team_a_color ? match.team_a_color.toLowerCase() : '#ccc' }">
-									<img v-if="p.picture_url" :src="p.picture_url" />
-									<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
-								</div>
-								<div class="inline-player-info">
-									<div class="inline-player-alias">
-										{{ p.alias }}
-										<span v-if="p.is_loan" class="inline-loan-tag">ยืม</span>
-									</div>
-									<div class="inline-player-fullname" v-if="p.name && p.name !== p.alias">{{ p.name }}</div>
-								</div>
-								<span v-if="p.pos_code" class="inline-pos-badge">{{ p.pos_code }}</span>
-							</div>
-							<div v-if="getTeamPlayers(match.team_a_id, match.match_num).length === 0" class="inline-empty-roster">
-								{{ info.is_roster_locked ? 'ระบบสุ่มทีมวันศุกร์ 20:00' : 'ไม่มีรายชื่อ' }}
-							</div>
-						</div>
-					</div>
 
-					<!-- Team B Lineup -->
-					<div class="inline-pitch-team-col">
-						<div class="inline-team-title" :style="{ backgroundColor: match.team_b_color ? match.team_b_color.toLowerCase() : '#333', color: getContrastColor(match.team_b_color) }">
-							<span>{{ match.team_b_color }}</span>
-							<span class="inline-team-count">({{ getTeamPlayers(match.team_b_id, match.match_num).length }})</span>
-						</div>
-						<div class="inline-player-list">
-							<div v-for="p in getTeamPlayers(match.team_b_id, match.match_num)" :key="p.id" class="inline-player-row">
-								<div class="inline-player-avatar" :style="{ borderColor: match.team_b_color ? match.team_b_color.toLowerCase() : '#ccc' }">
-									<img v-if="p.picture_url" :src="p.picture_url" />
-									<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
-								</div>
-								<div class="inline-player-info">
-									<div class="inline-player-alias">
-										{{ p.alias }}
-										<span v-if="p.is_loan" class="inline-loan-tag">ยืม</span>
-									</div>
-									<div class="inline-player-fullname" v-if="p.name && p.name !== p.alias">{{ p.name }}</div>
-								</div>
-								<span v-if="p.pos_code" class="inline-pos-badge">{{ p.pos_code }}</span>
+						<!-- Left Half: Team A -->
+						<div class="inline-pitch-half inline-team-a">
+							<div class="inline-pitch-badge" :style="{ backgroundColor: match.team_a_color ? match.team_a_color.toLowerCase() : '#333', color: getContrastColor(match.team_a_color) }">
+								{{ match.team_a_color }}
 							</div>
-							<div v-if="getTeamPlayers(match.team_b_id, match.match_num).length === 0" class="inline-empty-roster">
-								{{ info.is_roster_locked ? 'ระบบสุ่มทีมวันศุกร์ 20:00' : 'ไม่มีรายชื่อ' }}
+							<div class="inline-tactical-cols">
+								<!-- Col 1: GK & DF -->
+								<div class="inline-tactical-col">
+									<div v-for="p in getTeamTacticalCol(match.team_a_id, match.match_num, 1)" :key="p.id" class="pitch-player-node inline-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_a_color ? match.team_a_color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'DF' }}</span>
+											<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Col 2: MF -->
+								<div class="inline-tactical-col">
+									<div v-for="p in getTeamTacticalCol(match.team_a_id, match.match_num, 2)" :key="p.id" class="pitch-player-node inline-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_a_color ? match.team_a_color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'MF' }}</span>
+											<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Col 3: FW -->
+								<div class="inline-tactical-col">
+									<div v-for="p in getTeamTacticalCol(match.team_a_id, match.match_num, 3)" :key="p.id" class="pitch-player-node inline-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_a_color ? match.team_a_color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'CF' }}</span>
+											<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Right Half: Team B -->
+						<div class="inline-pitch-half inline-team-b">
+							<div class="inline-pitch-badge" :style="{ backgroundColor: match.team_b_color ? match.team_b_color.toLowerCase() : '#333', color: getContrastColor(match.team_b_color) }">
+								{{ match.team_b_color }}
+							</div>
+							<div class="inline-tactical-cols">
+								<!-- Col 3: FW -->
+								<div class="inline-tactical-col">
+									<div v-for="p in getTeamTacticalCol(match.team_b_id, match.match_num, 3)" :key="p.id" class="pitch-player-node inline-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_b_color ? match.team_b_color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'CF' }}</span>
+											<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Col 2: MF -->
+								<div class="inline-tactical-col">
+									<div v-for="p in getTeamTacticalCol(match.team_b_id, match.match_num, 2)" :key="p.id" class="pitch-player-node inline-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_b_color ? match.team_b_color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'MF' }}</span>
+											<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Col 1: GK & DF -->
+								<div class="inline-tactical-col">
+									<div v-for="p in getTeamTacticalCol(match.team_b_id, match.match_num, 1)" :key="p.id" class="pitch-player-node inline-pitch-node">
+										<div class="pitch-player-avatar-wrap">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_b_color ? match.team_b_color.toLowerCase() : '#ccc' }">
+												<img v-if="p.picture_url" :src="p.picture_url" />
+												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+											</div>
+											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
+										</div>
+										<div class="pitch-name-pill">
+											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'DF' }}</span>
+											<span class="pitch-name-text" :title="p.alias">{{ p.alias }}</span>
+										</div>
+									</div>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -1574,6 +1760,7 @@
 				expandedPitchMatchNum: null,
 				initialScrolled: false,
 				showTeamSummary: true,
+				teamSummaryView: 'pitch',
 				isPitchModal: false,
 				sessionExpired: false,
 				newTodoSelect: '',
@@ -1985,6 +2172,44 @@
 					if (val >= 6.0) return 'rating-great';
 					if (val >= 5.0) return 'rating-good';
 					return 'rating-avg';
+				},
+				getTeamTacticalRows(players) {
+					if (!players || players.length === 0) return { fw: [], mf: [], df: [], gk: [] };
+					const fw = [], mf = [], df = [], gk = [];
+					players.forEach(p => {
+						const code = (p.pos_code || '').toUpperCase();
+						if (code === 'GK' || p.pos_id == 1) gk.push(p);
+						else if (['CF', 'ST', 'WF', 'RW', 'LW'].includes(code) || p.pos_id == 4) fw.push(p);
+						else if (['MF', 'DM', 'AM', 'CM'].includes(code) || [3, 6, 7].includes(p.pos_id)) mf.push(p);
+						else if (['DF', 'DW', 'CB', 'LB', 'RB'].includes(code) || [2, 5].includes(p.pos_id)) df.push(p);
+						else {
+							if (df.length <= mf.length) df.push(p);
+							else mf.push(p);
+						}
+					});
+					if (fw.length === 0 && mf.length === 0 && df.length === 0 && gk.length === 0) {
+						const sorted = [...players];
+						const c = Math.ceil(sorted.length / 3);
+						return { fw: sorted.slice(c * 2), mf: sorted.slice(c, c * 2), df: sorted.slice(0, c), gk: [] };
+					}
+					return { fw, mf, df, gk };
+				},
+				getTeamTacticalCol(teamId, matchNum, col) {
+					const players = this.getTeamPlayers(teamId, matchNum);
+					if (!players || players.length === 0) return [];
+					const posRank = { 1: 10, 2: 20, 5: 25, 6: 30, 3: 40, 7: 45, 4: 50 };
+					const sorted = [...players].sort((a, b) => {
+						const rA = posRank[a.pos_id] || 30;
+						const rB = posRank[b.pos_id] || 30;
+						return rA - rB;
+					});
+					const c1 = Math.ceil(sorted.length / 3);
+					const rem = sorted.length - c1;
+					const c2 = Math.ceil(rem / 2);
+					if (col === 1) return sorted.slice(0, c1);
+					if (col === 2) return sorted.slice(c1, c1 + c2);
+					if (col === 3) return sorted.slice(c1 + c2);
+					return sorted;
 				},
 				toggleMatchPitch(matchNum) {
 					this.expandedPitchMatchNum = (this.expandedPitchMatchNum === matchNum) ? null : matchNum;
