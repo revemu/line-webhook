@@ -37,7 +37,10 @@
 			<div class="login-card">
 				<div class="login-header">
 					<div class="login-logo">⚽</div>
-					<h1 class="login-title">Soccer Bot Manager</h1>
+					<h1 class="login-title" style="display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+						Soccer Bot Manager
+						<span class="app-version-badge" style="font-size: 0.7rem;">v{{ appVersion }}</span>
+					</h1>
 					<p class="login-subtitle">กรุณาเข้าสู่ระบบเพื่อเข้าใช้งานระบบจัดการ</p>
 				</div>
 
@@ -75,6 +78,8 @@
 		new Vue({
 			el: '#login-app',
 			data: {
+				appVersion: (window.__APP_VERSION__ || '0.6.5'),
+				assetVersion: (window.__ASSET_VERSION__ || ''),
 				username: '',
 				password: '',
 				errorMessage: '',

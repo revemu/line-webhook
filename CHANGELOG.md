@@ -2,7 +2,20 @@
 
 บันทึกประวัติการเปลี่ยนแปลงและการพัฒนาของโปรเจกต์ `line-webhook`
 
----
+--- 
+
+## [0.6.5] - 2026-10-25
+
+### Added
+- **Dynamic Asset & Application Auto-Versioning (`utils/version.js`, `routes/web.js`, `public/*.shtml`)**:
+  - สร้างระบบ Auto-Versioning และ Cache Busting อัตโนมัติทุกครั้งที่มีการแก้ไขไฟล์ในระบบ โดยไม่ต้องแก้เลขเวอร์ชันแบบแมนนวล (`?v=...`) อีกต่อไป
+  - เซิร์ฟเวอร์จะตรวจสอบ Modification Time (`mtime`) ของไฟล์ HTML และ `style.css` แบบไดนามิก พร้อมระบบ In-Memory Cache อัจฉริยะ (ตรวจสอบ `mtimeMs` ในระดับไมโครวินาที ทำให้ส่งข้อมูลเร็วเสมือนหน่วยความจำ RAM)
+  - เซิร์ฟเวอร์ทำการแทนที่ `<link rel="stylesheet">` ด้วย `?v=${assetVersion}` อัตโนมัติ พร้อมฉีดข้อมูลเวอร์ชัน `window.__APP_VERSION__`, `window.__ASSET_VERSION__`, `window.__GIT_REV__` เข้าไปยัง `<head>`
+  - เพิ่มป้ายแสดงเวอร์ชัน `.app-version-badge` บนส่วนหัว (Header) ของหน้า Match Manager, Match Center, Position Manager และ Login อย่างชัดเจน สวยงาม รองรับทั้ง Dark Theme และ Light Theme
+  - เพิ่มข้อมูลเวอร์ชัน (`app_version`, `asset_version`) ใน API Endpoint `/webhook/get_info`, `/webhook/match_view_data`, และ `/webhook/auth/me`
+  - เพิ่มระบบตรวจจับการอัปเดตเวอร์ชันใหม่แบบเรียลไทม์บนหน้าจอ Frontend หากเซิร์ฟเวอร์มีการอัปเดตไฟล์หรือโค้ดใหม่ ป้ายเวอร์ชันจะแสดงสถานะ `🚀 มีอัปเดตใหม่ (แตะเพื่อโหลด)` เพื่อให้ผู้ใช้รีเฟรชหน้าจอได้ทันที
+
+--- 
 
 ## [0.6.4] - 2026-10-25
 

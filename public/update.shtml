@@ -47,8 +47,14 @@
 
 		<div class="header" style="margin-top: 0.5rem;">
 			<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-				<div>
+				<div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
 					<h1 style="margin: 0; font-size: 1.25rem;">⚽ {{ isManager ? 'Match Manager' : 'Match Center' }}</h1>
+					<span v-if="newVersionAvailable" class="app-version-badge update-available" @click="reloadApp" title="มีเวอร์ชันใหม่ในระบบ แตะเพื่อโหลดเวอร์ชันล่าสุด">
+						🚀 มีอัปเดตใหม่ v{{ latestServerVersion }} (แตะเพื่อโหลด)
+					</span>
+					<span v-else class="app-version-badge" :title="'เวอร์ชันระบบ: v' + appVersion + (assetVersion ? ' (' + assetVersion + ')' : '')">
+						v{{ appVersion }}
+					</span>
 				</div>
 				<div class="viewer-header-actions" v-if="!isManager">
 					<button class="viewer-refresh-btn" :class="{ 'is-spinning': isRefreshing }" @click="manualRefresh" title="รีเฟรช">
@@ -1361,6 +1367,10 @@
 		new Vue({
 			el: '#soccer-match',
 			data: {
+				appVersion: (window.__APP_VERSION__ || '0.6.5'),
+				assetVersion: (window.__ASSET_VERSION__ || ''),
+				newVersionAvailable: false,
+				latestServerVersion: '',
 				isPitchModal: false,
 				sessionExpired: false,
 				newTodoSelect: '',
@@ -1686,6 +1696,9 @@
 				}
 			},
 			methods: {
+				reloadApp() {
+					window.location.reload(true);
+				},
 				manualRefresh() {
 					this.refreshCountdown = 30;
 					this.isRefreshing = true;
@@ -1743,6 +1756,12 @@
 					const url = (this.base_url || '/webhook') + '/match_view_data?weeknum=' + (weeknum || 0);
 					axios.get(url)
 						.then(response => {
+							if (response.data && response.data.asset_version) {
+								if (this.assetVersion && response.data.asset_version !== this.assetVersion) {
+									this.newVersionAvailable = true;
+									this.latestServerVersion = response.data.app_version || response.data.asset_version;
+								}
+							}
 							this.info = response.data;
 							if (this.info && this.info.week) {
 								this.week = this.info.week;

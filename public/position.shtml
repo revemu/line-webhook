@@ -43,7 +43,10 @@
 
 		<!-- Navigation Header -->
 		<div class="header" style="margin-top: 0.5rem;">
-			<h1>Position Manager</h1>
+			<div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+				<h1 style="margin: 0;">Position Manager</h1>
+				<span class="app-version-badge" :title="'เวอร์ชันระบบ: v' + appVersion + (assetVersion ? ' (' + assetVersion + ')' : '')">v{{ appVersion }}</span>
+			</div>
 		</div>
 
 		<div class="top-nav-bar">
@@ -1067,6 +1070,8 @@
 		new Vue({
 			el: '#position-app',
 			data: {
+				appVersion: (window.__APP_VERSION__ || '0.6.5'),
+				assetVersion: (window.__ASSET_VERSION__ || ''),
 				loading: false,
 				week: { id: 0, number: 0, date: '' },
 				weeks: [],

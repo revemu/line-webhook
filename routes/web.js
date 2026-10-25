@@ -9,6 +9,7 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const db = require('../query');
 const logger = require('../utils/logger');
+const { getAppVersion, getAssetVersion, sendVersionedHtml } = require('../utils/version');
 
 const router = express.Router();
 const upload = multer();
@@ -182,10 +183,11 @@ function requireRoot(req, res, next) {
 // ==================== AUTH & ROUTING ====================
 
 // Root & Web convenience redirects
-router.get(['/', '/webhook', '/webhook/', '/web', '/update.shtml'], (req, res) => res.redirect('/webhook/match'));
+router.get(['/', '/webhook', '/webhook/', '/web', '/web/', '/update.shtml', '/webhook/update.shtml', '/web/update.shtml'], (req, res) => res.redirect('/webhook/match'));
 router.get(['/match', '/webhook/match.shtml', '/web/match.shtml'], (req, res) => res.redirect('/webhook/match'));
 router.get(['/view', '/view.shtml', '/webhook/view.shtml', '/web/view.shtml'], (req, res) => res.redirect('/webhook/view'));
-router.get(['/position', '/webhook/position.shtml', '/web/position.shtml'], (req, res) => res.redirect('/webhook/position'));
+router.get(['/position', '/position.shtml', '/webhook/position.shtml', '/web/position.shtml'], (req, res) => res.redirect('/webhook/position'));
+router.get(['/login.shtml', '/webhook/login.shtml', '/web/login.shtml'], (req, res) => res.redirect('/webhook/login'));
 
 // Login page
 router.get(['/webhook/login', '/web/login'], (req, res) => {
@@ -200,7 +202,7 @@ router.get(['/webhook/login', '/web/login'], (req, res) => {
         }
         return res.redirect(req.user.role === 'root' ? `${prefix}/position` : `${prefix}/match`);
     }
-    res.sendFile(path.join(__dirname, '..', 'public', 'login.shtml'));
+    sendVersionedHtml(req, res, path.join(__dirname, '..', 'public', 'login.shtml'));
 });
 
 // Login endpoint (POST) - Supports MySQL user_tbl with bcrypt + .env fallback
@@ -394,27 +396,28 @@ router.get(['/webhook/auth/me', '/web/auth/me'], (req, res) => {
                 username: req.user.username,
                 role: req.user.role,
                 name: req.user.name
-            }
+            },
+            app_version: getAppVersion(),
+            asset_version: getAssetVersion()
         });
     }
-    return res.json({ authenticated: false, user: null });
+    return res.json({
+        authenticated: false,
+        user: null,
+        app_version: getAppVersion(),
+        asset_version: getAssetVersion()
+    });
 });
 
 // ==================== GET INFO ROUTES ====================
 
 router.get(['/webhook/match', '/web/match'], requireAuth, (req, res) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    res.sendFile(path.join(__dirname, '..', 'public', 'update.shtml'));
+    sendVersionedHtml(req, res, path.join(__dirname, '..', 'public', 'update.shtml'));
 });
 
 // Match Viewer (Read-Only: shows current & past matches, accessible to everyone, uses shared base code update.shtml)
 router.get(['/webhook/view', '/web/view'], (req, res) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    res.sendFile(path.join(__dirname, '..', 'public', 'update.shtml'));
+    sendVersionedHtml(req, res, path.join(__dirname, '..', 'public', 'update.shtml'));
 });
 
 router.get(['/webhook/view.shtml', '/web/view.shtml'], (req, res) => {
@@ -441,11 +444,17 @@ router.get(['/webhook/match_view_data', '/web/match_view_data'], async (req, res
 
 // Position Manager requires root user
 router.get(['/webhook/position', '/web/position'], requireRoot, (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'position.shtml'));
+    sendVersionedHtml(req, res, path.join(__dirname, '..', 'public', 'position.shtml'));
 });
 
 router.get(['/webhook/style.css', '/web/style.css'], (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'style.css'));
+    const stylePath = path.join(__dirname, '..', 'public', 'style.css');
+    if (req.query && req.query.v) {
+        res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+        res.set('Cache-Control', 'no-cache, must-revalidate');
+    }
+    res.sendFile(stylePath);
 });
 
 // Get last match week
@@ -1112,6 +1121,8 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     data.weeks = await queryRecentWeeks(20);
     data.next_match = nextMatch;
     data.team_week = teamJson;
+    data.app_version = getAppVersion();
+    data.asset_version = getAssetVersion();
 
     return data;
 }

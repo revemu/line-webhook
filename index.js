@@ -122,13 +122,13 @@ app.use('/img/qr', express.static(path.join(__dirname, 'qr')));
 app.use('/img/team', express.static(path.join(__dirname, 'img', 'team')));
 app.use('/img', express.static(path.join(__dirname, 'img')));
 
+// Mount Soccer Bot API & Web Dashboard routes (Merged from soccerbotapi - mounted before static to enable dynamic auto-versioning)
+app.use(webRouter);
+
 // Serve Soccer Bot Web Dashboard static assets (public folder) under both /webhook and /web
 app.use('/webhook', express.static(path.join(__dirname, 'public')));
 app.use('/web', express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
-
-// Mount Soccer Bot API & Web Dashboard routes (Merged from soccerbotapi)
-app.use(webRouter);
 
 // Serve green_dot.png static asset and fallback route aliases
 /*app.get(['/green_dot.png', '/img/green_dot.png', '/green_pulse_true.png', '/img/green_pulse_true.png'], (req, res) => {
