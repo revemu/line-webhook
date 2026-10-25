@@ -46,6 +46,17 @@ async function doUpdate(sql) {
     }
 }
 
+// In-memory cache for week leader stats & player ratings (Short-lived TTL, invalidated on match/goal updates)
+let leaderStatsCache = {};
+
+function invalidateLeaderStatsCache(weekId = null) {
+    if (weekId) {
+        delete leaderStatsCache[weekId];
+    } else {
+        leaderStatsCache = {};
+    }
+}
+
 // Middlewares for Web Routes (Scoped to router so /webhook is not affected)
 router.use(cors({ origin: true, credentials: true }));
 router.use(cookieParser());
@@ -580,6 +591,7 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
         let msg = "";
 
         logger.info(`add_match Request: ${JSON.stringify(data)}`);
+        invalidateLeaderStatsCache(data.weekid);
 
         // Finish match (End match)
         if (data.matchid !== undefined && (data.cmd === 'finish_match' || data.cmd === 'end_match')) {
@@ -1126,6 +1138,92 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     data.team_week = teamJson;
     data.app_version = getAppVersion();
     data.asset_version = getAssetVersion();
+
+    // Real-time Leader & Rating stats for week
+    data.leader_stats = null;
+    if (!isLocked && allMatches.length > 0) {
+        try {
+            const cached = leaderStatsCache[weekid];
+            if (cached && cached.expiresAt > Date.now()) {
+                data.leader_stats = cached.data;
+            } else {
+                const stats = await db.getWeekLeaderStats(weekid);
+                if (stats) {
+                    const mapped = {
+                        mvps: (stats.mvps || []).map(p => ({
+                            id: p.id || p.member_id,
+                            name: p.name,
+                            alias: p.alias,
+                            picture_url: p.picture_url,
+                            team_id: p.team_id,
+                            teamName: p.teamName,
+                            rating: p.score ? Number(p.score).toFixed(1) : '0.0',
+                            goals: p.goals || 0,
+                            assists: p.assists || 0,
+                            pos_code: p.pos?.code || ''
+                        })),
+                        top_scorers: (stats.topScorers || []).map(p => ({
+                            id: p.id || p.member_id,
+                            name: p.name,
+                            alias: p.alias,
+                            picture_url: p.picture_url,
+                            team_id: p.team_id,
+                            teamName: p.teamName,
+                            goals: p.goals || 0
+                        })),
+                        top_assists: (stats.topAssists || []).map(p => ({
+                            id: p.id || p.member_id,
+                            name: p.name,
+                            alias: p.alias,
+                            picture_url: p.picture_url,
+                            team_id: p.team_id,
+                            teamName: p.teamName,
+                            assists: p.assists || 0
+                        })),
+                        players: (stats.allPlayerRatings || []).map(p => ({
+                            id: p.id || p.member_id,
+                            name: p.name,
+                            alias: p.alias,
+                            picture_url: p.picture_url,
+                            team_id: p.team_id,
+                            teamName: p.teamName,
+                            rating: p.score ? Number(p.score).toFixed(1) : '0.0',
+                            raw_score: p.rawScore ? Number(p.rawScore).toFixed(2) : '0.00',
+                            goals: p.goals || 0,
+                            assists: p.assists || 0,
+                            clean_sheets: p.cleanSheets || 0,
+                            matches: p.matches || 0,
+                            pos_code: p.pos?.code || '',
+                            pos_icon: p.pos?.icon || ''
+                        }))
+                    };
+                    leaderStatsCache[weekid] = {
+                        data: mapped,
+                        expiresAt: Date.now() + 15000 // 15 seconds TTL
+                    };
+                    data.leader_stats = mapped;
+                }
+            }
+        } catch (e) {
+            logger.warn(`Could not compute leader_stats for week ${weekid}: ${e.message}`);
+        }
+    }
+
+    // Enrich allmembers with rating & stats if available
+    if (data.leader_stats && data.leader_stats.players && data.allmembers) {
+        const pMap = {};
+        data.leader_stats.players.forEach(p => { pMap[p.id] = p; });
+        data.allmembers = data.allmembers.map(m => {
+            const stat = pMap[m.id];
+            return {
+                ...m,
+                rating: stat ? stat.rating : '-',
+                goals: stat ? stat.goals : 0,
+                assists: stat ? stat.assists : 0,
+                clean_sheets: stat ? stat.clean_sheets : 0
+            };
+        });
+    }
 
     return data;
 }

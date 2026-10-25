@@ -1224,12 +1224,117 @@
 
 		</div>
 
-		<!-- Empty State when no matches exist in this week -->
-		<div class="card" v-else style="text-align: center; padding: 2.5rem 1.5rem;">
+		<!-- Empty State ONLY when no matches exist in this week -->
+		<div class="card" v-if="matchCount === 0" style="text-align: center; padding: 2.5rem 1.5rem;">
 			<div style="font-size: 3rem; margin-bottom: 0.5rem;">⚽</div>
 			<div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem;">ยังไม่มีตารางการแข่งขันในสัปดาห์นี้</div>
 			<div style="font-size: 0.85rem; color: var(--text-muted);">
 				รอการสร้างตารางการแข่งขันอัตโนมัติ (/schedule) หรือเลือกวันที่อื่น
+			</div>
+		</div>
+
+		<!-- ==================== TEAM ROSTERS & REALTIME RATINGS SUMMARY ==================== -->
+		<div class="card team-summary-card" v-if="matchCount > 0 && teamRostersSummary.length > 0">
+			<div class="team-summary-header">
+				<div class="team-summary-title">
+					<span>👥 สรุปนักเตะแต่ละทีม & เรทติ้งเรียลไทม์</span>
+					<span class="realtime-live-badge">⚡ Live Ratings</span>
+				</div>
+				<div class="team-summary-actions">
+					<button type="button" class="btn-summary-toggle" @click="showTeamSummary = !showTeamSummary">
+						<span>{{ showTeamSummary ? '▲ ย่อสรุป' : '▼ ดูสรุปนักเตะ' }}</span>
+					</button>
+				</div>
+			</div>
+
+			<div v-show="showTeamSummary" class="team-summary-content">
+				<!-- Week Leaders Spotlight (👑 MVP, ⚽ Top Scorer, 👟 Top Assist) -->
+				<div class="week-leaders-spotlight" v-if="weekMvps.length > 0 || (weekTopScorers.length > 0 && weekTopScorers[0].goals > 0)">
+					<div class="leader-spotlight-item mvp-spotlight" v-if="weekMvps.length > 0">
+						<div class="spotlight-badge">👑 WEEK MVP</div>
+						<div class="spotlight-player">
+							<div class="spotlight-avatar" :style="{ borderColor: getTeamColorById(weekMvps[0].team_id) }">
+								<img v-if="weekMvps[0].picture_url" :src="weekMvps[0].picture_url" />
+								<span v-else>{{ weekMvps[0].alias ? weekMvps[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="spotlight-info">
+								<div class="spotlight-name">{{ weekMvps[0].alias || weekMvps[0].name }}</div>
+								<div class="spotlight-team">{{ weekMvps[0].teamName }}</div>
+							</div>
+							<div class="spotlight-score">⭐ {{ weekMvps[0].rating }}</div>
+						</div>
+					</div>
+
+					<div class="leader-spotlight-item scorer-spotlight" v-if="weekTopScorers.length > 0 && weekTopScorers[0].goals > 0">
+						<div class="spotlight-badge">⚽ TOP SCORER</div>
+						<div class="spotlight-player">
+							<div class="spotlight-avatar" :style="{ borderColor: getTeamColorById(weekTopScorers[0].team_id) }">
+								<img v-if="weekTopScorers[0].picture_url" :src="weekTopScorers[0].picture_url" />
+								<span v-else>{{ weekTopScorers[0].alias ? weekTopScorers[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="spotlight-info">
+								<div class="spotlight-name">{{ weekTopScorers[0].alias || weekTopScorers[0].name }}</div>
+								<div class="spotlight-team">{{ weekTopScorers[0].teamName }}</div>
+							</div>
+							<div class="spotlight-score">⚽ {{ weekTopScorers[0].goals }} ประตู</div>
+						</div>
+					</div>
+
+					<div class="leader-spotlight-item assist-spotlight" v-if="weekTopAssists.length > 0 && weekTopAssists[0].assists > 0">
+						<div class="spotlight-badge">👟 TOP ASSIST</div>
+						<div class="spotlight-player">
+							<div class="spotlight-avatar" :style="{ borderColor: getTeamColorById(weekTopAssists[0].team_id) }">
+								<img v-if="weekTopAssists[0].picture_url" :src="weekTopAssists[0].picture_url" />
+								<span v-else>{{ weekTopAssists[0].alias ? weekTopAssists[0].alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="spotlight-info">
+								<div class="spotlight-name">{{ weekTopAssists[0].alias || weekTopAssists[0].name }}</div>
+								<div class="spotlight-team">{{ weekTopAssists[0].teamName }}</div>
+							</div>
+							<div class="spotlight-score">👟 {{ weekTopAssists[0].assists }} แอสซิสต์</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Team Rosters Grid -->
+				<div class="team-summary-grid">
+					<div v-for="team in teamRostersSummary" :key="team.id" class="team-summary-col">
+						<div class="team-col-header" :style="{ backgroundColor: team.color ? team.color.toLowerCase() : '#333', color: getContrastColor(team.color) }">
+							<div class="team-col-name">{{ team.color }}</div>
+							<div class="team-col-record">{{ team.pts }} pts ({{ team.win }}W-{{ team.draw }}D-{{ team.loss }}L)</div>
+						</div>
+
+						<div class="team-player-roster">
+							<div v-for="(p, pIdx) in team.players" :key="p.id" class="team-player-card">
+								<div class="player-card-rank">#{{ pIdx + 1 }}</div>
+								<div class="player-card-avatar" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+									<img v-if="p.picture_url" :src="p.picture_url" />
+									<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="player-card-details">
+									<div class="player-card-name-row">
+										<span class="player-card-alias">{{ p.alias || p.name }}</span>
+										<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="badge-team-mvp" title="ผู้เล่นเรทติ้งสูงสุดของทีม">👑 MVP</span>
+									</div>
+									<div class="player-card-sub">
+										<span v-if="p.pos_code" class="player-pos-tag">{{ p.pos_code }}</span>
+										<span v-if="p.goals > 0" class="player-stat-tag goal-tag">⚽ {{ p.goals }}</span>
+										<span v-if="p.assists > 0" class="player-stat-tag assist-tag">👟 {{ p.assists }}</span>
+										<span v-if="p.clean_sheets > 0 && ['GK', 'DF', 'DM', 'DW'].includes(p.pos_code)" class="player-stat-tag cs-tag">🧤 {{ p.clean_sheets }}</span>
+									</div>
+								</div>
+								<div class="player-card-rating" :class="getRatingColorClass(p.rating)">
+									<span class="rating-star">⭐</span>
+									<span class="rating-val">{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}</span>
+								</div>
+							</div>
+
+							<div v-if="team.players.length === 0" class="team-player-empty">
+								{{ info.is_roster_locked ? 'ระบบสุ่มทีมวันศุกร์ 20:00' : 'ไม่มีรายชื่อ' }}
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
 		</div>
 
@@ -1468,6 +1573,7 @@
 				showPitch: (window.location.pathname.includes('/match') && !window.location.pathname.includes('/view') && !window.location.pathname.includes('/matches')),
 				expandedPitchMatchNum: null,
 				initialScrolled: false,
+				showTeamSummary: true,
 				isPitchModal: false,
 				sessionExpired: false,
 				newTodoSelect: '',
@@ -1535,6 +1641,54 @@
 				isDeletingMatch: false
 			},
 			computed: {
+				teamRostersSummary() {
+					if (!this.info || !this.tableweek || this.tableweek.length === 0) return [];
+					const players = (this.info.leader_stats && this.info.leader_stats.players)
+						? this.info.leader_stats.players
+						: (this.info.allmembers || []);
+
+					return this.tableweek.map(tw => {
+						const teamPlayers = players.filter(p => p.team_id == tw.team_week_id);
+						teamPlayers.sort((a, b) => {
+							const rA = parseFloat(a.rating) || 0;
+							const rB = parseFloat(b.rating) || 0;
+							if (rB !== rA) return rB - rA;
+							if ((b.goals || 0) !== (a.goals || 0)) return (b.goals || 0) - (a.goals || 0);
+							return (b.assists || 0) - (a.assists || 0);
+						});
+						const topPlayer = (teamPlayers.length > 0 && parseFloat(teamPlayers[0].rating) > 0) ? teamPlayers[0] : null;
+						return {
+							id: tw.team_week_id,
+							color: tw.color,
+							pts: tw.point || 0,
+							win: tw.win || 0,
+							draw: tw.draw || 0,
+							loss: tw.loss || 0,
+							goal: tw.goal || 0,
+							goal_against: tw.goal_against || 0,
+							players: teamPlayers,
+							topPlayer: topPlayer
+						};
+					});
+				},
+				weekMvps() {
+					if (this.info && this.info.leader_stats && this.info.leader_stats.mvps) {
+						return this.info.leader_stats.mvps;
+					}
+					return [];
+				},
+				weekTopScorers() {
+					if (this.info && this.info.leader_stats && this.info.leader_stats.top_scorers) {
+						return this.info.leader_stats.top_scorers;
+					}
+					return [];
+				},
+				weekTopAssists() {
+					if (this.info && this.info.leader_stats && this.info.leader_stats.top_assists) {
+						return this.info.leader_stats.top_assists;
+					}
+					return [];
+				},
 				currentLiveMatch() {
 					if (!this.all_match) return null;
 					const matches = this.sortedMatchesAscending;
@@ -1824,6 +1978,14 @@
 				}
 			},
 			methods: {
+				getRatingColorClass(rating) {
+					const val = parseFloat(rating);
+					if (isNaN(val) || val <= 0) return 'rating-none';
+					if (val >= 7.0) return 'rating-elite';
+					if (val >= 6.0) return 'rating-great';
+					if (val >= 5.0) return 'rating-good';
+					return 'rating-avg';
+				},
 				toggleMatchPitch(matchNum) {
 					this.expandedPitchMatchNum = (this.expandedPitchMatchNum === matchNum) ? null : matchNum;
 				},
