@@ -6531,3 +6531,267 @@ body.pitch-modal-open {
         gap: 0.5rem;
     }
 }
+
+
+/* ==================== INLINE MATCH PITCH & VIEWER FOCUS STYLES ==================== */
+.is-live-card {
+    border-color: rgba(239, 68, 68, 0.75) !important;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.25), var(--shadow-sm) !important;
+}
+
+.is-current-match-card {
+    border-color: rgba(59, 130, 246, 0.65) !important;
+    box-shadow: 0 0 14px rgba(59, 130, 246, 0.2), var(--shadow-sm) !important;
+}
+
+.viewer-badge-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 1.5px 6px;
+    border-radius: 9999px;
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    letter-spacing: 0.3px;
+}
+
+.viewer-badge-current {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 1.5px 6px;
+    border-radius: 9999px;
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.live-dot-mini {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: live-pulse-dot 1.5s infinite;
+}
+
+.btn-card-pitch-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-card-pitch-toggle:hover,
+.btn-card-pitch-toggle.is-active {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+    color: #60a5fa;
+}
+
+.btn-jump-current-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    color: #60a5fa;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-jump-current-pill:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: #3b82f6;
+}
+
+.pulse-mini-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: live-pulse-dot 1.5s infinite;
+}
+
+/* Inline Pitch Container inside Match Card */
+.match-inline-pitch-card {
+    margin-top: 0.75rem;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 0.75rem;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.inline-pitch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.65rem;
+}
+
+.inline-pitch-vs-pill {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.25);
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.btn-close-inline-pitch {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.btn-close-inline-pitch:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.inline-pitch-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+}
+
+.inline-pitch-team-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 0.45rem;
+    border: 1px solid var(--border-color);
+}
+
+.inline-team-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.inline-team-count {
+    font-size: 0.7rem;
+    opacity: 0.9;
+}
+
+.inline-player-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.inline-player-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.25rem 0.4rem;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    font-size: 0.78rem;
+}
+
+.inline-player-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1.5px solid #ccc;
+    background: #374151;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.inline-player-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.inline-player-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
+.inline-player-alias {
+    font-weight: 700;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inline-loan-tag {
+    font-size: 0.6rem;
+    color: #f59e0b;
+    font-weight: 800;
+    margin-left: 2px;
+}
+
+.inline-player-fullname {
+    font-size: 0.64rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inline-pos-badge {
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.inline-empty-roster {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    padding: 0.5rem 0;
+    font-style: italic;
+}
+
+@media (max-width: 640px) {
+    .inline-pitch-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+}
