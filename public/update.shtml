@@ -1847,12 +1847,12 @@
 						return {
 							id: tw.team_week_id,
 							color: tw.color,
-							pts: tw.point || 0,
-							win: tw.win || 0,
-							draw: tw.draw || 0,
-							loss: tw.loss || 0,
-							goal: tw.goal || 0,
-							goal_against: tw.goal_against || 0,
+							pts: tw.pts !== undefined ? tw.pts : (tw.point || 0),
+							win: tw.w !== undefined ? tw.w : (tw.win || 0),
+							draw: tw.d !== undefined ? tw.d : (tw.draw || 0),
+							loss: tw.l !== undefined ? tw.l : (tw.loss || 0),
+							goal: tw.G !== undefined ? tw.G : (tw.goal || 0),
+							goal_against: tw.A !== undefined ? tw.A : (tw.goal_against || 0),
 							players: teamPlayers,
 							topPlayer: topPlayer
 						};
