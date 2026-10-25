@@ -7126,36 +7126,37 @@ body.pitch-modal-open {
 .player-card-rating {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    font-size: 0.74rem;
-    font-weight: 800;
-    padding: 2px 6px;
+    gap: 3px;
+    font-size: 0.78rem;
+    font-weight: 900;
+    padding: 2px 8px;
     border-radius: 6px;
     flex-shrink: 0;
+    border: 1.5px solid transparent;
 }
 
 .rating-elite {
-    background: rgba(16, 185, 129, 0.2);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.45);
+    background: #16a34a !important;
+    color: #ffffff !important;
+    border-color: #22c55e !important;
 }
 
 .rating-great {
-    background: rgba(59, 130, 246, 0.2);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.4);
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #3b82f6 !important;
 }
 
 .rating-good {
-    background: rgba(245, 158, 11, 0.18);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: #d97706 !important;
+    color: #ffffff !important;
+    border-color: #f59e0b !important;
 }
 
 .rating-avg {
-    background: rgba(156, 163, 175, 0.15);
-    color: #d1d5db;
-    border: 1px solid rgba(156, 163, 175, 0.25);
+    background: #475569 !important;
+    color: #ffffff !important;
+    border-color: #64748b !important;
 }
 
 .rating-none {
@@ -7273,16 +7274,28 @@ body.pitch-modal-open {
 }
 
 .mini-pitch-node .pitch-player-avatar-circle {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    border: 2px solid #ffffff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55);
     background: #1e293b;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.mini-pitch-node .pitch-name-pill {
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    padding: 1.5px 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    max-width: 95px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
 .mini-pitch-node .pitch-player-avatar-circle img {
@@ -7293,15 +7306,93 @@ body.pitch-modal-open {
 
 .mini-score-rating {
     position: absolute;
-    top: -5px;
-    right: -10px;
-    font-size: 0.62rem;
-    font-weight: 800;
-    padding: 1px 4px;
-    border-radius: 999px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    top: -8px;
+    right: -12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.74rem;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 9999px;
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(0, 0, 0, 0.3);
     white-space: nowrap;
-    z-index: 4;
+    z-index: 10;
+    line-height: 1;
+}
+
+.mini-score-rating .badge-icon {
+    font-size: 0.62rem;
+    line-height: 1;
+}
+
+.mini-score-rating .badge-val {
+    font-size: 0.74rem;
+    font-weight: 900;
+    line-height: 1;
+    color: #ffffff;
+}
+
+.mini-score-rating.rating-elite {
+    background: #16a34a !important; /* Solid Vivid Green */
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+.mini-score-rating.rating-great {
+    background: #2563eb !important; /* Solid Vivid Blue */
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+.mini-score-rating.rating-good {
+    background: #d97706 !important; /* Solid Vivid Amber */
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+.mini-score-rating.rating-avg {
+    background: #475569 !important; /* Solid Slate */
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+.mini-score-rating.rating-none {
+    background: #1e293b !important;
+    color: #94a3b8 !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Name Pill Rating Tag */
+.pitch-name-rating {
+    font-size: 0.62rem;
+    font-weight: 900;
+    padding: 1px 4px;
+    border-radius: 4px;
+    margin-left: 2px;
+    line-height: 1.1;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.pitch-name-rating.rating-elite {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+.pitch-name-rating.rating-great {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.pitch-name-rating.rating-good {
+    background: #d97706;
+    color: #ffffff;
+}
+
+.pitch-name-rating.rating-avg {
+    background: #475569;
+    color: #ffffff;
 }
 
 .mini-team-mvp-badge {

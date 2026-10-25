@@ -1335,13 +1335,15 @@
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
-												⭐{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}
+												<span class="badge-icon">{{ (team.topPlayer && p.id === team.topPlayer.id) ? '👑' : '⭐' }}</span>
+												<span class="badge-val">{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}</span>
 											</div>
 											<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="mini-team-mvp-badge" title="Team MVP">👑</span>
 										</div>
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'CF' }}</span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
+											<span class="pitch-name-rating" :class="getRatingColorClass(p.rating)" v-if="p.rating && p.rating !== '-' && p.rating > 0">{{ p.rating }}</span>
 										</div>
 									</div>
 								</div>
@@ -1355,13 +1357,15 @@
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
-												⭐{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}
+												<span class="badge-icon">{{ (team.topPlayer && p.id === team.topPlayer.id) ? '👑' : '⭐' }}</span>
+												<span class="badge-val">{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}</span>
 											</div>
 											<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="mini-team-mvp-badge" title="Team MVP">👑</span>
 										</div>
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'MF' }}</span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
+											<span class="pitch-name-rating" :class="getRatingColorClass(p.rating)" v-if="p.rating && p.rating !== '-' && p.rating > 0">{{ p.rating }}</span>
 										</div>
 									</div>
 								</div>
@@ -1375,13 +1379,15 @@
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
-												⭐{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}
+												<span class="badge-icon">{{ (team.topPlayer && p.id === team.topPlayer.id) ? '👑' : '⭐' }}</span>
+												<span class="badge-val">{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}</span>
 											</div>
 											<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="mini-team-mvp-badge" title="Team MVP">👑</span>
 										</div>
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'DF' }}</span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
+											<span class="pitch-name-rating" :class="getRatingColorClass(p.rating)" v-if="p.rating && p.rating !== '-' && p.rating > 0">{{ p.rating }}</span>
 										</div>
 									</div>
 								</div>
@@ -1395,13 +1401,15 @@
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
-												⭐{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}
+												<span class="badge-icon">{{ (team.topPlayer && p.id === team.topPlayer.id) ? '👑' : '⭐' }}</span>
+												<span class="badge-val">{{ (p.rating && p.rating !== '-' && p.rating > 0) ? p.rating : '-' }}</span>
 											</div>
 											<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="mini-team-mvp-badge" title="Team MVP">👑</span>
 										</div>
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'GK' }}</span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
+											<span class="pitch-name-rating" :class="getRatingColorClass(p.rating)" v-if="p.rating && p.rating !== '-' && p.rating > 0">{{ p.rating }}</span>
 										</div>
 									</div>
 								</div>
