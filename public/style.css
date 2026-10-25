@@ -5950,3 +5950,584 @@ body.pitch-modal-open {
         box-shadow: 0 0 8px 2px rgba(234, 179, 8, 0.3);
     }
 }
+
+
+/* ==================== VIEWER LIVE HUB & HERO MATCH (/live style) ==================== */
+.viewer-live-hub {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.viewer-hub-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.25rem 0.25rem;
+}
+
+.viewer-hub-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-color);
+}
+
+.pulse-indicator-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    animation: live-pulse-dot 1.8s infinite;
+}
+
+@keyframes live-pulse-dot {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.btn-toggle-pitch-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--card-bg, #1e293b);
+    border: 1px solid var(--border-color, #334155);
+    color: var(--text-color);
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-toggle-pitch-pill:hover,
+.btn-toggle-pitch-pill.is-active {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: #3b82f6;
+    color: #60a5fa;
+}
+
+/* Hero Current Match Card */
+.viewer-match-hero-card {
+    background: var(--card-bg, #111827);
+    border: 1px solid var(--border-color, #374151);
+    border-radius: 14px;
+    padding: 1rem 1.15rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.viewer-match-hero-card.is-live {
+    border-color: rgba(239, 68, 68, 0.6);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.18), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.hero-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.85rem;
+    gap: 0.5rem;
+}
+
+.hero-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.76rem;
+    font-weight: 800;
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    letter-spacing: 0.4px;
+}
+
+.hero-status-pill.status-live {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.hero-status-pill.status-ft {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.hero-status-pill.status-sched {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.hero-status-pill .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: live-pulse-dot 1.5s infinite;
+}
+
+.hero-match-no {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+/* Hero Scoreboard Row */
+.hero-scoreboard {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    gap: 0.5rem;
+}
+
+.hero-team {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.hero-team.team-a {
+    justify-content: flex-end;
+}
+
+.hero-team.team-b {
+    justify-content: flex-start;
+}
+
+.hero-team-badge {
+    padding: 0.45rem 1rem;
+    border-radius: 10px;
+    font-weight: 900;
+    font-size: 1.05rem;
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    letter-spacing: 0.5px;
+}
+
+.hero-score-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.85rem;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.hero-score-num {
+    font-size: 2.2rem;
+    font-weight: 900;
+    font-family: 'Inter', monospace, sans-serif;
+    color: #ffffff;
+    min-width: 1.8rem;
+    text-align: center;
+    line-height: 1;
+}
+
+.hero-colon {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--text-muted);
+    line-height: 1;
+}
+
+/* Hero Events (Goals & Assists) */
+.hero-events-container {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.hero-events-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.hero-event-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hero-event-players {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.hero-player-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: var(--background-color, #1e293b);
+    border: 1px solid var(--border-color, #334155);
+    border-radius: 9999px;
+    padding: 0.2rem 0.65rem 0.2rem 0.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.hero-player-chip.is-og {
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.hero-player-chip.is-assist {
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.hero-player-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 2px solid #3b82f6;
+    background: #374151;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.8rem;
+}
+
+.hero-player-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hero-player-info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+
+.hero-player-name {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.badge-og-tag {
+    font-size: 0.62rem;
+    padding: 1px 4px;
+    background: #ef4444;
+    color: #ffffff;
+    border-radius: 4px;
+    font-weight: 800;
+}
+
+.hero-player-fullname {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+.hero-no-events {
+    text-align: center;
+    padding: 0.5rem 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 0.75rem;
+}
+
+/* Hero Lineup Rosters */
+.hero-lineups {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+}
+
+.hero-lineup-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.hero-lineup-header {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--text-muted);
+}
+
+.dot-team {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.hero-lineup-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.hero-lineup-player {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.4rem;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    font-size: 0.78rem;
+}
+
+.hero-lineup-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1.5px solid #ccc;
+    background: #374151;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.hero-lineup-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hero-lineup-names {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
+.hero-lineup-alias {
+    font-weight: 700;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hero-lineup-fullname {
+    font-size: 0.64rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hero-lineup-pos {
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+/* Next Match Card */
+.viewer-next-card {
+    background: var(--card-bg, #1e293b);
+    border: 1px dashed var(--border-color, #475569);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.next-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.65rem;
+}
+
+.next-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 0.2rem 0.55rem;
+    border-radius: 9999px;
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.next-match-no {
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: var(--text-muted);
+}
+
+.next-matchup-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.next-team-badge {
+    padding: 0.35rem 0.85rem;
+    border-radius: 8px;
+    font-weight: 900;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+}
+
+.next-vs-box {
+    font-size: 0.85rem;
+    font-weight: 900;
+    color: var(--text-muted);
+    padding: 0.2rem 0.45rem;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+}
+
+.next-lineups-preview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 0.65rem;
+}
+
+.next-lineup-title {
+    font-size: 0.74rem;
+    margin-bottom: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.next-avatar-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.next-player-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 9999px;
+    padding: 0.15rem 0.45rem 0.15rem 0.15rem;
+    font-size: 0.72rem;
+}
+
+.next-player-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1.5px solid #ccc;
+    background: #374151;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.next-player-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.next-player-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
+.next-player-name {
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.next-player-fullname {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+}
+
+.next-pos-tag {
+    font-size: 0.58rem;
+    font-weight: 800;
+    color: var(--text-muted);
+}
+
+/* Event Pill Avatar inside All Matches summary */
+.event-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    vertical-align: middle;
+}
+
+.event-pill-avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+    .hero-scoreboard {
+        gap: 0.25rem;
+    }
+    .hero-team-badge {
+        font-size: 0.9rem;
+        padding: 0.35rem 0.75rem;
+    }
+    .hero-score-num {
+        font-size: 1.75rem;
+        min-width: 1.5rem;
+    }
+    .hero-lineups,
+    .next-lineups-preview {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+}

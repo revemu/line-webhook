@@ -725,8 +725,8 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
 
 async function queryTeamMembers(matchid) {
     const sql = `
-    SELECT member_tbl.id, member_tbl.name, member_tbl.alias, 
-           member_team_week_tbl.team_id, team_color_week_tbl.color
+    SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.picture_url,
+           member_team_week_tbl.team_id, team_color_week_tbl.color, member_team_week_tbl.pos_id
     FROM member_team_week_tbl, member_tbl, match_stat_tbl, team_color_week_tbl
     WHERE (match_stat_tbl.team_a_id = member_team_week_tbl.team_id 
            OR match_stat_tbl.team_b_id = member_team_week_tbl.team_id)
@@ -759,13 +759,16 @@ async function queryRegisteredMembers(weekid) {
 
 async function queryMatchScorer(matchID) {
     const sql = `
-    SELECT member_tbl.alias as name, match_goal_tbl.id AS goal_id, 
+    SELECT COALESCE(member_tbl.alias, member_tbl.name) as name,
+           member_tbl.name as full_name,
+           member_tbl.picture_url,
+           match_goal_tbl.id AS goal_id, 
            match_goal_tbl.status as goal_status,
            match_goal_tbl.member_id,
            match_goal_tbl.team_week_id as team_id
-    FROM match_goal_tbl, member_tbl
-    WHERE match_goal_tbl.match_id = ${matchID}
-      AND match_goal_tbl.member_id = member_tbl.id`;
+    FROM match_goal_tbl
+    LEFT JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
+    WHERE match_goal_tbl.match_id = ${matchID}`;
 
     return await doQuery(sql);
 }

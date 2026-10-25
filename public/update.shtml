@@ -237,8 +237,227 @@
 		<!-- Backdrop for Modal Pitch Mode -->
 		<div class="pitch-modal-backdrop" v-if="isPitchModal" @click="closePitchModal"></div>
 
+		<!-- ==================== VIEWER LIVE FOCUS HUB (/live style) ==================== -->
+		<div class="viewer-live-hub" v-if="!isManager && currentLiveMatch">
+			<!-- Hub Toolbar -->
+			<div class="viewer-hub-toolbar">
+				<div class="viewer-hub-title">
+					<span class="pulse-indicator-dot" v-if="isMatchLive(currentLiveMatch)"></span>
+					<span>⚽ {{ isMatchLive(currentLiveMatch) ? 'LIVE MATCH CENTER' : 'MATCH SPOTLIGHT' }}</span>
+				</div>
+				<div class="viewer-hub-actions">
+					<button type="button" class="btn-toggle-pitch-pill" @click="togglePitch" :class="{ 'is-active': showPitch }">
+						<span>🏟️ {{ showPitch ? 'ซ่อนผังสนาม' : 'แสดงผังสนาม' }}</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- 1. CURRENT MATCH CARD (แมตช์ปัจจุบัน / กำลังแข่งขัน) -->
+			<div class="viewer-match-hero-card" :class="{ 'is-live': isMatchLive(currentLiveMatch) }">
+				<div class="hero-card-header">
+					<div class="hero-status-pill" :class="{ 'status-live': isMatchLive(currentLiveMatch), 'status-ft': isMatchFinished(currentLiveMatch), 'status-sched': isMatchScheduled(currentLiveMatch) }">
+						<span class="live-dot" v-if="isMatchLive(currentLiveMatch)"></span>
+						<span>{{ isMatchLive(currentLiveMatch) ? 'กำลังแข่งขัน (LIVE)' : (isMatchFinished(currentLiveMatch) ? 'จบการแข่งขัน (FT)' : 'แมตช์ปัจจุบัน (รอเริ่มแข่ง)') }}</span>
+					</div>
+					<div class="hero-match-no">
+						MATCH {{ currentLiveMatch.match_num }} / {{ matchCount }}
+					</div>
+				</div>
+
+				<!-- Hero Scoreboard -->
+				<div class="hero-scoreboard">
+					<div class="hero-team team-a">
+						<span class="hero-team-badge"
+							:style="{ backgroundColor: currentLiveMatch.team_a_color ? currentLiveMatch.team_a_color.toLowerCase() : '#333', color: getContrastColor(currentLiveMatch.team_a_color) }">
+							{{ currentLiveMatch.team_a_color }}
+						</span>
+					</div>
+					<div class="hero-score-box">
+						<span class="hero-score-num">{{ currentLiveMatch.team_a_goal }}</span>
+						<span class="hero-colon">:</span>
+						<span class="hero-score-num">{{ currentLiveMatch.team_b_goal }}</span>
+					</div>
+					<div class="hero-team team-b">
+						<span class="hero-team-badge"
+							:style="{ backgroundColor: currentLiveMatch.team_b_color ? currentLiveMatch.team_b_color.toLowerCase() : '#333', color: getContrastColor(currentLiveMatch.team_b_color) }">
+							{{ currentLiveMatch.team_b_color }}
+						</span>
+					</div>
+				</div>
+
+				<!-- Hero Events (Scorers & Assists จัดเต็ม avatar + ชื่อคน) -->
+				<div class="hero-events-container" v-if="currentLiveMatch.goal && currentLiveMatch.goal.length > 0">
+					<!-- Scorers (⚽) -->
+					<div class="hero-events-row" v-if="getMatchScorers(currentLiveMatch).length > 0">
+						<div class="hero-event-label">⚽ ผู้ทำประตู</div>
+						<div class="hero-event-players">
+							<div v-for="s in getMatchScorers(currentLiveMatch)" :key="s.goal_id" class="hero-player-chip" :class="{ 'is-og': s.goal_status == 2 }">
+								<div class="hero-player-avatar" :style="{ borderColor: getTeamColorById(s.team_id) }">
+									<img v-if="getMemberAvatar(s.member_id, s.picture_url)" :src="getMemberAvatar(s.member_id, s.picture_url)" />
+									<span v-else>{{ s.name ? s.name.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="hero-player-info">
+									<div class="hero-player-name">
+										{{ s.name }}
+										<span v-if="s.goal_status == 2" class="badge-og-tag">OG</span>
+									</div>
+									<div class="hero-player-fullname" v-if="s.full_name && s.full_name !== s.name">{{ s.full_name }}</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Assists (👟) -->
+					<div class="hero-events-row" v-if="getMatchAssists(currentLiveMatch).length > 0">
+						<div class="hero-event-label">👟 แอสซิสต์</div>
+						<div class="hero-event-players">
+							<div v-for="a in getMatchAssists(currentLiveMatch)" :key="a.goal_id" class="hero-player-chip is-assist">
+								<div class="hero-player-avatar" :style="{ borderColor: getTeamColorById(a.team_id) }">
+									<img v-if="getMemberAvatar(a.member_id, a.picture_url)" :src="getMemberAvatar(a.member_id, a.picture_url)" />
+									<span v-else>{{ a.name ? a.name.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="hero-player-info">
+									<div class="hero-player-name">{{ a.name }}</div>
+									<div class="hero-player-fullname" v-if="a.full_name && a.full_name !== a.name">{{ a.full_name }}</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="hero-no-events" v-else>
+					<span>ยังไม่มีประตูในแมตช์นี้ (0 - 0)</span>
+				</div>
+
+				<!-- Hero Lineup Preview (รายชื่อผู้เล่นในสนามทั้ง 2 ทีม พร้อม avatar จัดเต็ม) -->
+				<div class="hero-lineups" v-if="!info.is_roster_locked">
+					<div class="hero-lineup-col">
+						<div class="hero-lineup-header">
+							<span class="dot-team" :style="{ backgroundColor: currentLiveMatch.team_a_color ? currentLiveMatch.team_a_color.toLowerCase() : '#ccc' }"></span>
+							<span>ผู้เล่น {{ currentLiveMatch.team_a_color }}</span>
+						</div>
+						<div class="hero-lineup-list">
+							<div v-for="p in getTeamPlayers(currentLiveMatch.team_a_id, currentLiveMatch.match_num)" :key="p.id" class="hero-lineup-player" :title="(p.alias || '') + ' ' + (p.name || '')">
+								<div class="hero-lineup-avatar" :style="{ borderColor: currentLiveMatch.team_a_color ? currentLiveMatch.team_a_color.toLowerCase() : '#ccc' }">
+									<img v-if="p.picture_url" :src="p.picture_url" />
+									<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="hero-lineup-names">
+									<div class="hero-lineup-alias">
+										{{ p.alias }}
+										<span v-if="p.is_loan" style="font-size: 0.62rem; color: #f59e0b; font-weight: 800;">(ยืม)</span>
+									</div>
+									<div class="hero-lineup-fullname" v-if="p.name && p.name !== p.alias">{{ p.name }}</div>
+								</div>
+								<span v-if="p.pos_code" class="hero-lineup-pos">{{ p.pos_code }}</span>
+							</div>
+						</div>
+					</div>
+
+					<div class="hero-lineup-col">
+						<div class="hero-lineup-header">
+							<span class="dot-team" :style="{ backgroundColor: currentLiveMatch.team_b_color ? currentLiveMatch.team_b_color.toLowerCase() : '#ccc' }"></span>
+							<span>ผู้เล่น {{ currentLiveMatch.team_b_color }}</span>
+						</div>
+						<div class="hero-lineup-list">
+							<div v-for="p in getTeamPlayers(currentLiveMatch.team_b_id, currentLiveMatch.match_num)" :key="p.id" class="hero-lineup-player" :title="(p.alias || '') + ' ' + (p.name || '')">
+								<div class="hero-lineup-avatar" :style="{ borderColor: currentLiveMatch.team_b_color ? currentLiveMatch.team_b_color.toLowerCase() : '#ccc' }">
+									<img v-if="p.picture_url" :src="p.picture_url" />
+									<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+								</div>
+								<div class="hero-lineup-names">
+									<div class="hero-lineup-alias">
+										{{ p.alias }}
+										<span v-if="p.is_loan" style="font-size: 0.62rem; color: #f59e0b; font-weight: 800;">(ยืม)</span>
+									</div>
+									<div class="hero-lineup-fullname" v-if="p.name && p.name !== p.alias">{{ p.name }}</div>
+								</div>
+								<span v-if="p.pos_code" class="hero-lineup-pos">{{ p.pos_code }}</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- 2. NEXT MATCH CARD (แมตช์ถัดไป) -->
+			<div class="viewer-next-card" v-if="nextScheduledMatch">
+				<div class="next-card-header">
+					<div class="next-status-pill">
+						<span>⏭️ แมตช์ถัดไป (UP NEXT)</span>
+					</div>
+					<div class="next-match-no">
+						MATCH {{ nextScheduledMatch.match_num }} / {{ matchCount }}
+					</div>
+				</div>
+
+				<div class="next-matchup-row">
+					<div class="next-team team-a">
+						<span class="next-team-badge"
+							:style="{ backgroundColor: nextScheduledMatch.team_a_color ? nextScheduledMatch.team_a_color.toLowerCase() : '#333', color: getContrastColor(nextScheduledMatch.team_a_color) }">
+							{{ nextScheduledMatch.team_a_color }}
+						</span>
+					</div>
+					<div class="next-vs-box">
+						<span>VS</span>
+					</div>
+					<div class="next-team team-b">
+						<span class="next-team-badge"
+							:style="{ backgroundColor: nextScheduledMatch.team_b_color ? nextScheduledMatch.team_b_color.toLowerCase() : '#333', color: getContrastColor(nextScheduledMatch.team_b_color) }">
+							{{ nextScheduledMatch.team_b_color }}
+						</span>
+					</div>
+				</div>
+
+				<!-- Upcoming Lineups Preview with Avatars -->
+				<div class="next-lineups-preview" v-if="!info.is_roster_locked">
+					<div class="next-lineup-side">
+						<div class="next-lineup-title">
+							<span :style="{ color: nextScheduledMatch.team_a_color ? nextScheduledMatch.team_a_color.toLowerCase() : 'var(--text-color)', fontWeight: 800 }">
+								{{ nextScheduledMatch.team_a_color }}
+							</span>
+							<span class="next-count">({{ getTeamPlayers(nextScheduledMatch.team_a_id, nextScheduledMatch.match_num).length }})</span>
+						</div>
+					<div class="next-avatar-cloud">
+						<div v-for="p in getTeamPlayers(nextScheduledMatch.team_a_id, nextScheduledMatch.match_num)" :key="p.id" class="next-player-chip" :title="(p.alias || '') + ' ' + (p.name || '')">
+							<div class="next-player-avatar" :style="{ borderColor: nextScheduledMatch.team_a_color ? nextScheduledMatch.team_a_color.toLowerCase() : '#ccc' }">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="next-player-text">
+								<div class="next-player-name">{{ p.alias }}</div>
+								<div class="next-player-fullname" v-if="p.name && p.name !== p.alias">{{ p.name }}</div>
+							</div>
+							<span v-if="p.pos_code" class="next-pos-tag">{{ p.pos_code }}</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="next-lineup-side">
+					<div class="next-lineup-title">
+						<span :style="{ color: nextScheduledMatch.team_b_color ? nextScheduledMatch.team_b_color.toLowerCase() : 'var(--text-color)', fontWeight: 800 }">
+							{{ nextScheduledMatch.team_b_color }}
+						</span>
+						<span class="next-count">({{ getTeamPlayers(nextScheduledMatch.team_b_id, nextScheduledMatch.match_num).length }})</span>
+					</div>
+					<div class="next-avatar-cloud">
+						<div v-for="p in getTeamPlayers(nextScheduledMatch.team_b_id, nextScheduledMatch.match_num)" :key="p.id" class="next-player-chip" :title="(p.alias || '') + ' ' + (p.name || '')">
+							<div class="next-player-avatar" :style="{ borderColor: nextScheduledMatch.team_b_color ? nextScheduledMatch.team_b_color.toLowerCase() : '#ccc' }">
+								<img v-if="p.picture_url" :src="p.picture_url" />
+								<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div class="next-player-text">
+								<div class="next-player-name">{{ p.alias }}</div>
+								<div class="next-player-fullname" v-if="p.name && p.name !== p.alias">{{ p.name }}</div>
+							</div>
+							<span v-if="p.pos_code" class="next-pos-tag">{{ p.pos_code }}</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		</div>
+
 		<!-- ==================== MAIN STADIUM & PITCH CARD ==================== -->
-		<div class="match-stadium-card" :class="{ 'pitch-modal-card': isPitchModal }" v-if="currentSelectedMatch">
+		<div class="match-stadium-card" :class="{ 'pitch-modal-card': isPitchModal }" v-if="currentSelectedMatch && (isManager || showPitch)">
 
 			<!-- Modal Close Button (When in Modal Mode) -->
 			<button v-if="isPitchModal" type="button" class="btn-pitch-modal-close" @click="closePitchModal" title="ปิดหน้าต่างขยายสนาม (Esc)">
@@ -256,6 +475,9 @@
 					<span v-if="activePitchTab !== 'both'" @click="activePitchTab = 'both'" class="scoreboard-dual-toggle" style="cursor: pointer;" title="คลิกเพื่อกลับไปดูสนามคู่">⚔️ ดูสนามคู่</span>
 					<span v-if="!isPitchModal" @click="openPitchModal" class="scoreboard-dual-toggle scoreboard-fs-toggle" style="cursor: pointer;" title="ขยายผังสนามแบบหน้าต่าง Modal ขนาดใหญ่">
 						🔍 ขยายสนาม
+					</span>
+					<span v-if="!isManager" @click="togglePitch" class="scoreboard-dual-toggle" style="cursor: pointer;" title="เปิดหรือปิดผังสนาม">
+						{{ showPitch ? '🙈 ซ่อนผังสนาม' : '🏟️ แสดงผังสนาม' }}
 					</span>
 				</div>
 
@@ -1312,12 +1534,14 @@
 					<div class="event-title">⚽ ประตู</div>
 					<div class="event-list">
 						<div v-for="(goal, index1) in match.goal" :key="goal.goal_id">
-							<span v-if="goal.goal_status == 2" class="event-pill og">
-								{{ goal.name }} (OG)
+							<span v-if="goal.goal_status == 2" class="event-pill og" :title="getMemberFullName(goal.member_id, goal.full_name)">
+								<img v-if="getMemberAvatar(goal.member_id, goal.picture_url)" :src="getMemberAvatar(goal.member_id, goal.picture_url)" class="event-pill-avatar" />
+								<span>{{ goal.name }} (OG)</span>
 								<span class="remove-x" v-if="isManager" v-on:click="removeGoalbyID(goal.goal_id)">×</span>
 							</span>
-							<span v-else-if="goal.goal_status != 3" class="event-pill">
-								{{ goal.name }}
+							<span v-else-if="goal.goal_status != 3" class="event-pill" :title="getMemberFullName(goal.member_id, goal.full_name)">
+								<img v-if="getMemberAvatar(goal.member_id, goal.picture_url)" :src="getMemberAvatar(goal.member_id, goal.picture_url)" class="event-pill-avatar" />
+								<span>{{ goal.name }}</span>
 								<span class="remove-x" v-if="isManager" v-on:click="removeGoalbyID(goal.goal_id)">×</span>
 							</span>
 						</div>
@@ -1329,8 +1553,9 @@
 					<div class="event-title">👟 แอสซิสต์</div>
 					<div class="event-list">
 						<div v-for="(goal, index1) in match.goal" :key="goal.goal_id">
-							<span v-if="goal.goal_status == 3" class="event-pill">
-								{{ goal.name }}
+							<span v-if="goal.goal_status == 3" class="event-pill" :title="getMemberFullName(goal.member_id, goal.full_name)">
+								<img v-if="getMemberAvatar(goal.member_id, goal.picture_url)" :src="getMemberAvatar(goal.member_id, goal.picture_url)" class="event-pill-avatar" />
+								<span>{{ goal.name }}</span>
 								<span class="remove-x" v-if="isManager" v-on:click="removeGoalbyID(goal.goal_id)">×</span>
 							</span>
 						</div>
@@ -1371,6 +1596,7 @@
 				assetVersion: (window.__ASSET_VERSION__ || ''),
 				newVersionAvailable: false,
 				latestServerVersion: '',
+				showPitch: (window.location.pathname.includes('/match') && !window.location.pathname.includes('/view') && !window.location.pathname.includes('/matches')),
 				isPitchModal: false,
 				sessionExpired: false,
 				newTodoSelect: '',
@@ -1438,6 +1664,28 @@
 				isDeletingMatch: false
 			},
 			computed: {
+				currentLiveMatch() {
+					if (!this.all_match) return null;
+					const matches = this.sortedMatchesAscending;
+					if (!matches || matches.length === 0) return null;
+					const live = matches.find(m => this.isMatchLive(m));
+					if (live) return live;
+					if (!this.isWeekEnded) {
+						const scheduled = matches.find(m => this.isMatchScheduled(m));
+						if (scheduled) return scheduled;
+					}
+					const finished = [...matches].reverse().find(m => this.isMatchFinished(m));
+					return finished || matches[0];
+				},
+				nextScheduledMatch() {
+					if (!this.all_match) return null;
+					const matches = this.sortedMatchesAscending;
+					if (!matches || matches.length === 0) return null;
+					const cur = this.currentLiveMatch;
+					if (!cur) return null;
+					const next = matches.find(m => m.match_num === cur.match_num + 1);
+					return next || null;
+				},
 				isWeekEnded() {
 					if (this.weeks && this.weeks.length > 0 && this.week && this.week.id && this.weeks[0].id) {
 						if (this.week.id !== this.weeks[0].id) return true;
@@ -1662,6 +1910,15 @@
 					}
 				});
 
+				// Load viewer pitch visibility preference
+				if (!this.isManager) {
+					try {
+						const savedPitchPref = localStorage.getItem('viewer_show_pitch');
+						if (savedPitchPref !== null) {
+							this.showPitch = savedPitchPref === '1';
+						}
+					} catch (e) {}
+				}
 				this.fetchCurrentUser();
 				const urlParams = new URLSearchParams(window.location.search);
 				const initialWeek = urlParams.get('weeknum') || urlParams.get('week') || urlParams.get('week_id') || 0;
@@ -1696,6 +1953,56 @@
 				}
 			},
 			methods: {
+				togglePitch() {
+					this.showPitch = !this.showPitch;
+					try {
+						localStorage.setItem('viewer_show_pitch', this.showPitch ? '1' : '0');
+					} catch (e) {}
+				},
+				getTeamColorById(teamId) {
+					if (!this.info || !this.info.team_week || !this.info.team_week[teamId]) return '#3b82f6';
+					const color = this.info.team_week[teamId].name || '';
+					return color ? color.toLowerCase() : '#3b82f6';
+				},
+				getTeamPlayers(teamId, matchNum = null) {
+					if (!this.info || !this.info.allmembers || !teamId || this.info.is_roster_locked) return [];
+					let players = this.info.allmembers.filter(m => m.team_id == teamId);
+					if (matchNum && this.loans && this.loans[matchNum]) {
+						const mLoans = this.loans[matchNum];
+						const match = this.all_match && this.all_match[matchNum];
+						if (match) {
+							const side = (match.team_a_id == teamId) ? 'teamA' : ((match.team_b_id == teamId) ? 'teamB' : null);
+							if (side && mLoans[side] && Array.isArray(mLoans[side])) {
+								const loanedMembers = this.info.allmembers.filter(m => mLoans[side].includes(m.id));
+								players = [...players, ...loanedMembers.map(lm => ({ ...lm, is_loan: true }))];
+							}
+						}
+					}
+					const posRank = { 1: 10, 2: 20, 6: 30, 5: 35, 3: 40, 7: 50, 4: 60 };
+					return [...players].sort((a, b) => (posRank[a.pos_id] || 38) - (posRank[b.pos_id] || 38) || (a.alias || '').localeCompare(b.alias || ''));
+				},
+				getMatchScorers(match) {
+					if (!match || !match.goal) return [];
+					return match.goal.filter(g => g.goal_status != 3);
+				},
+				getMatchAssists(match) {
+					if (!match || !match.goal) return [];
+					return match.goal.filter(g => g.goal_status == 3);
+				},
+				getMember(memberId) {
+					if (!this.info || !this.info.allmembers) return null;
+					return this.info.allmembers.find(m => m.id == memberId) || null;
+				},
+				getMemberAvatar(memberId, fallbackPicture = null) {
+					if (fallbackPicture) return fallbackPicture;
+					const m = this.getMember(memberId);
+					return m ? m.picture_url : null;
+				},
+				getMemberFullName(memberId, fallbackFullName = null) {
+					if (fallbackFullName) return fallbackFullName;
+					const m = this.getMember(memberId);
+					return m ? (m.name || m.alias) : '';
+				},
 				reloadApp() {
 					window.location.reload(true);
 				},
