@@ -5126,6 +5126,12 @@ select.form-control {
     .update-label-compact {
         display: inline !important;
     }
+    .badge-text-desktop {
+        display: none !important;
+    }
+    .badge-text-mobile {
+        display: inline !important;
+    }
     .top-nav-bar {
         justify-content: center;
         gap: 0.4rem;
@@ -6198,6 +6204,13 @@ body.pitch-modal-open {
     display: inline;
 }
 .update-label-compact {
+    display: none;
+}
+
+.badge-text-desktop {
+    display: inline;
+}
+.badge-text-mobile {
     display: none;
 }
 

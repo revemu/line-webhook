@@ -1238,8 +1238,11 @@
 		<div class="card team-summary-card" v-if="matchCount > 0 && teamRostersSummary.length > 0">
 			<div class="team-summary-header">
 				<div class="team-summary-title">
-					<span class="team-summary-title-text">👥 สรุปนักเตะแต่ละทีม & เรทติ้ง</span>
-					<span class="realtime-live-badge">⚡ Live Ratings</span>
+					<span class="team-summary-title-text">👥 สรุปทีม & เรทติ้ง</span>
+					<span class="realtime-live-badge">
+						<span class="badge-text-desktop">⚡ Live Ratings</span>
+						<span class="badge-text-mobile">⚡ Live</span>
+					</span>
 				</div>
 				<div class="team-summary-actions">
 					<div class="view-toggle-pill-group">
@@ -1592,7 +1595,7 @@
 			<div v-if="expandedPitchMatchNum === match.match_num" class="match-inline-pitch-card">
 				<div class="inline-pitch-header">
 					<div style="display: flex; align-items: center; gap: 0.4rem;">
-						<span style="font-weight: 800; font-size: 0.84rem;">🏟️ ผังรายชื่อนักเตะ Match {{ match.match_num }}</span>
+						<span style="font-weight: 800; font-size: 0.84rem;">🏟️ ผังนักเตะ Match {{ match.match_num }}</span>
 						<span class="inline-pitch-vs-pill">{{ match.team_a_color }} vs {{ match.team_b_color }}</span>
 					</div>
 					<button type="button" class="btn-close-inline-pitch" @click.stop="toggleMatchPitch(match.match_num)">✕ ปิด</button>
