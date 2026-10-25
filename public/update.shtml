@@ -8,7 +8,10 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="/webhook/style.css?v=0.6.3">
+	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+	<meta http-equiv="Pragma" content="no-cache">
+	<meta http-equiv="Expires" content="0">
+	<link rel="stylesheet" href="/webhook/style.css?v=0.6.4">
 	<script>
 		(function () {
 			var saved = localStorage.getItem('theme');
@@ -74,6 +77,11 @@
 					🔐 เข้าสู่ระบบ
 				</a>
 			</div>
+		</div>
+
+		<!-- Session Expired Warning Banner (When active session is lost or stale-cached) -->
+		<div v-if="isManager && sessionExpired" class="session-expired-banner">
+			<span>⚠️ เซสชันการใช้งานของคุณหมดอายุแล้ว คุณไม่สามารถบันทึกผลได้ กรุณา <a :href="(base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname)">คลิกที่นี่เพื่อเข้าสู่ระบบใหม่</a></span>
 		</div>
 
 		<!-- Date Info & Switcher Card -->
@@ -1331,10 +1339,30 @@
 	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
 	<script>
+		// Setup Axios defaults for CSRF/AJAX detection and reliable timeouts
+		axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+		axios.defaults.timeout = 10000;
+
+		// Response interceptor to catch any unexpected HTML redirects (e.g. 302 to login followed by browser)
+		axios.interceptors.response.use(
+			function (response) {
+				if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>') && response.data.includes('login')) {
+					var err = new Error('Session expired');
+					err.response = { status: 401, data: { success: false, session_expired: true, error: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่' } };
+					return Promise.reject(err);
+				}
+				return response;
+			},
+			function (error) {
+				return Promise.reject(error);
+			}
+		);
+
 		new Vue({
 			el: '#soccer-match',
 			data: {
 				isPitchModal: false,
+				sessionExpired: false,
 				newTodoSelect: '',
 				isLoan: false,
 				matchCount: 0,
@@ -1632,6 +1660,30 @@
 				if (!this.isManager) {
 					this.startAutoRefreshTimer();
 				}
+
+				// Cross-check session validity and data freshness when page becomes visible or restored from cache
+				window.addEventListener('pageshow', (e) => {
+					if (this.isManager) {
+						this.fetchCurrentUser();
+						this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0);
+					}
+				});
+				document.addEventListener('visibilitychange', () => {
+					if (!document.hidden && this.isManager) {
+						this.fetchCurrentUser();
+						this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0);
+					}
+				});
+				window.addEventListener('focus', () => {
+					if (this.isManager) {
+						this.fetchCurrentUser();
+					}
+				});
+				if (this.isManager) {
+					setInterval(() => {
+						this.fetchCurrentUser();
+					}, 60000);
+				}
 			},
 			methods: {
 				manualRefresh() {
@@ -1813,24 +1865,43 @@
 					}
 				},
 				addMatch() {
+					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
+						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						setTimeout(() => {
+							window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
+						}, 1200);
+						return;
+					}
+
+					var matchnum = this.$refs.match_num ? this.$refs.match_num.value : '';
+					var weekid = (this.week && (this.week.id || this.week.number)) || (this.$refs.week_id ? this.$refs.week_id.value : '');
+					var teamaid = this.$refs.team_a_id ? this.$refs.team_a_id.value : (this.teamA ? this.teamA.id : '');
+					var teambid = this.$refs.team_b_id ? this.$refs.team_b_id.value : (this.teamB ? this.teamB.id : '');
+
 					var formdata = new FormData();
-					formdata.append('matchnum', this.$refs.match_num.value);
-					formdata.append('weekid', this.$refs.week_id.value);
-					formdata.append('teamaid', this.$refs.team_a_id.value);
-					formdata.append('teambid', this.$refs.team_b_id.value);
+					formdata.append('matchnum', matchnum);
+					formdata.append('weekid', weekid);
+					formdata.append('teamaid', teamaid);
+					formdata.append('teambid', teambid);
 
 					axios.post(this.base_url + '/add_match', formdata)
 						.then(response => {
-							this.output = response;
-							this.teamA = null;
-							this.teamB = null;
-							this.selectedMatchIndex = 0;
-							this.showAddMatchForm = false;
-							this.showToast('✅ สร้าง Match ' + this.$refs.match_num.value + ' สำเร็จ!');
-							this.refreshMatch(this.week.number || 0, true);
+							if (response.data && response.data.success) {
+								this.output = response;
+								this.teamA = null;
+								this.teamB = null;
+								this.selectedMatchIndex = 0;
+								this.showAddMatchForm = false;
+								this.showToast('✅ สร้าง Match ' + matchnum + ' สำเร็จ!');
+								this.refreshMatch(this.week.number || 0, true);
+							} else {
+								var errMsg = (response.data && response.data.error) || 'ไม่สามารถสร้างแมตช์ได้';
+								this.showToast('❌ ' + errMsg);
+							}
 						})
 						.catch(err => {
-							this.showToast('⚠️ ไม่สามารถสร้างแมตช์ได้');
+							var errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
+							this.showToast('⚠️ ไม่สามารถสร้างแมตช์ได้: ' + errMsg);
 						});
 				},
 				openTeamPicker(side) {
@@ -1893,6 +1964,14 @@
 				},
 				finishCurrentMatch() {
 					if (!this.currentSelectedMatch) return;
+					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
+						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						setTimeout(() => {
+							window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
+						}, 1200);
+						return;
+					}
+
 					const match = this.currentSelectedMatch;
 					const nextMatchNum = match.match_num + 1;
 					const hasNext = this.all_match && this.all_match[nextMatchNum];
@@ -1907,62 +1986,111 @@
 					const formdata = new FormData();
 					formdata.append('cmd', 'finish_match');
 					formdata.append('matchid', match.id);
-					formdata.append('weekid', this.week.id);
+					formdata.append('weekid', this.week ? (this.week.id || this.week.number) : 0);
 
 					axios.post(this.base_url + '/add_match', formdata)
 						.then(res => {
-							this.showToast(`🏁 จบ Match ${match.match_num} เรียบร้อยแล้ว`);
-							const targetNum = hasNext ? nextMatchNum : match.match_num;
-							this.selectedMatchIndex = targetNum;
-							this.refreshMatch(this.week.number || 0, true, targetNum);
+							if (res.data && res.data.success) {
+								this.showToast(`🏁 จบ Match ${match.match_num} เรียบร้อยแล้ว`);
+								const targetNum = hasNext ? nextMatchNum : match.match_num;
+								this.selectedMatchIndex = targetNum;
+								this.refreshMatch(this.week.number || 0, true, targetNum);
+							} else {
+								const errMsg = (res.data && res.data.error) || 'เซิร์ฟเวอร์ไม่ได้ยืนยันการจบแมตช์';
+								this.showToast('❌ จบแมตช์ไม่สำเร็จ: ' + errMsg);
+								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							}
 						})
 						.catch(err => {
-							this.showToast('⚠️ เกิดข้อผิดพลาดในการจบแมตช์');
+							const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+							if (isTimeout) {
+								this.showToast('❌ เซิร์ฟเวอร์ไม่ตอบสนอง (Timeout) แมตช์ยังไม่ถูกจบ');
+							} else if (err.response && (err.response.status === 401 || err.response.data?.session_expired)) {
+								this.sessionExpired = true;
+								this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+							} else {
+								const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
+								this.showToast('⚠️ เกิดข้อผิดพลาดในการจบแมตช์: ' + errMsg);
+							}
 							console.error('finishCurrentMatch error:', err);
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 						});
 				},
 				startCurrentMatch() {
 					if (!this.currentSelectedMatch) return;
+					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
+						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						return;
+					}
 					const match = this.currentSelectedMatch;
 					const formdata = new FormData();
 					formdata.append('cmd', 'start_match');
 					formdata.append('matchid', match.id);
-					formdata.append('weekid', this.week.id);
+					formdata.append('weekid', this.week ? (this.week.id || this.week.number) : 0);
 
 					axios.post(this.base_url + '/add_match', formdata)
 						.then(res => {
-							this.showToast(`▶️ Match ${match.match_num} เริ่มแข่งขันแล้ว (LIVE)`);
-							this.refreshMatch(this.week.number || 0, false, match.match_num);
+							if (res.data && res.data.success) {
+								this.showToast(`▶️ Match ${match.match_num} เริ่มแข่งขันแล้ว (LIVE)`);
+								this.refreshMatch(this.week.number || 0, false, match.match_num);
+							} else {
+								const errMsg = (res.data && res.data.error) || 'ไม่สามารถเริ่มแมตช์ได้';
+								this.showToast('❌ ' + errMsg);
+								this.refreshMatch(this.week.number || 0, false, match.match_num);
+							}
 						})
 						.catch(err => {
-							this.showToast('⚠️ เกิดข้อผิดพลาดในการเริ่มแมตช์');
+							const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
+							this.showToast('⚠️ เกิดข้อผิดพลาดในการเริ่มแมตช์: ' + errMsg);
 							console.error('startCurrentMatch error:', err);
+							this.refreshMatch(this.week.number || 0, false, match.match_num);
 						});
 				},
 				reopenCurrentMatch() {
 					if (!this.currentSelectedMatch) return;
+					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
+						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						return;
+					}
 					const match = this.currentSelectedMatch;
 					if (!confirm(`ต้องการเปิด Match ${match.match_num} ให้กลับมาแข่งขันต่อหรือไม่?`)) return;
 
 					const formdata = new FormData();
 					formdata.append('cmd', 'reopen_match');
 					formdata.append('matchid', match.id);
-					formdata.append('weekid', this.week.id);
+					formdata.append('weekid', this.week ? (this.week.id || this.week.number) : 0);
 
 					axios.post(this.base_url + '/add_match', formdata)
 						.then(res => {
-							this.showToast(`↩️ Match ${match.match_num} กลับมาแข่งขันต่อแล้ว`);
-							this.refreshMatch(this.week.number || 0, false, match.match_num);
+							if (res.data && res.data.success) {
+								this.showToast(`↩️ Match ${match.match_num} กลับมาแข่งขันต่อแล้ว`);
+								this.refreshMatch(this.week.number || 0, false, match.match_num);
+							} else {
+								const errMsg = (res.data && res.data.error) || 'ไม่สามารถเปิดแมตช์ได้';
+								this.showToast('❌ ' + errMsg);
+								this.refreshMatch(this.week.number || 0, false, match.match_num);
+							}
 						})
 						.catch(err => {
-							this.showToast('⚠️ เกิดข้อผิดพลาดในการเปิดแมตช์');
+							const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
+							this.showToast('⚠️ เกิดข้อผิดพลาดในการเปิดแมตช์: ' + errMsg);
 							console.error('reopenCurrentMatch error:', err);
+							this.refreshMatch(this.week.number || 0, false, match.match_num);
 						});
 				},
 				// ==================== FAST 1-CLICK GOAL / ASSIST (0.4) ====================
 				quickAddGoal(player, side, statusId = 0) {
 					if (!this.currentSelectedMatch) return;
 					if (this.submittingGoal) return;
+
+					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
+						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						setTimeout(() => {
+							window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
+						}, 1200);
+						return;
+					}
+
 					this.submittingGoal = true;
 
 					const match = this.currentSelectedMatch;
@@ -1978,37 +2106,73 @@
 					const formdata = new FormData();
 					formdata.append('teamid', teamId);
 					formdata.append('memberid', player.id);
-					formdata.append('weekid', this.week.id);
+					formdata.append('weekid', this.week ? (this.week.id || this.week.number) : 0);
 					formdata.append('statusid', statusId);
 					formdata.append('matchid', match.id);
 
 					axios.post(this.base_url + '/add_match', formdata)
 						.then(response => {
 							this.submittingGoal = false;
-							const icon = statusId === 0 ? '⚽' : statusId === 3 ? '👟' : '🥅';
-							const label = statusId === 0 ? 'ยิงประตู (+1)' : statusId === 3 ? 'แอสซิสต์ (+1)' : 'ทำเข้าประตูตัวเอง (OG)';
-							this.showToast(icon + ' ' + player.alias + ' ' + label + ' ให้ทีม ' + teamColor);
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							if (response.data && response.data.success) {
+								const icon = statusId === 0 ? '⚽' : statusId === 3 ? '👟' : '🥅';
+								const label = statusId === 0 ? 'ยิงประตู (+1)' : statusId === 3 ? 'แอสซิสต์ (+1)' : 'ทำเข้าประตูตัวเอง (OG)';
+								this.showToast(icon + ' ' + player.alias + ' ' + label + ' ให้ทีม ' + teamColor);
+								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							} else {
+								const errMsg = (response.data && response.data.error) || 'เซิร์ฟเวอร์ไม่ได้บันทึกผล';
+								this.showToast('❌ บันทึกผลไม่สำเร็จ: ' + errMsg);
+								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							}
 						})
 						.catch(err => {
 							this.submittingGoal = false;
-							this.showToast('⚠️ เกิดข้อผิดพลาดในการบันทึกผล');
+							const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+							if (isTimeout) {
+								this.showToast('❌ เซิร์ฟเวอร์ไม่ตอบสนอง (Timeout) ประตูยังไม่ถูกบันทึก');
+							} else if (err.response && (err.response.status === 401 || err.response.data?.session_expired)) {
+								this.sessionExpired = true;
+								this.showToast('⚠️ เซสชันหมดอายุ ข้อมูลไม่ถูกบันทึก กรุณาล็อกอินใหม่');
+								setTimeout(() => {
+									window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
+								}, 1200);
+							} else {
+								const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
+								this.showToast('⚠️ บันทึกผลไม่สำเร็จ: ' + errMsg);
+							}
 							console.error('quickAddGoal error:', err);
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 						});
 				},
 				quickRemoveGoal(goalId) {
+					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
+						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						return;
+					}
 					const formdata = new FormData();
 					formdata.append('goalid', goalId);
-					formdata.append('weekid', this.week.id);
+					formdata.append('weekid', this.week ? (this.week.id || this.week.number) : 0);
 
 					axios.post(this.base_url + '/add_match', formdata)
 						.then(response => {
-							this.showToast('🗑️ ลบประตูเรียบร้อย');
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							if (response.data && response.data.success) {
+								this.showToast('🗑️ ลบประตูเรียบร้อย');
+								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							} else {
+								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบประตูได้';
+								this.showToast('❌ ลบประตูล้มเหลว: ' + errMsg);
+								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							}
 						})
 						.catch(err => {
-							this.showToast('⚠️ เกิดข้อผิดพลาดในการลบ');
+							const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+							if (isTimeout) {
+								this.showToast('❌ เซิร์ฟเวอร์ไม่ตอบสนอง (Timeout) ข้อมูลยังไม่เปลี่ยนแปลง');
+							} else {
+								const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
+								this.showToast('⚠️ เกิดข้อผิดพลาดในการลบ: ' + errMsg);
+							}
 							console.error('quickRemoveGoal error:', err);
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 						});
 				},
 				getPlayerGoalsInMatch(playerId, alias) {
@@ -2048,16 +2212,29 @@
 
 					const label = statusId === 0 ? 'ประตู' : statusId === 3 ? 'แอสซิสต์' : 'OG';
 
-					axios.post(this.base_url + '/add_match', formdata)
+				axios.post(this.base_url + '/add_match', formdata)
 						.then(response => {
 							this.submittingGoal = false;
-							this.showToast(`🗑️ ลบ${label}ของ ${player.alias} (-1)`);
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							if (response.data && response.data.success) {
+								this.showToast(`🗑️ ลบ${label}ของ ${player.alias} (-1)`);
+								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							} else {
+								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบรายการได้';
+								this.showToast('❌ ลบล้มเหลว: ' + errMsg);
+								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							}
 						})
 						.catch(err => {
 							this.submittingGoal = false;
-							this.showToast('⚠️ เกิดข้อผิดพลาดในการลบ');
+							const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+							if (isTimeout) {
+								this.showToast('❌ เซิร์ฟเวอร์ไม่ตอบสนอง (Timeout) ข้อมูลยังไม่เปลี่ยนแปลง');
+							} else {
+								const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
+								this.showToast('⚠️ เกิดข้อผิดพลาดในการลบ: ' + errMsg);
+							}
 							console.error('quickRemovePlayerEvent error:', err);
+							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 						});
 				},
 				isGoalForTeam(goal, side) {
@@ -2187,15 +2364,28 @@
 
 				// ==================== LEGACY FORM COMPATIBILITY ====================
 				addGoal() {
+					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
+						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						setTimeout(() => {
+							window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
+						}, 1200);
+						return;
+					}
+
 					var formdata = new FormData();
-					let memberindex = this.$refs.member_id_goal.value;
-					let matchindex = this.$refs.match_id_goal.value;
+					let memberindex = this.$refs.member_id_goal ? this.$refs.member_id_goal.value : this.selectedPlayerIndex;
+					let matchindex = this.$refs.match_id_goal ? this.$refs.match_id_goal.value : this.selectedMatchIndex;
 					let current_team = this.member || [];
-					let status_team = this.$refs.status_team.value;
-					let statusid = this.$refs.status_id_goal.value;
+					let status_team = this.$refs.status_team ? this.$refs.status_team.value : 0;
+					let statusid = this.$refs.status_id_goal ? this.$refs.status_id_goal.value : this.eventType;
 					let teamid = 0;
 					let teamA_id = this.all_match[matchindex] ? this.all_match[matchindex].team_a_id : 0;
 					let teamB_id = this.all_match[matchindex] ? this.all_match[matchindex].team_b_id : 0;
+
+					if (!current_team[memberindex]) {
+						this.showToast('⚠️ กรุณาเลือกผู้เล่นก่อนบันทึกประตู');
+						return;
+					}
 
 					if (status_team == 1) {
 						teamid = this.selectedLoanTeam ? this.selectedLoanTeam.teamid : 0;
@@ -2211,16 +2401,41 @@
 						}
 					}
 
+					const weekId = (this.week && (this.week.id || this.week.number)) || (this.$refs.week_id ? this.$refs.week_id.value : 0);
+					if (!weekId) {
+						this.showToast('⚠️ ไม่พบข้อมูลสัปดาห์ (Week ID)');
+						return;
+					}
+
 					formdata.append('teamid', teamid);
 					formdata.append('memberid', current_team[memberindex] ? current_team[memberindex].id : 0);
-					formdata.append('weekid', this.$refs.week_id.value);
+					formdata.append('weekid', weekId);
 					formdata.append('statusid', statusid);
 					formdata.append('matchid', this.all_match[matchindex] ? this.all_match[matchindex].id : 0);
 
 					axios.post(this.base_url + '/add_match', formdata)
 						.then(response => {
-							this.output = response;
-							this.showToast('✅ บันทึกผลสำเร็จ');
+							if (response.data && response.data.success) {
+								this.output = response;
+								this.showToast('✅ บันทึกผลสำเร็จ');
+								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							} else {
+								const errMsg = (response.data && response.data.error) || 'เซิร์ฟเวอร์ไม่ได้บันทึกผล';
+								this.showToast('❌ บันทึกผลไม่สำเร็จ: ' + errMsg);
+								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							}
+						})
+						.catch(err => {
+							const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+							if (isTimeout) {
+								this.showToast('❌ เซิร์ฟเวอร์ไม่ตอบสนอง (Timeout) ข้อมูลยังไม่ถูกบันทึก');
+							} else if (err.response && (err.response.status === 401 || err.response.data?.session_expired)) {
+								this.sessionExpired = true;
+								this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+							} else {
+								const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
+								this.showToast('❌ บันทึกผลล้มเหลว: ' + errMsg);
+							}
 							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 						});
 				},
@@ -2263,14 +2478,26 @@
 						formdata.append('weekid', weekId);
 					}
 
-					axios.post((this.base_url || '/webhook') + '/add_match', formdata)
+				axios.post((this.base_url || '/webhook') + '/add_match', formdata)
 						.then(response => {
-							this.output = response;
-							this.showToast('🗑️ ลบประตูเรียบร้อย');
-							this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
+							if (response.data && response.data.success) {
+								this.output = response;
+								this.showToast('🗑️ ลบประตูเรียบร้อย');
+								this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
+							} else {
+								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบประตูได้';
+								this.showToast('❌ ลบประตูล้มเหลว: ' + errMsg);
+								this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
+							}
 						})
 						.catch(err => {
-							this.showToast('❌ ลบประตูล้มเหลว: ' + err.message);
+							const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+							if (isTimeout) {
+								this.showToast('❌ เซิร์ฟเวอร์ไม่ตอบสนอง (Timeout) ข้อมูลยังไม่เปลี่ยนแปลง');
+							} else {
+								this.showToast('❌ ลบประตูล้มเหลว: ' + err.message);
+							}
+							this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
 						});
 				},
 				promptDeleteMatch(match) {
@@ -2497,17 +2724,19 @@
 						.then(res => {
 							if (res.data && res.data.authenticated) {
 								this.currentUser = res.data.user;
+								this.sessionExpired = false;
 							} else {
 								this.currentUser = null;
 								if (this.isManager) {
-									window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
+									this.sessionExpired = true;
+									this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
 								}
 							}
 						})
 						.catch(() => {
 							this.currentUser = null;
 							if (this.isManager) {
-								window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
+								this.sessionExpired = true;
 							}
 						});
 				},

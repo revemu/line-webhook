@@ -5876,3 +5876,26 @@ body.pitch-modal-open {
         height: 26px !important;
     }
 }
+
+/* Session Expired Banner */
+.session-expired-banner {
+    background: #ef4444;
+    color: #ffffff;
+    padding: 0.65rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.session-expired-banner a {
+    color: #ffffff;
+    text-decoration: underline;
+    font-weight: 800;
+}

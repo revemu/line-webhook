@@ -131,11 +131,19 @@ router.use(authMiddleware);
 // Middleware to require authentication (admin or root)
 function requireAuth(req, res, next) {
     if (!req.user) {
-        if (req.accepts('html') && !req.xhr && !req.headers['x-requested-with']) {
+        const isApiOrAjax = req.xhr ||
+            req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+            req.originalUrl.includes('/add_match') ||
+            req.originalUrl.includes('/change_password') ||
+            req.originalUrl.includes('/update_') ||
+            req.originalUrl.includes('/get_info') ||
+            req.method !== 'GET';
+        if (!isApiOrAjax && req.accepts('html')) {
             const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
             return res.redirect(`${prefix}/login?redirect=${encodeURIComponent(req.originalUrl)}`);
         }
-        return res.status(401).json({ success: false, error: 'Authentication required. Please login.' });
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        return res.status(401).json({ success: false, error: 'เซสชันหมดอายุหรือไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่', session_expired: true });
     }
     next();
 }
@@ -143,17 +151,29 @@ function requireAuth(req, res, next) {
 // Middleware to require root role (Position Manager and position updates)
 function requireRoot(req, res, next) {
     if (!req.user) {
-        if (req.accepts('html') && !req.xhr && !req.headers['x-requested-with']) {
+        const isApiOrAjax = req.xhr ||
+            req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+            req.originalUrl.includes('/add_match') ||
+            req.originalUrl.includes('/change_password') ||
+            req.originalUrl.includes('/update_') ||
+            req.originalUrl.includes('/get_info') ||
+            req.method !== 'GET';
+        if (!isApiOrAjax && req.accepts('html')) {
             const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
             return res.redirect(`${prefix}/login?redirect=${encodeURIComponent(req.originalUrl)}`);
         }
-        return res.status(401).json({ success: false, error: 'Authentication required. Please login.' });
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        return res.status(401).json({ success: false, error: 'เซสชันหมดอายุหรือไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่', session_expired: true });
     }
     if (req.user.role !== 'root') {
-        if (req.accepts('html') && !req.xhr && !req.headers['x-requested-with']) {
+        const isApiOrAjax = req.xhr ||
+            req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+            req.method !== 'GET';
+        if (!isApiOrAjax && req.accepts('html')) {
             const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
             return res.redirect(`${prefix}/match`);
         }
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         return res.status(403).json({ success: false, error: 'Access denied: Root role required.' });
     }
     next();
@@ -363,6 +383,9 @@ router.all(['/webhook/logout', '/web/logout'], (req, res) => {
 
 // Current user status endpoint
 router.get(['/webhook/auth/me', '/web/auth/me'], (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     if (req.user) {
         return res.json({
             authenticated: true,
@@ -380,11 +403,17 @@ router.get(['/webhook/auth/me', '/web/auth/me'], (req, res) => {
 // ==================== GET INFO ROUTES ====================
 
 router.get(['/webhook/match', '/web/match'], requireAuth, (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.sendFile(path.join(__dirname, '..', 'public', 'update.shtml'));
 });
 
 // Match Viewer (Read-Only: shows current & past matches, accessible to everyone, uses shared base code update.shtml)
 router.get(['/webhook/view', '/web/view'], (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.sendFile(path.join(__dirname, '..', 'public', 'update.shtml'));
 });
 
@@ -400,6 +429,7 @@ router.get(['/webhook/matches', '/web/matches'], (req, res) => {
 // Public endpoint for Match Viewer data (Read-only, no auth required)
 router.get(['/webhook/match_view_data', '/web/match_view_data'], async (req, res) => {
     try {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
         const { weeknum } = req.query;
         const result = await getLastMatchWeek(weeknum || 0, req.user);
         res.json(result);

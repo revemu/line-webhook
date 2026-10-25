@@ -4,6 +4,31 @@
 
 ---
 
+## [0.6.4] - 2026-10-25
+
+### Fixed
+- **Fix Classic Goal Form Ref Error (`public/update.shtml`)**:
+  - แก้ไขปัญหา JavaScript `TypeError: Cannot read properties of undefined (reading 'value')` ในฟังก์ชัน `addGoal()` ที่พยายามอ่าน `$refs.week_id.value` ทั้งที่ไม่มี element อยู่ในหน้า HTML
+  - เปลี่ยนมาดึงค่าจาก `this.week.id` (หรือ `this.week.number`) พร้อมระบบตรวจสอบความถูกต้องของผู้เล่นที่ถูกเลือกก่อนส่งบันทึก
+  - ปรับปรุงฟังก์ชัน `addMatch()` ให้มีระบบ Fallback ในการอ่าน `$refs` อย่างปลอดภัย
+
+- **Fix Authentication Middleware & Prevent Silent 302 False Positive (`routes/web.js`, `public/update.shtml`)**:
+  - ปรับปรุง Middleware `requireAuth` และ `requireRoot` ใน `routes/web.js` ให้ตอบกลับเป็น `HTTP 401 JSON` (`session_expired: true`) เสมอสำหรับคำขอประเภท AJAX, Non-GET หรือ Endpoint บันทึกผล เพื่อป้องกันไม่ให้ส่ง HTTP 302 Redirect ไปหน้า Login ซึ่งทำให้เบราว์เซอร์วิ่งตามและหลอกฝั่ง Frontend ว่าได้ HTTP 200
+  - เพิ่ม HTTP Headers `Cache-Control: no-store, no-cache, must-revalidate, private` ในเส้นทาง `/match`, `/view`, `/auth/me` และ `/match_view_data` เพื่อป้องกันเบราว์เซอร์เสิร์ฟหน้าจอหรือข้อมูลที่ค้างจาก Cache
+  - เพิ่ม Header `X-Requested-With: XMLHttpRequest` และกำหนด `timeout: 10000ms` ในการส่ง Axios ทุกคำขอ พร้อม Global Response Interceptor ดักจับกรณีที่ได้รับหน้า HTML Login ให้แปลงเป็น Error เซสชันหมดอายุโดยอัตโนมัติ
+
+- **Strict API Response Validation & Anti-False-Update Guarantee (`public/update.shtml`)**:
+  - ปรับปรุงฟังก์ชันการบันทึกผลและเปลี่ยนสถานะทั้งหมด (`quickAddGoal`, `finishCurrentMatch`, `startCurrentMatch`, `reopenCurrentMatch`, `quickRemoveGoal`, `quickRemovePlayerEvent`, `addGoal`, `removeGoalbyID`, `executeDeleteMatch`)
+  - ตรวจสอบ `response.data && response.data.success === true` อย่างเข้มงวดก่อนแสดง Toast หรือปรับปรุงสถานะในหน้าจอ
+  - หาก API ไม่ตอบสนอง, Timeout หรือเกิดข้อผิดพลาด จะไม่มีการทึกทักว่าสำเร็จเด็ดขาด พร้อมแสดง Toast ข้อผิดพลาดชัดเจน และดึงข้อมูลจริงจากฐานข้อมูลมาซิงก์กลับทันทีเพื่อป้องกันความสับสน
+
+### Added
+- **Live Session Cross-Check & Expired Session Banner (`public/update.shtml`, `public/style.css`)**:
+  - เพิ่มระบบตรวจเช็คความถูกต้องของเซสชันแบบเรียลไทม์ (Cross-Check) เมื่อผู้ใช้สลับกลับมาที่แท็บเบราว์เซอร์ (`visibilitychange`), ปลุกหน้าจอจากแคช (`pageshow`), ได้รับโฟกัส (`focus`) และตั้งเวลาตรวจสอบเบื้องหลังทุก 60 วินาทีสำหรับผู้ดูแล
+  - เพิ่มแถบแจ้งเตือนสีแดงด้านบน (`.session-expired-banner`) เตือนผู้ใช้ทันทีเมื่อเซสชันหมดอายุ และป้องกันไม่ให้กดบันทึกผลบนหน้าจอที่ค้างอยู่
+
+---
+
 ## [0.6.3] - 2026-10-24
 
 ### Fixed
