@@ -1347,7 +1347,6 @@
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'CF' }}</span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
-											<span class="pitch-name-rating" :class="getRatingColorClass(p.rating)" v-if="p.rating && p.rating !== '-' && p.rating > 0">{{ p.rating }}</span>
 										</div>
 									</div>
 								</div>
@@ -1369,7 +1368,6 @@
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'MF' }}</span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
-											<span class="pitch-name-rating" :class="getRatingColorClass(p.rating)" v-if="p.rating && p.rating !== '-' && p.rating > 0">{{ p.rating }}</span>
 										</div>
 									</div>
 								</div>
@@ -1391,7 +1389,6 @@
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'DF' }}</span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
-											<span class="pitch-name-rating" :class="getRatingColorClass(p.rating)" v-if="p.rating && p.rating !== '-' && p.rating > 0">{{ p.rating }}</span>
 										</div>
 									</div>
 								</div>
@@ -1413,7 +1410,6 @@
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'GK' }}</span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
-											<span class="pitch-name-rating" :class="getRatingColorClass(p.rating)" v-if="p.rating && p.rating !== '-' && p.rating > 0">{{ p.rating }}</span>
 										</div>
 									</div>
 								</div>
@@ -2187,23 +2183,78 @@
 				},
 				getTeamTacticalRows(players) {
 					if (!players || players.length === 0) return { fw: [], mf: [], df: [], gk: [] };
-					const fw = [], mf = [], df = [], gk = [];
+
+					const gk = [];
+					const outfield = [];
+
 					players.forEach(p => {
 						const code = (p.pos_code || '').toUpperCase();
-						if (code === 'GK' || p.pos_id == 1) gk.push(p);
-						else if (['CF', 'ST', 'WF', 'RW', 'LW'].includes(code) || p.pos_id == 4) fw.push(p);
-						else if (['MF', 'DM', 'AM', 'CM'].includes(code) || [3, 6, 7].includes(p.pos_id)) mf.push(p);
-						else if (['DF', 'DW', 'CB', 'LB', 'RB'].includes(code) || [2, 5].includes(p.pos_id)) df.push(p);
-						else {
-							if (df.length <= mf.length) df.push(p);
-							else mf.push(p);
+						if (code === 'GK' || p.pos_id == 1) {
+							gk.push(p);
+						} else {
+							outfield.push(p);
 						}
 					});
-					if (fw.length === 0 && mf.length === 0 && df.length === 0 && gk.length === 0) {
-						const sorted = [...players];
-						const c = Math.ceil(sorted.length / 3);
-						return { fw: sorted.slice(c * 2), mf: sorted.slice(c, c * 2), df: sorted.slice(0, c), gk: [] };
+
+					const posRank = {
+						4: 10, // CF
+						7: 20, // AM
+						3: 30, // MF
+						6: 40, // DM
+						5: 50, // DW
+						2: 60, // DF
+					};
+
+					const getPlayerRank = (p) => {
+						if (p.pos_id && posRank[p.pos_id]) return posRank[p.pos_id];
+						const code = (p.pos_code || '').toUpperCase();
+						if (['CF', 'ST', 'WF', 'RW', 'LW'].includes(code)) return 10;
+						if (['AM'].includes(code)) return 20;
+						if (['MF', 'CM'].includes(code)) return 30;
+						if (['DM'].includes(code)) return 40;
+						if (['DW'].includes(code)) return 50;
+						if (['DF', 'CB', 'LB', 'RB'].includes(code)) return 60;
+						return 35;
+					};
+
+					outfield.sort((a, b) => getPlayerRank(a) - getPlayerRank(b));
+
+					const total = outfield.length;
+					let countFW = 2;
+					let countMF = 3;
+					let countDF = 3;
+
+					// Distribute rows to prevent overcrowded rows on mobile (strictly max 3 per row)
+					if (total === 8) {
+						// 2 - 3 - 3
+						countFW = 2; countMF = 3; countDF = 3;
+					} else if (total === 7) {
+						// 2 - 2 - 3
+						countFW = 2; countMF = 2; countDF = 3;
+					} else if (total === 6) {
+						// 2 - 2 - 2
+						countFW = 2; countMF = 2; countDF = 2;
+					} else if (total === 5) {
+						// 1 - 2 - 2
+						countFW = 1; countMF = 2; countDF = 2;
+					} else if (total === 9) {
+						// 3 - 3 - 3
+						countFW = 3; countMF = 3; countDF = 3;
+					} else if (total <= 4) {
+						countFW = 1;
+						countMF = Math.max(1, Math.floor((total - 1) / 2));
+						countDF = total - countFW - countMF;
+					} else {
+						const perRow = Math.ceil(total / 3);
+						countFW = Math.min(3, Math.floor(total / 3));
+						countDF = perRow;
+						countMF = total - countFW - countDF;
 					}
+
+					const fw = outfield.slice(0, countFW);
+					const mf = outfield.slice(countFW, countFW + countMF);
+					const df = outfield.slice(countFW + countMF);
+
 					return { fw, mf, df, gk };
 				},
 				getTeamTacticalCol(teamId, matchNum, col) {
