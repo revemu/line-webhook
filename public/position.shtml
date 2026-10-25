@@ -59,7 +59,7 @@
 				<span class="user-role-badge" :class="currentUser.role">
 					👑 {{ currentUser.username }}
 				</span>
-				<button @click="openPasswordModal" class="btn-action-pill" title="เปลี่ยนรหัสผ่าน">🔑 เปลี่ยนรหัสผ่าน</button>
+				<button @click="openPasswordModal" class="btn-action-pill" title="เปลี่ยนรหัสผ่าน">🔑 รหัสผ่าน</button>
 				<button @click="logout" class="btn-logout" title="ออกจากระบบ">ออกจากระบบ</button>
 			</div>
 		</div>
@@ -108,10 +108,10 @@
 			<div class="save-status-info">
 				<div class="view-mode-tabs">
 					<button class="view-mode-btn" :class="{ active: viewMode === 'pitch' }" @click="viewMode = 'pitch'">
-						🏟️ สนามทุกทีม (Multi-Pitch)
+						🏟️ ผังสนาม
 					</button>
 					<button class="view-mode-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
-						📋 รายชื่อ (List View)
+						📋 รายชื่อ
 					</button>
 				</div>
 

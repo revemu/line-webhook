@@ -50,7 +50,8 @@
 				<div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
 					<h1 style="margin: 0; font-size: 1.25rem;">⚽ {{ isManager ? 'Match Manager' : 'Match Center' }}</h1>
 					<span v-if="newVersionAvailable" class="app-version-badge update-available" @click="reloadApp" title="มีเวอร์ชันใหม่ในระบบ แตะเพื่อโหลดเวอร์ชันล่าสุด">
-						🚀 มีอัปเดตใหม่ v{{ latestServerVersion }} (แตะเพื่อโหลด)
+						<span class="update-label-full">🚀 มีอัปเดตใหม่ v{{ latestServerVersion }} (แตะเพื่อโหลด)</span>
+						<span class="update-label-compact">🚀 อัปเดต v{{ latestServerVersion }}</span>
 					</span>
 					<span v-else class="app-version-badge" :title="'เวอร์ชันระบบ: v' + appVersion + (assetVersion ? ' (' + assetVersion + ')' : '')">
 						v{{ appVersion }}
@@ -1237,10 +1238,10 @@
 		<div class="card team-summary-card" v-if="matchCount > 0 && teamRostersSummary.length > 0">
 			<div class="team-summary-header">
 				<div class="team-summary-title">
-					<span>👥 สรุปนักเตะแต่ละทีม & เรทติ้งเรียลไทม์</span>
+					<span class="team-summary-title-text">👥 สรุปนักเตะแต่ละทีม & เรทติ้ง</span>
 					<span class="realtime-live-badge">⚡ Live Ratings</span>
 				</div>
-				<div class="team-summary-actions" style="display: flex; align-items: center; gap: 0.5rem;">
+				<div class="team-summary-actions">
 					<div class="view-toggle-pill-group">
 						<button type="button" class="btn-view-toggle-pill" :class="{ 'is-active': teamSummaryView === 'pitch' }" @click="teamSummaryView = 'pitch'" title="ดูเป็นผังสนามฟุตบอล">
 							🏟️ ผังสนาม
