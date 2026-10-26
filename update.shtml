@@ -1308,44 +1308,18 @@
 					</div>
 				</div>
 
-				<!-- Mobile Team Carousel Navigation Pills (visible only on mobile) -->
-				<div class="team-carousel-nav" v-if="teamRostersSummary.length > 1">
-					<div class="carousel-team-tabs">
-						<button 
-							v-for="(team, tIdx) in teamRostersSummary" 
-							:key="'team-tab-' + team.id" 
-							type="button" 
-							class="carousel-team-tab-btn" 
-							:class="{ 'is-active': activeMobileTeamIndex === tIdx, 'is-totw-tab': team.isTotw }"
-							@click="scrollToMobileTeam(tIdx)"
-							:style="activeMobileTeamIndex === tIdx ? (team.isTotw ? { background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#ffffff', borderColor: '#f59e0b' } : { backgroundColor: team.color ? team.color.toLowerCase() : '#3b82f6', color: getContrastColor(team.color), borderColor: getBorderColor(team.color) }) : {}"
-						>
-							<span class="carousel-tab-dot">{{ team.isTotw ? '⭐' : getTeamColorEmoji(team.color) }}</span>
-							<span class="carousel-tab-name">{{ team.isTotw ? 'TOTW' : team.color }}</span>
-							<span class="carousel-tab-pts">{{ team.isTotw ? ('(' + team.players.length + 'คน)') : ('(' + team.pts + 'p)') }}</span>
-						</button>
-					</div>
-					<div class="carousel-swipe-indicator">
-						<span class="swipe-hint-text">⇄ เลื่อนแนวนอนเพื่อดูทีม</span>
-						<span class="swipe-page-dots">
-							<span 
-								v-for="(team, dIdx) in teamRostersSummary" 
-								:key="'dot-' + team.id" 
-								class="carousel-page-dot" 
-								:class="{ 'is-active': activeMobileTeamIndex === dIdx }"
-								:style="activeMobileTeamIndex === dIdx ? { backgroundColor: team.isTotw ? '#f59e0b' : (team.color ? team.color.toLowerCase() : 'var(--primary-color)') } : {}"
-								@click="scrollToMobileTeam(dIdx)"
-							></span>
-						</span>
-					</div>
+				<!-- Mobile Carousel Section Heading -->
+				<div class="team-carousel-heading" v-if="teamRostersSummary.length > 1">
+					<span class="team-carousel-heading-title">👥 ผังผู้เล่นและสรุปทีม</span>
+					<span class="team-carousel-heading-hint">⇄ เลื่อนเพื่อดูแต่ละทีม</span>
 				</div>
 
 				<!-- Team Rosters Grid (Horizontal Carousel on Mobile) -->
-				<div class="team-summary-grid" ref="teamSummaryGrid" @scroll.passive="onTeamGridScroll">
+				<div class="team-summary-grid" ref="teamSummaryGrid">
 					<div v-for="team in teamRostersSummary" :key="team.id" class="team-summary-col" :class="{ 'is-totw': team.isTotw }">
 						<div class="team-col-header" :class="{ 'is-totw-header': team.isTotw }" :style="team.isTotw ? { background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#ffffff' } : { backgroundColor: team.color ? team.color.toLowerCase() : '#333', color: getContrastColor(team.color) }">
 							<div class="team-col-name">{{ team.isTotw ? '⭐ TEAM OF THE WEEK' : team.color }}</div>
-							<div class="team-col-record">{{ team.isTotw ? ('👑 Best XI (' + team.players.length + ' คน)') : (team.pts + ' pts (' + team.win + 'W-' + team.draw + 'D-' + team.loss + 'L)') }}</div>
+							<div class="team-col-record" v-if="!team.isTotw">{{ team.pts }} pts ({{ team.win }}W-{{ team.draw }}D-{{ team.loss }}L)</div>
 						</div>
 
 						<!-- 1. PITCH VIEW (ผังสนามรูปฟุตบอล พร้อม icon นักเตะ) -->
