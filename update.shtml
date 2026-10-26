@@ -62,7 +62,8 @@
 						<span>⚽ Match {{ currentLiveMatch.match_num }}</span>
 						<span v-if="isMatchLive(currentLiveMatch)" class="pulse-mini-dot"></span>
 					</button>
-					<button class="viewer-refresh-btn" :class="{ 'is-spinning': isRefreshing }" @click="manualRefresh" title="รีเฟรช">
+					<button class="viewer-refresh-btn" :class="{ 'is-spinning': isRefreshing }" @click="manualRefresh" :title="wsConnected ? 'Real-time Live (WebSocket เชื่อมต่อแล้ว)' : 'รีเฟรช'">
+						<span v-if="wsConnected" class="pulse-mini-dot" style="background: #22c55e; margin-right: 2px;" title="Live Real-time Feed"></span>
 						<span class="icon-spin">🔄</span>
 						<span>{{ autoRefresh ? refreshCountdown + 's' : 'รีเฟรช' }}</span>
 					</button>
@@ -1845,7 +1846,10 @@
 				showDeleteModal: false,
 				matchToDelete: null,
 				confirmDeleteChecked: false,
-				isDeletingMatch: false
+				isDeletingMatch: false,
+				ws: null,
+				wsConnected: false,
+				wsReconnectTimer: null
 			},
 			computed: {
 				teamRostersSummary() {
@@ -2182,6 +2186,7 @@
 				const urlParams = new URLSearchParams(window.location.search);
 				const initialWeek = urlParams.get('weeknum') || urlParams.get('week') || urlParams.get('week_id') || 0;
 				this.refreshMatch(initialWeek);
+				this.initWebSocket();
 
 				if (!this.isManager) {
 					this.startAutoRefreshTimer();
@@ -2456,7 +2461,64 @@
 					if (this.toastTimer) clearTimeout(this.toastTimer);
 					this.toastTimer = setTimeout(() => {
 						this.toastMessage = '';
-					}, 2800);
+					}, 3500);
+				},
+				initWebSocket() {
+					if (this.ws) {
+						try { this.ws.close(); } catch (e) { }
+					}
+					const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+					const wsUrl = `${protocol}//${window.location.host}/webhook/ws`;
+
+					try {
+						this.ws = new WebSocket(wsUrl);
+
+						this.ws.onopen = () => {
+							this.wsConnected = true;
+							const targetWeekId = this.week ? (this.week.id || this.week.number || 0) : 0;
+							if (targetWeekId) {
+								this.ws.send(JSON.stringify({ type: 'subscribe', week_id: targetWeekId }));
+							}
+						};
+
+						this.ws.onmessage = (event) => {
+							try {
+								const data = JSON.parse(event.data);
+								this.handleWebSocketMessage(data);
+							} catch (e) { }
+						};
+
+						this.ws.onclose = () => {
+							this.wsConnected = false;
+							if (this.wsReconnectTimer) clearTimeout(this.wsReconnectTimer);
+							this.wsReconnectTimer = setTimeout(() => {
+								this.initWebSocket();
+							}, 3000);
+						};
+
+						this.ws.onerror = () => {
+							this.wsConnected = false;
+						};
+					} catch (err) { }
+				},
+				handleWebSocketMessage(data) {
+					if (!data || data.type === 'CONNECTED' || data.type === 'pong') return;
+
+					// Filter by current viewed week_id if specified
+					const currentWeekId = this.week ? (this.week.id || this.week.number || 0) : 0;
+					if (data.week_id && currentWeekId && String(data.week_id) !== String(currentWeekId)) {
+						return;
+					}
+
+					// 1. Show Toast notification
+					if (data.message) {
+						this.showToast(data.message);
+					}
+
+					// 2. Immediately refresh match and scoreboard data in background
+					const currentWeekNum = this.week ? (this.week.number || this.week.id || 0) : 0;
+					this.refreshCountdown = 30;
+					this.refreshMatch(currentWeekNum, false, this.selectedMatchIndex);
 				},
 				changeWeek(weeknum) {
 					this.showWeekPicker = false;
@@ -2466,6 +2528,9 @@
 					if (window.history && window.history.replaceState) {
 						const newUrl = window.location.pathname + (weeknum ? '?weeknum=' + weeknum : '');
 						window.history.replaceState(null, '', newUrl);
+					}
+					if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+						this.ws.send(JSON.stringify({ type: 'subscribe', week_id: weeknum || 0 }));
 					}
 					this.refreshMatch(weeknum, true);
 				},

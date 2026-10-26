@@ -20,6 +20,7 @@ const { spamProtector } = require('./utils/spamProtection');
 const { initScheduler, notifyBaseUrl } = require('./scheduler');
 const { setBaseUrl } = require('./utils/url');
 const webRouter = require('./routes/web');
+const { initWebSocket } = require('./utils/wsBroadcaster');
 
 const execPromise = util.promisify(exec);
 
@@ -527,7 +528,8 @@ app.use((error, req, res, next) => {
 // Start server
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
+    initWebSocket(server);
     logger.info(`✅ Server running on port ${PORT}`);
     logger.info(`LINE Webhook URL: http://localhost:${PORT}/webhook`);
     logger.info(`Web Dashboard:   http://localhost:${PORT}/webhook/match`);

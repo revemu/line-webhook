@@ -4547,6 +4547,18 @@ select.form-control {
     100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
+@media (max-width: 600px) {
+    .match-toast {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        justify-content: center;
+        text-align: center;
+        font-size: 0.85rem;
+        padding: 0.55rem 1rem;
+    }
+}
+
 /* ==================== RESPONSIVE ADJUSTMENTS ==================== */
 
 @media (max-width: 900px) {

@@ -10,6 +10,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../query');
 const logger = require('../utils/logger');
 const { getAppVersion, getAssetVersion, sendVersionedHtml } = require('../utils/version');
+const { broadcastMatchEvent } = require('../utils/wsBroadcaster');
 
 const router = express.Router();
 const upload = multer();
@@ -622,6 +623,13 @@ router.post(['/webhook/update_position', '/web/update_position'], requireRoot, u
         }
         await doUpdate(sql);
         invalidateLeaderStatsCache();
+        try {
+            const [mRow] = await doQuery(`SELECT week_id FROM member_team_week_tbl WHERE id = ?`, [parseInt(id, 10)]);
+            broadcastMatchEvent(mRow?.week_id || null, {
+                type: 'ROSTER_UPDATED',
+                message: `🛡️ มีการปรับปรุงตำแหน่ง/ผังผู้เล่น`
+            });
+        } catch (eWs) { }
 
         logger.info(`Updated member_team_week_tbl id ${id} to pos_id ${validPosId}${team_id !== null ? ', team_id ' + team_id : ''} by ${req.user.username}`);
         res.json({ success: true, message: 'Position updated successfully', id: parseInt(id, 10), pos_id: validPosId });
@@ -660,6 +668,12 @@ router.post(['/webhook/batch_update_positions', '/web/batch_update_positions'], 
         }
 
         invalidateLeaderStatsCache();
+        try {
+            broadcastMatchEvent(null, {
+                type: 'ROSTER_UPDATED',
+                message: `🛡️ มีการปรับปรุงตำแหน่ง/ผังผู้เล่น (${updatedCount} รายการ)`
+            });
+        } catch (eWs) { }
         logger.info(`Batch updated ${updatedCount} player positions/teams by ${req.user.username}`);
         res.json({ success: true, message: `Successfully updated ${updatedCount} items`, count: updatedCount });
     } catch (error) {
@@ -705,6 +719,24 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                 } catch (eStats) {
                     logger.warn(`[Finish Match] Failed to recompute ratings for week ${targetWeekId}: ${eStats.message}`);
                 }
+
+                // Broadcast finish match via WebSocket
+                try {
+                    const [finMatch] = await doQuery(`
+                        SELECT ms.match_num, ms.team_a_goal, ms.team_b_goal, ta.color as team_a_color, tb.color as team_b_color
+                        FROM match_stat_tbl ms
+                        LEFT JOIN team_week_tbl ta ON ms.team_a_id = ta.id
+                        LEFT JOIN team_week_tbl tb ON ms.team_b_id = tb.id
+                        WHERE ms.id = ${parseInt(data.matchid, 10)}
+                    `);
+                    const scoreText = finMatch ? `(${finMatch.team_a_color || 'A'} ${finMatch.team_a_goal ?? 0} - ${finMatch.team_b_goal ?? 0} ${finMatch.team_b_color || 'B'})` : '';
+                    broadcastMatchEvent(targetWeekId, {
+                        type: 'MATCH_FINISHED',
+                        match_id: data.matchid,
+                        match_num: finMatch?.match_num,
+                        message: `🏁 จบ Match ${finMatch?.match_num || ''} เรียบร้อยแล้ว ${scoreText}`.trim()
+                    });
+                } catch (eWs) { }
             }
             return res.json({ success: true, message: 'Match finished successfully', matchid: data.matchid, status: 'finished' });
         }
@@ -713,6 +745,22 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
         if (data.matchid !== undefined && data.cmd === 'start_match') {
             logger.info(`start match_id ${data.matchid}`);
             await doUpdate(`UPDATE match_stat_tbl SET status = 'in_progress' WHERE id = ${data.matchid}`);
+            try {
+                const [stMatch] = await doQuery(`
+                    SELECT ms.match_num, ms.week_id, ta.color as team_a_color, tb.color as team_b_color
+                    FROM match_stat_tbl ms
+                    LEFT JOIN team_week_tbl ta ON ms.team_a_id = ta.id
+                    LEFT JOIN team_week_tbl tb ON ms.team_b_id = tb.id
+                    WHERE ms.id = ${parseInt(data.matchid, 10)}
+                `);
+                const vsText = stMatch ? ` (${stMatch.team_a_color || 'A'} vs ${stMatch.team_b_color || 'B'})` : '';
+                broadcastMatchEvent(data.weekid || stMatch?.week_id, {
+                    type: 'MATCH_STARTED',
+                    match_id: data.matchid,
+                    match_num: stMatch?.match_num,
+                    message: `▶️ Match ${stMatch?.match_num || ''} เริ่มการแข่งขันแล้ว (LIVE)${vsText}`
+                });
+            } catch (eWs) { }
             return res.json({ success: true, message: 'Match started successfully', matchid: data.matchid, status: 'in_progress' });
         }
 
@@ -728,6 +776,14 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
             if (data.weekid !== undefined) {
                 await updateTableWeek(data.weekid);
             }
+            try {
+                broadcastMatchEvent(data.weekid || curMatch?.week_id, {
+                    type: 'MATCH_REOPENED',
+                    match_id: data.matchid,
+                    match_num: curMatch?.match_num,
+                    message: `↩️ Match ${curMatch?.match_num || ''} กลับมาแข่งขันต่อแล้ว`
+                });
+            } catch (eWs) { }
             return res.json({ success: true, message: 'Match reopened successfully', matchid: data.matchid, status: 'in_progress' });
         }
 
@@ -736,6 +792,13 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
             logger.info(`add week ${data.weekid} match ${data.matchnum} team ${data.teamaid} vs team ${data.teambid}`);
             await addMatchWeek(data.matchnum, data.teamaid, data.teambid, data.weekid);
             msg = 'Match added successfully';
+            try {
+                broadcastMatchEvent(data.weekid, {
+                    type: 'MATCH_ADDED',
+                    match_num: data.matchnum,
+                    message: `➕ เพิ่ม Match ${data.matchnum} ในตารางแข่งขันเรียบร้อย`
+                });
+            } catch (eWs) { }
         }
 
         // Add goal
@@ -750,6 +813,40 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
             if (data.weekid !== undefined) {
                 await updateTableWeek(data.weekid);
             }
+
+            try {
+                const [goalInfo] = await doQuery(`
+                    SELECT ms.match_num, ms.week_id, ms.team_a_goal, ms.team_b_goal,
+                           m.alias, m.name, t.color as team_color,
+                           ta.color as team_a_color, tb.color as team_b_color
+                    FROM match_stat_tbl ms
+                    LEFT JOIN member_tbl m ON m.id = ${parseInt(data.memberid, 10)}
+                    LEFT JOIN team_week_tbl t ON t.id = ${parseInt(data.teamid, 10)}
+                    LEFT JOIN team_week_tbl ta ON ms.team_a_id = ta.id
+                    LEFT JOIN team_week_tbl tb ON ms.team_b_id = tb.id
+                    WHERE ms.id = ${parseInt(data.matchid, 10)}
+                `);
+
+                let icon = '⚽';
+                let label = 'GOAL!';
+                if (statusid == 2) { icon = '⚽ (OG)'; label = 'ทำเข้าประตูตัวเอง!'; }
+                else if (statusid == 3) { icon = '🎯'; label = 'ASSIST!'; }
+
+                const pName = goalInfo?.alias || goalInfo?.name || 'ผู้เล่น';
+                const teamName = goalInfo?.team_color || '';
+                const scoreText = (goalInfo?.team_a_color && goalInfo?.team_b_color)
+                    ? `(${goalInfo.team_a_color} ${goalInfo.team_a_goal ?? 0} - ${goalInfo.team_b_goal ?? 0} ${goalInfo.team_b_color})`
+                    : '';
+                const toastMsg = `${icon} ${label} ${pName}${teamName ? ' [' + teamName + ']' : ''} ${scoreText}`.trim();
+
+                broadcastMatchEvent(data.weekid || goalInfo?.week_id, {
+                    type: 'GOAL_ADDED',
+                    match_id: data.matchid,
+                    match_num: goalInfo?.match_num,
+                    message: toastMsg
+                });
+            } catch (eWs) { }
+
             return res.json({ success: true, message: 'Goal added successfully' });
         }
 
@@ -765,6 +862,15 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                 if (data.weekid !== undefined) {
                     await updateTableWeek(data.weekid);
                 }
+                try {
+                    const [mRow] = await doQuery(`SELECT match_num, week_id FROM match_stat_tbl WHERE id = ${matchId}`);
+                    broadcastMatchEvent(data.weekid || mRow?.week_id, {
+                        type: 'GOAL_REMOVED',
+                        match_id: matchId,
+                        match_num: mRow?.match_num,
+                        message: `🗑️ มีการแก้ไข/ลบประตูใน Match ${mRow?.match_num || ''}`
+                    });
+                } catch (eWs) { }
                 return res.json({ success: true, message: 'Goal removed successfully' });
             } else {
                 return res.status(404).json({ error: 'Goal not found' });
@@ -804,6 +910,13 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
 
             // 3. Recalculate standings table for this week
             await updateTableWeek(weekId);
+            try {
+                broadcastMatchEvent(weekId, {
+                    type: 'MATCH_REMOVED',
+                    match_num: targetMatch.match_num,
+                    message: `🗑️ ลบ Match ${targetMatch.match_num} เรียบร้อยแล้ว`
+                });
+            } catch (eWs) { }
 
             return res.json({
                 success: true,

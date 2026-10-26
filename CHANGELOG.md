@@ -4,6 +4,28 @@
 
 --- 
 
+## [0.7.0] - 2026-10-26
+
+### Feature: Real-Time Live Scoreboard via WebSocket & Instant Toast Notifications
+- **ระบบกระจายข้อมูลสดผ่าน WebSocket Broadcaster (`utils/wsBroadcaster.js`, `index.js`, `package.json`)**:
+  - ติดตั้ง library `ws` และเชื่อมต่อ WebSocket Server เข้ากับ HTTP Server โดยตรงที่เส้นทาง `/webhook/ws` (และ `/ws/live`, `/web/ws`)
+  - มีระบบตรวจจับการเชื่อมต่อ (Ping/Pong Heartbeat ทุก 30 วินาที) และระบบ Auto-reconnect หากหลุดการเชื่อมต่อ
+  - รองรับการ Subscribe แยกตาม `week_id` เพื่อส่งข้อมูลเฉพาะสัปดาห์ที่ผู้ใช้กำลังดูอยู่ได้อย่างแม่นยำ
+- **ระบบ Push Events เมื่อเกิดเหตุการณ์แข่งขันใน Manager (`routes/web.js`)**:
+  - ⚽ **ยิงประตู / แอสซิสต์**: ส่ง Event `GOAL_ADDED` พร้อมชื่อผู้ทำประตู, ทีม และสกอร์คู่แข่ง ณ ขณะนั้น
+  - 🏁 **จบแมตช์**: ส่ง Event `MATCH_FINISHED` พร้อมสกอร์สุดท้ายที่จบการแข่งขัน
+  - ▶️ **เริ่มแมตช์**: ส่ง Event `MATCH_STARTED` แจ้งเตือนแมตช์คู่ถัดไปที่เริ่มลงสนาม (LIVE)
+  - ↩️ **เปิดแมตช์แข่งต่อ / แก้ไขผล**: ส่ง Event `MATCH_REOPENED` / `GOAL_REMOVED`
+  - 🛡️ **ปรับผังตำแหน่งผู้เล่น**: ส่ง Event `ROSTER_UPDATED`
+- **ระบบ Real-Time Live Viewer และแจ้งเตือน Toast บนหน้าจอ (`public/update.shtml`, `update.shtml`, `public/style.css`)**:
+  - เมื่อหน้าจอ Viewer ได้รับ Event จาก WebSocket จะแสดง **Toast Notification** ทันที เช่น *"⚽ GOAL! @Guy ยิงให้ Yellow (Yellow 1 - 0 White)"* หรือ *"🏁 จบ Match 3 เรียบร้อยแล้ว (Yellow 2 - 1 White)"*
+  - สั่ง Sync ข้อมูลสกอร์และตารางคะแนนล่าสุดมารีเฟรชบนหน้าจอทันทีแบบเบื้องหลัง (< 50ms) โดยที่ผู้ชมไม่ต้องรอตัวเลขนับถอยหลัง 30 วินาที
+  - แสดงจุดเขียวกะพริบสด (Live Dot) ข้างปุ่มรีเฟรชเพื่อบอกสถานะการเชื่อมต่อ WebSocket แบบ Real-time
+  - เพิ่มสไตล์ Responsive ให้กับ `.match-toast` จัดตำแหน่งกึ่งกลางหน้าจออย่างสวยงามบนสมาร์ตโฟน
+  - คงระบบ Timer (30s) ไว้เบื้องหลังเป็น Fallback Sync ในกรณีที่อินเทอร์เน็ตมือถือหลุดหรือพักหน้าจอ
+
+--- 
+
 ## [0.6.21] - 2026-10-26
 
 ### Optimization & Feature: Smart Change Detection & DB-Backed Week Leader Stats
