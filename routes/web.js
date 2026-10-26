@@ -46,15 +46,101 @@ async function doUpdate(sql) {
     }
 }
 
-// In-memory cache for week leader stats & player ratings (Short-lived TTL, invalidated on match/goal updates)
+// In-memory cache for week leader stats & player ratings (Persistent cache, invalidated only on match finish / updates)
 let leaderStatsCache = {};
 
 function invalidateLeaderStatsCache(weekId = null) {
     if (weekId) {
-        delete leaderStatsCache[weekId];
+        delete leaderStatsCache[String(weekId)];
+        logger.info(`[Ratings Cache] Invalidated cache for week ${weekId}`);
     } else {
         leaderStatsCache = {};
+        logger.info(`[Ratings Cache] Invalidated cache for all weeks`);
     }
+}
+
+async function getOrComputeLeaderStats(weekid, forceRefresh = false) {
+    if (!weekid) return null;
+    const key = String(weekid);
+    if (!forceRefresh && leaderStatsCache[key] && leaderStatsCache[key].data) {
+        return leaderStatsCache[key].data;
+    }
+
+    const stats = await db.getWeekLeaderStats(weekid);
+    if (!stats) return null;
+
+    const mapped = {
+        mvps: (stats.mvps || []).map(p => ({
+            id: p.id || p.member_id,
+            name: p.name,
+            alias: p.alias,
+            picture_url: p.picture_url,
+            team_id: p.team_id,
+            teamName: p.teamName,
+            rating: p.score ? Number(p.score).toFixed(1) : '0.0',
+            goals: p.goals || 0,
+            assists: p.assists || 0,
+            pos_code: p.pos?.code || ''
+        })),
+        top_scorers: (stats.topScorers || []).map(p => ({
+            id: p.id || p.member_id,
+            name: p.name,
+            alias: p.alias,
+            picture_url: p.picture_url,
+            team_id: p.team_id,
+            teamName: p.teamName,
+            goals: p.goals || 0
+        })),
+        top_assists: (stats.topAssists || []).map(p => ({
+            id: p.id || p.member_id,
+            name: p.name,
+            alias: p.alias,
+            picture_url: p.picture_url,
+            team_id: p.team_id,
+            teamName: p.teamName,
+            assists: p.assists || 0
+        })),
+        totw: (stats.totw || []).map(p => ({
+            id: p.id || p.member_id,
+            name: p.name,
+            alias: p.alias,
+            picture_url: p.picture_url,
+            team_id: p.team_id,
+            teamName: p.teamName,
+            rating: p.score ? Number(p.score).toFixed(1) : '0.0',
+            raw_score: p.rawScore ? Number(p.rawScore).toFixed(2) : '0.00',
+            goals: p.goals || 0,
+            assists: p.assists || 0,
+            clean_sheets: p.cleanSheets || 0,
+            matches: p.matches || 0,
+            pos_code: (p.pos?.code || p.pos_code || 'MF').toUpperCase(),
+            pos_icon: p.pos?.icon || ''
+        })),
+        players: (stats.allPlayerRatings || []).map(p => ({
+            id: p.id || p.member_id,
+            name: p.name,
+            alias: p.alias,
+            picture_url: p.picture_url,
+            team_id: p.team_id,
+            teamName: p.teamName,
+            rating: p.score ? Number(p.score).toFixed(1) : '0.0',
+            raw_score: p.rawScore ? Number(p.rawScore).toFixed(2) : '0.00',
+            goals: p.goals || 0,
+            assists: p.assists || 0,
+            clean_sheets: p.cleanSheets || 0,
+            matches: p.matches || 0,
+            pos_code: (p.pos?.code || p.pos_code || 'MF').toUpperCase(),
+            pos_icon: p.pos?.icon || ''
+        }))
+    };
+
+    leaderStatsCache[key] = {
+        data: mapped,
+        cachedAt: Date.now()
+    };
+    logger.info(`[Ratings Cache] Calculated & cached leader stats for week ${weekid} (${mapped.players.length} players, ${mapped.totw.length} TOTW)`);
+
+    return mapped;
 }
 
 // Middlewares for Web Routes (Scoped to router so /webhook is not affected)
@@ -609,8 +695,16 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                 }
             }
 
-            if (data.weekid !== undefined) {
-                await updateTableWeek(data.weekid);
+            const targetWeekId = data.weekid || (curMatch ? curMatch.week_id : null);
+            if (targetWeekId) {
+                await updateTableWeek(targetWeekId);
+                invalidateLeaderStatsCache(targetWeekId);
+                try {
+                    await getOrComputeLeaderStats(targetWeekId, true);
+                    logger.info(`[Finish Match] Ratings and TOTW recalculated and cached for week ${targetWeekId}`);
+                } catch (eStats) {
+                    logger.warn(`[Finish Match] Failed to recompute ratings for week ${targetWeekId}: ${eStats.message}`);
+                }
             }
             return res.json({ success: true, message: 'Match finished successfully', matchid: data.matchid, status: 'finished' });
         }
@@ -1139,71 +1233,11 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     data.app_version = getAppVersion();
     data.asset_version = getAssetVersion();
 
-    // Real-time Leader & Rating stats for week
+    // Real-time Leader & Rating stats for week (Served from persistent cache unless updated)
     data.leader_stats = null;
     if (!isLocked && allMatches.length > 0) {
         try {
-            const cached = leaderStatsCache[weekid];
-            if (cached && cached.expiresAt > Date.now()) {
-                data.leader_stats = cached.data;
-            } else {
-                const stats = await db.getWeekLeaderStats(weekid);
-                if (stats) {
-                    const mapped = {
-                        mvps: (stats.mvps || []).map(p => ({
-                            id: p.id || p.member_id,
-                            name: p.name,
-                            alias: p.alias,
-                            picture_url: p.picture_url,
-                            team_id: p.team_id,
-                            teamName: p.teamName,
-                            rating: p.score ? Number(p.score).toFixed(1) : '0.0',
-                            goals: p.goals || 0,
-                            assists: p.assists || 0,
-                            pos_code: p.pos?.code || ''
-                        })),
-                        top_scorers: (stats.topScorers || []).map(p => ({
-                            id: p.id || p.member_id,
-                            name: p.name,
-                            alias: p.alias,
-                            picture_url: p.picture_url,
-                            team_id: p.team_id,
-                            teamName: p.teamName,
-                            goals: p.goals || 0
-                        })),
-                        top_assists: (stats.topAssists || []).map(p => ({
-                            id: p.id || p.member_id,
-                            name: p.name,
-                            alias: p.alias,
-                            picture_url: p.picture_url,
-                            team_id: p.team_id,
-                            teamName: p.teamName,
-                            assists: p.assists || 0
-                        })),
-                        players: (stats.allPlayerRatings || []).map(p => ({
-                            id: p.id || p.member_id,
-                            name: p.name,
-                            alias: p.alias,
-                            picture_url: p.picture_url,
-                            team_id: p.team_id,
-                            teamName: p.teamName,
-                            rating: p.score ? Number(p.score).toFixed(1) : '0.0',
-                            raw_score: p.rawScore ? Number(p.rawScore).toFixed(2) : '0.00',
-                            goals: p.goals || 0,
-                            assists: p.assists || 0,
-                            clean_sheets: p.cleanSheets || 0,
-                            matches: p.matches || 0,
-                            pos_code: p.pos?.code || '',
-                            pos_icon: p.pos?.icon || ''
-                        }))
-                    };
-                    leaderStatsCache[weekid] = {
-                        data: mapped,
-                        expiresAt: Date.now() + 15000 // 15 seconds TTL
-                    };
-                    data.leader_stats = mapped;
-                }
-            }
+            data.leader_stats = await getOrComputeLeaderStats(weekid, false);
         } catch (e) {
             logger.warn(`Could not compute leader_stats for week ${weekid}: ${e.message}`);
         }

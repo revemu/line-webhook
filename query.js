@@ -1993,7 +1993,38 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     logger.info(` [MVP Winner(s)] Max Raw: ${maxRawMvpScore.toFixed(4)} | Benchmark Ref: ${refMaxScore.toFixed(4)} | Leader Rating: ${maxMvpScore.toFixed(1)}/10 | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
     logger.info(`=============================================\n`);
 
-    return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore, allPlayerRatings: formattedList };
+    // Compute Team of the Week (TOTW)
+    let totw = [];
+    try {
+      let is8PlayerWeek = false;
+      const teamCountsRes = await executeQuery(
+        "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
+        [week_id]
+      );
+      if (teamCountsRes && teamCountsRes.length > 0) {
+        const maxCount = Math.max(...teamCountsRes.map(r => Number(r.cnt) || 0));
+        if (maxCount >= 8) is8PlayerWeek = true;
+      }
+
+      const posLimitsMap = {};
+      const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+      if (posRows && posRows.length > 0) {
+        posRows.forEach(r => {
+          posLimitsMap[r.code] = {
+            min: Number(r.min) || 0,
+            max: Number(r.max) || 0,
+            min_8: Number(r.min_8) || 0,
+            max_8: Number(r.max_8) || 0
+          };
+        });
+      }
+
+      totw = selectTeamOfTheWeekPlayers(formattedList, is8PlayerWeek, posLimitsMap);
+    } catch (eTotw) {
+      logger.warn('Failed to compute TOTW in getWeekLeaderStats:', eTotw.message);
+    }
+
+    return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore, allPlayerRatings: formattedList, totw };
   } catch (err) {
     logger.error("Error calculating week leader stats:", err.message);
     return null;
@@ -8418,6 +8449,7 @@ module.exports = {
   setMemberDebt,
   updateWeekTimeRange,
   getWeekLeaderStats,
+  selectTeamOfTheWeekPlayers,
   calculateWeekRawMvp,
   computePlayerRawScore,
   resolveWeekPlayerPositions,

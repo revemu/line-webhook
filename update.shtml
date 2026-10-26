@@ -1316,13 +1316,13 @@
 							:key="'team-tab-' + team.id" 
 							type="button" 
 							class="carousel-team-tab-btn" 
-							:class="{ 'is-active': activeMobileTeamIndex === tIdx }"
+							:class="{ 'is-active': activeMobileTeamIndex === tIdx, 'is-totw-tab': team.isTotw }"
 							@click="scrollToMobileTeam(tIdx)"
-							:style="activeMobileTeamIndex === tIdx ? { backgroundColor: team.color ? team.color.toLowerCase() : '#3b82f6', color: getContrastColor(team.color), borderColor: getBorderColor(team.color) } : {}"
+							:style="activeMobileTeamIndex === tIdx ? (team.isTotw ? { background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#ffffff', borderColor: '#f59e0b' } : { backgroundColor: team.color ? team.color.toLowerCase() : '#3b82f6', color: getContrastColor(team.color), borderColor: getBorderColor(team.color) }) : {}"
 						>
-							<span class="carousel-tab-dot">{{ getTeamColorEmoji(team.color) }}</span>
-							<span class="carousel-tab-name">{{ team.color }}</span>
-							<span class="carousel-tab-pts">({{ team.pts }}p)</span>
+							<span class="carousel-tab-dot">{{ team.isTotw ? '⭐' : getTeamColorEmoji(team.color) }}</span>
+							<span class="carousel-tab-name">{{ team.isTotw ? 'TOTW' : team.color }}</span>
+							<span class="carousel-tab-pts">{{ team.isTotw ? ('(' + team.players.length + 'คน)') : ('(' + team.pts + 'p)') }}</span>
 						</button>
 					</div>
 					<div class="carousel-swipe-indicator">
@@ -1333,7 +1333,7 @@
 								:key="'dot-' + team.id" 
 								class="carousel-page-dot" 
 								:class="{ 'is-active': activeMobileTeamIndex === dIdx }"
-								:style="activeMobileTeamIndex === dIdx ? { backgroundColor: team.color ? team.color.toLowerCase() : 'var(--primary-color)' } : {}"
+								:style="activeMobileTeamIndex === dIdx ? { backgroundColor: team.isTotw ? '#f59e0b' : (team.color ? team.color.toLowerCase() : 'var(--primary-color)') } : {}"
 								@click="scrollToMobileTeam(dIdx)"
 							></span>
 						</span>
@@ -1342,10 +1342,10 @@
 
 				<!-- Team Rosters Grid (Horizontal Carousel on Mobile) -->
 				<div class="team-summary-grid" ref="teamSummaryGrid" @scroll.passive="onTeamGridScroll">
-					<div v-for="team in teamRostersSummary" :key="team.id" class="team-summary-col">
-						<div class="team-col-header" :style="{ backgroundColor: team.color ? team.color.toLowerCase() : '#333', color: getContrastColor(team.color) }">
-							<div class="team-col-name">{{ team.color }}</div>
-							<div class="team-col-record">{{ team.pts }} pts ({{ team.win }}W-{{ team.draw }}D-{{ team.loss }}L)</div>
+					<div v-for="team in teamRostersSummary" :key="team.id" class="team-summary-col" :class="{ 'is-totw': team.isTotw }">
+						<div class="team-col-header" :class="{ 'is-totw-header': team.isTotw }" :style="team.isTotw ? { background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#ffffff' } : { backgroundColor: team.color ? team.color.toLowerCase() : '#333', color: getContrastColor(team.color) }">
+							<div class="team-col-name">{{ team.isTotw ? '⭐ TEAM OF THE WEEK' : team.color }}</div>
+							<div class="team-col-record">{{ team.isTotw ? ('👑 Best XI (' + team.players.length + ' คน)') : (team.pts + ' pts (' + team.win + 'W-' + team.draw + 'D-' + team.loss + 'L)') }}</div>
 						</div>
 
 						<!-- 1. PITCH VIEW (ผังสนามรูปฟุตบอล พร้อม icon นักเตะ) -->
@@ -1366,7 +1366,7 @@
 								<div class="pitch-tactical-row row-fw" v-if="getTeamTacticalRows(team.players).fw.length > 0">
 									<div v-for="p in getTeamTacticalRows(team.players).fw" :key="p.id" class="pitch-player-node mini-pitch-node">
 										<div class="pitch-player-avatar-wrap">
-											<div class="pitch-player-avatar-circle" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
 												<img v-if="p.picture_url" :src="p.picture_url" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
@@ -1378,6 +1378,7 @@
 										</div>
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'CF' }}</span>
+											<span v-if="team.isTotw && p.teamName" class="totw-team-mini-dot" :style="{ backgroundColor: getTeamColorByName(p.teamName) }" :title="'ทีม ' + p.teamName"></span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
 										</div>
 									</div>
@@ -1387,7 +1388,7 @@
 								<div class="pitch-tactical-row row-mf" v-if="getTeamTacticalRows(team.players).mf.length > 0">
 									<div v-for="p in getTeamTacticalRows(team.players).mf" :key="p.id" class="pitch-player-node mini-pitch-node">
 										<div class="pitch-player-avatar-wrap">
-											<div class="pitch-player-avatar-circle" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
 												<img v-if="p.picture_url" :src="p.picture_url" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
@@ -1399,6 +1400,7 @@
 										</div>
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'MF' }}</span>
+											<span v-if="team.isTotw && p.teamName" class="totw-team-mini-dot" :style="{ backgroundColor: getTeamColorByName(p.teamName) }" :title="'ทีม ' + p.teamName"></span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
 										</div>
 									</div>
@@ -1408,7 +1410,7 @@
 								<div class="pitch-tactical-row row-df" v-if="getTeamTacticalRows(team.players).df.length > 0">
 									<div v-for="p in getTeamTacticalRows(team.players).df" :key="p.id" class="pitch-player-node mini-pitch-node">
 										<div class="pitch-player-avatar-wrap">
-											<div class="pitch-player-avatar-circle" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
 												<img v-if="p.picture_url" :src="p.picture_url" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
@@ -1420,6 +1422,7 @@
 										</div>
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'DF' }}</span>
+											<span v-if="team.isTotw && p.teamName" class="totw-team-mini-dot" :style="{ backgroundColor: getTeamColorByName(p.teamName) }" :title="'ทีม ' + p.teamName"></span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
 										</div>
 									</div>
@@ -1429,7 +1432,7 @@
 								<div class="pitch-tactical-row row-gk" v-if="getTeamTacticalRows(team.players).gk.length > 0">
 									<div v-for="p in getTeamTacticalRows(team.players).gk" :key="p.id" class="pitch-player-node mini-pitch-node">
 										<div class="pitch-player-avatar-wrap">
-											<div class="pitch-player-avatar-circle" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+											<div class="pitch-player-avatar-circle" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
 												<img v-if="p.picture_url" :src="p.picture_url" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
@@ -1441,6 +1444,7 @@
 										</div>
 										<div class="pitch-name-pill">
 											<span class="pitch-pos-label" :style="getPosStyle(p.pos_code)">{{ p.pos_code || 'GK' }}</span>
+											<span v-if="team.isTotw && p.teamName" class="totw-team-mini-dot" :style="{ backgroundColor: getTeamColorByName(p.teamName) }" :title="'ทีม ' + p.teamName"></span>
 											<span class="pitch-name-text">{{ p.alias }}</span>
 										</div>
 									</div>
@@ -1456,7 +1460,7 @@
 						<div v-else class="team-player-roster">
 							<div v-for="(p, pIdx) in team.players" :key="p.id" class="team-player-card">
 								<div class="player-card-rank">#{{ pIdx + 1 }}</div>
-								<div class="player-card-avatar" :style="{ borderColor: team.color ? team.color.toLowerCase() : '#ccc' }">
+								<div class="player-card-avatar" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
 									<img v-if="p.picture_url" :src="p.picture_url" />
 									<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
@@ -1466,6 +1470,7 @@
 										<span v-if="team.topPlayer && p.id === team.topPlayer.id" class="badge-team-mvp" title="ผู้เล่นเรทติ้งสูงสุดของทีม">👑 MVP</span>
 									</div>
 									<div class="player-card-sub">
+										<span v-if="team.isTotw && p.teamName" class="player-pos-tag" :style="{ backgroundColor: getTeamColorByName(p.teamName), color: getContrastColor(p.teamName), fontWeight: '700' }">{{ p.teamName }}</span>
 										<span v-if="p.pos_code" class="player-pos-tag">{{ p.pos_code }}</span>
 										<span v-if="p.goals > 0" class="player-stat-tag goal-tag">⚽ {{ p.goals }}</span>
 										<span v-if="p.assists > 0" class="player-stat-tag assist-tag">👟 {{ p.assists }}</span>
@@ -1875,7 +1880,7 @@
 						? this.info.leader_stats.players
 						: (this.info.allmembers || []);
 
-					return this.tableweek.map(tw => {
+					const teams = this.tableweek.map(tw => {
 						const teamPlayers = players.filter(p => p.team_id == tw.team_week_id);
 						teamPlayers.sort((a, b) => {
 							const rA = parseFloat(a.rating) || 0;
@@ -1898,6 +1903,31 @@
 							topPlayer: topPlayer
 						};
 					});
+
+					// Append Team of the Week (TOTW) if available
+					if (this.weekTotw && this.weekTotw.length > 0) {
+						teams.push({
+							id: 'totw',
+							isTotw: true,
+							color: 'TOTW',
+							pts: '⭐',
+							win: '-',
+							draw: '-',
+							loss: '-',
+							goal: '-',
+							goal_against: '-',
+							players: this.weekTotw,
+							topPlayer: this.weekTotw.length > 0 ? this.weekTotw[0] : null
+						});
+					}
+
+					return teams;
+				},
+				weekTotw() {
+					if (this.info && this.info.leader_stats && this.info.leader_stats.totw) {
+						return this.info.leader_stats.totw;
+					}
+					return [];
 				},
 				weekMvps() {
 					if (this.info && this.info.leader_stats && this.info.leader_stats.mvps) {
@@ -3313,6 +3343,21 @@
 					if (lower === 'white') return '#1f2937';
 					if (lower === 'yellow') return '#d97706';
 					return lower;
+				},
+				getTeamColorByName(name) {
+					if (!name) return '#f59e0b';
+					const c = name.toLowerCase().trim();
+					if (c === 'yellow' || c === 'gold') return '#eab308';
+					if (c === 'red') return '#ef4444';
+					if (c === 'white') return '#ffffff';
+					if (c === 'green') return '#10b981';
+					if (c === 'blue') return '#3b82f6';
+					if (c === 'orange') return '#f97316';
+					if (c === 'purple') return '#a855f7';
+					if (c === 'pink') return '#ec4899';
+					if (c === 'brown') return '#8b5a2b';
+					if (c === 'black') return '#1f2937';
+					return c;
 				},
 				getContrastColor(colorName) {
 					if (!colorName) return '#1f2937';
