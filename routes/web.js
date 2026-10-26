@@ -26,9 +26,9 @@ const ROOT_PASSWORD = (process.env.ROOT_PASSWORD || 'root1234').trim();
 const pool = db.pool;
 
 // Helper function to execute queries
-async function doQuery(sql) {
+async function doQuery(sql, params) {
     try {
-        const [rows] = await pool.query(sql);
+        const [rows] = params !== undefined ? await pool.query(sql, params) : await pool.query(sql);
         return rows;
     } catch (error) {
         logger.error(`Query failed: ${error.message}\nSQL: ${sql}`);
@@ -37,9 +37,9 @@ async function doQuery(sql) {
 }
 
 // Helper function to execute updates
-async function doUpdate(sql) {
+async function doUpdate(sql, params) {
     try {
-        const [result] = await pool.query(sql);
+        const [result] = params !== undefined ? await pool.query(sql, params) : await pool.query(sql);
         return result;
     } catch (error) {
         logger.error(`Update failed: ${error.message}\nSQL: ${sql}`);
@@ -725,10 +725,10 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                     const [finMatch] = await doQuery(`
                         SELECT ms.match_num, ms.team_a_goal, ms.team_b_goal, ta.color as team_a_color, tb.color as team_b_color
                         FROM match_stat_tbl ms
-                        LEFT JOIN team_week_tbl ta ON ms.team_a_id = ta.id
-                        LEFT JOIN team_week_tbl tb ON ms.team_b_id = tb.id
-                        WHERE ms.id = ${parseInt(data.matchid, 10)}
-                    `);
+                        LEFT JOIN team_color_week_tbl ta ON ms.team_a_id = ta.id
+                        LEFT JOIN team_color_week_tbl tb ON ms.team_b_id = tb.id
+                        WHERE ms.id = ?
+                    `, [parseInt(data.matchid, 10)]);
                     const scoreText = finMatch ? `(${finMatch.team_a_color || 'A'} ${finMatch.team_a_goal ?? 0} - ${finMatch.team_b_goal ?? 0} ${finMatch.team_b_color || 'B'})` : '';
                     broadcastMatchEvent(targetWeekId, {
                         type: 'MATCH_FINISHED',
@@ -736,7 +736,9 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                         match_num: finMatch?.match_num,
                         message: `🏁 จบ Match ${finMatch?.match_num || ''} เรียบร้อยแล้ว ${scoreText}`.trim()
                     });
-                } catch (eWs) { }
+                } catch (eWs) {
+                    logger.warn(`[WebSocket Broadcast finish_match Error]: ${eWs.message}`);
+                }
             }
             return res.json({ success: true, message: 'Match finished successfully', matchid: data.matchid, status: 'finished' });
         }
@@ -749,10 +751,10 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                 const [stMatch] = await doQuery(`
                     SELECT ms.match_num, ms.week_id, ta.color as team_a_color, tb.color as team_b_color
                     FROM match_stat_tbl ms
-                    LEFT JOIN team_week_tbl ta ON ms.team_a_id = ta.id
-                    LEFT JOIN team_week_tbl tb ON ms.team_b_id = tb.id
-                    WHERE ms.id = ${parseInt(data.matchid, 10)}
-                `);
+                    LEFT JOIN team_color_week_tbl ta ON ms.team_a_id = ta.id
+                    LEFT JOIN team_color_week_tbl tb ON ms.team_b_id = tb.id
+                    WHERE ms.id = ?
+                `, [parseInt(data.matchid, 10)]);
                 const vsText = stMatch ? ` (${stMatch.team_a_color || 'A'} vs ${stMatch.team_b_color || 'B'})` : '';
                 broadcastMatchEvent(data.weekid || stMatch?.week_id, {
                     type: 'MATCH_STARTED',
@@ -760,7 +762,9 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                     match_num: stMatch?.match_num,
                     message: `▶️ Match ${stMatch?.match_num || ''} เริ่มการแข่งขันแล้ว (LIVE)${vsText}`
                 });
-            } catch (eWs) { }
+            } catch (eWs) {
+                logger.warn(`[WebSocket Broadcast start_match Error]: ${eWs.message}`);
+            }
             return res.json({ success: true, message: 'Match started successfully', matchid: data.matchid, status: 'in_progress' });
         }
 
@@ -821,11 +825,11 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                            ta.color as team_a_color, tb.color as team_b_color
                     FROM match_stat_tbl ms
                     LEFT JOIN member_tbl m ON m.id = ${parseInt(data.memberid, 10)}
-                    LEFT JOIN team_week_tbl t ON t.id = ${parseInt(data.teamid, 10)}
-                    LEFT JOIN team_week_tbl ta ON ms.team_a_id = ta.id
-                    LEFT JOIN team_week_tbl tb ON ms.team_b_id = tb.id
-                    WHERE ms.id = ${parseInt(data.matchid, 10)}
-                `);
+                    LEFT JOIN team_color_week_tbl t ON t.id = ${parseInt(data.teamid, 10)}
+                    LEFT JOIN team_color_week_tbl ta ON ms.team_a_id = ta.id
+                    LEFT JOIN team_color_week_tbl tb ON ms.team_b_id = tb.id
+                    WHERE ms.id = ?
+                `, [parseInt(data.matchid, 10)]);
 
                 let icon = '⚽';
                 let label = 'GOAL!';
@@ -845,7 +849,9 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                     match_num: goalInfo?.match_num,
                     message: toastMsg
                 });
-            } catch (eWs) { }
+            } catch (eWs) {
+                logger.warn(`[WebSocket Broadcast add_goal Error]: ${eWs.message}`);
+            }
 
             return res.json({ success: true, message: 'Goal added successfully' });
         }

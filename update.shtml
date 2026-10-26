@@ -2457,11 +2457,12 @@
 					}
 				},
 				showToast(msg) {
+					if (!msg) return;
 					this.toastMessage = msg;
 					if (this.toastTimer) clearTimeout(this.toastTimer);
 					this.toastTimer = setTimeout(() => {
 						this.toastMessage = '';
-					}, 3500);
+					}, 3800);
 				},
 				initWebSocket() {
 					if (this.ws) {
@@ -2506,8 +2507,11 @@
 
 					// Filter by current viewed week_id if specified
 					const currentWeekId = this.week ? (this.week.id || this.week.number || 0) : 0;
-					if (data.week_id && currentWeekId && String(data.week_id) !== String(currentWeekId)) {
-						return;
+					const currentWeekNum = this.week ? (this.week.number || 0) : 0;
+					if (data.week_id && currentWeekId) {
+						const isMatch = String(data.week_id) === String(currentWeekId) ||
+							(currentWeekNum && String(data.week_id) === String(currentWeekNum));
+						if (!isMatch) return;
 					}
 
 					// 1. Show Toast notification
@@ -2516,9 +2520,9 @@
 					}
 
 					// 2. Immediately refresh match and scoreboard data in background
-					const currentWeekNum = this.week ? (this.week.number || this.week.id || 0) : 0;
+					const currentWeek = this.week ? (this.week.number || this.week.id || 0) : 0;
 					this.refreshCountdown = 30;
-					this.refreshMatch(currentWeekNum, false, this.selectedMatchIndex);
+					this.refreshMatch(currentWeek, false, this.selectedMatchIndex);
 				},
 				changeWeek(weeknum) {
 					this.showWeekPicker = false;
@@ -2913,7 +2917,7 @@
 						teamId = (side === 'teamA') ? match.team_b_id : match.team_a_id;
 					}
 
-					const teamColor = (teamId === match.team_a_id) ? match.team_a_color : match.team_b_color;
+					const teamColor = ((Number(teamId) === Number(match.team_a_id)) ? match.team_a_color : match.team_b_color) || '';
 
 					const formdata = new FormData();
 					formdata.append('teamid', teamId);
@@ -2928,7 +2932,9 @@
 							if (response.data && response.data.success) {
 								const icon = statusId === 0 ? '⚽' : statusId === 3 ? '👟' : '🥅';
 								const label = statusId === 0 ? 'ยิงประตู (+1)' : statusId === 3 ? 'แอสซิสต์ (+1)' : 'ทำเข้าประตูตัวเอง (OG)';
-								this.showToast(icon + ' ' + player.alias + ' ' + label + ' ให้ทีม ' + teamColor);
+								const pAlias = (player && (player.alias || player.name)) || 'ผู้เล่น';
+								const teamLabel = teamColor ? ' ให้ทีม ' + teamColor : '';
+								this.showToast(icon + ' ' + pAlias + ' ' + label + teamLabel);
 								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'เซิร์ฟเวอร์ไม่ได้บันทึกผล';
@@ -3020,7 +3026,7 @@
 					this.submittingGoal = true;
 					const formdata = new FormData();
 					formdata.append('goalid', targetEvent.goal_id);
-					formdata.append('weekid', this.week.id);
+					formdata.append('weekid', this.week ? (this.week.id || this.week.number) : 0);
 
 					const label = statusId === 0 ? 'ประตู' : statusId === 3 ? 'แอสซิสต์' : 'OG';
 
@@ -3028,7 +3034,8 @@
 						.then(response => {
 							this.submittingGoal = false;
 							if (response.data && response.data.success) {
-								this.showToast(`🗑️ ลบ${label}ของ ${player.alias} (-1)`);
+								const pAlias = (player && (player.alias || player.name)) || 'ผู้เล่น';
+								this.showToast('🗑️ ลบ' + label + 'ของ ' + pAlias + ' (-1)');
 								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบรายการได้';

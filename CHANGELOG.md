@@ -4,6 +4,25 @@
 
 --- 
 
+## [0.7.1] - 2026-10-26
+
+### Bug Fix: Mobile Toast Notification Visibility & Robust WebSocket Goal Broadcast
+- **แก้ไขชื่อตารางในคำสั่ง SQL สำหรับ Broadcast (routes/web.js)**:
+  - แก้ไขชื่อตารางจาก `team_week_tbl` เป็น `team_color_week_tbl` ใน Query ของ `add_goal`, `finish_match`, และ `start_match`
+  - ก่อนหน้านี้การเพิ่มประตู/แอสซิสต์ทำให้เกิด Error `Table 'soccerbot.team_week_tbl' doesn't exist` ภายใน Try/Catch ทำให้คำสั่ง `broadcastMatchEvent('GOAL_ADDED')` ไม่ถูกยิงออกไป ในขณะที่คำสั่งลบประตู (`remove_goal`) ใช้งานตาราง `match_stat_tbl` จึงยิง broadcast สำเร็จเพียงลำพัง
+- **อัปเกรดฟังก์ชัน `doQuery` และ `doUpdate` ใน routes/web.js**:
+  - รองรับ Parameterized Query (`params`) เพื่อความปลอดภัยและป้องกัน SQL error
+- **ปรับปรุงตำแหน่งและความชัดเจนของ Toast Notification บนมือถือ (public/style.css)**:
+  - ยกระดับ `z-index` เป็น `999999 !important` ป้องกันการถูก Stadium Pitch Modal (`z-index: 9999`) หรือ Bottom Bar บดบัง
+  - บนมือถือ (`max-width: 600px`): ย้ายตำแหน่งการแสดงผลไปไว้ด้านบน (`top: max(16px, env(safe-area-inset-top))`) ในลักษณะ Native Push Banner / Dynamic Island เพื่อให้มองเห็นได้ทันที ชัดเจน ไม่โดนนิ้วมือหรือ Browser Navigation Bar บัง
+  - เพิ่ม `pointer-events: none` เพื่อให้ผู้ใช้สามารถแตะใช้งานหน้าจอด้านล่างต่อได้ทันทีโดยไม่ติดขัด
+  - เพิ่ม CSS transition animations (`fade-enter-active`, `fade-leave-active`, `toastPopTop`)
+- **เพิ่มความปลอดภัยและแม่นยำในการกรองข้อมูลบน Client (public/update.shtml, update.shtml)**:
+  - ตรวจสอบ `data.week_id` เทียบทั้ง `this.week.id` และ `this.week.number` เพื่อป้องกันการ Drop Event
+  - ปรับปรุงการคำนวณชื่อทีม (`teamColor`) และชื่อผู้เล่น (`pAlias`) ใน `quickAddGoal` และ `quickRemovePlayerEvent` ให้มี Fallback ป้องกัน `undefined`
+
+--- 
+
 ## [0.7.0] - 2026-10-26
 
 ### Feature: Real-Time Live Scoreboard via WebSocket & Instant Toast Notifications

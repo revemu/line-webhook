@@ -4527,19 +4527,21 @@ select.form-control {
     bottom: 24px;
     right: 24px;
     background: rgba(15, 23, 42, 0.95);
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     color: #ffffff;
-    border: 1.5px solid var(--primary-color);
+    border: 1.5px solid var(--primary-color, #10b981);
     border-radius: 999px;
-    padding: 0.65rem 1.25rem;
-    font-size: 0.9rem;
+    padding: 0.7rem 1.4rem;
+    font-size: 0.92rem;
     font-weight: 800;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(16, 185, 129, 0.25);
+    z-index: 999999 !important;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    animation: toastPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    gap: 0.6rem;
+    pointer-events: none;
+    animation: toastPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes toastPop {
@@ -4547,15 +4549,35 @@ select.form-control {
     100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
+@keyframes toastPopTop {
+    0% { transform: translateY(-20px) scale(0.92); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.fade-enter-active, .fade-leave-active {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.fade-enter, .fade-leave-to {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
 @media (max-width: 600px) {
     .match-toast {
-        left: 16px;
-        right: 16px;
-        bottom: 16px;
+        top: max(16px, env(safe-area-inset-top, 16px));
+        bottom: auto;
+        left: 12px;
+        right: 12px;
+        margin: 0 auto;
+        width: calc(100% - 24px);
+        max-width: 440px;
         justify-content: center;
         text-align: center;
-        font-size: 0.85rem;
-        padding: 0.55rem 1rem;
+        font-size: 0.88rem;
+        padding: 0.75rem 1.15rem;
+        border-radius: 14px;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7), 0 0 20px rgba(16, 185, 129, 0.35);
+        animation: toastPopTop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 }
 
