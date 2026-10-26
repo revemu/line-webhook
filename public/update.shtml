@@ -2548,6 +2548,9 @@
 					this.teamA = null;
 					this.teamB = null;
 					this.selectedMatchIndex = 0;
+					if (!this.isManager) {
+						this.initialScrolled = false;
+					}
 					if (window.history && window.history.replaceState) {
 						const newUrl = window.location.pathname + (weeknum ? '?weeknum=' + weeknum : '');
 						window.history.replaceState(null, '', newUrl);
@@ -2590,9 +2593,14 @@
 								this.activeMobileTeamIndex = 0;
 							}
 
-							// Auto-scroll disabled: user stays at current scroll position to manage score results
+							// Auto-scroll to current match on load for viewers only (disabled on manager screen to manage score results)
 							if (!this.initialScrolled) {
 								this.initialScrolled = true;
+								if (!this.isManager) {
+									setTimeout(() => {
+										this.scrollToCurrentMatch(true);
+									}, 350);
+								}
 							}
 
 							if (this.all_match) {

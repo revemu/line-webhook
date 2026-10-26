@@ -4,6 +4,15 @@
 
 --- 
 
+## [0.7.3] - 2026-10-26
+
+### Enhancement: Retain Auto-Scroll to Current Match for Viewers
+- **คงการเลื่อนจออัตโนมัติ (Auto-scroll) ไปยังแมตช์ปัจจุบันสำหรับหน้าจอ Viewer (public/update.shtml, update.shtml)**:
+  - ในหน้าจอ Match Viewer (`!isManager`) เมื่อโหลดหน้าจอหรือสลับสัปดาห์ หน้าจอจะยังคงเลื่อน (Scroll) ไปยังแมตช์ปัจจุบันหรือแมตช์ที่กำลังแข่งตามปกติ
+  - ในหน้าจอ Match Manager (`isManager`) ปิดการเลื่อนอัตโนมัติ เพื่อให้ผู้จัดการแข่งขันสามารถจัดการผลสกอร์บน Scoreboard และ Pitch ได้สะดวกโดยหน้าจอไม่เลื่อนหนี
+
+--- 
+
 ## [0.7.2] - 2026-10-26
 
 ### Feature & UX Improvements: Goal Notification Avatar, Colored Bold Scores, & Manager UX
