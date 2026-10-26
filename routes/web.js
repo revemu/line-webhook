@@ -47,6 +47,24 @@ async function doUpdate(sql, params) {
     }
 }
 
+// Helper function to resolve team color hex code for notifications & UI
+function getTeamColorHex(name) {
+    if (!name) return '#f59e0b';
+    const c = String(name).toLowerCase().trim();
+    if (c === 'red' || c === 'แดง') return '#ef4444';
+    if (c === 'green' || c === 'เขียว') return '#10b981';
+    if (c === 'yellow' || c === 'gold' || c === 'เหลือง') return '#facc15';
+    if (c === 'orange' || c === 'ส้ม') return '#fb923c';
+    if (c === 'blue' || c === 'ฟ้า' || c === 'น้ำเงิน') return '#38bdf8';
+    if (c === 'purple' || c === 'ม่วง') return '#c084fc';
+    if (c === 'pink' || c === 'ชมพู') return '#f472b6';
+    if (c === 'white' || c === 'ขาว') return '#ffffff';
+    if (c === 'black' || c === 'ดำ') return '#94a3b8';
+    if (c === 'brown' || c === 'น้ำตาล') return '#d97706';
+    if (c === 'gray' || c === 'grey' || c === 'เทา') return '#94a3b8';
+    return '#f59e0b';
+}
+
 // In-memory cache for week leader stats & player ratings (Persistent cache, invalidated only on match finish / updates)
 let leaderStatsCache = {};
 
@@ -729,12 +747,18 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                         LEFT JOIN team_color_week_tbl tb ON ms.team_b_id = tb.id
                         WHERE ms.id = ?
                     `, [parseInt(data.matchid, 10)]);
-                    const scoreText = finMatch ? `(${finMatch.team_a_color || 'A'} ${finMatch.team_a_goal ?? 0} - ${finMatch.team_b_goal ?? 0} ${finMatch.team_b_color || 'B'})` : '';
+                    const colorHexA = getTeamColorHex(finMatch?.team_a_color);
+                    const colorHexB = getTeamColorHex(finMatch?.team_b_color);
+                    const goalA = finMatch?.team_a_goal ?? 0;
+                    const goalB = finMatch?.team_b_goal ?? 0;
+                    const scoreHtml = finMatch ? `(<b style="color: ${colorHexA}; font-weight: 800;">${goalA}</b> - <b style="color: ${colorHexB}; font-weight: 800;">${goalB}</b>)` : '';
+                    const plainScore = finMatch ? `(${goalA} - ${goalB})` : '';
                     broadcastMatchEvent(targetWeekId, {
                         type: 'MATCH_FINISHED',
                         match_id: data.matchid,
                         match_num: finMatch?.match_num,
-                        message: `🏁 จบ Match ${finMatch?.match_num || ''} เรียบร้อยแล้ว ${scoreText}`.trim()
+                        message: `🏁 จบ Match ${finMatch?.match_num || ''} เรียบร้อยแล้ว ${plainScore}`.trim(),
+                        html: `🏁 จบ Match ${finMatch?.match_num || ''} เรียบร้อยแล้ว ${scoreHtml}`.trim()
                     });
                 } catch (eWs) {
                     logger.warn(`[WebSocket Broadcast finish_match Error]: ${eWs.message}`);
@@ -821,7 +845,9 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
             try {
                 const [goalInfo] = await doQuery(`
                     SELECT ms.match_num, ms.week_id, ms.team_a_goal, ms.team_b_goal,
-                           m.alias, m.name, t.color as team_color,
+                           ms.team_a_id, ms.team_b_id,
+                           m.alias, m.name, m.picture_url,
+                           t.color as team_color,
                            ta.color as team_a_color, tb.color as team_b_color
                     FROM match_stat_tbl ms
                     LEFT JOIN member_tbl m ON m.id = ${parseInt(data.memberid, 10)}
@@ -837,17 +863,29 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                 else if (statusid == 3) { icon = '🎯'; label = 'ASSIST!'; }
 
                 const pName = goalInfo?.alias || goalInfo?.name || 'ผู้เล่น';
-                const teamName = goalInfo?.team_color || '';
-                const scoreText = (goalInfo?.team_a_color && goalInfo?.team_b_color)
-                    ? `(${goalInfo.team_a_color} ${goalInfo.team_a_goal ?? 0} - ${goalInfo.team_b_goal ?? 0} ${goalInfo.team_b_color})`
-                    : '';
-                const toastMsg = `${icon} ${label} ${pName}${teamName ? ' [' + teamName + ']' : ''} ${scoreText}`.trim();
+                const avatar = goalInfo?.picture_url || '';
+                const initials = (pName || '?').charAt(0).toUpperCase();
+
+                const isSideA = Number(data.teamid) === Number(goalInfo?.team_a_id);
+                const isSideB = Number(data.teamid) === Number(goalInfo?.team_b_id);
+                const colorHexA = getTeamColorHex(goalInfo?.team_a_color);
+                const colorHexB = getTeamColorHex(goalInfo?.team_b_color);
+                const goalA = goalInfo?.team_a_goal ?? 0;
+                const goalB = goalInfo?.team_b_goal ?? 0;
+
+                // Color and bold on the updated side, without stating color name in text
+                const scoreHtml = `(${isSideA ? `<b style="color: ${colorHexA}; font-weight: 800; font-size: 1.15em;">${goalA}</b>` : `<span style="opacity: 0.7;">${goalA}</span>`} - ${isSideB ? `<b style="color: ${colorHexB}; font-weight: 800; font-size: 1.15em;">${goalB}</b>` : `<span style="opacity: 0.7;">${goalB}</span>`})`;
+                const toastHtml = `${icon} ${label} ${pName} ${scoreHtml}`;
+                const plainMsg = `${icon} ${label} ${pName} (${goalA} - ${goalB})`;
 
                 broadcastMatchEvent(data.weekid || goalInfo?.week_id, {
                     type: 'GOAL_ADDED',
                     match_id: data.matchid,
                     match_num: goalInfo?.match_num,
-                    message: toastMsg
+                    avatar: avatar,
+                    initials: initials,
+                    message: plainMsg,
+                    html: toastHtml
                 });
             } catch (eWs) {
                 logger.warn(`[WebSocket Broadcast add_goal Error]: ${eWs.message}`);
@@ -861,6 +899,9 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
             const result = await doQuery(`SELECT * FROM match_goal_tbl WHERE id = ${data.goalid}`);
             if (result.length > 0) {
                 const matchId = result[0].match_id;
+                const removedTeamId = result[0].team_week_id;
+                const removedMemberId = result[0].member_id;
+                const removedStatus = result[0].status;
                 await removeMatchGoal(data.goalid);
                 await updateMatchScore(matchId);
                 logger.info(`remove goal_id ${data.goalid} in match_id ${matchId}`);
@@ -869,14 +910,48 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                     await updateTableWeek(data.weekid);
                 }
                 try {
-                    const [mRow] = await doQuery(`SELECT match_num, week_id FROM match_stat_tbl WHERE id = ${matchId}`);
+                    const [mRow] = await doQuery(`
+                        SELECT ms.match_num, ms.week_id, ms.team_a_goal, ms.team_b_goal,
+                               ms.team_a_id, ms.team_b_id,
+                               m.alias, m.name, m.picture_url,
+                               ta.color as team_a_color, tb.color as team_b_color
+                        FROM match_stat_tbl ms
+                        LEFT JOIN member_tbl m ON m.id = ${parseInt(removedMemberId, 10) || 0}
+                        LEFT JOIN team_color_week_tbl ta ON ms.team_a_id = ta.id
+                        LEFT JOIN team_color_week_tbl tb ON ms.team_b_id = tb.id
+                        WHERE ms.id = ?
+                    `, [matchId]);
+
+                    const isSideA = Number(removedTeamId) === Number(mRow?.team_a_id);
+                    const isSideB = Number(removedTeamId) === Number(mRow?.team_b_id);
+                    const colorHexA = getTeamColorHex(mRow?.team_a_color);
+                    const colorHexB = getTeamColorHex(mRow?.team_b_color);
+                    const goalA = mRow?.team_a_goal ?? 0;
+                    const goalB = mRow?.team_b_goal ?? 0;
+                    const pName = mRow?.alias || mRow?.name || 'ผู้เล่น';
+                    const avatar = mRow?.picture_url || '';
+                    const initials = (pName || '?').charAt(0).toUpperCase();
+
+                    let label = 'ยกเลิกประตู';
+                    if (removedStatus == 3) label = 'ยกเลิกแอสซิสต์';
+                    else if (removedStatus == 2) label = 'ยกเลิก OG';
+
+                    const scoreHtml = `(${isSideA ? `<b style="color: ${colorHexA}; font-weight: 800; font-size: 1.15em;">${goalA}</b>` : `<span style="opacity: 0.7;">${goalA}</span>`} - ${isSideB ? `<b style="color: ${colorHexB}; font-weight: 800; font-size: 1.15em;">${goalB}</b>` : `<span style="opacity: 0.7;">${goalB}</span>`})`;
+                    const toastHtml = `🗑️ ${label} ${pName} ${scoreHtml}`;
+                    const plainMsg = `🗑️ ${label} ${pName} (${goalA} - ${goalB})`;
+
                     broadcastMatchEvent(data.weekid || mRow?.week_id, {
                         type: 'GOAL_REMOVED',
                         match_id: matchId,
                         match_num: mRow?.match_num,
-                        message: `🗑️ มีการแก้ไข/ลบประตูใน Match ${mRow?.match_num || ''}`
+                        avatar: avatar,
+                        initials: initials,
+                        message: plainMsg,
+                        html: toastHtml
                     });
-                } catch (eWs) { }
+                } catch (eWs) {
+                    logger.warn(`[WebSocket Broadcast remove_goal Error]: ${eWs.message}`);
+                }
                 return res.json({ success: true, message: 'Goal removed successfully' });
             } else {
                 return res.status(404).json({ error: 'Goal not found' });

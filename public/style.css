@@ -4532,16 +4532,49 @@ select.form-control {
     color: #ffffff;
     border: 1.5px solid var(--primary-color, #10b981);
     border-radius: 999px;
-    padding: 0.7rem 1.4rem;
+    padding: 0.65rem 1.3rem;
     font-size: 0.92rem;
-    font-weight: 800;
+    font-weight: 700;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(16, 185, 129, 0.25);
     z-index: 999999 !important;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.65rem;
     pointer-events: none;
     animation: toastPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.toast-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.toast-avatar-fallback {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #334155;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.88rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.toast-body {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    line-height: 1.3;
 }
 
 @keyframes toastPop {

@@ -33,7 +33,10 @@
 		<!-- Toast Notification -->
 		<transition name="fade">
 			<div v-if="toastMessage" class="match-toast">
-				<span>{{ toastMessage }}</span>
+				<img v-if="toastAvatar" :src="toastAvatar" class="toast-avatar" alt="avatar" />
+				<span v-else-if="toastInitials" class="toast-avatar-fallback">{{ toastInitials }}</span>
+				<div v-if="toastHtml" class="toast-body" v-html="toastHtml"></div>
+				<span v-else class="toast-body">{{ toastMessage }}</span>
 			</div>
 		</transition>
 
@@ -1828,6 +1831,9 @@
 
 				// New Match Pitch (0.4) Data Properties
 				toastMessage: '',
+				toastAvatar: '',
+				toastInitials: '',
+				toastHtml: '',
 				toastTimer: null,
 				draggedLoanPlayer: null,
 				dragOverTeamSide: null,
@@ -2456,13 +2462,26 @@
 						});
 					}
 				},
-				showToast(msg) {
-					if (!msg) return;
-					this.toastMessage = msg;
+				showToast(payload, options = {}) {
+					if (!payload) return;
+					if (typeof payload === 'object') {
+						this.toastMessage = payload.message || '';
+						this.toastAvatar = payload.avatar || '';
+						this.toastInitials = payload.initials || '';
+						this.toastHtml = payload.html || '';
+					} else {
+						this.toastMessage = payload;
+						this.toastAvatar = options.avatar || '';
+						this.toastInitials = options.initials || '';
+						this.toastHtml = options.html || '';
+					}
 					if (this.toastTimer) clearTimeout(this.toastTimer);
 					this.toastTimer = setTimeout(() => {
 						this.toastMessage = '';
-					}, 3800);
+						this.toastAvatar = '';
+						this.toastInitials = '';
+						this.toastHtml = '';
+					}, 4200);
 				},
 				initWebSocket() {
 					if (this.ws) {
@@ -2514,9 +2533,9 @@
 						if (!isMatch) return;
 					}
 
-					// 1. Show Toast notification
-					if (data.message) {
-						this.showToast(data.message);
+					// 1. Show Toast notification (Only for viewers, manager screen does not receive match noti)
+					if (!this.isManager && (data.message || data.html)) {
+						this.showToast(data);
 					}
 
 					// 2. Immediately refresh match and scoreboard data in background
@@ -2571,12 +2590,9 @@
 								this.activeMobileTeamIndex = 0;
 							}
 
-							// Auto-scroll to current match for viewers on initial load
+							// Auto-scroll disabled: user stays at current scroll position to manage score results
 							if (!this.initialScrolled) {
 								this.initialScrolled = true;
-								setTimeout(() => {
-									this.scrollToCurrentMatch(true);
-								}, 350);
 							}
 
 							if (this.all_match) {
@@ -2932,9 +2948,10 @@
 							if (response.data && response.data.success) {
 								const icon = statusId === 0 ? '⚽' : statusId === 3 ? '👟' : '🥅';
 								const label = statusId === 0 ? 'ยิงประตู (+1)' : statusId === 3 ? 'แอสซิสต์ (+1)' : 'ทำเข้าประตูตัวเอง (OG)';
-								const pAlias = (player && (player.alias || player.name)) || 'ผู้เล่น';
-								const teamLabel = teamColor ? ' ให้ทีม ' + teamColor : '';
-								this.showToast(icon + ' ' + pAlias + ' ' + label + teamLabel);
+								if (!this.isManager) {
+									const pAlias = (player && (player.alias || player.name)) || 'ผู้เล่น';
+									this.showToast(icon + ' ' + pAlias + ' ' + label);
+								}
 								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'เซิร์ฟเวอร์ไม่ได้บันทึกผล';
@@ -2973,7 +2990,9 @@
 					axios.post(this.base_url + '/add_match', formdata)
 						.then(response => {
 							if (response.data && response.data.success) {
-								this.showToast('🗑️ ลบประตูเรียบร้อย');
+								if (!this.isManager) {
+									this.showToast('🗑️ ลบประตูเรียบร้อย');
+								}
 								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบประตูได้';
@@ -3034,8 +3053,10 @@
 						.then(response => {
 							this.submittingGoal = false;
 							if (response.data && response.data.success) {
-								const pAlias = (player && (player.alias || player.name)) || 'ผู้เล่น';
-								this.showToast('🗑️ ลบ' + label + 'ของ ' + pAlias + ' (-1)');
+								if (!this.isManager) {
+									const pAlias = (player && (player.alias || player.name)) || 'ผู้เล่น';
+									this.showToast('🗑️ ลบ' + label + 'ของ ' + pAlias + ' (-1)');
+								}
 								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบรายการได้';
@@ -3236,7 +3257,9 @@
 						.then(response => {
 							if (response.data && response.data.success) {
 								this.output = response;
-								this.showToast('✅ บันทึกผลสำเร็จ');
+								if (!this.isManager) {
+									this.showToast('✅ บันทึกผลสำเร็จ');
+								}
 								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'เซิร์ฟเวอร์ไม่ได้บันทึกผล';
@@ -3301,7 +3324,9 @@
 						.then(response => {
 							if (response.data && response.data.success) {
 								this.output = response;
-								this.showToast('🗑️ ลบประตูเรียบร้อย');
+								if (!this.isManager) {
+									this.showToast('🗑️ ลบประตูเรียบร้อย');
+								}
 								this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบประตูได้';

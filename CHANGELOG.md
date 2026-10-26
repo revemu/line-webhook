@@ -4,6 +4,24 @@
 
 --- 
 
+## [0.7.2] - 2026-10-26
+
+### Feature & UX Improvements: Goal Notification Avatar, Colored Bold Scores, & Manager UX
+- **แสดง Avatar ผู้เล่นใน Toast การทำประตู / ยกเลิกประตู (routes/web.js, public/style.css, public/update.shtml, update.shtml)**:
+  - ดึงข้อมูล `m.picture_url` ของผู้เล่นเพื่อส่งผ่าน WebSocket Event และแสดงรูป Avatar กลมขนาด 32px พร้อม fallback ตัวอักษรย่อเมื่อไม่มีรูป
+  - ไม่แสดงชื่อสีทีมในข้อความ (`[สี...]`) เพื่อความกระชับสะอาดตา
+- **เน้นสีและตัวหนาที่ตัวเลขประตูฝั่งที่อัปเดต (routes/web.js)**:
+  - เพิ่มฟังก์ชัน `getTeamColorHex` เพื่อแปลงสีทีมเป็นรหัสสี HEX
+  - ตัวเลขประตูฝั่งที่ได้ประตูหรือถูกแก้ไข จะแสดงสีประจำทีมและตัวหนา (`<b style="color: ...; font-weight: 800;">`) ชัดเจนโดยไม่ต้องระบุชื่อสีในข้อความ
+- **แสดงผลสกอร์ล่าสุดเมื่อมีการยกเลิกประตู (routes/web.js)**:
+  - เมื่อมีคำสั่งลบ/ยกเลิกประตู (`remove_goal`), ทำการ query สกอร์ล่าสุดของแมตช์ (`team_a_goal`, `team_b_goal`) และกระจาย WebSocket broadcast แจ้งเตือนพร้อมสกอร์ที่อัปเดตใหม่ทันที
+- **ปิด Notification และ Toast บนหน้าจอ Match Manager (public/update.shtml, update.shtml)**:
+  - ในหน้าจอ Manager (`isManager: true`), ปิดการรับ Toast การแข่งขันจาก WebSocket และการแตะอัปเดตบนสนาม เพื่อไม่ให้รบกวนการทำงานของผู้จัดการแข่งขัน (ยังคงแสดงเฉพาะการแจ้งเตือน Error/เตือนสำคัญ)
+- **ปิดการเลื่อนจออัตโนมัติ (Auto-scroll) ไปยังแมตช์ปัจจุบัน (public/update.shtml, update.shtml)**:
+  - ยกเลิกคำสั่ง `scrollToCurrentMatch(true)` อัตโนมัติเมื่อโหลดหน้าจอ เพื่อให้ผู้จัดการแข่งขันสามารถจัดการผลสกอร์บน Scoreboard และ Pitch ด้านบนได้อย่างต่อเนื่องโดยหน้าจอไม่เลื่อนหนี
+
+--- 
+
 ## [0.7.1] - 2026-10-26
 
 ### Bug Fix: Mobile Toast Notification Visibility & Robust WebSocket Goal Broadcast
