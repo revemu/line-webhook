@@ -548,7 +548,9 @@ router.get(['/webhook/matches', '/web/matches'], (req, res) => {
 // Public endpoint for Match Viewer data (Read-only, no auth required)
 router.get(['/webhook/match_view_data', '/web/match_view_data'], async (req, res) => {
     try {
-        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
         const { weeknum } = req.query;
         const result = await getLastMatchWeek(weeknum || 0, req.user);
         res.json(result);
@@ -574,6 +576,9 @@ router.get(['/webhook/style.css', '/web/style.css'], (req, res) => {
 // Get last match week
 router.get(['/webhook/get_info', '/web/get_info'], requireAuth, async (req, res) => {
     try {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
         const { cmd, weeknum, matchid } = req.query;
 
         switch (cmd) {

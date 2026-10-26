@@ -11,6 +11,17 @@
 	<link rel="stylesheet" href="style.css?v=0.6.3">
 	<script>
 		(function () {
+			if (window.history && window.history.replaceState) {
+				try {
+					var u = new URL(window.location.href);
+					if (u.searchParams.has('_v')) {
+						u.searchParams.delete('_v');
+						var cleanSearch = u.searchParams.toString();
+						var cleanUrl = u.pathname + (cleanSearch ? '?' + cleanSearch : '') + u.hash;
+						window.history.replaceState(null, '', cleanUrl);
+					}
+				} catch (e) {}
+			}
 			var saved = localStorage.getItem('theme');
 			var isDark = saved ? (saved === 'dark') : true;
 			if (isDark) {
@@ -45,7 +56,11 @@
 		<div class="header" style="margin-top: 0.5rem;">
 			<div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
 				<h1 style="margin: 0;">Position Manager</h1>
-				<span class="app-version-badge" :title="'เวอร์ชันระบบ: v' + appVersion + (assetVersion ? ' (' + assetVersion + ')' : '')">v{{ appVersion }}</span>
+				<span v-if="newVersionAvailable" class="app-version-badge update-available" @click="reloadApp" title="มีเวอร์ชันใหม่ในระบบ แตะเพื่อโหลดเวอร์ชันล่าสุด">
+					<span class="update-label-full">🚀 มีอัปเดตใหม่{{ (latestServerVersion && latestServerVersion !== appVersion) ? ' v' + latestServerVersion : '' }} (แตะเพื่อโหลด)</span>
+					<span class="update-label-compact">🚀 อัปเดต{{ (latestServerVersion && latestServerVersion !== appVersion) ? ' v' + latestServerVersion : '' }}</span>
+				</span>
+				<span v-else class="app-version-badge" :title="'เวอร์ชันระบบ: v' + appVersion + (assetVersion ? ' (' + assetVersion + ')' : '')">v{{ appVersion }}</span>
 			</div>
 		</div>
 
@@ -1072,6 +1087,8 @@
 			data: {
 				appVersion: (window.__APP_VERSION__ || '0.6.5'),
 				assetVersion: (window.__ASSET_VERSION__ || ''),
+				newVersionAvailable: false,
+				latestServerVersion: '',
 				loading: false,
 				week: { id: 0, number: 0, date: '' },
 				weeks: [],
@@ -1226,6 +1243,15 @@
 				this.fetchCurrentUser();
 			},
 			methods: {
+				reloadApp() {
+					try {
+						const url = new URL(window.location.href);
+						url.searchParams.set('_v', Date.now());
+						window.location.href = url.toString();
+					} catch (e) {
+						window.location.reload();
+					}
+				},
 				fetchPageData(weeknum = 0) {
 					this.loading = true;
 					axios.get(`${this.base_url}/get_info?cmd=get_position_page_data&weeknum=${weeknum}`)
@@ -1931,6 +1957,14 @@
 				fetchCurrentUser() {
 					axios.get('/webhook/auth/me')
 						.then(res => {
+							if (res.data && res.data.asset_version) {
+								if (this.assetVersion && res.data.asset_version !== this.assetVersion) {
+									this.newVersionAvailable = true;
+									this.latestServerVersion = res.data.app_version || res.data.asset_version;
+								} else {
+									this.newVersionAvailable = false;
+								}
+							}
 							if (res.data && res.data.authenticated) {
 								this.currentUser = res.data.user;
 								if (this.currentUser.role !== 'root') {

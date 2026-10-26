@@ -7,7 +7,7 @@ const { execSync } = require('child_process');
 let cachedChangelogMtime = 0;
 let cachedAppVersion = '0.6.5';
 let cachedGitRevision = null;
-let gitChecked = false;
+let lastGitCheckTime = 0;
 
 // In-memory HTML cache for instantaneous response delivery while detecting live modifications
 const htmlCache = new Map();
@@ -16,8 +16,11 @@ const htmlCache = new Map();
  * Get short Git commit hash if repository is present
  */
 function getGitRevision() {
-    if (gitChecked) return cachedGitRevision;
-    gitChecked = true;
+    const now = Date.now();
+    if (cachedGitRevision !== null && (now - lastGitCheckTime < 10000)) {
+        return cachedGitRevision;
+    }
+    lastGitCheckTime = now;
     try {
         const out = execSync('git rev-parse --short HEAD', {
             cwd: path.join(__dirname, '..'),
@@ -84,14 +87,34 @@ function getFileMtime(filePath) {
 }
 
 /**
- * Calculate dynamic asset version token based on base app version and file modification timestamps
+ * Calculate dynamic asset version token based on base app version and global frontend file modification timestamps
  */
 function getAssetVersion(targetFilePath = null) {
     const baseVersion = getAppVersion();
-    const stylePath = path.join(__dirname, '..', 'public', 'style.css');
-    const styleMtime = getFileMtime(stylePath);
-    const targetMtime = targetFilePath ? getFileMtime(targetFilePath) : 0;
-    const maxMtime = Math.max(styleMtime, targetMtime);
+    const publicDir = path.join(__dirname, '..', 'public');
+    const changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');
+
+    let maxMtime = getFileMtime(changelogPath);
+    if (targetFilePath) {
+        const targetMtime = getFileMtime(targetFilePath);
+        if (targetMtime > maxMtime) maxMtime = targetMtime;
+    }
+
+    try {
+        if (fs.existsSync(publicDir)) {
+            const files = fs.readdirSync(publicDir);
+            for (const file of files) {
+                if (file.startsWith('.')) continue;
+                const fullPath = path.join(publicDir, file);
+                const mtime = getFileMtime(fullPath);
+                if (mtime > maxMtime) {
+                    maxMtime = mtime;
+                }
+            }
+        }
+    } catch {
+        // Fallback
+    }
 
     if (maxMtime > 0) {
         return `${baseVersion}.${maxMtime}`;
@@ -103,11 +126,8 @@ function getAssetVersion(targetFilePath = null) {
  * Render HTML file with auto-injected dynamic version query strings and client metadata
  */
 function renderVersionedHtml(filePath, req = null) {
-    const stylePath = path.join(__dirname, '..', 'public', 'style.css');
-    const changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');
-
     const fileStat = fs.statSync(filePath);
-    const styleStat = fs.existsSync(stylePath) ? fs.statSync(stylePath) : { mtimeMs: 0 };
+    const changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');
     const changelogStat = fs.existsSync(changelogPath) ? fs.statSync(changelogPath) : { mtimeMs: 0 };
 
     // Determine current prefix (/web or /webhook)
@@ -116,19 +136,20 @@ function renderVersionedHtml(filePath, req = null) {
     const prefix = isWebPrefix ? '/web' : '/webhook';
     const cacheKey = `${filePath}:${prefix}`;
 
+    const baseVersion = getAppVersion();
+    const assetVersion = getAssetVersion(filePath);
+    const maxMtimeSec = parseInt(assetVersion.split('.').pop(), 10) || Math.floor(fileStat.mtimeMs / 1000);
+
     const cached = htmlCache.get(cacheKey);
     if (
         cached &&
+        cached.assetVersion === assetVersion &&
         cached.fileMtimeMs === fileStat.mtimeMs &&
-        cached.styleMtimeMs === styleStat.mtimeMs &&
         cached.changelogMtimeMs === changelogStat.mtimeMs
     ) {
         return cached.html;
     }
 
-    const baseVersion = getAppVersion();
-    const maxMtimeSec = Math.floor(Math.max(fileStat.mtimeMs, styleStat.mtimeMs) / 1000);
-    const assetVersion = `${baseVersion}.${maxMtimeSec}`;
     const gitRev = getGitRevision();
 
     let rawHtml = fs.readFileSync(filePath, 'utf8');
@@ -157,8 +178,8 @@ function renderVersionedHtml(filePath, req = null) {
     }
 
     htmlCache.set(cacheKey, {
+        assetVersion: assetVersion,
         fileMtimeMs: fileStat.mtimeMs,
-        styleMtimeMs: styleStat.mtimeMs,
         changelogMtimeMs: changelogStat.mtimeMs,
         html: rawHtml
     });

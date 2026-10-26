@@ -4,6 +4,17 @@
 
 --- 
 
+## [0.7.4] - 2026-10-26
+
+### Fix: Persistent Update Notification Loop & Robust Cache-Busting Reload
+- **แก้ปัญหาแจ้งเตือนอัปเดตเวอร์ชันค้างแม้กดปุ่มรีโหลดแล้ว (`public/update.shtml`, `update.shtml`, `utils/version.js`, `routes/web.js`, `public/position.shtml`)**:
+  - แก้ไขปัญหาความไม่ตรงกันของ `asset_version` ระหว่างฝั่งเซิร์ฟเวอร์ที่คำนวณแยกกัน (HTML vs API Endpoint) โดยปรับระบบคำนวณใน `utils/version.js` ให้เป็นโมเดลส่วนกลางที่ตรวจจับไฟล์ทั้งหมดใน `public/` ร่วมกันอย่างแม่นยำ
+  - ปรับปรุงฟังก์ชัน `reloadApp()` ให้ส่งพารามิเตอร์ `_v=<timestamp>` เพื่อบังคับเบราว์เซอร์ดาวน์โหลดหน้าเว็บเวอร์ชันใหม่โดยตรงแบบข้ามแคช (Cache Busting) อย่างสมบูรณ์ และมีระบบลบพารามิเตอร์ `_v` ออกจากแถบ Address Bar อัตโนมัติเมื่อโหลดเสร็จ
+  - เพิ่มเงื่อนไข `else { this.newVersionAvailable = false; }` ใน `refreshMatch()` และ `fetchCurrentUser()` เพื่อปิดการแสดงผลป้ายอัปเดตทันทีเมื่อเวอร์ชันตรงกัน
+  - ปรับข้อความป้ายแจ้งเตือนให้ฉลาดขึ้น หากเวอร์ชันหลักตรงกันแต่มีการอัปเดตไฟล์ย่อย จะแสดง `🚀 มีอัปเดตใหม่ (แตะเพื่อโหลด)` โดยไม่แสดงเลขเวอร์ชันซ้ำซ้อน
+
+--- 
+
 ## [0.7.3] - 2026-10-26
 
 ### Enhancement: Retain Auto-Scroll to Current Match for Viewers
