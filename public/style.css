@@ -5319,12 +5319,153 @@ select.form-control {
     .spotlight-score {
         font-size: 0.8rem;
     }
+    /* Mobile Team Carousel Navigation & Indicator */
+    .team-carousel-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        margin-bottom: 0.65rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .carousel-team-tabs {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 2px 1px 4px 1px;
+        scrollbar-width: none;
+    }
+    .carousel-team-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    .carousel-team-tab-btn {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.55rem;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        white-space: nowrap;
+    }
+    .carousel-team-tab-btn.is-active {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        font-weight: 800;
+        transform: scale(1.02);
+    }
+    .carousel-tab-dot {
+        font-size: 0.82rem;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+    }
+    .carousel-tab-name {
+        text-transform: uppercase;
+        font-size: 0.76rem;
+        letter-spacing: 0.3px;
+    }
+    .carousel-tab-pts {
+        font-size: 0.68rem;
+        opacity: 0.85;
+    }
+    .carousel-swipe-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 0.15rem;
+    }
+    .swipe-hint-text {
+        font-size: 0.67rem;
+        color: var(--text-muted);
+        letter-spacing: 0.2px;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    .swipe-page-dots {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .carousel-page-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.22);
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+    .carousel-page-dot.is-active {
+        width: 18px;
+        border-radius: 4px;
+        background: var(--primary-color);
+    }
+    [data-theme="light"] .carousel-page-dot,
+    body.light-theme .carousel-page-dot {
+        background: rgba(0, 0, 0, 0.18);
+    }
+    [data-theme="light"] .carousel-team-tab-btn,
+    body.light-theme .carousel-team-tab-btn {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    /* Team Summary Grid - Mobile Horizontal Carousel with Scroll Snap */
     .team-summary-grid {
-        grid-template-columns: 1fr;
-        gap: 0.65rem;
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        gap: 0.75rem;
+        padding: 0.2rem 0.25rem 0.75rem;
+        margin-left: -0.25rem;
+        margin-right: -0.25rem;
+        scroll-padding-left: 0.25rem;
+        scroll-padding-right: 0.25rem;
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+    }
+    .team-summary-grid::-webkit-scrollbar {
+        height: 5px;
+    }
+    .team-summary-grid::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 4px;
+    }
+    .team-summary-grid::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+    }
+    [data-theme="light"] .team-summary-grid::-webkit-scrollbar-thumb,
+    body.light-theme .team-summary-grid::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
     }
     .team-summary-col {
-        border-radius: 8px;
+        flex: 0 0 calc(100% - 36px);
+        width: calc(100% - 36px);
+        min-width: 275px;
+        max-width: 380px;
+        border-radius: 10px;
+        scroll-snap-align: start;
+        scroll-snap-stop: normal;
+        box-sizing: border-box;
+    }
+    .team-summary-col:only-child {
+        flex: 0 0 100%;
+        width: 100%;
+        max-width: 100%;
     }
     .team-col-header {
         padding: 0.38rem 0.65rem;
@@ -7291,6 +7432,11 @@ body.pitch-modal-open {
     font-weight: 800;
     color: #f59e0b;
     white-space: nowrap;
+}
+
+/* Team Carousel Navigation (Desktop hidden) */
+.team-carousel-nav {
+    display: none;
 }
 
 /* Team Summary Grid (3 teams columns) */

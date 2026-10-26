@@ -1308,8 +1308,40 @@
 					</div>
 				</div>
 
-				<!-- Team Rosters Grid -->
-				<div class="team-summary-grid">
+				<!-- Mobile Team Carousel Navigation Pills (visible only on mobile) -->
+				<div class="team-carousel-nav" v-if="teamRostersSummary.length > 1">
+					<div class="carousel-team-tabs">
+						<button 
+							v-for="(team, tIdx) in teamRostersSummary" 
+							:key="'team-tab-' + team.id" 
+							type="button" 
+							class="carousel-team-tab-btn" 
+							:class="{ 'is-active': activeMobileTeamIndex === tIdx }"
+							@click="scrollToMobileTeam(tIdx)"
+							:style="activeMobileTeamIndex === tIdx ? { backgroundColor: team.color ? team.color.toLowerCase() : '#3b82f6', color: getContrastColor(team.color), borderColor: getBorderColor(team.color) } : {}"
+						>
+							<span class="carousel-tab-dot">{{ getTeamColorEmoji(team.color) }}</span>
+							<span class="carousel-tab-name">{{ team.color }}</span>
+							<span class="carousel-tab-pts">({{ team.pts }}p)</span>
+						</button>
+					</div>
+					<div class="carousel-swipe-indicator">
+						<span class="swipe-hint-text">⇄ เลื่อนแนวนอนเพื่อดูทีม</span>
+						<span class="swipe-page-dots">
+							<span 
+								v-for="(team, dIdx) in teamRostersSummary" 
+								:key="'dot-' + team.id" 
+								class="carousel-page-dot" 
+								:class="{ 'is-active': activeMobileTeamIndex === dIdx }"
+								:style="activeMobileTeamIndex === dIdx ? { backgroundColor: team.color ? team.color.toLowerCase() : 'var(--primary-color)' } : {}"
+								@click="scrollToMobileTeam(dIdx)"
+							></span>
+						</span>
+					</div>
+				</div>
+
+				<!-- Team Rosters Grid (Horizontal Carousel on Mobile) -->
+				<div class="team-summary-grid" ref="teamSummaryGrid" @scroll.passive="onTeamGridScroll">
 					<div v-for="team in teamRostersSummary" :key="team.id" class="team-summary-col">
 						<div class="team-col-header" :style="{ backgroundColor: team.color ? team.color.toLowerCase() : '#333', color: getContrastColor(team.color) }">
 							<div class="team-col-name">{{ team.color }}</div>
@@ -1769,6 +1801,7 @@
 				initialScrolled: false,
 				showTeamSummary: true,
 				teamSummaryView: 'pitch',
+				activeMobileTeamIndex: 0,
 				isPitchModal: false,
 				sessionExpired: false,
 				newTodoSelect: '',
@@ -2173,6 +2206,43 @@
 				}
 			},
 			methods: {
+				scrollToMobileTeam(index) {
+					this.activeMobileTeamIndex = index;
+					this.$nextTick(() => {
+						const grid = this.$refs.teamSummaryGrid;
+						if (!grid) return;
+						const cols = grid.querySelectorAll('.team-summary-col');
+						if (cols && cols[index]) {
+							const targetCol = cols[index];
+							grid.scrollTo({
+								left: targetCol.offsetLeft,
+								behavior: 'smooth'
+							});
+						}
+					});
+				},
+				onTeamGridScroll(e) {
+					const grid = e.target || this.$refs.teamSummaryGrid;
+					if (!grid) return;
+					const cols = grid.querySelectorAll('.team-summary-col');
+					if (!cols || cols.length === 0) return;
+
+					const scrollLeft = grid.scrollLeft;
+					let closestIndex = 0;
+					let minDiff = Infinity;
+
+					cols.forEach((col, idx) => {
+						const diff = Math.abs(col.offsetLeft - scrollLeft);
+						if (diff < minDiff) {
+							minDiff = diff;
+							closestIndex = idx;
+						}
+					});
+
+					if (this.activeMobileTeamIndex !== closestIndex) {
+						this.activeMobileTeamIndex = closestIndex;
+					}
+				},
 				getRatingColorClass(rating) {
 					const val = parseFloat(rating);
 					if (isNaN(val) || val <= 0) return 'rating-none';
@@ -2422,6 +2492,9 @@
 							this.next_match = this.info.next_match || {};
 							this.all_match = this.info.all_match || {};
 							this.tableweek = this.info.tableweek || [];
+							if (this.activeMobileTeamIndex >= this.tableweek.length) {
+								this.activeMobileTeamIndex = 0;
+							}
 
 							// Auto-scroll to current match for viewers on initial load
 							if (!this.initialScrolled) {
