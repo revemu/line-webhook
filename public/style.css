@@ -7296,10 +7296,19 @@ body.pitch-modal-open {
     border: 1.5px solid #f59e0b;
     box-shadow: 0 4px 15px rgba(245, 158, 11, 0.18);
 }
-.team-summary-col.is-totw .team-col-header {
+.team-summary-col.is-totw .team-col-header,
+.team-col-header.is-totw-header {
     background: linear-gradient(135deg, #f59e0b, #d97706) !important;
     color: #ffffff !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.is-totw-header .team-col-name {
+    font-size: 0.80rem !important;
+    letter-spacing: 0.2px;
+}
+.is-totw-header .team-col-record {
+    font-size: 0.72rem !important;
+    font-weight: 700;
 }
 .totw-team-mini-dot {
     width: 6px;
@@ -7340,18 +7349,28 @@ body.pitch-modal-open {
     justify-content: space-between;
     padding: 0.45rem 0.85rem;
     font-weight: 800;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+    gap: 0.35rem;
 }
 
 .team-col-name {
     font-size: 0.88rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 1;
 }
 
 .team-col-record {
     font-size: 0.74rem;
     opacity: 0.95;
     font-weight: 700;
+    white-space: nowrap !important;
+    flex-shrink: 0;
 }
 
 .team-player-roster {
@@ -8094,13 +8113,30 @@ body.pitch-modal-open {
     }
 
     .team-col-header {
-        padding: 0.38rem 0.65rem !important;
+        padding: 0.35rem 0.55rem !important;
+        white-space: nowrap !important;
+        flex-wrap: nowrap !important;
+        gap: 0.25rem !important;
     }
     .team-col-name {
-        font-size: 0.84rem !important;
+        font-size: 0.82rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        min-width: 0 !important;
+        flex-shrink: 1 !important;
     }
     .team-col-record {
-        font-size: 0.72rem !important;
+        font-size: 0.70rem !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+    .is-totw-header .team-col-name {
+        font-size: 0.74rem !important;
+        letter-spacing: 0.1px !important;
+    }
+    .is-totw-header .team-col-record {
+        font-size: 0.68rem !important;
     }
     .team-pitch-vertical {
         min-height: 330px !important;

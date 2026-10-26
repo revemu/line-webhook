@@ -4,6 +4,20 @@
 
 --- 
 
+## [0.6.18] - 2026-10-26
+
+### Enhancement: Prepend TOTW to Front & Enforce Single-Line Team Card Header
+- **ย้ายทีมยอดเยี่ยมประจำสัปดาห์ (TOTW) มาไว้ลำดับแรกด้านหน้าสุด (`public/update.shtml`, `update.shtml`)**:
+  - เปลี่ยนจากการต่อท้ายแถว (`teams.push`) เป็นการนำ TOTW มาแทรกไว้เป็นลำดับแรกสุด (`teams.unshift`)
+  - ทำให้ผู้ใช้เห็นผัง Team of the Week ทันทีเป็นใบแรกเมื่อเปิดหน้าเว็บทั้งบนเดสก์ท็อปและบนมือถือ
+  - แท็บนำทางแบบด่วน (Carousel Quick Nav Pills) จะมี `⭐ TOTW` เป็นปุ่มแรกสุด พร้อมสัญลักษณ์และจุดระบุสถานะสีทอง
+- **ปรับแต่งหัวข้อการ์ดทีมให้อยู่ในบรรทัดเดียวเสมอ ไม่ตกบรรทัด (`public/style.css`)**:
+  - กำหนด `white-space: nowrap !important;` และ `flex-wrap: nowrap !important;` ใน `.team-col-header`, `.team-col-name`, `.team-col-record`
+  - ปรับขนาดฟอนต์ของหัวข้อ TOTW (`⭐ TEAM OF THE WEEK` และ `👑 Best XI (X คน)`) ให้กระชับพอดีกับการ์ดในทุกขนาดหน้าจอมือถือ (รวมถึงจอ 320px–360px) โดยไม่มีการตัดคำตกเป็น 2 บรรทัด
+  - เพิ่ม `overflow: hidden; text-overflow: ellipsis; min-width: 0;` เพื่อป้องกันปัญหาข้อความทะลุขอบในกรณีชื่อสียาว
+
+--- 
+
 ## [0.6.17] - 2026-10-26
 
 ### Bug Fix: Mobile Horizontal Carousel CSS Precedence & Cache Busting

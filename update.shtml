@@ -1904,9 +1904,9 @@
 						};
 					});
 
-					// Append Team of the Week (TOTW) if available
+					// Prepend Team of the Week (TOTW) if available (show first)
 					if (this.weekTotw && this.weekTotw.length > 0) {
-						teams.push({
+						teams.unshift({
 							id: 'totw',
 							isTotw: true,
 							color: 'TOTW',
