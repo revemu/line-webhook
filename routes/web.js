@@ -546,11 +546,9 @@ router.get(['/webhook/position', '/web/position'], requireRoot, (req, res) => {
 
 router.get(['/webhook/style.css', '/web/style.css'], (req, res) => {
     const stylePath = path.join(__dirname, '..', 'public', 'style.css');
-    if (req.query && req.query.v) {
-        res.set('Cache-Control', 'public, max-age=31536000, immutable');
-    } else {
-        res.set('Cache-Control', 'no-cache, must-revalidate');
-    }
+    res.set('Cache-Control', 'no-cache, must-revalidate, max-age=0');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.sendFile(stylePath);
 });
 

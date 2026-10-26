@@ -5319,154 +5319,6 @@ select.form-control {
     .spotlight-score {
         font-size: 0.8rem;
     }
-    /* Mobile Team Carousel Navigation & Indicator */
-    .team-carousel-nav {
-        display: flex;
-        flex-direction: column;
-        gap: 0.45rem;
-        margin-bottom: 0.65rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .carousel-team-tabs {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding: 2px 1px 4px 1px;
-        scrollbar-width: none;
-    }
-    .carousel-team-tabs::-webkit-scrollbar {
-        display: none;
-    }
-    .carousel-team-tab-btn {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.35rem;
-        padding: 0.35rem 0.55rem;
-        border-radius: 20px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
-        cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        white-space: nowrap;
-    }
-    .carousel-team-tab-btn.is-active {
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        font-weight: 800;
-        transform: scale(1.02);
-    }
-    .carousel-tab-dot {
-        font-size: 0.82rem;
-        line-height: 1;
-        display: inline-flex;
-        align-items: center;
-    }
-    .carousel-tab-name {
-        text-transform: uppercase;
-        font-size: 0.76rem;
-        letter-spacing: 0.3px;
-    }
-    .carousel-tab-pts {
-        font-size: 0.68rem;
-        opacity: 0.85;
-    }
-    .carousel-swipe-indicator {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 0.15rem;
-    }
-    .swipe-hint-text {
-        font-size: 0.67rem;
-        color: var(--text-muted);
-        letter-spacing: 0.2px;
-        display: flex;
-        align-items: center;
-        gap: 0.3rem;
-    }
-    .swipe-page-dots {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .carousel-page-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.22);
-        cursor: pointer;
-        transition: all 0.25s ease;
-    }
-    .carousel-page-dot.is-active {
-        width: 18px;
-        border-radius: 4px;
-        background: var(--primary-color);
-    }
-    [data-theme="light"] .carousel-page-dot,
-    body.light-theme .carousel-page-dot {
-        background: rgba(0, 0, 0, 0.18);
-    }
-    [data-theme="light"] .carousel-team-tab-btn,
-    body.light-theme .carousel-team-tab-btn {
-        background: rgba(0, 0, 0, 0.05);
-    }
-
-    /* Team Summary Grid - Mobile Horizontal Carousel with Scroll Snap */
-    .team-summary-grid {
-        display: flex;
-        flex-direction: row;
-        overflow-x: auto;
-        overflow-y: hidden;
-        scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch;
-        gap: 0.75rem;
-        padding: 0.2rem 0.25rem 0.75rem;
-        margin-left: -0.25rem;
-        margin-right: -0.25rem;
-        scroll-padding-left: 0.25rem;
-        scroll-padding-right: 0.25rem;
-        position: relative;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
-    }
-    .team-summary-grid::-webkit-scrollbar {
-        height: 5px;
-    }
-    .team-summary-grid::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.15);
-        border-radius: 4px;
-    }
-    .team-summary-grid::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.25);
-        border-radius: 4px;
-    }
-    [data-theme="light"] .team-summary-grid::-webkit-scrollbar-thumb,
-    body.light-theme .team-summary-grid::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.2);
-    }
-    .team-summary-col {
-        flex: 0 0 calc(100% - 36px);
-        width: calc(100% - 36px);
-        min-width: 275px;
-        max-width: 380px;
-        border-radius: 10px;
-        scroll-snap-align: start;
-        scroll-snap-stop: normal;
-        box-sizing: border-box;
-    }
-    .team-summary-col:only-child {
-        flex: 0 0 100%;
-        width: 100%;
-        max-width: 100%;
-    }
     .team-col-header {
         padding: 0.38rem 0.65rem;
     }
@@ -8073,4 +7925,186 @@ body.pitch-modal-open {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+
+/* ==========================================================================
+   TEAM SUMMARY & REALTIME RATINGS - MOBILE HORIZONTAL CAROUSEL OVERRIDES
+   Guaranteed highest priority cascade for screens <= 768px (Mobile & Tablet)
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* Reveal and style mobile team carousel switcher tabs */
+    .team-carousel-nav {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.45rem !important;
+        margin-bottom: 0.65rem !important;
+        padding-bottom: 0.5rem !important;
+        border-bottom: 1px solid var(--border-color) !important;
+    }
+    .carousel-team-tabs {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.4rem !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 2px 1px 4px 1px !important;
+        scrollbar-width: none !important;
+    }
+    .carousel-team-tabs::-webkit-scrollbar {
+        display: none !important;
+    }
+    .carousel-team-tab-btn {
+        flex: 1 0 auto !important;
+        min-width: max-content !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.35rem !important;
+        padding: 0.35rem 0.6rem !important;
+        border-radius: 20px !important;
+        font-size: 0.78rem !important;
+        font-weight: 700 !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-color) !important;
+        cursor: pointer !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        white-space: nowrap !important;
+    }
+    .carousel-team-tab-btn.is-active {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        font-weight: 800 !important;
+        transform: scale(1.02) !important;
+    }
+    .carousel-team-tab-btn.is-totw-tab {
+        border-color: rgba(245, 158, 11, 0.45) !important;
+        color: #f59e0b !important;
+    }
+    .carousel-team-tab-btn.is-totw-tab.is-active {
+        box-shadow: 0 2px 10px rgba(245, 158, 11, 0.45) !important;
+        color: #ffffff !important;
+    }
+    .carousel-tab-dot {
+        font-size: 0.82rem !important;
+        line-height: 1 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    .carousel-tab-name {
+        text-transform: uppercase !important;
+        font-size: 0.76rem !important;
+        letter-spacing: 0.3px !important;
+    }
+    .carousel-tab-pts {
+        font-size: 0.68rem !important;
+        opacity: 0.85 !important;
+    }
+    .carousel-swipe-indicator {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 0 0.15rem !important;
+    }
+    .swipe-hint-text {
+        font-size: 0.67rem !important;
+        color: var(--text-muted) !important;
+        letter-spacing: 0.2px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.3rem !important;
+    }
+    .swipe-page-dots {
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+    }
+    .carousel-page-dot {
+        width: 7px !important;
+        height: 7px !important;
+        border-radius: 50% !important;
+        background: rgba(255, 255, 255, 0.22) !important;
+        cursor: pointer !important;
+        transition: all 0.25s ease !important;
+    }
+    .carousel-page-dot.is-active {
+        width: 18px !important;
+        border-radius: 4px !important;
+        background: var(--primary-color) !important;
+    }
+    [data-theme="light"] .carousel-page-dot,
+    body.light-theme .carousel-page-dot {
+        background: rgba(0, 0, 0, 0.18) !important;
+    }
+    [data-theme="light"] .carousel-team-tab-btn,
+    body.light-theme .carousel-team-tab-btn {
+        background: rgba(0, 0, 0, 0.05) !important;
+    }
+
+    /* Transform team summary grid into horizontal scrollable flex row */
+    .team-summary-grid {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scroll-snap-type: x mandatory !important;
+        -webkit-overflow-scrolling: touch !important;
+        gap: 0.75rem !important;
+        padding: 0.2rem 0.25rem 0.75rem !important;
+        margin-left: -0.25rem !important;
+        margin-right: -0.25rem !important;
+        scroll-padding-left: 0.25rem !important;
+        scroll-padding-right: 0.25rem !important;
+        position: relative !important;
+        scrollbar-width: thin !important;
+        scrollbar-color: rgba(255, 255, 255, 0.25) transparent !important;
+    }
+    .team-summary-grid::-webkit-scrollbar {
+        height: 5px !important;
+    }
+    .team-summary-grid::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.15) !important;
+        border-radius: 4px !important;
+    }
+    .team-summary-grid::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.25) !important;
+        border-radius: 4px !important;
+    }
+    [data-theme="light"] .team-summary-grid::-webkit-scrollbar-thumb,
+    body.light-theme .team-summary-grid::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2) !important;
+    }
+
+    /* Team column card size on mobile (88% width so next card peeks in) */
+    .team-summary-col {
+        flex: 0 0 calc(100% - 36px) !important;
+        width: calc(100% - 36px) !important;
+        min-width: 275px !important;
+        max-width: 380px !important;
+        border-radius: 10px !important;
+        scroll-snap-align: start !important;
+        scroll-snap-stop: normal !important;
+        box-sizing: border-box !important;
+    }
+    .team-summary-col:only-child {
+        flex: 0 0 100% !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .team-col-header {
+        padding: 0.38rem 0.65rem !important;
+    }
+    .team-col-name {
+        font-size: 0.84rem !important;
+    }
+    .team-col-record {
+        font-size: 0.72rem !important;
+    }
+    .team-pitch-vertical {
+        min-height: 330px !important;
+        padding: 0.9rem 0.35rem 0.5rem !important;
+        border-radius: 0.6rem !important;
+    }
 }

@@ -4,6 +4,18 @@
 
 --- 
 
+## [0.6.17] - 2026-10-26
+
+### Bug Fix: Mobile Horizontal Carousel CSS Precedence & Cache Busting
+- **แก้ไขปัญหาสรุปทีมไม่เลื่อนแนวนอนบนมือถือเนื่องจากลำดับการเรียง CSS (`public/style.css`)**:
+  - ย้ายบล็อกคำสั่ง Responsive `@media (max-width: 768px)` สำหรับสไลด์สรุปทีมแนวนอนไปไว้ที่ **ท้ายสุดของไฟล์ `style.css`** พร้อมเพิ่ม `!important` และ `flex-wrap: nowrap`
+  - แก้ไขปัญหาเดิมที่คำสั่ง Desktop Grid (`display: grid; grid-template-columns: repeat(...)`) ในช่วงท้ายไฟล์ไปเขียนทับ (Override) คำสั่ง Flex Carousel บนหน้าจอมือถือ ทำให้การ์ดทีมแสดงผลซ้อนแนวตั้งเหมือนเดิม
+- **ปรับปรุง Cache Invalidation สำหรับไฟล์ CSS (`routes/web.js`, `public/update.shtml`, `update.shtml`)**:
+  - ยกเลิกการระบุเวอรชั่นฮาร์ดโค้ดเก่าในแท็ก `<link rel="stylesheet">` และตั้งค่า Header `Cache-Control: no-cache, must-revalidate, max-age=0` บนเซิร์ฟเวอร์
+  - ป้องกันบราวเซอร์มือถือใช้ไฟล์สไตล์ชีตเก่าจากแคช (Browser Stale Cache) มั่นใจได้ว่ามือถือทุกเครื่องจะดึง CSS ล่าสุดและเลื่อนแนวนอนได้ 100%
+
+--- 
+
 ## [0.6.16] - 2026-10-26
 
 ### Feature & Performance: Team of the Week (TOTW) & Persistent Ratings Caching
