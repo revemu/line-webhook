@@ -66,7 +66,7 @@ async function getOrComputeLeaderStats(weekid, forceRefresh = false) {
         return leaderStatsCache[key].data;
     }
 
-    const stats = await db.getWeekLeaderStats(weekid);
+    const stats = await db.getWeekLeaderStats(weekid, null, forceRefresh);
     if (!stats) return null;
 
     const mapped = {
@@ -621,6 +621,7 @@ router.post(['/webhook/update_position', '/web/update_position'], requireRoot, u
             sql = `UPDATE member_team_week_tbl SET pos_id = ${validPosId} WHERE id = ${parseInt(id, 10)}`;
         }
         await doUpdate(sql);
+        invalidateLeaderStatsCache();
 
         logger.info(`Updated member_team_week_tbl id ${id} to pos_id ${validPosId}${team_id !== null ? ', team_id ' + team_id : ''} by ${req.user.username}`);
         res.json({ success: true, message: 'Position updated successfully', id: parseInt(id, 10), pos_id: validPosId });
@@ -658,6 +659,7 @@ router.post(['/webhook/batch_update_positions', '/web/batch_update_positions'], 
             }
         }
 
+        invalidateLeaderStatsCache();
         logger.info(`Batch updated ${updatedCount} player positions/teams by ${req.user.username}`);
         res.json({ success: true, message: `Successfully updated ${updatedCount} items`, count: updatedCount });
     } catch (error) {

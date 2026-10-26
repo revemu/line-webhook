@@ -1678,8 +1678,238 @@ async function renormalizeYearRatings(year, bench) {
   `, [year]);
 }
 
-async function getWeekLeaderStats(week_id, groupId = null) {
+/**
+ * Compute change checksum for a week based on match statuses, scores, goals, assists, and rosters.
+ * Returns null on error.
+ */
+async function computeWeekChangeChecksum(week_id) {
   try {
+    const [matchStat] = await executeQuery(`
+      SELECT 
+        COUNT(*) as total_matches,
+        COALESCE(SUM(CASE WHEN status = 'finished' THEN 1 ELSE 0 END), 0) as finished_matches,
+        COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as live_matches,
+        COALESCE(SUM(team_a_goal), 0) as goals_a,
+        COALESCE(SUM(team_b_goal), 0) as goals_b,
+        MAX(updated_at) as last_match_update
+      FROM match_stat_tbl
+      WHERE week_id = ?
+    `, [week_id]);
+
+    const [goalStat] = await executeQuery(`
+      SELECT 
+        COUNT(*) as total_goal_events,
+        COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as raw_goals,
+        COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as raw_assists,
+        COALESCE(SUM(mgt.member_id * 100 + mgt.status), 0) as goal_checksum
+      FROM match_goal_tbl mgt
+      JOIN match_stat_tbl mst ON mgt.match_id = mst.id
+      WHERE mst.week_id = ?
+    `, [week_id]);
+
+    const [rosterStat] = await executeQuery(`
+      SELECT 
+        COUNT(*) as roster_count,
+        COALESCE(SUM(member_id * 1000 + team_id * 10 + pos_id), 0) as roster_checksum
+      FROM member_team_week_tbl
+      WHERE week_id = ?
+    `, [week_id]);
+
+    const lastUpdate = matchStat?.last_match_update ? new Date(matchStat.last_match_update).getTime() : 0;
+    return `${matchStat?.total_matches || 0}_${matchStat?.finished_matches || 0}_${matchStat?.live_matches || 0}_${matchStat?.goals_a || 0}_${matchStat?.goals_b || 0}_${goalStat?.raw_goals || 0}_${goalStat?.raw_assists || 0}_${goalStat?.goal_checksum || 0}_${rosterStat?.roster_checksum || 0}_${lastUpdate}`;
+  } catch (err) {
+    logger.warn(`Error computing week change checksum for week ${week_id}:`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Load finalized leader stats, player ratings, and TOTW directly from DB (mvp_week_tbl)
+ * without re-running raw math or re-updating tables.
+ */
+async function loadSavedWeekLeaderStats(week_id, groupId = null) {
+  try {
+    const assets = await fetchDisplayAssets();
+    await ensurePosTables();
+    const allPositions = await getAllPositions();
+    const posMap = {};
+    allPositions.forEach(p => {
+      posMap[p.id] = p;
+      if (p.code) posMap[p.code.toUpperCase()] = p;
+    });
+    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0];
+
+    const teamColors = await getTeamColorWeek(week_id);
+    const teamColorMap = {};
+    (teamColors || []).forEach(t => { teamColorMap[t.id] = t.color; });
+
+    const rows = await executeQuery(`
+      SELECT 
+        m.week_id,
+        m.member_id,
+        m.member_name,
+        m.goals,
+        m.own_goals,
+        m.assists,
+        m.clean_sheet,
+        m.conceded,
+        m.wins,
+        m.raw_score,
+        m.rating,
+        m.matches,
+        m.pos_code as saved_pos_code,
+        mtw.team_id,
+        mtw.pos_id as week_pos_id,
+        mem.id,
+        mem.name,
+        mem.alias,
+        mem.rank,
+        mem.donate,
+        mem.picture_url,
+        mem.line_user_id,
+        mem.pos_id as member_pos_id
+      FROM mvp_week_tbl m
+      LEFT JOIN member_team_week_tbl mtw ON m.week_id = mtw.week_id AND m.member_id = mtw.member_id
+      LEFT JOIN member_tbl mem ON m.member_id = mem.id
+      WHERE m.week_id = ?
+      ORDER BY m.raw_score DESC, m.rating DESC, m.goals DESC, m.assists DESC, m.id ASC
+    `, [week_id]);
+
+    if (!rows || rows.length === 0) return null;
+
+    await Promise.all(rows.map(member => ensureMemberPicture(member, groupId)));
+
+    // Fallback team matches map if matches column is unpopulated in older rows
+    const matchScoresRaw = await executeQuery("SELECT * FROM match_stat_tbl WHERE week_id = ?", [week_id]);
+    const teamMatchesMap = {};
+    (matchScoresRaw || []).forEach(ms => {
+      if (ms.status === 'finished' || ms.team_a_goal !== null) {
+        if (ms.team_a_id) teamMatchesMap[ms.team_a_id] = (teamMatchesMap[ms.team_a_id] || 0) + 1;
+        if (ms.team_b_id) teamMatchesMap[ms.team_b_id] = (teamMatchesMap[ms.team_b_id] || 0) + 1;
+      }
+    });
+
+    const formattedList = rows.map(r => {
+      const teamId = r.team_id || 0;
+      const teamName = teamColorMap[teamId] || (teamId ? `ID ${teamId}` : '');
+
+      let pos = null;
+      if (r.saved_pos_code && posMap[String(r.saved_pos_code).toUpperCase()]) {
+        pos = posMap[String(r.saved_pos_code).toUpperCase()];
+      } else if (r.week_pos_id && posMap[r.week_pos_id]) {
+        pos = posMap[r.week_pos_id];
+      } else if (r.member_pos_id && posMap[r.member_pos_id]) {
+        pos = posMap[r.member_pos_id];
+      } else {
+        pos = defaultPos;
+      }
+
+      const goals = Number(r.goals) || 0;
+      const own_goals = Number(r.own_goals) || 0;
+      const assists = Number(r.assists) || 0;
+      const cleanSheets = Number(r.clean_sheet) || 0;
+      const goalsConceded = Number(r.conceded) || 0;
+      const wins = Number(r.wins) || 0;
+      const matches = (r.matches && Number(r.matches) > 0) ? Number(r.matches) : (teamMatchesMap[teamId] || 1);
+      const rawScore = Number(r.raw_score) || 0;
+      const score = Number(r.rating) || 0;
+
+      const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+
+      return {
+        ...r,
+        goals,
+        own_goals,
+        assists,
+        cleanSheets,
+        wins,
+        goalsConceded,
+        matches,
+        pos,
+        pos_code: (pos?.code || 'MF').toUpperCase(),
+        pos_icon: pos?.icon || '',
+        teamName,
+        rawScore,
+        score,
+        info
+      };
+    });
+
+    let maxGoals = 0;
+    let maxAssists = 0;
+    let maxRawMvpScore = 0;
+
+    formattedList.forEach(item => {
+      if (item.goals > maxGoals) maxGoals = item.goals;
+      if (item.assists > maxAssists) maxAssists = item.assists;
+      if (item.rawScore > maxRawMvpScore && item.rawScore > 0) maxRawMvpScore = item.rawScore;
+    });
+
+    const topScorers = maxGoals > 0 ? formattedList.filter(item => item.goals === maxGoals) : [];
+    const topAssists = maxAssists > 0 ? formattedList.filter(item => item.assists === maxAssists) : [];
+    const mvps = maxRawMvpScore > 0 ? formattedList.filter(item => item.rawScore === maxRawMvpScore) : [];
+    const maxMvpScore = mvps.length > 0 ? mvps[0].score : 0;
+
+    // Compute Team of the Week (TOTW)
+    let totw = [];
+    try {
+      let is8PlayerWeek = false;
+      const teamCountsRes = await executeQuery(
+        "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
+        [week_id]
+      );
+      if (teamCountsRes && teamCountsRes.length > 0) {
+        const maxCount = Math.max(...teamCountsRes.map(rc => Number(rc.cnt) || 0));
+        if (maxCount >= 8) is8PlayerWeek = true;
+      }
+
+      const posLimitsMap = {};
+      const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+      if (posRows && posRows.length > 0) {
+        posRows.forEach(pr => {
+          posLimitsMap[pr.code] = {
+            min: Number(pr.min) || 0,
+            max: Number(pr.max) || 0,
+            min_8: Number(pr.min_8) || 0,
+            max_8: Number(pr.max_8) || 0
+          };
+        });
+      }
+
+      totw = selectTeamOfTheWeekPlayers(formattedList, is8PlayerWeek, posLimitsMap);
+    } catch (eTotw) {
+      logger.warn('Failed to compute TOTW in loadSavedWeekLeaderStats:', eTotw.message);
+    }
+
+    return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore, allPlayerRatings: formattedList, totw };
+  } catch (err) {
+    logger.error(`Error loading saved leader stats for week ${week_id}:`, err.message);
+    return null;
+  }
+}
+
+async function getWeekLeaderStats(week_id, groupId = null, forceRefresh = false) {
+  try {
+    // 0. Change detection & freshness check: Skip full recalculation if week data is unchanged
+    if (!forceRefresh) {
+      const checksumKey = `mvp_checksum_${week_id}`;
+      const chkRes = await executeQuery("SELECT value FROM template_tpl WHERE name = ?", [checksumKey]);
+      const savedChecksum = (chkRes && chkRes.length > 0) ? chkRes[0].value : null;
+
+      if (savedChecksum) {
+        const currentChecksum = await computeWeekChangeChecksum(week_id);
+        if (currentChecksum && currentChecksum === savedChecksum) {
+          const countRes = await executeQuery("SELECT COUNT(*) as cnt FROM mvp_week_tbl WHERE week_id = ?", [week_id]);
+          if (countRes && countRes[0] && countRes[0].cnt > 0) {
+            const savedStats = await loadSavedWeekLeaderStats(week_id, groupId);
+            if (savedStats && savedStats.allPlayerRatings && savedStats.allPlayerRatings.length > 0) {
+              logger.debug(`[WeekLeaderStats] Week ${week_id} is unchanged (Checksum matched). Served from saved DB records.`);
+              return savedStats;
+            }
+          }
+        }
+      }
+    }
     const goalsQuery = `
       SELECT 
         mtw.member_id, 
@@ -1776,7 +2006,7 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     allPositions.forEach(p => { posMap[p.id] = p; });
     const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_team_goal: 0.75, pts_og: 2.0, pts_wins: 3.0, pts_draws: 1.0 };
 
-    logger.info(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
+    logger.info(`\n=== [MVP Calculation Log] Week ID: ${week_id} (${forceRefresh ? 'Forced Refresh' : 'Data Changed / First Calculation'}) ===`);
     if (tableRows && tableRows.length > 0) {
       tableRows.forEach(row => {
         const teamId = row.team_week_id;
@@ -1911,13 +2141,13 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const teamDetails = teamInfoMap[m.team_id];
       const teamName = teamDetails ? teamDetails.color : `ID ${m.team_id}`;
 
-      logger.info(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}${item.isTeamFitPos ? ' (team-fit)' : ''}]`);
-      logger.info(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Match Draw: +${item.ptsDraws}, Team Goal Bonus: +${item.ptsTeamGoal}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-      logger.info(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Wins (W): ${wins}, Draws (D): ${item.draws}, Team Goals For (GF): ${item.goalsScored}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
-      logger.info(`   └─ Raw MVP Score (Total): ${item.breakdown}`);
-      logger.info(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches Played (${matches}) = ${rawScore.toFixed(4)}`);
-      logger.info(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / P95 Benchmark ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
-      logger.info(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
+      logger.debug(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}${item.isTeamFitPos ? ' (team-fit)' : ''}]`);
+      logger.debug(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Match Draw: +${item.ptsDraws}, Team Goal Bonus: +${item.ptsTeamGoal}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
+      logger.debug(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Wins (W): ${wins}, Draws (D): ${item.draws}, Team Goals For (GF): ${item.goalsScored}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
+      logger.debug(`   └─ Raw MVP Score (Total): ${item.breakdown}`);
+      logger.debug(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches Played (${matches}) = ${rawScore.toFixed(4)}`);
+      logger.debug(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / P95 Benchmark ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
+      logger.debug(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
 
       const info = resolveMemberDisplayInfo(m, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
       return {
@@ -2022,6 +2252,22 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       totw = selectTeamOfTheWeekPlayers(formattedList, is8PlayerWeek, posLimitsMap);
     } catch (eTotw) {
       logger.warn('Failed to compute TOTW in getWeekLeaderStats:', eTotw.message);
+    }
+
+    // Persist current checksum to template_tpl so subsequent reads can skip re-computation
+    try {
+      const finalChecksum = await computeWeekChangeChecksum(week_id);
+      if (finalChecksum) {
+        const checksumKey = `mvp_checksum_${week_id}`;
+        const exChk = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [checksumKey]);
+        if (exChk && exChk.length > 0) {
+          await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [finalChecksum, checksumKey]);
+        } else {
+          await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [checksumKey, finalChecksum]);
+        }
+      }
+    } catch (eChk) {
+      logger.warn(`Failed to save checksum for week ${week_id}:`, eChk.message);
     }
 
     return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore, allPlayerRatings: formattedList, totw };
@@ -2324,9 +2570,13 @@ async function ensureMvpWeekTable() {
         member_id INT DEFAULT 0,
         member_name VARCHAR(255) DEFAULT '',
         goals INT DEFAULT 0,
+        own_goals INT DEFAULT 0,
         assists INT DEFAULT 0,
         clean_sheet INT DEFAULT 0,
         conceded INT DEFAULT 0,
+        wins INT DEFAULT 0,
+        matches INT DEFAULT 0,
+        pos_code VARCHAR(10) DEFAULT '',
         raw_score DECIMAL(10,4) DEFAULT 0.0000,
         rating DECIMAL(4,2) DEFAULT 0.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -2335,6 +2585,19 @@ async function ensureMvpWeekTable() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await executeQuery(createSql);
+
+    // Ensure matches and pos_code columns exist if table was already created
+    try {
+      const colRows = await executeQuery("SHOW COLUMNS FROM mvp_week_tbl");
+      const existingCols = new Set((colRows || []).map(c => (c.Field || '').toLowerCase()));
+      if (!existingCols.has('matches')) {
+        await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN matches INT DEFAULT 0 AFTER wins");
+      }
+      if (!existingCols.has('pos_code')) {
+        await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN pos_code VARCHAR(10) DEFAULT '' AFTER matches");
+      }
+    } catch (eCol) { }
+
     // Cleanup temporary reserve slot records (@team1+1, @team1+7, +team1+2, etc.)
     try {
       await executeQuery("DELETE FROM mvp_week_tbl WHERE member_name LIKE '@team%' OR member_name LIKE 'team%' OR member_name LIKE '+team%'");
@@ -2352,24 +2615,32 @@ async function saveWeekMvpRecords(week_id, mvpList) {
     const memId = item.id || item.member_id || 0;
     const name = item.name || '';
     const g = Number(item.goals) || 0;
+    const og = Number(item.own_goals !== undefined ? item.own_goals : (item.og || 0));
     const a = Number(item.assists) || 0;
     const cs = Number(item.cleanSheets !== undefined ? item.cleanSheets : (item.clean_sheet || 0)) || 0;
     const ga = Number(item.goalsConceded !== undefined ? item.goalsConceded : (item.conceded !== undefined ? item.conceded : (item.ga || 0))) || 0;
+    const w = Number(item.wins || 0);
+    const m = Number(item.matches || 0);
+    const posCode = (item.pos?.code || item.pos_code || '').toUpperCase();
     const raw = parseFloat(Number(item.rawScore !== undefined ? item.rawScore : (item.score || 0)).toFixed(4));
     const rat = parseFloat(Number(item.score || 0).toFixed(2));
 
     await executeQuery(`
-      INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, assists, clean_sheet, conceded, raw_score, rating)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, own_goals, assists, clean_sheet, conceded, wins, matches, pos_code, raw_score, rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         member_name = VALUES(member_name),
         goals = VALUES(goals),
+        own_goals = VALUES(own_goals),
         assists = VALUES(assists),
         clean_sheet = VALUES(clean_sheet),
         conceded = VALUES(conceded),
+        wins = VALUES(wins),
+        matches = VALUES(matches),
+        pos_code = VALUES(pos_code),
         raw_score = VALUES(raw_score),
         rating = VALUES(rating)
-    `, [week_id, memId, name, g, a, cs, ga, raw, rat]);
+    `, [week_id, memId, name, g, og, a, cs, ga, w, m, posCode, raw, rat]);
   }
 }
 
@@ -8449,6 +8720,8 @@ module.exports = {
   setMemberDebt,
   updateWeekTimeRange,
   getWeekLeaderStats,
+  loadSavedWeekLeaderStats,
+  computeWeekChangeChecksum,
   selectTeamOfTheWeekPlayers,
   calculateWeekRawMvp,
   computePlayerRawScore,

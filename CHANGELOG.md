@@ -4,6 +4,22 @@
 
 --- 
 
+## [0.6.21] - 2026-10-26
+
+### Optimization & Feature: Smart Change Detection & DB-Backed Week Leader Stats
+- **ระบบตรวจสอบการเปลี่ยนแปลงข้อมูลอัจฉริยะ (Smart Change Detection & Checksum) (`query.js`)**:
+  - เพิ่มฟังก์ชัน `computeWeekChangeChecksum(week_id)` สร้าง Fingerprint ตรวจจับการเปลี่ยนแปลงของข้อมูลในสัปดาห์นั้นอย่างครอบคลุม 100%: จำนวนแมตช์, จำนวนแมตช์ที่จบ, สกอร์ทีม A/B, ประตูรวม, แอสซิสต์รวม, Checksum ผู้ทำประตู/แอสซิสต์ (`member_id * 100 + status`), Checksum ผู้เล่นและตำแหน่ง (`member_id * 1000 + team_id * 10 + pos_id`) และ Timestamp ล่าสุดของแมตช์
+  - บันทึก Checksum ลงใน `template_tpl` เพื่อใช้ตรวจสอบความสดใหม่ของข้อมูล (Freshness Check) ในทุก Request
+- **โหลดสถิติและคะแนนเรตติ้งจาก DB ทันทีเมื่อไม่มีการแก้ไข (`query.js`, `routes/web.js`)**:
+  - เพิ่มฟังก์ชัน `loadSavedWeekLeaderStats(week_id, groupId)` ดึงคะแนน Rating, MVP, Top Scorer, Top Assist และ TOTW จากตาราง `mvp_week_tbl` และ `member_team_week_tbl` ส่งกลับได้ทันทีโดยไม่ต้องรันลูปคำนวณซ้ำ
+  - เมื่อเปิดดูสัปดาห์ย้อนหลังที่จบไปแล้ว (เช่น Week 333) ข้อมูลจะถูกตอบกลับภายใน 5–15 ms โดยไม่วนลูปคำนวณแต้มดิบใหม่ ไม่ยิง SQL UPDATE ซ้ำ และไม่พ่น MVP Calculation Log ออกมารบกวนคอนโซล
+  - เมื่อมีข้อมูลเปลี่ยนแปลงจริง (สกอร์เปลี่ยน, เพิ่ม/ลบ/เปลี่ยนคนยิงประตู, เปลี่ยนตำแหน่งผู้เล่น หรือกดจบแมตช์ด้วย `forceRefresh = true`) ระบบจะตรวจจับความต่างได้ทันทีและทำการคำนวณใหม่พร้อมอัปเดต Checksum ให้อัตโนมัติ
+- **ยกระดับโครงสร้างตาราง `mvp_week_tbl` (`query.js`)**:
+  - เพิ่มคอลัมน์ `matches` (จำนวนแมตช์ที่ลงเล่น) และ `pos_code` (รหัสตำแหน่ง) ในตาราง `mvp_week_tbl` ผ่าน `ensureMvpWeekTable()` และบันทึกข้อมูลครบถ้วนใน `saveWeekMvpRecords()`
+  - ปรับการแสดงผล Log การคำนวณ MVP: แสดงหัวข้อชัดเจนระบุสาเหตุการคำนวณ (`Forced Refresh` หรือ `Data Changed / First Calculation`) และปรับข้อความคำนวณรายคนเป็นระดับ `debug` เพื่อให้คอนโซลสะอาดเป็นระเบียบ
+
+--- 
+
 ## [0.6.20] - 2026-10-26
 
 ### Bug Fix: Mobile Carousel Tiling Lag & Right/Left Edge Blank Space
