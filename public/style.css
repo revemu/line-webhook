@@ -7979,14 +7979,16 @@ body.pitch-modal-open {
         scroll-snap-type: x mandatory !important;
         -webkit-overflow-scrolling: touch !important;
         gap: 0.75rem !important;
-        padding: 0.2rem 0.25rem 0.75rem !important;
-        margin-left: -0.25rem !important;
-        margin-right: -0.25rem !important;
-        scroll-padding-left: 0.25rem !important;
-        scroll-padding-right: 0.25rem !important;
+        padding: 0.2rem 0.65rem 0.75rem !important;
+        margin-left: -0.65rem !important;
+        margin-right: -0.65rem !important;
+        scroll-padding: 0 0.65rem !important;
         position: relative !important;
         scrollbar-width: thin !important;
         scrollbar-color: rgba(255, 255, 255, 0.25) transparent !important;
+        -webkit-transform: translateZ(0) !important;
+        transform: translateZ(0) !important;
+        will-change: scroll-position !important;
     }
     .team-summary-grid::-webkit-scrollbar {
         height: 5px !important;
@@ -8004,21 +8006,33 @@ body.pitch-modal-open {
         background: rgba(0, 0, 0, 0.2) !important;
     }
 
-    /* Team column card size on mobile (88% width so next card peeks in) */
+    /* Team column card size on mobile with GPU hardware acceleration & perfect snap alignment */
     .team-summary-col {
-        flex: 0 0 calc(100% - 36px) !important;
-        width: calc(100% - 36px) !important;
-        min-width: 275px !important;
-        max-width: 380px !important;
+        flex: 0 0 calc(100% - 32px) !important;
+        width: calc(100% - 32px) !important;
+        min-width: 280px !important;
+        max-width: 420px !important;
         border-radius: 10px !important;
-        scroll-snap-align: start !important;
+        scroll-snap-align: center !important;
         scroll-snap-stop: normal !important;
         box-sizing: border-box !important;
+        -webkit-transform: translate3d(0, 0, 0) !important;
+        transform: translate3d(0, 0, 0) !important;
+        -webkit-backface-visibility: hidden !important;
+        backface-visibility: hidden !important;
+        will-change: transform !important;
+    }
+    .team-summary-col:first-child {
+        scroll-snap-align: start !important;
+    }
+    .team-summary-col:last-child {
+        scroll-snap-align: end !important;
     }
     .team-summary-col:only-child {
         flex: 0 0 100% !important;
         width: 100% !important;
         max-width: 100% !important;
+        scroll-snap-align: center !important;
     }
 
     .team-col-header {
@@ -8055,5 +8069,7 @@ body.pitch-modal-open {
         min-height: 330px !important;
         padding: 0.9rem 0.35rem 0.5rem !important;
         border-radius: 0.6rem !important;
+        -webkit-transform: translateZ(0) !important;
+        transform: translateZ(0) !important;
     }
 }

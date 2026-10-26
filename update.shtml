@@ -549,7 +549,7 @@
 							:class="{ 'is-centered-last': isLastOdd(index, sortedActiveTeamPlayers.length) }">
 							<div class="pitch-player-avatar-wrap">
 								<div class="pitch-player-avatar-circle" :style="{ borderColor: activeTeamColor.toLowerCase() }">
-									<img v-if="p.picture_url" :src="p.picture_url" />
+									<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 									<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
 								<div class="player-score-bubbles">
@@ -608,7 +608,7 @@
 							<div class="pitch-player-avatar-wrap">
 								<div class="btn-unloan-node" v-if="isManager" title="ยกเลิกยืมตัว" @click.stop="unloanPlayer(p.id, activeTeamSide)">✕</div>
 								<div class="pitch-player-avatar-circle">
-									<img v-if="p.picture_url" :src="p.picture_url" />
+									<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 									<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
 								<div class="player-score-bubbles">
@@ -695,7 +695,7 @@
 								<div v-for="p in teamACol1" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
 										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_a_color.toLowerCase() }">
-											<img v-if="p.picture_url" :src="p.picture_url" />
+											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
@@ -739,7 +739,7 @@
 								<div v-for="p in teamACol2" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
 										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_a_color.toLowerCase() }">
-											<img v-if="p.picture_url" :src="p.picture_url" />
+											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
@@ -783,7 +783,7 @@
 								<div v-for="p in teamACol3" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
 										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_a_color.toLowerCase() }">
-											<img v-if="p.picture_url" :src="p.picture_url" />
+											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
@@ -834,7 +834,7 @@
 										<!-- Remove / Unloan button -->
 										<div class="btn-unloan-node" v-if="isManager" title="ยกเลิกยืมตัว" @click.stop="unloanPlayer(p.id, 'teamA')">✕</div>
 										<div class="pitch-player-avatar-circle">
-											<img v-if="p.picture_url" :src="p.picture_url" />
+											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
@@ -903,7 +903,7 @@
 								<div v-for="p in teamBCol1" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
 										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_b_color.toLowerCase() }">
-											<img v-if="p.picture_url" :src="p.picture_url" />
+											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
@@ -947,7 +947,7 @@
 								<div v-for="p in teamBCol2" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
 										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_b_color.toLowerCase() }">
-											<img v-if="p.picture_url" :src="p.picture_url" />
+											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
@@ -991,7 +991,7 @@
 								<div v-for="p in teamBCol3" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
 										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_b_color.toLowerCase() }">
-											<img v-if="p.picture_url" :src="p.picture_url" />
+											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
@@ -1041,7 +1041,7 @@
 									<div class="pitch-player-avatar-wrap">
 										<div class="btn-unloan-node" v-if="isManager" title="ยกเลิกยืมตัว" @click.stop="unloanPlayer(p.id, 'teamB')">✕</div>
 										<div class="pitch-player-avatar-circle">
-											<img v-if="p.picture_url" :src="p.picture_url" />
+											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
 										<div class="player-score-bubbles">
@@ -1129,7 +1129,7 @@
 
 						<div class="loan-player-info">
 							<div class="loan-player-avatar" :style="{ borderColor: p.color ? p.color.toLowerCase() : '#ccc' }">
-								<img v-if="p.picture_url" :src="p.picture_url" />
+								<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 								<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 							</div>
 							<div style="min-width: 0;">
@@ -1337,11 +1337,11 @@
 							<!-- Tactical Rows on Field: Attackers (Top) -> Midfielders -> Defenders -> Goalkeeper (Bottom) -->
 							<div class="team-pitch-tactical-layout">
 								<!-- Forward Line (CF) -->
-								<div class="pitch-tactical-row row-fw" v-if="getTeamTacticalRows(team.players).fw.length > 0">
-									<div v-for="p in getTeamTacticalRows(team.players).fw" :key="p.id" class="pitch-player-node mini-pitch-node">
+								<div class="pitch-tactical-row row-fw" v-if="(team.tacticalRows ? team.tacticalRows.fw : getTeamTacticalRows(team.players).fw).length > 0">
+									<div v-for="p in (team.tacticalRows ? team.tacticalRows.fw : getTeamTacticalRows(team.players).fw)" :key="p.id" class="pitch-player-node mini-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
@@ -1359,11 +1359,11 @@
 								</div>
 
 								<!-- Midfield Line (MF / DM / AM) -->
-								<div class="pitch-tactical-row row-mf" v-if="getTeamTacticalRows(team.players).mf.length > 0">
-									<div v-for="p in getTeamTacticalRows(team.players).mf" :key="p.id" class="pitch-player-node mini-pitch-node">
+								<div class="pitch-tactical-row row-mf" v-if="(team.tacticalRows ? team.tacticalRows.mf : getTeamTacticalRows(team.players).mf).length > 0">
+									<div v-for="p in (team.tacticalRows ? team.tacticalRows.mf : getTeamTacticalRows(team.players).mf)" :key="p.id" class="pitch-player-node mini-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
@@ -1381,11 +1381,11 @@
 								</div>
 
 								<!-- Defense Line (DF / DW) -->
-								<div class="pitch-tactical-row row-df" v-if="getTeamTacticalRows(team.players).df.length > 0">
-									<div v-for="p in getTeamTacticalRows(team.players).df" :key="p.id" class="pitch-player-node mini-pitch-node">
+								<div class="pitch-tactical-row row-df" v-if="(team.tacticalRows ? team.tacticalRows.df : getTeamTacticalRows(team.players).df).length > 0">
+									<div v-for="p in (team.tacticalRows ? team.tacticalRows.df : getTeamTacticalRows(team.players).df)" :key="p.id" class="pitch-player-node mini-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
@@ -1403,11 +1403,11 @@
 								</div>
 
 								<!-- Goalkeeper Line (GK) -->
-								<div class="pitch-tactical-row row-gk" v-if="getTeamTacticalRows(team.players).gk.length > 0">
-									<div v-for="p in getTeamTacticalRows(team.players).gk" :key="p.id" class="pitch-player-node mini-pitch-node">
+								<div class="pitch-tactical-row row-gk" v-if="(team.tacticalRows ? team.tacticalRows.gk : getTeamTacticalRows(team.players).gk).length > 0">
+									<div v-for="p in (team.tacticalRows ? team.tacticalRows.gk : getTeamTacticalRows(team.players).gk)" :key="p.id" class="pitch-player-node mini-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<div class="mini-score-rating" :class="getRatingColorClass(p.rating)" title="Live Rating">
@@ -1435,7 +1435,7 @@
 							<div v-for="(p, pIdx) in team.players" :key="p.id" class="team-player-card">
 								<div class="player-card-rank">#{{ pIdx + 1 }}</div>
 								<div class="player-card-avatar" :style="{ borderColor: (team.isTotw && p.teamName) ? getTeamColorByName(p.teamName) : (team.color ? team.color.toLowerCase() : '#ccc') }">
-									<img v-if="p.picture_url" :src="p.picture_url" />
+									<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 									<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
 								<div class="player-card-details">
@@ -1632,7 +1632,7 @@
 									<div v-for="p in getTeamTacticalCol(match.team_a_id, match.match_num, 1)" :key="p.id" class="pitch-player-node inline-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_a_color ? match.team_a_color.toLowerCase() : '#ccc' }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
@@ -1649,7 +1649,7 @@
 									<div v-for="p in getTeamTacticalCol(match.team_a_id, match.match_num, 2)" :key="p.id" class="pitch-player-node inline-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_a_color ? match.team_a_color.toLowerCase() : '#ccc' }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
@@ -1666,7 +1666,7 @@
 									<div v-for="p in getTeamTacticalCol(match.team_a_id, match.match_num, 3)" :key="p.id" class="pitch-player-node inline-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_a_color ? match.team_a_color.toLowerCase() : '#ccc' }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
@@ -1691,7 +1691,7 @@
 									<div v-for="p in getTeamTacticalCol(match.team_b_id, match.match_num, 3)" :key="p.id" class="pitch-player-node inline-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_b_color ? match.team_b_color.toLowerCase() : '#ccc' }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
@@ -1708,7 +1708,7 @@
 									<div v-for="p in getTeamTacticalCol(match.team_b_id, match.match_num, 2)" :key="p.id" class="pitch-player-node inline-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_b_color ? match.team_b_color.toLowerCase() : '#ccc' }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
@@ -1725,7 +1725,7 @@
 									<div v-for="p in getTeamTacticalCol(match.team_b_id, match.match_num, 1)" :key="p.id" class="pitch-player-node inline-pitch-node">
 										<div class="pitch-player-avatar-wrap">
 											<div class="pitch-player-avatar-circle" :style="{ borderColor: match.team_b_color ? match.team_b_color.toLowerCase() : '#ccc' }">
-												<img v-if="p.picture_url" :src="p.picture_url" />
+												<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 												<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 											</div>
 											<span v-if="p.is_loan" class="inline-loan-chip">ยืม</span>
@@ -1874,7 +1874,8 @@
 							goal: tw.G !== undefined ? tw.G : (tw.goal || 0),
 							goal_against: tw.A !== undefined ? tw.A : (tw.goal_against || 0),
 							players: teamPlayers,
-							topPlayer: topPlayer
+							topPlayer: topPlayer,
+							tacticalRows: this.getTeamTacticalRows(teamPlayers)
 						};
 					});
 
@@ -1891,7 +1892,8 @@
 							goal: '-',
 							goal_against: '-',
 							players: this.weekTotw,
-							topPlayer: this.weekTotw.length > 0 ? this.weekTotw[0] : null
+							topPlayer: this.weekTotw.length > 0 ? this.weekTotw[0] : null,
+							tacticalRows: this.getTeamTacticalRows(this.weekTotw)
 						});
 					}
 

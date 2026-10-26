@@ -4,6 +4,21 @@
 
 --- 
 
+## [0.6.20] - 2026-10-26
+
+### Bug Fix: Mobile Carousel Tiling Lag & Right/Left Edge Blank Space
+- **แก้ไขปัญหาเลื่อนไปซ้ายสุดหรือขวาสุดแล้วมีพื้นที่ว่างเปล่าและต้องรอโหลด (`public/style.css`)**:
+  - กำหนด `scroll-snap-align: start` สำหรับการ์ดแรก (`:first-child`) และ `scroll-snap-align: end` สำหรับการ์ดสุดท้าย (`:last-child`) ทำให้เมื่อเลื่อนไปขวาสุด การ์ดสุดท้ายจะ snap ชิดขอบขวาพอดี 100% ไม่มีช่องว่างสีมืดว่างเปล่าหลงเหลือ
+  - การ์ดระหว่างกลางใช้ `scroll-snap-align: center` เพื่อให้อยู่กึ่งกลางหน้าจออย่างสมดุล พร้อมเห็นส่วนปลายของการ์ดข้างเคียงให้รู้ว่าเลื่อนต่อได้
+- **เปิดใช้ GPU Hardware Acceleration ป้องกัน WebKit/Safari Tiling Lag (`public/style.css`)**:
+  - เพิ่ม `-webkit-transform: translate3d(0, 0, 0)`, `transform: translate3d(0, 0, 0)`, `-webkit-backface-visibility: hidden` และ `will-change: transform` ให้กับการ์ดทีมทุกใบ
+  - สั่งให้ WebKit บน iOS Safari และ LINE In-App Browser เรนเดอร์การ์ดทั้งหมดเก็บไว้ใน GPU VRAM ล่วงหน้า ทำให้เลื่อนสไลด์ซ้าย-ขวาได้แบบ 60fps ลื่นไหลทันทีโดยไม่ต้องรอโหลดหรือรอเรนเดอร์ (ไม่มีอาการ Blank Tile)
+- **ปรับปรุงประสิทธิภาพการเรนเดอร์ผังสนามใน Vue (`public/update.shtml`, `update.shtml`)**:
+  - คำนวณแถวตำแหน่งผู้เล่น (`tacticalRows`) ไว้ล่วงหน้าใน `teamRostersSummary` เพื่อลดการเรียกฟังก์ชัน `getTeamTacticalRows` ซ้ำซ้อนหลายสิบรอบในแต่ละ Render Frame
+  - เพิ่มแอตทริบิวต์ `loading="eager" decoding="async"` ให้กับภาพ Avatar ผู้เล่นทั้งหมด
+
+--- 
+
 ## [0.6.19] - 2026-10-26
 
 ### UI Simplification: Clean Mobile Carousel Heading & Single TOTW Title
