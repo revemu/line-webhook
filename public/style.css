@@ -70,6 +70,9 @@
 html {
     font-size: 16px;
     /* Base font size */
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    overscroll-behavior-x: none;
 }
 
 body {
@@ -81,6 +84,20 @@ body {
     padding: 1rem;
     font-size: 1rem;
     /* 16px */
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    overscroll-behavior-x: none;
+    touch-action: pan-x pan-y;
+}
+
+/* Prevent horizontal scroll chaining and accidental gesture reload in LINE / in-app browsers */
+.team-summary-grid,
+.team-filter-scroll,
+.table-responsive,
+.pitch-selector-scroll,
+[class*="ranking-table"] {
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Typography */
@@ -8045,6 +8062,8 @@ body.pitch-modal-open {
         overflow-y: hidden !important;
         scroll-snap-type: x mandatory !important;
         -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior-x: contain !important;
+        overscroll-behavior-y: auto !important;
         gap: 0.75rem !important;
         padding: 0.2rem 0.65rem 0.75rem !important;
         margin-left: -0.65rem !important;

@@ -32,6 +32,51 @@
 				document.documentElement.classList.remove('dark-theme');
 			}
 		})();
+
+		// Prevent accidental Pull-to-Refresh & Edge-Swipe Navigation reload in LINE in-app browser
+		(function () {
+			var touchStartX = 0;
+			var touchStartY = 0;
+
+			window.addEventListener('touchstart', function (e) {
+				if (e.touches && e.touches.length === 1) {
+					touchStartX = e.touches[0].clientX;
+					touchStartY = e.touches[0].clientY;
+				}
+			}, { passive: true });
+
+			window.addEventListener('touchmove', function (e) {
+				if (!e.touches || e.touches.length !== 1) return;
+				var currentX = e.touches[0].clientX;
+				var currentY = e.touches[0].clientY;
+				var deltaX = currentX - touchStartX;
+				var deltaY = currentY - touchStartY;
+
+				// 1. Prevent vertical pull-to-refresh when already at top of page and pulling downwards
+				if (window.scrollY <= 0 && deltaY > 0) {
+					var el = e.target;
+					var canScrollUp = false;
+					while (el && el !== document.body && el !== document.documentElement) {
+						if (el.scrollTop > 0) {
+							canScrollUp = true;
+							break;
+						}
+						el = el.parentElement;
+					}
+					if (!canScrollUp && e.cancelable) {
+						e.preventDefault();
+					}
+				}
+
+				// 2. Prevent horizontal edge-swipe back/forward reload near screen boundaries (left & right edges)
+				var edgeThreshold = 25;
+				if (touchStartX <= edgeThreshold || touchStartX >= (window.innerWidth - edgeThreshold)) {
+					if (Math.abs(deltaX) > Math.abs(deltaY) && e.cancelable) {
+						e.preventDefault();
+					}
+				}
+			}, { passive: false });
+		})();
 	</script>
 </head>
 

@@ -4,6 +4,16 @@
 
 --- 
 
+## [0.7.5] - 2026-10-27
+
+### Fix: LINE In-App Browser Accidental Page Reload on Scroll (Vertical & Horizontal)
+- **แก้ปัญหาหน้าเว็บรีโหลดตัวเองเวลาเลื่อนจอ (Scroll) บน LINE In-App Browser ทั้งแนวตั้งและแนวนอน (`public/style.css`, `public/update.shtml`, `update.shtml`, `public/position.shtml`)**:
+  - กำหนด `overscroll-behavior: none`, `overscroll-behavior-y: none`, `overscroll-behavior-x: none` ให้กับ `html` และ `body` เพื่อปิดการทำงานของ Pull-to-refresh ของ WebView และป้องกันการเด้งรีโหลด
+  - เพิ่ม `touch-action: pan-x pan-y` และ `overscroll-behavior-x: contain` ให้กับคอนเทนเนอร์ที่เลื่อนแนวนอน เช่น `.team-summary-grid` (การ์ดทีมบนมือถือ), `.team-filter-scroll` และตารางข้อมูล เพื่อไม่ให้ gesture การเลื่อนนิ้วหลุดไปสั่งงาน Back/Forward ของ In-App Browser
+  - เพิ่มระบบตรวจจับ Touch Gesture Guard ใน JavaScript เพื่อดักจับและยกเลิก (`preventDefault`) พฤติกรรม Pull-to-refresh เมื่ออยู่ที่ขอบบนสุดของหน้า และ Edge-swipe navigation เมื่อลากนิ้วจากขอบหน้าจอบนอุปกรณ์มือถือ
+
+--- 
+
 ## [0.7.4] - 2026-10-26
 
 ### Fix: Persistent Update Notification Loop & Robust Cache-Busting Reload
