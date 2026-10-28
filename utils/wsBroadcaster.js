@@ -96,8 +96,10 @@ function initWebSocket(server) {
 function broadcastMatchEvent(weekId, eventData = {}) {
   if (!wss || wss.clients.size === 0) return 0;
 
+  const eventId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const payload = JSON.stringify({
     ...eventData,
+    event_id: eventId,
     week_id: weekId ? String(weekId) : null,
     timestamp: Date.now()
   });

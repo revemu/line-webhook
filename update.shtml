@@ -1876,7 +1876,10 @@
 				ws: null,
 				wsConnected: false,
 				wsReconnectTimer: null,
-				wsPingTimer: null
+				wsPingTimer: null,
+				lastToastMsg: '',
+				lastToastTime: 0,
+				processedWsEvents: {}
 			},
 			computed: {
 				teamRostersSummary() {
@@ -2465,9 +2468,9 @@
 				manualRefresh() {
 					this.refreshCountdown = 30;
 					this.isRefreshing = true;
-					if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+					if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
 						this.initWebSocket();
-					} else {
+					} else if (this.ws.readyState === WebSocket.OPEN) {
 						this.subscribeToCurrentWeek();
 					}
 					this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
@@ -2504,6 +2507,14 @@
 				},
 				showToast(payload, options = {}) {
 					if (!payload) return;
+					const rawMsg = typeof payload === 'object' ? (payload.message || payload.html || '') : String(payload);
+					const now = Date.now();
+					if (this.lastToastMsg === rawMsg && (now - this.lastToastTime < 3000)) {
+						return; // Discard duplicate toast within 3 seconds
+					}
+					this.lastToastMsg = rawMsg;
+					this.lastToastTime = now;
+
 					if (typeof payload === 'object') {
 						this.toastMessage = payload.message || '';
 						this.toastAvatar = payload.avatar || '';
@@ -2534,12 +2545,19 @@
 					}
 				},
 				initWebSocket() {
+					if (this.wsReconnectTimer) {
+						clearTimeout(this.wsReconnectTimer);
+						this.wsReconnectTimer = null;
+					}
 					if (this.ws) {
 						try {
+							this.ws.onopen = null;
+							this.ws.onmessage = null;
 							this.ws.onclose = null;
 							this.ws.onerror = null;
 							this.ws.close();
 						} catch (e) { }
+						this.ws = null;
 					}
 					if (this.wsPingTimer) {
 						clearInterval(this.wsPingTimer);
@@ -2605,6 +2623,15 @@
 							(currentWeekNum && String(data.week_id) === String(currentWeekNum));
 						if (!isMatch) return;
 					}
+
+					// Event De-duplication: Drop duplicate broadcasts from multi-connection or retransmissions
+					const eventKey = data.event_id || `${data.type}_${data.match_id || data.match_num || 0}_${data.message || ''}`;
+					const now = Date.now();
+					if (this.processedWsEvents && this.processedWsEvents[eventKey] && (now - this.processedWsEvents[eventKey] < 4000)) {
+						return;
+					}
+					if (!this.processedWsEvents) this.processedWsEvents = {};
+					this.processedWsEvents[eventKey] = now;
 
 					// 1. Show Toast notification (Only for viewers, manager screen does not receive match noti)
 					if (!this.isManager && (data.message || data.html)) {

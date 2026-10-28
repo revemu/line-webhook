@@ -3,6 +3,19 @@
 บันทึกประวัติการเปลี่ยนแปลงและการพัฒนาของโปรเจกต์ `line-webhook`
 
 ---
+## [0.7.13] - 2026-10-28
+
+### Fix: Eliminated Duplicate Toast Notifications via Multi-Layer Event De-duplication & Socket Teardown
+- **แก้ปัญหา Toast แจ้งเตือนเด้งซ้ำ 2 รอบ (`utils/wsBroadcaster.js`, `public/update.shtml`, `update.shtml`)**:
+  - **ต้นตอของปัญหา**: 
+    1. ในจังหวะสลับหน้าจอหรือเชื่อมต่อใหม่ ฟังก์ชัน `initWebSocket()` สั่ง `close()` ซ็อกเก็ตเก่า แต่ไม่ได้ปลด Event Listener (`onmessage = null`) ออกจาก Socket เดิม ทำให้ในช่วงที่ Socket เดิมยังอยู่ในสถานะกำลังปิด (Closing Handshake) เมื่อเซิร์ฟเวอร์ยิงข้อความเข้ามา ทั้งซ็อกเก็ตเดิมและซ็อกเก็ตใหม่ต่างได้รับข้อความทั้งคู่ และสั่งแสดงผล Toast ซ้ำสองรอบ
+    2. เซิร์ฟเวอร์ยังไม่มีการระบุหมายเลขประจำตัวข้อความ (`event_id`) และฝั่ง Client ใน `handleWebSocketMessage` ยังไม่มีกลไก De-duplication เพื่อคัดกรองข้อความซ้ำที่มาจากหลาย Connection หรือ Retransmission
+  - **การแก้ไข**:
+    - **Clean Socket Teardown**: ปรับปรุงฟังก์ชัน `initWebSocket()` ให้เคลียร์ `wsReconnectTimer` ทันที และปลด Handlers ทุกตัว (`onopen = null`, `onmessage = null`, `onclose = null`, `onerror = null`) ก่อนปิดซ็อกเก็ตเก่า เพื่อรับประกันว่าจะไม่มีข้อความหลุดรอดจากซ็อกเก็ตเดิมอีก
+    - **Unique Broadcast Event ID**: เพิ่มการสร้างรหัส `event_id` เฉพาะตัวในทุก Broadcast Packet ที่ส่งออกจาก `broadcastMatchEvent` ใน `wsBroadcaster.js`
+    - **Client-Side Event De-duplication**: เพิ่มตัวกรองตรวจสอบ `event_id` / ลายเซ็นของข้อความใน `handleWebSocketMessage()` หากเป็นเหตุการณ์เดียวกันที่ได้รับซ้ำภายใน 4 วินาที จะถูกละทิ้งทันที
+    - **Toast Content De-duplication**: เพิ่มระบบจำกัดความถี่ในฟังก์ชัน `showToast()` ป้องกันไม่ให้ข้อความที่เหมือนกันแสดงผลซ้ำซ้อนภายในระยะเวลา 3 วินาที
+
 ## [0.7.12] - 2026-10-28
 
 ### Fix: Safari iOS WebSocket Connection & Lifecycle Auto-Reconnect for External Browser Launch
