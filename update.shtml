@@ -51,8 +51,8 @@
 	<div id="soccer-match" class="container" v-cloak>
 
 		<!-- Toast Notification -->
-		<transition name="fade">
-			<div v-if="toastMessage" class="match-toast">
+		<transition name="toast-slide">
+			<div v-if="toastMessage" :key="toastKey" class="match-toast">
 				<img v-if="toastAvatar" :src="toastAvatar" class="toast-avatar" alt="avatar" />
 				<span v-else-if="toastInitials" class="toast-avatar-fallback">{{ toastInitials }}</span>
 				<div v-if="toastHtml" class="toast-body" v-html="toastHtml"></div>
@@ -1855,6 +1855,7 @@
 				toastInitials: '',
 				toastHtml: '',
 				toastTimer: null,
+				toastKey: 0,
 				draggedLoanPlayer: null,
 				dragOverTeamSide: null,
 				loanSearchQuery: '',
@@ -2232,21 +2233,21 @@
 					}
 				};
 
-				window.addEventListener('pageshow', (e) => {
+				let lastLifecycleSync = Date.now();
+				const safeLifecycleSync = () => {
+					const now = Date.now();
+					if (now - lastLifecycleSync < 2000) return;
+					lastLifecycleSync = now;
 					checkAndReconnectWs();
 					if (this.isManager) {
 						this.fetchCurrentUser();
 					}
 					this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
-				});
+				};
+
+				window.addEventListener('pageshow', safeLifecycleSync);
 				document.addEventListener('visibilitychange', () => {
-					if (!document.hidden) {
-						checkAndReconnectWs();
-						if (this.isManager) {
-							this.fetchCurrentUser();
-						}
-						this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
-					}
+					if (!document.hidden) safeLifecycleSync();
 				});
 				window.addEventListener('focus', () => {
 					checkAndReconnectWs();
@@ -2509,11 +2510,17 @@
 					if (!payload) return;
 					const rawMsg = typeof payload === 'object' ? (payload.message || payload.html || '') : String(payload);
 					const now = Date.now();
-					if (this.lastToastMsg === rawMsg && (now - this.lastToastTime < 3000)) {
-						return; // Discard duplicate toast within 3 seconds
+					// Strict deduplication: discard identical toast within 8 seconds
+					if (this.lastToastMsg === rawMsg && (now - this.lastToastTime < 8000)) {
+						return;
+					}
+					// Interval throttle: discard rapid overlapping toasts within 2 seconds
+					if (now - this.lastToastTime < 2000) {
+						return;
 					}
 					this.lastToastMsg = rawMsg;
 					this.lastToastTime = now;
+					this.toastKey = now;
 
 					if (typeof payload === 'object') {
 						this.toastMessage = payload.message || '';
@@ -2532,7 +2539,7 @@
 						this.toastAvatar = '';
 						this.toastInitials = '';
 						this.toastHtml = '';
-					}, 4200);
+					}, 3800);
 				},
 				subscribeToCurrentWeek() {
 					if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -2627,7 +2634,7 @@
 					// Event De-duplication: Drop duplicate broadcasts from multi-connection or retransmissions
 					const eventKey = data.event_id || `${data.type}_${data.match_id || data.match_num || 0}_${data.message || ''}`;
 					const now = Date.now();
-					if (this.processedWsEvents && this.processedWsEvents[eventKey] && (now - this.processedWsEvents[eventKey] < 4000)) {
+					if (this.processedWsEvents && this.processedWsEvents[eventKey] && (now - this.processedWsEvents[eventKey] < 8000)) {
 						return;
 					}
 					if (!this.processedWsEvents) this.processedWsEvents = {};

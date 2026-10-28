@@ -1,6 +1,6 @@
 {
   "name": "line-webhook",
-  "version": "0.7.14",
+  "version": "0.7.15",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

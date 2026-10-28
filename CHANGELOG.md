@@ -3,7 +3,21 @@
 บันทึกประวัติการเปลี่ยนแปลงและการพัฒนาของโปรเจกต์ `line-webhook`
 
 ---
---- 
+
+## [0.7.15] - 2026-10-28
+
+### Fix: Fix Safari iOS Toast Notification Double-Bounce / Double-Trigger Artifacts
+- **แก้ปัญหา Toast แจ้งเตือนเด้ง 2 ครั้ง (Double Pop) บน Safari iOS หลังจากเปิดลิงก์จาก LINE (`public/style.css`, `public/update.shtml`, `update.shtml`)**:
+  - **ต้นตอของปัญหาอย่างละเอียด**:
+    1. **CSS Animation + Vue Transition Conflict ใน WebKit (Safari iOS)**: เดิมทีตัวคลาส `.match-toast` มีคำสั่ง CSS `animation: toastPopTop 0.35s ...` ฝังอยู่ถาวร และถูกครอบด้วย `<transition name="fade">` ของ Vue ซึ่งมีคลาส `.fade-enter-active { transition: opacity 0.3s, transform 0.3s; }` บน iOS Safari เมื่อ Vue transition สิ้นสุดที่ 300ms คลาส `.fade-enter-active` จะถูกถอดออก ทำให้ WebKit มองว่า class list เปลี่ยนแปลง จึงสั่ง Restart CSS Keyframe animation จากวินาทีที่ 0 ซ้ำอีกรอบ ส่งผลให้ Toast ปรากฏแล้วเด้งซ้ำเป็นรอบที่สองทันที
+    2. **DOM Re-render จาก Background Refresh**: เมื่อได้รับสัญญาณ WebSocket หน้าเว็บจะเรียก `refreshMatch()` ไปพร้อมกับการแสดง Toast ทันที เมื่อได้รับข้อมูล HTTP ตอบกลับมา (~200-300ms) การอัปเดต State ทำให้ Vue สั่ง Patch DOM ซึ่งหาก element ไม่มี `:key` เฉพาะตัว WebKit จะ reset animation ทำให้เด้งซ้ำ
+    3. **Lifecycle Reconnect Flood จาก LINE Transition**: เมื่อเปิดลิงก์จาก LINE iOS ระบบของ iOS จะสลับ Safari ขึ้นมาและยิง Event `pageshow`, `visibilitychange`, และ `focus` ติดต่อกันในเสี้ยววินาที ทำให้เกิดการส่ง HTTP Refresh และซ็อกเก็ตเช็คซ้ำซ้อนในเวลาเดียวกัน
+  - **แนวทางการแก้ไข**:
+    - **Single Pure CSS Transition (`toast-slide`)**: ยกเลิกคำสั่ง `@keyframes animation` ที่ฝังถาวรใน `.match-toast` ทั้งหมด และเปลี่ยนมาใช้ Vue Transition แบบ Pure CSS Transition (`.toast-slide-enter-active`, `.toast-slide-enter`, `.toast-slide-leave-to`) ที่ควบคุมทั้ง opacity และ transform เมื่อ Transition จบลงจะไม่มี Keyframe ค้างอยู่ให้ WebKit รีสตาร์ทซ้ำได้อีกต่อไป
+    - **Unique Dynamic Key (`:key="toastKey"`)**: ผูก `:key="toastKey"` บน `.match-toast` เพื่อให้ Virtual DOM ของ Vue แยกแยะ Element ชัดเจน ไม่ถูก Re-patch หรือกวนการเคลื่อนไหวเมื่อ Background data refresh
+    - **Strict 8s De-duplication & 2s Throttle**: ขยายเวลาตรวจจับข้อความซ้ำใน `showToast()` เป็น 8 วินาที และเพิ่มตัวบล็อกความถี่ขั้นต่ำ 2 วินาทีระหว่าง Toast เพื่อป้องกันการเด้งกระพริบซ้อนกัน
+    - **Event De-duplication Extended**: ขยายเวลา Event ID deduplication ใน `handleWebSocketMessage()` เป็น 8 วินาที
+    - **Debounced Lifecycle Handlers**: เพิ่มตัวหน่วงเวลา (2000ms debounce) ให้กับ `pageshow`, `visibilitychange`, และ `focus` ป้องกันการยิงคำขอรีเฟรชหรือเชื่อมต่อชนกันหลายระลอกในจังหวะสลับแอปจาก LINE
 
 ## [0.7.14] - 2026-10-28
 
