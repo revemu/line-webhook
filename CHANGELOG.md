@@ -4,6 +4,14 @@
 
 ---
 
+## [0.7.19] - 2026-10-28
+
+### Feat: Auto-Scroll and Advance Selection to Next / Current Match upon Match Finish
+- **เลื่อนหน้าจอไปยังแมตช์ปัจจุบันและอัปเดตการเลือกแมตช์อัตโนมัติเมื่อจบ Match (`public/update.shtml`, `update.shtml`)**:
+  - **การทำงานเมื่อผู้จัดการกดยืนยันจบ Match (`finishCurrentMatch`)**: เมื่อกดยืนยันจบแมตช์ ระบบจะสลับการเลือก (`selectedMatchIndex`) ไปยังแมตช์ถัดไป พร้อมสั่งเลื่อนหน้าจอ (Smooth Scroll) ลงมายังการ์ดแมตช์ถัดไปให้อยู่กลางสายตาอัตโนมัติ
+  - **การทำงานสำหรับผู้ชม Real-Time (`handleWebSocketMessage`)**: เมื่อได้รับสัญญาณ `MATCH_FINISHED` ผ่าน WebSocket ระบบจะอัปเดตสถานะแมตช์ที่จบลง สลับกรอบไฮไลท์ไปยังแมตช์ถัดไป และเลื่อนหน้าจอไปยังแมตช์ปัจจุบันให้ผู้ชมทันทีโดยไม่ต้องใช้มือเลื่อนหาเอง
+  - **Enhanced `scrollToCurrentMatch`**: เพิ่มพารามิเตอร์ระบุหมายเลขแมตช์เป้าหมาย (`targetMatchNum`) พร้อมกลไก Retry อัตโนมัติ (200ms fallback) เพื่อรับประกันว่าหน้าจอจะเลื่อนไปยังการ์ดแมตช์ได้อย่างแม่นยำแม้ในจังหวะที่ DOM กำลัง re-patch
+
 ## [0.7.18] - 2026-10-28
 
 ### UI: Hide Empty Standings Table and Match List Header when No Schedule Exists

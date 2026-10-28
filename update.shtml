@@ -2431,13 +2431,20 @@
 				toggleMatchPitch(matchNum) {
 					this.expandedPitchMatchNum = (this.expandedPitchMatchNum === matchNum) ? null : matchNum;
 				},
-				scrollToCurrentMatch(smooth = true) {
+				scrollToCurrentMatch(smooth = true, targetMatchNum = null) {
 					this.$nextTick(() => {
 						const cur = this.currentLiveMatch;
-						const curNum = cur ? cur.match_num : (this.info && this.info.current_match_num ? this.info.current_match_num : 1);
+						const curNum = targetMatchNum || (cur ? cur.match_num : (this.info && this.info.current_match_num ? this.info.current_match_num : 1));
 						const el = document.getElementById('match-card-' + curNum);
 						if (el) {
 							el.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
+						} else {
+							setTimeout(() => {
+								const retryEl = document.getElementById('match-card-' + curNum);
+								if (retryEl) {
+									retryEl.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
+								}
+							}, 200);
 						}
 					});
 				},
@@ -2719,7 +2726,19 @@
 					// 2. Immediately refresh match and scoreboard data in background
 					const currentWeek = this.week ? (this.week.number || this.week.id || 0) : 0;
 					this.refreshCountdown = 30;
-					this.refreshMatch(currentWeek, false, this.selectedMatchIndex);
+					const shouldUpdateTeamLists = data.type === 'MATCH_FINISHED' || data.type === 'MATCH_STARTED' || data.type === 'MATCH_ADDED';
+					this.refreshMatch(currentWeek, shouldUpdateTeamLists, this.selectedMatchIndex);
+
+					// When a match finishes, auto-scroll smoothly to the new current match
+					if (data.type === 'MATCH_FINISHED') {
+						const nextMatchNum = data.match_num ? Number(data.match_num) + 1 : 0;
+						if (nextMatchNum > 0) {
+							this.selectedMatchIndex = nextMatchNum;
+						}
+						setTimeout(() => {
+							this.scrollToCurrentMatch(true, nextMatchNum || null);
+						}, 400);
+					}
 				},
 				changeWeek(weeknum) {
 					this.showWeekPicker = false;
@@ -2798,7 +2817,7 @@
 								// Auto-select match: pick specified match, live match, or first unfinished match if not set
 								if (matchindex > 0 && this.all_match[matchindex]) {
 									this.selectedMatchIndex = matchindex;
-								} else if (!this.all_match || !this.all_match[this.selectedMatchIndex] || this.isMatchLocked(this.all_match[this.selectedMatchIndex])) {
+								} else if (!this.all_match || !this.all_match[this.selectedMatchIndex] || this.isMatchLocked(this.all_match[this.selectedMatchIndex]) || (!this.isManager && this.isMatchFinished(this.all_match[this.selectedMatchIndex]))) {
 									if (this.matchCount > 0) {
 										// 1. If backend specified current_match_num and it exists
 										if (this.info && this.info.current_match_num && this.all_match[this.info.current_match_num]) {
@@ -3016,6 +3035,9 @@
 								const targetNum = hasNext ? nextMatchNum : match.match_num;
 								this.selectedMatchIndex = targetNum;
 								this.refreshMatch(this.week.number || 0, true, targetNum);
+								setTimeout(() => {
+									this.scrollToCurrentMatch(true, targetNum);
+								}, 350);
 							} else {
 								const errMsg = (res.data && res.data.error) || 'เซิร์ฟเวอร์ไม่ได้ยืนยันการจบแมตช์';
 								this.showToast('❌ จบแมตช์ไม่สำเร็จ: ' + errMsg);
