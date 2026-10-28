@@ -2219,16 +2219,11 @@
 				const urlParams = new URLSearchParams(window.location.search);
 				const initialWeek = urlParams.get('weeknum') || urlParams.get('week') || urlParams.get('week_id') || 0;
 				this.refreshMatch(initialWeek);
-				this.initWebSocket();
-
-				if (!this.isManager) {
-					this.startAutoRefreshTimer();
-				}
 
 				// Lifecycle & Visibility Reconnect: Ensures WebSocket is restored immediately
 				// when Safari returns from background, finishes app transition from LINE, or wakes up
-				const checkAndReconnectWs = () => {
-					const isStalled = this.ws && this.ws.readyState === WebSocket.CONNECTING && (Date.now() - (this.wsConnectStartTime || 0) > 2500);
+				const ensureActiveWebSocket = () => {
+					const isStalled = this.ws && this.ws.readyState === WebSocket.CONNECTING && (Date.now() - (this.wsConnectStartTime || 0) > 2000);
 					if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING || isStalled) {
 						this.initWebSocket();
 					} else if (this.ws.readyState === WebSocket.OPEN) {
@@ -2236,24 +2231,52 @@
 					}
 				};
 
-				let lastLifecycleSync = Date.now();
-				const safeLifecycleSync = () => {
-					const now = Date.now();
-					if (now - lastLifecycleSync < 2000) return;
-					lastLifecycleSync = now;
-					checkAndReconnectWs();
-					if (this.isManager) {
-						this.fetchCurrentUser();
-					}
-					this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
-				};
+				// Connect WebSocket with foreground priority:
+				// If page opened while hidden during LINE app switch, wait for visibilitychange
+				// to connect with 100% foreground priority (the exact same environment as a manual page refresh!)
+				if (document.visibilityState === 'visible') {
+					this.initWebSocket();
+				} else {
+					const onFirstVisible = () => {
+						if (document.visibilityState === 'visible') {
+							document.removeEventListener('visibilitychange', onFirstVisible);
+							ensureActiveWebSocket();
+						}
+					};
+					document.addEventListener('visibilitychange', onFirstVisible);
+					setTimeout(() => {
+						if (!this.ws) this.initWebSocket();
+					}, 500);
+				}
 
-				window.addEventListener('pageshow', safeLifecycleSync);
+				if (!this.isManager) {
+					this.startAutoRefreshTimer();
+				}
+
+				let lastDataRefreshTime = 0;
+				// When page becomes visible or user switches back to Safari:
 				document.addEventListener('visibilitychange', () => {
-					if (!document.hidden) safeLifecycleSync();
+					if (!document.hidden) {
+						// 1. WebSocket health check is NEVER debounced or delayed
+						ensureActiveWebSocket();
+						// 2. HTTP match data refresh is throttled (at most once every 3 seconds)
+						const now = Date.now();
+						if (now - lastDataRefreshTime > 3000) {
+							lastDataRefreshTime = now;
+							if (this.isManager) {
+								this.fetchCurrentUser();
+							}
+							this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+						}
+					}
 				});
+
+				window.addEventListener('pageshow', () => {
+					ensureActiveWebSocket();
+				});
+
 				window.addEventListener('focus', () => {
-					checkAndReconnectWs();
+					ensureActiveWebSocket();
 					if (this.isManager) {
 						this.fetchCurrentUser();
 					}

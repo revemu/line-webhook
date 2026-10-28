@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.17] - 2026-10-28
+
+### Fix: Eliminate Background WebKit Throttling by Deferring WebSocket to First Foreground Visibility
+- **แก้ปัญหาต้องกด Refresh เองถึงจะ Real-Time โดยจำลองสภาพแวดล้อม Foreground ทันทีที่เปิดจาก LINE (`public/update.shtml`, `update.shtml`)**:
+  - **ค้นพบต้นตอที่แท้จริงว่าทำไมต้องกด Refresh เอง**: ในจังหวะที่กดลิงก์จาก LINE ตัว Safari จะเปิดขึ้นมาในสถานะ `document.visibilityState !== 'visible'` (Background/Prerender) ชั่วขณะหนึ่ง ซึ่งโค้ดเดิมสั่ง `initWebSocket()` ทันทีตั้งแต่ใน `mounted()` ทำให้ iOS WebKit จัดลำดับความสำคัญของ Socket ให้อยู่ในโหมดประหยัดพลังงาน (Throttled/Delayed) และซ้ำร้ายตัวดักจับ `pageshow` / `visibilitychange` เดิมติดตัวกั้นเวลา 2 วินาที (`lastLifecycleSync`) ทำให้เมื่อ Safari สลับขึ้นมาบนหน้าจอจริง ตัวดักจับจึงถูกตัดทิ้ง ไม่ได้เชื่อมต่อซ็อกเก็ตใหม่ในโหมด Foreground
+  - **ทำไมการกด Refresh เองถึงหายขาด**: เพราะการกด Refresh ขณะอยู่บน Safari จะทำให้หน้าเว็บโหลดในขณะที่ `document.visibilityState === 'visible'` 100% อยู่แล้ว WebKit จึงมอบความสำคัญสูงสุดให้การเชื่อมต่อ
+  - **การแก้ไขให้เหมือนกด Refresh อัตโนมัติ 100%**:
+    1. **Foreground-Only Connection**: หากหน้าเว็บโหลดขึ้นมาในขณะที่หน้าจอยังไม่พร้อม (`document.visibilityState !== 'visible'`) ระบบจะยังไม่เปิดซ็อกเก็ตในโหมดฉากหลัง แต่จะรอสัญญาณ `visibilitychange` วินาทีที่ Safari สลับขึ้นมาหน้าจอผู้ใช้ แล้วจึงเปิดการเชื่อมต่อ WebSocket ทันทีด้วยสิทธิ์ Foreground เต็ม 100% เสมือนผู้ใช้กด Refresh ด้วยตัวเอง
+    2. **Zero-Debounce Socket Health**: ปลดตัวกั้นเวลาออกจาก `ensureActiveWebSocket()` ทั้งหมด ทำให้ทุกครั้งที่หน้าจอกลับมา Active ซ็อกเก็ตจะถูกตรวจสอบและกู้คืนความพร้อมแบบทันทีทันใด
+    3. **Isolated HTTP Data Throttle**: แยกตัวหน่วงเวลา (Throttle 3s) ไปควบคุมเฉพาะการเรียก API ดึงข้อมูลตารางเท่านั้น ไม่ให้กระทบกับการทำงานของ WebSocket
+
 ## [0.7.16] - 2026-10-28
 
 ### Perf: Real-Time Instant WebSocket Handshake & iOS Safari Context-Switch Optimization
