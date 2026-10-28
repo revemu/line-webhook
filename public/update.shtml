@@ -1493,7 +1493,7 @@
 
 
 		<!-- Week Standings Table -->
-		<div class="card">
+		<div class="card" v-if="matchCount > 0 && tableweek && tableweek.length > 0">
 			<div class="card-title">🏆 ตารางคะแนน</div>
 			<div class="table-container">
 				<table class="table">
@@ -1529,9 +1529,10 @@
 		</div>
 
 		<!-- Match List (All Matches Summary Cards) -->
-		<div style="margin-top: 0.85rem; margin-bottom: 0.35rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
-			📑 แมตช์ทั้งหมด
-		</div>
+		<div v-if="matchCount > 0">
+			<div style="margin-top: 0.85rem; margin-bottom: 0.35rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+				📑 แมตช์ทั้งหมด
+			</div>
 
 		<div v-for="(match, index) in orderedMatches" :key="match.id" class="match-card"
 			:id="'match-card-' + match.match_num"
@@ -1765,6 +1766,7 @@
 					</div>
 				</div>
 			</div>
+		</div>
 		</div>
 
 	</div>
