@@ -78,6 +78,47 @@ function invalidateLeaderStatsCache(weekId = null) {
     }
 }
 
+// In-memory debounce timers for rating calculation (10s quiet window after goal updates)
+let ratingDebounceTimers = {};
+
+function scheduleDebouncedRatingCalculation(weekId, delayMs = 10000) {
+    if (!weekId) return;
+    const key = String(weekId);
+
+    if (ratingDebounceTimers[key]) {
+        clearTimeout(ratingDebounceTimers[key]);
+        logger.info(`[Ratings Debounce] Reset ${delayMs / 1000}s timer for week ${weekId} (new goal/assist event)`);
+    } else {
+        logger.info(`[Ratings Debounce] Scheduled rating calculation in ${delayMs / 1000}s for week ${weekId}`);
+    }
+
+    ratingDebounceTimers[key] = setTimeout(async () => {
+        delete ratingDebounceTimers[key];
+        try {
+            logger.info(`[Ratings Debounce] 10s quiet period reached. Recalculating ratings for week ${weekId} in background...`);
+            invalidateLeaderStatsCache(weekId);
+            await getOrComputeLeaderStats(weekId, true);
+            broadcastMatchEvent(weekId, {
+                type: 'RATINGS_UPDATED',
+                week_id: weekId,
+                message: '📊 อัปเดตคะแนนเรตติ้งและสถิติประจำสัปดาห์แล้ว'
+            });
+        } catch (err) {
+            logger.warn(`[Ratings Debounce] Error computing ratings for week ${weekId}: ${err.message}`);
+        }
+    }, delayMs);
+}
+
+function cancelDebouncedRatingCalculation(weekId) {
+    if (!weekId) return;
+    const key = String(weekId);
+    if (ratingDebounceTimers[key]) {
+        clearTimeout(ratingDebounceTimers[key]);
+        delete ratingDebounceTimers[key];
+        logger.info(`[Ratings Debounce] Cancelled pending debounce timer for week ${weekId}`);
+    }
+}
+
 async function getOrComputeLeaderStats(weekid, forceRefresh = false) {
     if (!weekid) return null;
     const key = String(weekid);
@@ -714,7 +755,6 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
         let msg = "";
 
         logger.info(`add_match Request: ${JSON.stringify(data)}`);
-        invalidateLeaderStatsCache(data.weekid);
 
         // Finish match (End match)
         if (data.matchid !== undefined && (data.cmd === 'finish_match' || data.cmd === 'end_match')) {
@@ -735,6 +775,7 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
             const targetWeekId = data.weekid || (curMatch ? curMatch.week_id : null);
             if (targetWeekId) {
                 await updateTableWeek(targetWeekId);
+                cancelDebouncedRatingCalculation(targetWeekId);
                 invalidateLeaderStatsCache(targetWeekId);
                 try {
                     await getOrComputeLeaderStats(targetWeekId, true);
@@ -896,6 +937,8 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                 logger.warn(`[WebSocket Broadcast add_goal Error]: ${eWs.message}`);
             }
 
+            scheduleDebouncedRatingCalculation(data.weekid || goalInfo?.week_id, 10000);
+
             return res.json({ success: true, message: 'Goal added successfully' });
         }
 
@@ -957,6 +1000,7 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                 } catch (eWs) {
                     logger.warn(`[WebSocket Broadcast remove_goal Error]: ${eWs.message}`);
                 }
+                scheduleDebouncedRatingCalculation(data.weekid || mRow?.week_id, 10000);
                 return res.json({ success: true, message: 'Goal removed successfully' });
             } else {
                 return res.status(404).json({ error: 'Goal not found' });
@@ -1003,6 +1047,8 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                     message: `🗑️ ลบ Match ${targetMatch.match_num} เรียบร้อยแล้ว`
                 });
             } catch (eWs) { }
+
+            scheduleDebouncedRatingCalculation(weekId, 10000);
 
             return res.json({
                 success: true,

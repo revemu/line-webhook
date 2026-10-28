@@ -2633,6 +2633,13 @@
 					if (!this.processedWsEvents) this.processedWsEvents = {};
 					this.processedWsEvents[eventKey] = now;
 
+					// Background Ratings Update: Silently refresh leaderboard & player ratings without celebration toast
+					if (data.type === 'RATINGS_UPDATED') {
+						const currentWeek = this.week ? (this.week.number || this.week.id || 0) : 0;
+						this.refreshMatch(currentWeek, false, this.selectedMatchIndex);
+						return;
+					}
+
 					// 1. Show Toast notification (Only for viewers, manager screen does not receive match noti)
 					if (!this.isManager && (data.message || data.html)) {
 						this.showToast(data);
