@@ -1346,6 +1346,20 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
 
     // Get all matches with details (ordered ascending by match_num)
     const allMatches = await doQuery(`SELECT * FROM match_stat_tbl WHERE week_id = ${weekid} ORDER BY match_num ASC`);
+    
+    // Also resolve any team IDs that belong to previous weeks or different table entries
+    const missingTeamIds = new Set();
+    allMatches.forEach(m => {
+        if (m.team_a_id && !teamJson[m.team_a_id]) missingTeamIds.add(m.team_a_id);
+        if (m.team_b_id && !teamJson[m.team_b_id]) missingTeamIds.add(m.team_b_id);
+    });
+    if (missingTeamIds.size > 0) {
+        const missingColors = await doQuery(`SELECT id, color FROM team_color_week_tbl WHERE id IN (${Array.from(missingTeamIds).join(',')})`);
+        missingColors.forEach(tc => {
+            teamJson[tc.id] = { teamid: tc.id, name: tc.color };
+        });
+    }
+
     const allMatchData = {};
 
     // Determine current active match:
@@ -1396,8 +1410,8 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
             is_finished: isFinished,
             is_scheduled: isScheduled,
             is_locked: isLocked,
-            team_a_color: teamJson[match.team_a_id]?.name,
-            team_b_color: teamJson[match.team_b_id]?.name,
+            team_a_color: teamJson[match.team_a_id]?.name || 'White',
+            team_b_color: teamJson[match.team_b_id]?.name || 'Black',
             goal: await queryMatchScorer(match.id)
         };
     }

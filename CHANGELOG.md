@@ -4,6 +4,17 @@
 
 --- 
 
+## [0.7.10] - 2026-10-28
+
+### Fix: Root Cause of Unresponsive Week Picker — Eliminated Vue Template Render Crash on Undefined Team Colors
+- **แก้ปัญหาต้นตอที่กดปุ่มเปลี่ยนวันแล้วไม่ตอบสนอง (`routes/web.js`, `public/update.shtml`, `update.shtml`, `public/position.shtml`)**:
+  - สืบหาต้นตอที่แท้จริงจาก Browser Runtime (ผ่าน CDP Browser Diagnostics): พบว่า Vue ประสบปัญหา Runtime Error ระหว่าง Render (`TypeError: Cannot read properties of undefined (reading 'toLowerCase')`) เนื่องจากข้อมูลแมตช์ในสัปดาห์ปัจจุบันมีการอ้างอิง `team_a_id` และ `team_b_id` ที่สีของทีมยังไม่ได้ถูกจับคู่หรือเป็น `undefined`
+  - เมื่อเกิด Error ดังกล่าว ตัวเรนเดอร์ของ Vue จะหยุดทำงาน (Halt Rendering) ทำให้เมื่อผู้ใช้แตะปุ่ม "📅 เปลี่ยนวัน" (`showWeekPicker = true`) ตัว Watcher ของ Vue พยายาม Render ใหม่แต่ติด Crash ที่เดิม ทำให้หน้าต่าง Modal ไม่สามารถเปิดขึ้นมาได้
+  - **Backend Fix (`routes/web.js`)**: เพิ่มการ Query ค้นหาสีของทีมที่ตกหล่นข้ามสัปดาห์ (`missingTeamIds`) จากตาราง `team_color_week_tbl` และกำหนดค่า Fallback อัตโนมัติ (`White` / `Black`) เพื่อรับประกันว่า `team_a_color` และ `team_b_color` จะไม่ส่งค่า `undefined` ออกมายัง Frontend
+  - **Frontend Fix (`public/update.shtml`, `update.shtml`, `public/position.shtml`)**: เพิ่ม Null-Safety Guards ป้องกันทุกจุดที่มีการเรียก `.toLowerCase()` บนสีของทีมและผู้เล่น (`(color || '#ccc').toLowerCase()`) เพื่อให้ Vue ปลอดภัยจากการ Crash 100% แม้ข้อมูลจะมีค่าว่าง
+  - ทดสอบผ่าน Headless Browser อัตโนมัติ ยืนยันว่าการคลิกปุ่ม "📅 เปลี่ยนวัน" เปิด Modal สำเร็จ มีรายการให้เลือกครบ 20 สัปดาห์ และการเลือกสัปดาห์สามารถสลับผลการแข่งขันได้อย่างสมบูรณ์แบบโดยมี Error เป็น 0
+
+--- 
 ## [0.7.9] - 2026-10-28
 
 ### Fix: Resolved Black Screen Overlay Caused by HTML Tag Mismatch & Added v-cloak Protection

@@ -176,11 +176,11 @@
 							<span v-else class="viewer-badge-sched">รอแข่ง</span>
 						</div>
 						<div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
-							<span class="team-badge-small" :style="{ backgroundColor: matchToDelete.team_a_color.toLowerCase(), color: getContrastColor(matchToDelete.team_a_color) }">
+							<span class="team-badge-small" :style="{ backgroundColor: (matchToDelete && matchToDelete.team_a_color || '#ccc').toLowerCase(), color: getContrastColor(matchToDelete && matchToDelete.team_a_color) }">
 								{{ matchToDelete.team_a_color }}
 							</span>
 							<span>{{ matchToDelete.team_a_goal }} - {{ matchToDelete.team_b_goal }}</span>
-							<span class="team-badge-small" :style="{ backgroundColor: matchToDelete.team_b_color.toLowerCase(), color: getContrastColor(matchToDelete.team_b_color) }">
+							<span class="team-badge-small" :style="{ backgroundColor: (matchToDelete && matchToDelete.team_b_color || '#ccc').toLowerCase(), color: getContrastColor(matchToDelete && matchToDelete.team_b_color) }">
 								{{ matchToDelete.team_b_color }}
 							</span>
 						</div>
@@ -393,11 +393,11 @@
 									style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
 									<span class="match-option-score">Match {{ all_match[selectedMatchIndex].match_num }}</span>
 									<span class="team-badge-small"
-										:style="{ backgroundColor: all_match[selectedMatchIndex].team_a_color.toLowerCase(), color: getContrastColor(all_match[selectedMatchIndex].team_a_color), border: '1px solid ' + getBorderColor(all_match[selectedMatchIndex].team_a_color) }">{{
+										:style="{ backgroundColor: (all_match[selectedMatchIndex] && all_match[selectedMatchIndex].team_a_color || '#ccc').toLowerCase(), color: getContrastColor(all_match[selectedMatchIndex] && all_match[selectedMatchIndex].team_a_color), border: '1px solid ' + getBorderColor(all_match[selectedMatchIndex] && all_match[selectedMatchIndex].team_a_color) }">{{
 										all_match[selectedMatchIndex].team_a_color }}</span>
 									<span class="match-option-digits">{{ all_match[selectedMatchIndex].team_a_goal }} - {{ all_match[selectedMatchIndex].team_b_goal }}</span>
 									<span class="team-badge-small"
-										:style="{ backgroundColor: all_match[selectedMatchIndex].team_b_color.toLowerCase(), color: getContrastColor(all_match[selectedMatchIndex].team_b_color), border: '1px solid ' + getBorderColor(all_match[selectedMatchIndex].team_b_color) }">{{
+										:style="{ backgroundColor: (all_match[selectedMatchIndex] && all_match[selectedMatchIndex].team_b_color || '#ccc').toLowerCase(), color: getContrastColor(all_match[selectedMatchIndex] && all_match[selectedMatchIndex].team_b_color), border: '1px solid ' + getBorderColor(all_match[selectedMatchIndex] && all_match[selectedMatchIndex].team_b_color) }">{{
 										all_match[selectedMatchIndex].team_b_color }}</span>
 								</span>
 								<span v-else class="text-muted">เลือกแมตช์</span>
@@ -572,7 +572,7 @@
 							class="pitch-player-node"
 							:class="{ 'is-centered-last': isLastOdd(index, sortedActiveTeamPlayers.length) }">
 							<div class="pitch-player-avatar-wrap">
-								<div class="pitch-player-avatar-circle" :style="{ borderColor: activeTeamColor.toLowerCase() }">
+								<div class="pitch-player-avatar-circle" :style="{ borderColor: (activeTeamColor || '#ccc').toLowerCase() }">
 									<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 									<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
@@ -705,7 +705,7 @@
 						<!-- Team A Pitch Header -->
 						<div class="pitch-half-header">
 							<span class="pitch-half-badge"
-								:style="{ backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_a_color) }">
+								:style="{ backgroundColor: (currentSelectedMatch && currentSelectedMatch.team_a_color || '#ccc').toLowerCase(), color: getContrastColor(currentSelectedMatch && currentSelectedMatch.team_a_color) }">
 								{{ currentSelectedMatch.team_a_color }}
 							</span>
 						</div>
@@ -718,7 +718,7 @@
 							<div class="pitch-form-col col-tactical-half">
 								<div v-for="p in teamACol1" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
-										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_a_color.toLowerCase() }">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: (currentSelectedMatch && currentSelectedMatch.team_a_color || '#ccc').toLowerCase() }">
 											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
@@ -762,7 +762,7 @@
 							<div class="pitch-form-col col-tactical-half">
 								<div v-for="p in teamACol2" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
-										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_a_color.toLowerCase() }">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: (currentSelectedMatch && currentSelectedMatch.team_a_color || '#ccc').toLowerCase() }">
 											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
@@ -806,7 +806,7 @@
 							<div class="pitch-form-col col-tactical-half">
 								<div v-for="p in teamACol3" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
-										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_a_color.toLowerCase() }">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: (currentSelectedMatch && currentSelectedMatch.team_a_color || '#ccc').toLowerCase() }">
 											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
@@ -913,7 +913,7 @@
 						<!-- Team B Pitch Header -->
 						<div class="pitch-half-header">
 							<span class="pitch-half-badge"
-								:style="{ backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_b_color) }">
+								:style="{ backgroundColor: (currentSelectedMatch && currentSelectedMatch.team_b_color || '#ccc').toLowerCase(), color: getContrastColor(currentSelectedMatch && currentSelectedMatch.team_b_color) }">
 								{{ currentSelectedMatch.team_b_color }}
 							</span>
 						</div>
@@ -926,7 +926,7 @@
 							<div class="pitch-form-col col-tactical-half">
 								<div v-for="p in teamBCol1" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
-										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_b_color.toLowerCase() }">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: (currentSelectedMatch && currentSelectedMatch.team_b_color || '#ccc').toLowerCase() }">
 											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
@@ -970,7 +970,7 @@
 							<div class="pitch-form-col col-tactical-half">
 								<div v-for="p in teamBCol2" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
-										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_b_color.toLowerCase() }">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: (currentSelectedMatch && currentSelectedMatch.team_b_color || '#ccc').toLowerCase() }">
 											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
@@ -1014,7 +1014,7 @@
 							<div class="pitch-form-col col-tactical-half">
 								<div v-for="p in teamBCol3" :key="p.id" class="pitch-player-node">
 									<div class="pitch-player-avatar-wrap">
-										<div class="pitch-player-avatar-circle" :style="{ borderColor: currentSelectedMatch.team_b_color.toLowerCase() }">
+										<div class="pitch-player-avatar-circle" :style="{ borderColor: (currentSelectedMatch && currentSelectedMatch.team_b_color || '#ccc').toLowerCase() }">
 											<img v-if="p.picture_url" :src="p.picture_url" loading="eager" decoding="async" />
 											<span v-else class="avatar-char">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 										</div>
@@ -1134,8 +1134,8 @@
 								ทั้งหมด
 							</span>
 							<span v-for="c in availableLoanColors" :key="c" class="loan-filter-chip"
-								:class="{ active: loanTeamFilter.toLowerCase() === c.toLowerCase() }"
-								@click="loanTeamFilter = (loanTeamFilter.toLowerCase() === c.toLowerCase() ? 'all' : c)">
+								:class="{ active: (loanTeamFilter || '').toLowerCase() === (c || '').toLowerCase() }"
+								@click="loanTeamFilter = ((loanTeamFilter || '').toLowerCase() === (c || '').toLowerCase() ? 'all' : c)">
 								{{ c }}
 							</span>
 						</div>
@@ -1168,13 +1168,13 @@
 						<!-- Quick buttons for mobile or instant click -->
 						<div class="loan-quick-btns">
 							<button type="button" class="btn-loan-assign"
-								:style="{ backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_a_color) }"
+								:style="{ backgroundColor: (currentSelectedMatch && currentSelectedMatch.team_a_color || '#ccc').toLowerCase(), color: getContrastColor(currentSelectedMatch && currentSelectedMatch.team_a_color) }"
 								@click="loanPlayer(p, 'teamA')"
 								:title="'ยืมตัวให้ ' + currentSelectedMatch.team_a_color">
 								ยืม {{ currentSelectedMatch.team_a_color }}
 							</button>
 							<button type="button" class="btn-loan-assign"
-								:style="{ backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_b_color) }"
+								:style="{ backgroundColor: (currentSelectedMatch && currentSelectedMatch.team_b_color || '#ccc').toLowerCase(), color: getContrastColor(currentSelectedMatch && currentSelectedMatch.team_b_color) }"
 								@click="loanPlayer(p, 'teamB')"
 								:title="'ยืมตัวให้ ' + currentSelectedMatch.team_b_color">
 								ยืม {{ currentSelectedMatch.team_b_color }}
@@ -1199,7 +1199,7 @@
 					<div class="timeline-team-col">
 						<div class="timeline-team-title">
 							<span class="team-badge-small"
-								:style="{ backgroundColor: currentSelectedMatch.team_a_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_a_color) }">
+								:style="{ backgroundColor: (currentSelectedMatch && currentSelectedMatch.team_a_color || '#ccc').toLowerCase(), color: getContrastColor(currentSelectedMatch && currentSelectedMatch.team_a_color) }">
 								{{ currentSelectedMatch.team_a_color }}
 							</span>
 							<span>({{ currentMatchTeamAEvents.length }})</span>
@@ -1224,7 +1224,7 @@
 					<div class="timeline-team-col">
 						<div class="timeline-team-title">
 							<span class="team-badge-small"
-								:style="{ backgroundColor: currentSelectedMatch.team_b_color.toLowerCase(), color: getContrastColor(currentSelectedMatch.team_b_color) }">
+								:style="{ backgroundColor: (currentSelectedMatch && currentSelectedMatch.team_b_color || '#ccc').toLowerCase(), color: getContrastColor(currentSelectedMatch && currentSelectedMatch.team_b_color) }">
 								{{ currentSelectedMatch.team_b_color }}
 							</span>
 							<span>({{ currentMatchTeamBEvents.length }})</span>
@@ -1512,7 +1512,7 @@
 						<tr v-for="(item, index) in tableweek" :key="index">
 							<td style="font-weight: 600; text-align: left; padding-left: 0.5rem;">
 								<span class="team-badge"
-									:style="{ backgroundColor: item.color.toLowerCase(), color: getContrastColor(item.color), border: '1px solid ' + getBorderColor(item.color) }">
+									:style="{ backgroundColor: (item.color || '#ccc').toLowerCase(), color: getContrastColor(item.color), border: '1px solid ' + getBorderColor(item.color) }">
 									{{ item.color }}
 								</span>
 							</td>
@@ -1558,7 +1558,7 @@
 				<div class="score-board">
 					<div class="team-display">
 						<span class="team-badge"
-							:style="{ backgroundColor: match.team_a_color.toLowerCase(), color: getContrastColor(match.team_a_color), border: '1px solid ' + getBorderColor(match.team_a_color) }">
+							:style="{ backgroundColor: (match.team_a_color || '#ccc').toLowerCase(), color: getContrastColor(match.team_a_color), border: '1px solid ' + getBorderColor(match.team_a_color) }">
 							{{ match.team_a_color }}
 						</span>
 					</div>
@@ -1569,7 +1569,7 @@
 
 					<div class="team-display">
 						<span class="team-badge"
-							:style="{ backgroundColor: match.team_b_color.toLowerCase(), color: getContrastColor(match.team_b_color), border: '1px solid ' + getBorderColor(match.team_b_color) }">
+							:style="{ backgroundColor: (match.team_b_color || '#ccc').toLowerCase(), color: getContrastColor(match.team_b_color), border: '1px solid ' + getBorderColor(match.team_b_color) }">
 							{{ match.team_b_color }}
 						</span>
 					</div>
