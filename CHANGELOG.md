@@ -4,6 +4,16 @@
 
 --- 
 
+## [0.7.8] - 2026-10-28
+
+### Fix: Week Date Switcher Click & Mobile Tap Responsiveness
+- **แก้ปัญหาการกดปุ่มเปลี่ยนวันในหน้าผลการแข่งขันและตัวจัดการตำแหน่ง (`public/update.shtml`, `update.shtml`, `public/position.shtml`, `public/style.css`, `flex.js`)**:
+  - เปลี่ยนองค์ประกอบปุ่ม `week-badge-pill` จาก `div` เป็น `button type="button"` พร้อมกำหนด `font-family: inherit` เพื่อให้เบราว์เซอร์บนมือถือ (iOS Safari / Chrome) ตอบสนองต่อการแตะสัมผัส (Tap/Click) ได้ทันทีโดยไม่ติดขัดหรือมีปัญหา Tap Delay
+  - เพิ่ม Event Stop Propagation (`@click.stop`) ที่ปุ่มเปิด Modal และกล่องคอนเทนต์ภายใน เพื่อป้องกันการส่งต่อ Event สัมผัสไปยังพื้นหลัง Overlay ซึ่งอาจทำให้ Modal เด้งปิดตัวเองในเสี้ยววินาที
+  - เพิ่มสถานะแสดงผลการโหลดข้อมูล (`isRefreshing`) ทันทีที่ผู้ใช้แตะเลือกสัปดาห์ใน Modal เพื่อให้ผู้ใช้ทราบว่าระบบกำลังดึงข้อมูลแมตช์ของวันใหม่
+  - ปรับปรุง `base_url` และ Fallback URL ใน `flex.js` ให้ชี้ไปยังพาท `/webhook/` เสมอ เพื่อป้องกันปัญหา Nginx Reverse Proxy คืนค่า 502 Bad Gateway เมื่อเข้าถึงผ่าน `/web/`
+
+--- 
 ## [0.7.7] - 2026-10-28
 
 ### Feature: Force External Browser on /live Web Links

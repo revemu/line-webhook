@@ -129,7 +129,7 @@
 					</div>
 				</div>
 
-				<div class="week-badge-pill" @click="showWeekPicker = true">
+				<button type="button" class="week-badge-pill" @click.stop="showWeekPicker = true" title="เลือกดูผลการแข่งขันสัปดาห์อื่น">
 					<span>📅 เปลี่ยนวัน</span>
 					<span style="font-size: 0.7rem;">▼</span>
 				</div>
@@ -138,7 +138,7 @@
 
 		<!-- Date Picker Modal -->
 		<div class="modal-overlay" v-if="showWeekPicker" @click.self="showWeekPicker = false">
-			<div class="modal-content">
+			<div class="modal-content" @click.stop>
 				<div class="card-title">
 					<span>เลือกวันที่</span>
 					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="showWeekPicker = false">×</span>
@@ -147,7 +147,7 @@
 					<div v-for="w in weeks" :key="w.id" class="player-card"
 						:style="w.id === week.id ? { borderColor: 'var(--primary-color)', background: 'rgba(79, 70, 229, 0.08)' } : {}"
 						style="cursor: pointer;"
-						@click="changeWeek(w.number || w.id)">
+						@click.stop="changeWeek(w.number || w.id)">
 						<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
 							<div>
 								<div style="font-weight: 700; font-size: 1rem;">📅 {{ w.date }}</div>
@@ -1820,7 +1820,7 @@
 				output: [],
 				all_match: [],
 				teamcolors: '',
-				base_url: window.location.origin + (window.location.pathname.startsWith('/web/') ? '/web' : '/webhook'),
+				base_url: window.location.origin + '/webhook',
 				todos: [],
 				team_match: [],
 				eventType: 0,
@@ -2565,6 +2565,7 @@
 				},
 				changeWeek(weeknum) {
 					this.showWeekPicker = false;
+					this.isRefreshing = true;
 					this.teamA = null;
 					this.teamB = null;
 					this.selectedMatchIndex = 0;

@@ -98,7 +98,7 @@
 					</div>
 				</div>
 
-				<div class="week-badge-pill" @click="showWeekPicker = true">
+				<button type="button" class="week-badge-pill" @click.stop="showWeekPicker = true" title="Switch Match Date">
 					<span>📅 Switch Date</span>
 					<span style="font-size: 0.75rem;">▼</span>
 				</div>
@@ -966,7 +966,7 @@
 					<div v-for="w in weeks" :key="w.id" class="player-card"
 						:style="w.id === week.id ? { borderColor: 'var(--primary-color)', background: 'rgba(79, 70, 229, 0.08)' } : {}"
 						style="cursor: pointer;"
-						@click="changeWeek(w.number || w.id)">
+						@click.stop="changeWeek(w.number || w.id)">
 						<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
 							<div>
 								<div style="font-weight: 700; font-size: 1rem;">📅 {{ w.date }}</div>
@@ -1114,7 +1114,7 @@
 				toastMessage: '',
 				toastIcon: '✓',
 				toastTimer: null,
-				base_url: window.location.origin + (window.location.pathname.startsWith('/web/') ? '/web' : '/webhook'),
+				base_url: window.location.origin + '/webhook',
 				currentUser: null,
 				showPasswordModal: false,
 				pwdLoading: false,

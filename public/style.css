@@ -974,6 +974,9 @@ select.form-control {
     cursor: pointer;
     transition: all 0.2s;
     border: 1px solid rgba(79, 70, 229, 0.2);
+    font-family: inherit;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .week-badge-pill:hover {
