@@ -4,6 +4,21 @@
 
 ---
 
+## [0.7.16] - 2026-10-28
+
+### Perf: Real-Time Instant WebSocket Handshake & iOS Safari Context-Switch Optimization
+- **แก้ปัญหา Toast แจ้งเตือนเด้งช้าเมื่อเปิดลิงก์ข้ามแอปจาก LINE ไป Safari (`utils/wsBroadcaster.js`, `public/update.shtml`, `update.shtml`)**:
+  - **ต้นตอของปัญหาความล่าช้า (Why it was slow from LINE vs fast on Refresh)**:
+    1. **iOS WebKit App-Switch Throttling & Zombie State**: เมื่อผู้ใช้กดลิงก์จาก LINE ระบบของ iOS จะทำการสลับหน้าจอ (App Context Switch) ในเสี้ยววินาทีนี้ WebKit ของ Safari จะจัดให้แท็บอยู่ในสถานะ Background / Transitioning ส่งผลให้การเชื่อมต่อ WebSocket ที่เริ่มขึ้นใน `mounted()` ถูกระบบปฏิบัติการลดความสำคัญ (CPU & Network Throttling) สัญญาณ TLS Handshake ค้างอยู่ในสถานะ `CONNECTING` (readyState = 0) นานหลายวินาทีกว่าจะเชื่อมต่อสำเร็จ
+    2. **ขาดระบบ Handshake Watchdog**: โค้ดเดิมจะตรวจจับเฉพาะกรณี `CLOSED` หรือ `CLOSING` แต่เมื่อ Socket ค้างอยู่ในสถานะ `CONNECTING` ระบบจะไม่ยอมสั่ง Reconnect ทำให้ต้องรอจนเกิด Timeout
+    3. **ความแตกต่างเมื่อ Refresh**: เมื่อผู้ใช้อยู่บน Safari แล้วกด Refresh ตัวแท็บอยู่ในสถานะ Foreground (`document.visibilityState === 'visible'`) 100% อยู่แล้ว WebKit จึงให้ความสำคัญสูงสุด ทำให้เชื่อมต่อได้ไวในเสี้ยววินาที
+  - **การปรับปรุงแก้ไข**:
+    - **Initial Week Handshake**: ส่ง `?week_id=...` แนบไปใน URL ของการเชื่อมต่อ WebSocket ทันที โดยดึงจากแคช `last_active_week` ทำให้ Server ทราบสัปดาห์ที่ผู้ใช้ดูตั้งแต่จังหวะ Upgrade Request โดยไม่ต้องรอ API สัปดาห์ตอบกลับมา
+    - **Handshake Watchdog (2500ms)**: เพิ่มตัวจับเวลาตรวจจับ หาก WebSocket ค้างอยู่ในสถานะ `CONNECTING` เกิน 2.5 วินาที ระบบจะสั่งยกเลิกและเปิดการเชื่อมต่อใหม่ใน Foreground ทันที
+    - **Stalled Detection ใน `checkAndReconnectWs`**: เมื่อหน้าจอ Safari สลับขึ้นมา หากพบว่า Socket ค้าง จะสั่ง Reconnect ทันทีโดยไม่ต้องรอ
+    - **Fast 12s Keepalive Ping**: ลดรอบส่ง Ping จาก 25 วินาทีเป็น 12 วินาที เพื่อกระตุ้นช่องทาง TCP ของเสาสัญญาณมือถือ (4G/5G/Wi-Fi) บน iOS ให้ตื่นตัวตลอดเวลา ป้องกันไม่ให้เข้าสู่โหมดประหยัดพลังงาน
+    - **15s Server Heartbeat**: ลดระยะเวลา Heartbeat ฝั่ง Node.js Server จาก 30 วินาทีเป็น 15 วินาที เพื่อเคลียร์การเชื่อมต่อที่หลุดอย่างรวดเร็ว
+
 ## [0.7.15] - 2026-10-28
 
 ### Fix: Fix Safari iOS Toast Notification Double-Bounce / Double-Trigger Artifacts

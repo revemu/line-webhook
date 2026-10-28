@@ -70,7 +70,7 @@ function initWebSocket(server) {
     }));
   });
 
-  // Heartbeat ping every 30s to detect broken connections
+  // Heartbeat ping every 15s to detect broken mobile connections rapidly
   if (!heartbeatInterval) {
     heartbeatInterval = setInterval(() => {
       if (!wss) return;
@@ -79,7 +79,7 @@ function initWebSocket(server) {
         ws.isAlive = false;
         ws.ping();
       });
-    }, 30000);
+    }, 15000);
   }
 
   logger.info('📡 [WebSocket] Live Scoreboard WebSocket Server initialized (/webhook/ws)');

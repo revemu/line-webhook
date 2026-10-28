@@ -1878,6 +1878,8 @@
 				wsConnected: false,
 				wsReconnectTimer: null,
 				wsPingTimer: null,
+				wsHandshakeTimer: null,
+				wsConnectStartTime: 0,
 				lastToastMsg: '',
 				lastToastTime: 0,
 				processedWsEvents: {}
@@ -2226,7 +2228,8 @@
 				// Lifecycle & Visibility Reconnect: Ensures WebSocket is restored immediately
 				// when Safari returns from background, finishes app transition from LINE, or wakes up
 				const checkAndReconnectWs = () => {
-					if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
+					const isStalled = this.ws && this.ws.readyState === WebSocket.CONNECTING && (Date.now() - (this.wsConnectStartTime || 0) > 2500);
+					if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING || isStalled) {
 						this.initWebSocket();
 					} else if (this.ws.readyState === WebSocket.OPEN) {
 						this.subscribeToCurrentWeek();
@@ -2543,10 +2546,16 @@
 				},
 				subscribeToCurrentWeek() {
 					if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-						const targetWeekId = this.week ? (this.week.id || this.week.number || 0) : 0;
+						let targetWeekId = this.week ? (this.week.id || this.week.number || 0) : 0;
+						if (!targetWeekId) {
+							try {
+								targetWeekId = Number(localStorage.getItem('last_active_week')) || 0;
+							} catch (e) { }
+						}
 						if (targetWeekId) {
 							try {
 								this.ws.send(JSON.stringify({ type: 'subscribe', week_id: targetWeekId }));
+								localStorage.setItem('last_active_week', String(targetWeekId));
 							} catch (e) { }
 						}
 					}
@@ -2555,6 +2564,10 @@
 					if (this.wsReconnectTimer) {
 						clearTimeout(this.wsReconnectTimer);
 						this.wsReconnectTimer = null;
+					}
+					if (this.wsHandshakeTimer) {
+						clearTimeout(this.wsHandshakeTimer);
+						this.wsHandshakeTimer = null;
 					}
 					if (this.ws) {
 						try {
@@ -2570,23 +2583,45 @@
 						clearInterval(this.wsPingTimer);
 						this.wsPingTimer = null;
 					}
+
+					let initialWeekQuery = '';
+					try {
+						const cachedWeek = (this.week && (this.week.id || this.week.number)) || localStorage.getItem('last_active_week') || '';
+						if (cachedWeek) initialWeekQuery = `?week_id=${cachedWeek}`;
+					} catch (e) { }
+
 					const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-					const wsUrl = `${protocol}//${window.location.host}/webhook/ws`;
+					const wsUrl = `${protocol}//${window.location.host}/webhook/ws${initialWeekQuery}`;
+					this.wsConnectStartTime = Date.now();
 
 					try {
 						this.ws = new WebSocket(wsUrl);
 
+						// Handshake Watchdog for mobile/iOS WebKit:
+						// If the connection remains stalled in CONNECTING for > 2500ms, force reconnect
+						this.wsHandshakeTimer = setTimeout(() => {
+							if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+								console.warn('⚠️ [WebSocket] Mobile connection handshake stalled, forcing reconnect...');
+								this.initWebSocket();
+							}
+						}, 2500);
+
 						this.ws.onopen = () => {
+							if (this.wsHandshakeTimer) {
+								clearTimeout(this.wsHandshakeTimer);
+								this.wsHandshakeTimer = null;
+							}
 							this.wsConnected = true;
 							this.subscribeToCurrentWeek();
 							if (this.wsPingTimer) clearInterval(this.wsPingTimer);
+							// 12s active keepalive to prevent iOS cellular TCP socket throttling
 							this.wsPingTimer = setInterval(() => {
 								if (this.ws && this.ws.readyState === WebSocket.OPEN) {
 									try {
 										this.ws.send(JSON.stringify({ type: 'ping' }));
 									} catch (e) { }
 								}
-							}, 25000);
+							}, 12000);
 						};
 
 						this.ws.onmessage = (event) => {
@@ -2598,6 +2633,10 @@
 
 						this.ws.onclose = () => {
 							this.wsConnected = false;
+							if (this.wsHandshakeTimer) {
+								clearTimeout(this.wsHandshakeTimer);
+								this.wsHandshakeTimer = null;
+							}
 							if (this.wsPingTimer) {
 								clearInterval(this.wsPingTimer);
 								this.wsPingTimer = null;
@@ -2605,7 +2644,7 @@
 							if (this.wsReconnectTimer) clearTimeout(this.wsReconnectTimer);
 							this.wsReconnectTimer = setTimeout(() => {
 								this.initWebSocket();
-							}, 3000);
+							}, 2000);
 						};
 
 						this.ws.onerror = () => {
@@ -2616,7 +2655,7 @@
 						if (this.wsReconnectTimer) clearTimeout(this.wsReconnectTimer);
 						this.wsReconnectTimer = setTimeout(() => {
 							this.initWebSocket();
-						}, 3000);
+						}, 2000);
 					}
 				},
 				handleWebSocketMessage(data) {
