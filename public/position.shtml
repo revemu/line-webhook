@@ -45,7 +45,7 @@
 </head>
 
 <body>
-	<div id="position-app" class="container" :class="{ 'is-fullscreen': isFullscreen }">
+	<div id="position-app" class="container" :class="{ 'is-fullscreen': isFullscreen }" v-cloak>
 
 		<!-- Theme Toggle Button -->
 		<div class="theme-toggle" @click="toggleTheme"
@@ -101,7 +101,7 @@
 				<button type="button" class="week-badge-pill" @click.stop="showWeekPicker = true" title="Switch Match Date">
 					<span>📅 Switch Date</span>
 					<span style="font-size: 0.75rem;">▼</span>
-				</div>
+				</button>
 			</div>
 
 			<!-- Position Stats / Quota Chips -->

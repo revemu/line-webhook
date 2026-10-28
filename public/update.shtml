@@ -48,7 +48,7 @@
 </head>
 
 <body>
-	<div id="soccer-match" class="container">
+	<div id="soccer-match" class="container" v-cloak>
 
 		<!-- Toast Notification -->
 		<transition name="fade">
@@ -132,7 +132,7 @@
 				<button type="button" class="week-badge-pill" @click.stop="showWeekPicker = true" title="เลือกดูผลการแข่งขันสัปดาห์อื่น">
 					<span>📅 เปลี่ยนวัน</span>
 					<span style="font-size: 0.7rem;">▼</span>
-				</div>
+				</button>
 			</div>
 		</div>
 

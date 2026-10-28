@@ -4,6 +4,15 @@
 
 --- 
 
+## [0.7.9] - 2026-10-28
+
+### Fix: Resolved Black Screen Overlay Caused by HTML Tag Mismatch & Added v-cloak Protection
+- **แก้ปัญหาหน้าจอดำค้างและไม่สามารถกดเปลี่ยนวันหรือปิดหน้าต่างได้ (`public/update.shtml`, `update.shtml`, `public/position.shtml`, `public/style.css`)**:
+  - แก้ไขแท็กปิด `</button>` ของปุ่มเปลี่ยนวัน (`.week-badge-pill`) ซึ่งก่อนหน้านี้ปิดผิดเป็น `</div>` ทำให้โครงสร้าง HTML พังและปิดแท็ก root `#soccer-match` ก่อนเวลาอันควร ส่งผลให้ Vue ไม่สามารถ Compile ส่วนที่เหลือของหน้าเว็บได้ และทำให้ Modals ทั้งหมด (Date Picker, Pitch Modal Overlay, Close Button) หลุดออกไปนอก Vue แล้วแสดงค้างเป็นแผ่นฟิล์มดำบังเต็มหน้าจอ (`.pitch-modal-backdrop` + `.modal-overlay`)
+  - ตรวจสอบความสมบูรณ์และโครงสร้างคู่แท็ก HTML (Tag Balancing) ทั้งหมดในทุกหน้าเว็บให้ถูกต้อง 100%
+  - เพิ่ม Directive `[v-cloak]` ใน CSS และบน Root Element ของทุกหน้า เพื่อซ่อน Element ที่ยังไม่ได้ถูกเรนเดอร์หรือ Compile โดย Vue ป้องกันไม่ให้เกิดอาการกระพริบหรือแสดงผลผิดพลาดแม้ในกรณีโหลดช้า
+
+--- 
 ## [0.7.8] - 2026-10-28
 
 ### Fix: Week Date Switcher Click & Mobile Tap Responsiveness

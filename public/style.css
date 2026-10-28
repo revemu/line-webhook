@@ -1,3 +1,8 @@
+/* Prevent Vue uncompiled template / overlays flash */
+[v-cloak] {
+    display: none !important;
+}
+
 /* Modern CSS Variables */
 :root {
     --primary-color: #4f46e5;
