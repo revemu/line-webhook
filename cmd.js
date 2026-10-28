@@ -1221,7 +1221,9 @@ const COMMAND_REGISTRY = {
         const matchInfo = await db.getCurrentMatch(groupId);
         if (!matchInfo || !matchInfo.sched) return [{ type: 'text', text: 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ' }];
         const cur = matchInfo.currentMatch;
-        const webLiveUrl = (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
+        const rawWebLiveUrl = (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
+        const webLiveUrl = rawWebLiveUrl.includes('openExternalBrowser=1') ? rawWebLiveUrl : (rawWebLiveUrl.includes('?') ? `${rawWebLiveUrl}&openExternalBrowser=1` : `${rawWebLiveUrl}?openExternalBrowser=1`);
+        if (matchInfo) { matchInfo.webLiveUrl = webLiveUrl; }
         return { 
             type: 'flex', 
             altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''} | ดูผลการแข่งขันผ่านเว็บ`, 

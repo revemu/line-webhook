@@ -4,6 +4,15 @@
 
 --- 
 
+## [0.7.7] - 2026-10-28
+
+### Feature: Force External Browser on /live Web Links
+- **บังคับเปิดลิงก์ผลการแข่งขันจากคำสั่ง `/live` ในเบราว์เซอร์ภายนอก (Safari / Chrome) อัตโนมัติ (`flex.js`, `cmd.js`, `query.js`, `public/update.shtml`, `update.shtml`, `public/position.shtml`)**:
+  - เพิ่มพารามิเตอร์ `openExternalBrowser=1` ให้กับ URL ปลายทางของหน้าเว็บผลการแข่งขันสด (`targetWebUrl` / `webLiveUrl`) เพื่อให้แอป LINE ส่งต่อการเปิดหน้าเว็บไปยัง Default Browser ของเครื่องผู้ใช้โดยตรงทันทีเมื่อกดปุ่มหรือแบนเนอร์
+  - ช่วยแก้ปัญหา In-App Browser ของ LINE รีเฟรชตัวเองขณะเลื่อนจอ และรองรับการแสดงผลหน้าเว็บเต็มประสิทธิภาพด้วยเอนจินของ Safari/Chrome พร้อมการเลื่อนจอที่ลื่นไหลระดับ 60Hz/120Hz
+  - เพิ่มฟังก์ชันทำความสะอาดพารามิเตอร์ `openExternalBrowser` ออกจากแถบที่อยู่เว็บ (Address Bar) อัตโนมัติหลังหน้าเว็บโหลดเสร็จผ่าน `window.history.replaceState` เพื่อความสวยงามและสะดวกต่อการแชร์/บุ๊กมาร์ก
+
+--- 
 ## [0.7.6] - 2026-10-28
 
 ### Fix: Mobile Scroll Boundary Lock & Stutter at Top/Bottom Edges

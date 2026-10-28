@@ -886,7 +886,8 @@ function buildLiveFlex(matchInfo, theme) {
   const { sched, currentMatch, scorers, assists, table, dbMatches, recentMatchDetails, imageUrl, webLiveUrl } = matchInfo;
   const { date, startTime, matchMinutes, totalHours, teams, totalMatches, totalRounds, endTime, matches } = sched;
   const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
-  const targetWebUrl = webLiveUrl || (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/web/view';
+  const rawWebUrl = webLiveUrl || (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/web/view';
+  const targetWebUrl = rawWebUrl.includes('openExternalBrowser=1') ? rawWebUrl : (rawWebUrl.includes('?') ? `${rawWebUrl}&openExternalBrowser=1` : `${rawWebUrl}?openExternalBrowser=1`);
 
   // Filter to show matches: 2 previous matches, 1 current match, 4 next matches (e.g. 3, 4, live, 6, 7, 8, 9 ... 18)
   const curMatchNo = currentMatch ? currentMatch.matchNo : 1;

@@ -17,8 +17,16 @@
 			if (window.history && window.history.replaceState) {
 				try {
 					var u = new URL(window.location.href);
+					var urlChanged = false;
 					if (u.searchParams.has('_v')) {
 						u.searchParams.delete('_v');
+						urlChanged = true;
+					}
+					if (u.searchParams.has('openExternalBrowser')) {
+						u.searchParams.delete('openExternalBrowser');
+						urlChanged = true;
+					}
+					if (urlChanged) {
 						var cleanSearch = u.searchParams.toString();
 						var cleanUrl = u.pathname + (cleanSearch ? '?' + cleanSearch : '') + u.hash;
 						window.history.replaceState(null, '', cleanUrl);

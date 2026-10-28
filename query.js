@@ -5509,7 +5509,8 @@ async function getCurrentMatch(groupId = null) {
   const imgTpl = await getTemplate('live', 'header');
   const imageUrl = imgTpl ? imgTpl.url : null;
 
-  const webLiveUrl = process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
+  const rawWebLiveUrl = process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
+  const webLiveUrl = rawWebLiveUrl.includes('openExternalBrowser=1') ? rawWebLiveUrl : (rawWebLiveUrl.includes('?') ? `${rawWebLiveUrl}&openExternalBrowser=1` : `${rawWebLiveUrl}?openExternalBrowser=1`);
   return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, recentMatchDetails, weekId: sched.weekId, date: sched.date, imageUrl, teamColors: assets.teamColors, webLiveUrl, matchStatus };
 }
 
