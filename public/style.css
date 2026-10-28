@@ -70,9 +70,6 @@
 html {
     font-size: 16px;
     /* Base font size */
-    overscroll-behavior: none;
-    overscroll-behavior-y: none;
-    overscroll-behavior-x: none;
 }
 
 body {
@@ -84,10 +81,7 @@ body {
     padding: 1rem;
     font-size: 1rem;
     /* 16px */
-    overscroll-behavior: none;
-    overscroll-behavior-y: none;
-    overscroll-behavior-x: none;
-    touch-action: pan-x pan-y;
+    overscroll-behavior-y: contain;
 }
 
 /* Prevent horizontal scroll chaining and accidental gesture reload in LINE / in-app browsers */

@@ -4,6 +4,15 @@
 
 --- 
 
+## [0.7.6] - 2026-10-28
+
+### Fix: Mobile Scroll Boundary Lock & Stutter at Top/Bottom Edges
+- **แก้ปัญหาหน้าเว็บเลื่อนขึ้น-ลงแทบไม่ได้เมื่ออยู่ขอบบนสุดหรือขอบล่างสุดของหน้าจอ (`public/style.css`, `public/update.shtml`, `update.shtml`, `public/position.shtml`)**:
+  - ลบ JavaScript Touch Guard (`touchmove` preventDefault `{ passive: false }`) ออกทั้งหมด เนื่องจากไปบล็อกและยกเลิก Gesture การสัมผัสบน iOS WebKit และ Chrome WebView ทำให้จังหวะที่แตะนิ้วเพื่อเลื่อนจอที่ขอบบนเกิดอาการค้าง/กระตุกอย่างรุนแรง
+  - ปรับการตั้งค่า CSS ใน `body` ให้ใช้ `overscroll-behavior-y: contain` เพียงอย่างเดียว โดยยกเลิก `overscroll-behavior: none` และ `touch-action: pan-x pan-y` ออกจาก `html` และ `body` เพื่อคืนค่า Momentum Physics การเลื่อนนิ้วแบบนุ่มนวลตามธรรมชาติของ iOS และป้องกันอาการ Boundary Freeze ที่ขอบบน-ขอบล่างของหน้าเว็บ
+  - คงค่า `overscroll-behavior-x: contain` ให้กับคอนเทนเนอร์แนวนอนด้านใน เช่น ตารางและแถบทีมการ์ดตามเดิม เพื่อป้องกันการปัดซ้าย-ขวาหลุดไปที่ระบบ Back/Forward ของ In-App Browser โดยไม่กระทบการเลื่อนแนวตั้งหลัก
+
+--- 
 ## [0.7.5] - 2026-10-27
 
 ### Fix: LINE In-App Browser Accidental Page Reload on Scroll (Vertical & Horizontal)
