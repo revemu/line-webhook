@@ -1875,7 +1875,8 @@
 				isDeletingMatch: false,
 				ws: null,
 				wsConnected: false,
-				wsReconnectTimer: null
+				wsReconnectTimer: null,
+				wsPingTimer: null
 			},
 			computed: {
 				teamRostersSummary() {
@@ -2218,20 +2219,34 @@
 					this.startAutoRefreshTimer();
 				}
 
-				// Cross-check session validity and data freshness when page becomes visible or restored from cache
+				// Lifecycle & Visibility Reconnect: Ensures WebSocket is restored immediately
+				// when Safari returns from background, finishes app transition from LINE, or wakes up
+				const checkAndReconnectWs = () => {
+					if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
+						this.initWebSocket();
+					} else if (this.ws.readyState === WebSocket.OPEN) {
+						this.subscribeToCurrentWeek();
+					}
+				};
+
 				window.addEventListener('pageshow', (e) => {
+					checkAndReconnectWs();
 					if (this.isManager) {
 						this.fetchCurrentUser();
-						this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0);
 					}
+					this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
 				});
 				document.addEventListener('visibilitychange', () => {
-					if (!document.hidden && this.isManager) {
-						this.fetchCurrentUser();
-						this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0);
+					if (!document.hidden) {
+						checkAndReconnectWs();
+						if (this.isManager) {
+							this.fetchCurrentUser();
+						}
+						this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
 					}
 				});
 				window.addEventListener('focus', () => {
+					checkAndReconnectWs();
 					if (this.isManager) {
 						this.fetchCurrentUser();
 					}
@@ -2450,6 +2465,11 @@
 				manualRefresh() {
 					this.refreshCountdown = 30;
 					this.isRefreshing = true;
+					if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+						this.initWebSocket();
+					} else {
+						this.subscribeToCurrentWeek();
+					}
 					this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
 					setTimeout(() => {
 						this.isRefreshing = false;
@@ -2503,9 +2523,27 @@
 						this.toastHtml = '';
 					}, 4200);
 				},
+				subscribeToCurrentWeek() {
+					if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+						const targetWeekId = this.week ? (this.week.id || this.week.number || 0) : 0;
+						if (targetWeekId) {
+							try {
+								this.ws.send(JSON.stringify({ type: 'subscribe', week_id: targetWeekId }));
+							} catch (e) { }
+						}
+					}
+				},
 				initWebSocket() {
 					if (this.ws) {
-						try { this.ws.close(); } catch (e) { }
+						try {
+							this.ws.onclose = null;
+							this.ws.onerror = null;
+							this.ws.close();
+						} catch (e) { }
+					}
+					if (this.wsPingTimer) {
+						clearInterval(this.wsPingTimer);
+						this.wsPingTimer = null;
 					}
 					const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 					const wsUrl = `${protocol}//${window.location.host}/webhook/ws`;
@@ -2515,10 +2553,15 @@
 
 						this.ws.onopen = () => {
 							this.wsConnected = true;
-							const targetWeekId = this.week ? (this.week.id || this.week.number || 0) : 0;
-							if (targetWeekId) {
-								this.ws.send(JSON.stringify({ type: 'subscribe', week_id: targetWeekId }));
-							}
+							this.subscribeToCurrentWeek();
+							if (this.wsPingTimer) clearInterval(this.wsPingTimer);
+							this.wsPingTimer = setInterval(() => {
+								if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+									try {
+										this.ws.send(JSON.stringify({ type: 'ping' }));
+									} catch (e) { }
+								}
+							}, 25000);
 						};
 
 						this.ws.onmessage = (event) => {
@@ -2530,6 +2573,10 @@
 
 						this.ws.onclose = () => {
 							this.wsConnected = false;
+							if (this.wsPingTimer) {
+								clearInterval(this.wsPingTimer);
+								this.wsPingTimer = null;
+							}
 							if (this.wsReconnectTimer) clearTimeout(this.wsReconnectTimer);
 							this.wsReconnectTimer = setTimeout(() => {
 								this.initWebSocket();
@@ -2539,7 +2586,13 @@
 						this.ws.onerror = () => {
 							this.wsConnected = false;
 						};
-					} catch (err) { }
+					} catch (err) {
+						this.wsConnected = false;
+						if (this.wsReconnectTimer) clearTimeout(this.wsReconnectTimer);
+						this.wsReconnectTimer = setTimeout(() => {
+							this.initWebSocket();
+						}, 3000);
+					}
 				},
 				handleWebSocketMessage(data) {
 					if (!data || data.type === 'CONNECTED' || data.type === 'pong') return;
@@ -2595,6 +2648,7 @@
 							if (this.info && this.info.week) {
 								this.week = this.info.week;
 								this.weeks = this.info.weeks || [];
+								this.subscribeToCurrentWeek();
 							} else {
 								// Fetch week metadata fallback
 								axios.get(this.base_url + '/get_info?cmd=get_position_page_data&weeknum=' + (weeknum || 0))
@@ -2602,6 +2656,7 @@
 										if (res2.data && res2.data.week) {
 											this.week = res2.data.week;
 											this.weeks = res2.data.weeks || [];
+											this.subscribeToCurrentWeek();
 										}
 									})
 									.catch(e => console.log('Fallback week fetch error:', e));

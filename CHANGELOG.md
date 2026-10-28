@@ -2,7 +2,20 @@
 
 บันทึกประวัติการเปลี่ยนแปลงและการพัฒนาของโปรเจกต์ `line-webhook`
 
---- 
+---
+## [0.7.12] - 2026-10-28
+
+### Fix: Safari iOS WebSocket Connection & Lifecycle Auto-Reconnect for External Browser Launch
+- **แก้ปัญหา Toast Notification ไม่เด้งเมื่อเปิดลิงก์ผลสดจาก LINE บน Safari iOS (`public/update.shtml`, `update.shtml`)**:
+  - **ต้นตอของปัญหา**: 
+    1. เมื่อผู้ใช้คลิกลิงก์จาก LINE และระบบเปิด Safari (`openExternalBrowser=1`) ตัว iOS WebKit อยู่ระหว่างแอนิเมชันสลับแอป ทำให้ Socket Network ในเสี้ยววินาทีแรกถูกตัดการเชื่อมต่อ (`The operation couldn't be completed. Socket is not connected`) และ `wsConnected` กลายเป็น `false`
+    2. หน้าเว็บเดิมมี Event Listeners (`pageshow`, `visibilitychange`, `focus`) ดักจับเฉพาะหน้า Manager (`this.isManager`) ทำให้หน้า Viewer (`/webhook/view`) ไม่เคยสั่ง Reconnect WebSocket เลยเมื่อ Safari สลับแอปมาทำงานเต็มจอ ส่งผลให้กลายเป็น Zombie Connection ค้างจนกว่าจะกด Refresh เอง
+    3. Race Condition ของ `subscribe week_id`: ในขณะที่ WebSocket เชื่อมต่อในตอนแรก ข้อมูล `this.week` ยังเป็น `null` ทำให้คำสั่ง `subscribe` ไม่ถูกส่ง และเมื่อ API `refreshMatch` โหลดข้อมูลสัปดาห์เสร็จสิ้น ก็ไม่ได้ส่ง `subscribe` ซ้ำไปยัง WebSocket
+  - **การแก้ไข**:
+    - **Universal Visibility & Lifecycle Reconnect**: ปรับปรุง `pageshow`, `visibilitychange`, และ `focus` ให้ตรวจจับสถานะ WebSocket และสั่ง Reconnect อัตโนมัติทันทีที่หน้าจอ Safari กลับมา Active ไม่ว่าจะเป็น Viewer หรือ Manager
+    - **Auto Week Subscription**: เพิ่มเมธอด `subscribeToCurrentWeek()` และสั่งให้ส่งการสมัครรับข้อมูลสัปดาห์ปัจจุบันทันทีที่ API `refreshMatch` โหลดข้อมูล `this.week` เสร็จสมบูรณ์
+    - **Client-side Keepalive Ping**: เพิ่มตัวส่งสัญญาณ Heartbeat `{ type: 'ping' }` ทุกๆ 25 วินาที เพื่อป้องกันไม่ให้ iOS Safari ตัดการเชื่อมต่อเมื่อเปิดหน้าจอทิ้งไว้นานๆ
+    - **Manual Refresh Auto-Reconnect**: เพิ่มการตรวจสอบและต่อ WebSocket ใหม่อัตโนมัติทันทีเมื่อผู้ใช้แตะปุ่มรีเฟรชหน้าเว็บ
 
 ## [0.7.11] - 2026-10-28
 
