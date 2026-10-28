@@ -1410,8 +1410,8 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
             is_finished: isFinished,
             is_scheduled: isScheduled,
             is_locked: isLocked,
-            team_a_color: teamJson[match.team_a_id]?.name || 'White',
-            team_b_color: teamJson[match.team_b_id]?.name || 'Black',
+            team_a_color: teamJson[match.team_a_id]?.name || '',
+            team_b_color: teamJson[match.team_b_id]?.name || '',
             goal: await queryMatchScorer(match.id)
         };
     }

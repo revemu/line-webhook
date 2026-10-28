@@ -5417,23 +5417,7 @@ async function getCurrentMatch(groupId = null) {
   const weekId = week[0].id;
 
   // 1. Primary: Load schedule directly from MySQL (match_stat_tbl)
-  let sched = await getScheduleFromDb(weekId);
-
-  // Fallback: If DB does not have matches yet, check if legacy schedule.json exists on disk
-  if (!sched || !sched.matches || sched.matches.length === 0) {
-    const jsonPath = path.join(__dirname, 'schedule.json');
-    if (fs.existsSync(jsonPath)) {
-      try {
-        const rawJson = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-        if (rawJson && rawJson.matches && rawJson.matches.length > 0) {
-          // Auto-migrate legacy fixtures to match_stat_tbl in MySQL
-          await saveScheduleToDb(weekId, rawJson.matches, false);
-          sched = await getScheduleFromDb(weekId) || rawJson;
-        }
-      } catch (e) { }
-    }
-  }
-
+  const sched = await getScheduleFromDb(weekId);
   if (!sched || !sched.matches || sched.matches.length === 0) return null;
 
   const schedMatches = sched.matches;
