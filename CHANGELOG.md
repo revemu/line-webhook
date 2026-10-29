@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.20] - 2026-10-29
+
+### Fix: Complete Pitch & Roster Protection in Viewer Mode Before Friday 20:00 Cutoff
+- **ป้องกันการเปิดเผยผังสนามและรายชื่อทีมในหน้า Viewer ก่อนเวลาที่กำหนด (`public/update.shtml`, `update.shtml`, `routes/web.js`)**:
+  - **แสดงการ์ดแจ้งเตือนการสุ่มทีมสำหรับผู้ชม (Universal Roster Locked Notice)**: ย้ายกล่องแจ้งเตือน `roster-locked-container` ("🎲 ระบบจะทำการสุ่มทีมวันศุกร์ เวลา 20:00 น.") ออกมาอยู่ระดับบนสุดของหน้าจอ เพื่อให้แสดงผลทั้งในหน้า Viewer (`/webhook/view`) และ Manager (`/webhook/match`) เมื่อยังไม่ถึงเวลาตัดรอบวันศุกร์ 20:00 น.
+  - **ซ่อนปุ่มและผังสนามในแมตช์การ์ดทั้งหมด (`btn-card-pitch-toggle` & `match-inline-pitch-card`)**: เพิ่มเงื่อนไข `!info.is_roster_locked` ให้กับปุ่มกด `🏟️ ผังสนาม` ในการ์ดแมตช์ทุกคู่ ป้องกันไม่ให้ผู้ชมกดเปิดผังสนามแบบ 2D หรือเห็นการประกบคู่แผนการเล่นก่อนเวลาที่กำหนด พร้อมเพิ่ม Guard ใน `toggleMatchPitch()`
+  - **ซ่อนการ์ดสรุปทีมและผังแท็กติก (`team-summary-card`)**: ซ่อนทั้งส่วนสรุปทีมและผังแท็กติกแนวตั้ง (`teamSummaryView === 'pitch'`) เมื่อสถานะเป็น `info.is_roster_locked`
+  - **ปิดการ Auto-Scroll และปุ่มลัดไปยังแมตช์ปัจจุบันก่อนเวลาสุ่มทีม**: ไม่เลื่อนหน้าจอลงไปยังแมตช์ด้านล่าง เพื่อให้โฟกัสอยู่ที่กล่องแจ้งเตือนเวลาสุ่มทีมด้านบนอย่างชัดเจน
+  - **ปรับปรุง Data Sanitization หลังบ้าน (`routes/web.js`)**: ใน `getLastMatchWeek()` เมื่อสถานะล็อก (`isLocked = true`) นอกจากเซ็ต `team_id: 0` และ `color: null` แล้ว ได้เพิ่มการจัดเรียงรายชื่อผู้เล่น `allmembers` ตามลำดับตัวอักษร (`alias` / `name`) เพื่อทำลายลำดับเดิมของฐานข้อมูลที่เคยจัดเรียงตาม `team_id` ป้องกันการเดาการจัดกลุ่มทีมผ่าน Payload เครือข่าย
+
 ## [0.7.19] - 2026-10-28
 
 ### Feat: Auto-Scroll and Advance Selection to Next / Current Match upon Match Finish

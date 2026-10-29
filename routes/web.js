@@ -1327,11 +1327,14 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     const members = await queryRegisteredMembers(weekid);
     if (isLocked) {
         // Strip team assignment and color to prevent knowing randomized teams early
-        data.allmembers = (members || []).map(m => ({
-            ...m,
-            team_id: 0,
-            color: null
-        }));
+        // Also sort alphabetically by alias/name so players are not grouped by original team_id
+        data.allmembers = (members || [])
+            .map(m => ({
+                ...m,
+                team_id: 0,
+                color: null
+            }))
+            .sort((a, b) => (a.alias || a.name || '').localeCompare(b.alias || b.name || ''));
     } else {
         data.allmembers = members || [];
     }

@@ -81,7 +81,7 @@
 					</span>
 				</div>
 				<div class="viewer-header-actions" v-if="!isManager" style="display: flex; align-items: center; gap: 0.4rem;">
-					<button v-if="currentLiveMatch" class="btn-jump-current-pill" @click="scrollToCurrentMatch(true)" title="เลื่อนลงไปยังแมตช์ปัจจุบัน">
+					<button v-if="currentLiveMatch && !info.is_roster_locked" class="btn-jump-current-pill" @click="scrollToCurrentMatch(true)" title="เลื่อนลงไปยังแมตช์ปัจจุบัน">
 						<span>⚽ Match {{ currentLiveMatch.match_num }}</span>
 						<span v-if="isMatchLive(currentLiveMatch)" class="pulse-mini-dot"></span>
 					</button>
@@ -266,8 +266,23 @@
 		<!-- Backdrop for Modal Pitch Mode -->
 		<div class="pitch-modal-backdrop" v-if="isPitchModal" @click="closePitchModal"></div>
 
+		<!-- ==================== ROSTER LOCKED NOTICE (Universal: Viewer & Manager) ==================== -->
+		<div class="roster-locked-container" v-if="info.is_roster_locked">
+			<div class="roster-locked-card">
+				<div class="roster-locked-icon">🎲</div>
+				<h3 class="roster-locked-title">{{ info.roster_lock_message || 'ระบบจะทำการสุ่มทีมวันศุกร์ เวลา 20:00 น.' }}</h3>
+				<p class="roster-locked-desc">
+					ผังการเล่นและรายชื่อทีมจะแสดงผลอัตโนมัติหลังการสุ่มทีมครับ
+				</p>
+				<div class="roster-locked-badge">
+					<span>📅 Match Week {{ week ? (week.number || week.id) : '' }}</span>
+					<span>⏰ เวลาสุ่มทีม: วันศุกร์ 20:00 น.</span>
+				</div>
+			</div>
+		</div>
+
 		<!-- ==================== MAIN STADIUM & PITCH CARD ==================== -->
-		<div class="match-stadium-card" :class="{ 'pitch-modal-card': isPitchModal }" v-if="isManager && currentSelectedMatch">
+		<div class="match-stadium-card" :class="{ 'pitch-modal-card': isPitchModal }" v-if="isManager && currentSelectedMatch && !info.is_roster_locked">
 
 			<!-- Modal Close Button (When in Modal Mode) -->
 			<button v-if="isPitchModal" type="button" class="btn-pitch-modal-close" @click="closePitchModal" title="ปิดหน้าต่างขยายสนาม (Esc)">
@@ -523,20 +538,6 @@
 				</form>
 			</div>
 
-			<!-- ==================== ROSTER LOCKED NOTICE ==================== -->
-			<div class="roster-locked-container" v-if="info.is_roster_locked">
-				<div class="roster-locked-card">
-					<div class="roster-locked-icon">🎲</div>
-					<h3 class="roster-locked-title">ระบบจะทำการสุ่มทีมวันศุกร์ เวลา 20:00 น.</h3>
-					<p class="roster-locked-desc">
-						ผังการเล่นและรายชื่อทีมจะแสดงผลอัตโนมัติหลังการสุ่มทีมครับ
-					</p>
-					<div class="roster-locked-badge">
-						<span>📅 Match Week {{ week ? (week.number || week.id) : '' }}</span>
-						<span>⏰ เวลาสุ่มทีม: วันศุกร์ 20:00 น.</span>
-					</div>
-				</div>
-			</div>
 
 <!-- ==================== VERTICAL PITCH VIEW (MOBILE / 2-PER-ROW GRID) ==================== -->
 			<div class="vertical-pitch-container" v-if="!info.is_roster_locked && (activePitchTab === 'teamA' || activePitchTab === 'teamB')">
@@ -1259,7 +1260,7 @@
 		</div>
 
 		<!-- ==================== TEAM ROSTERS & REALTIME RATINGS SUMMARY ==================== -->
-		<div class="card team-summary-card" v-if="matchCount > 0 && teamRostersSummary.length > 0">
+		<div class="card team-summary-card" v-if="!info.is_roster_locked && matchCount > 0 && teamRostersSummary.length > 0">
 			<div class="team-summary-header">
 				<div class="team-summary-title">
 					<span class="team-summary-title-text">👥 สรุปทีม & เรทติ้ง</span>
@@ -1577,13 +1578,13 @@
 				</div>
 
 				<div class="match-header-actions" style="display: flex; align-items: center; gap: 0.35rem;">
-					<button type="button" class="btn-card-pitch-toggle"
+					<button v-if="!info.is_roster_locked" type="button" class="btn-card-pitch-toggle"
 						:class="{ 'is-active': expandedPitchMatchNum === match.match_num }"
 						@click.stop="toggleMatchPitch(match.match_num)"
 						title="เปิด/ปิด ผังสนามและรายชื่อนักเตะของคู่นี้">
 						🏟️ {{ expandedPitchMatchNum === match.match_num ? 'ซ่อนผัง' : 'ผังสนาม' }}
 					</button>
-					<button v-if="isManager && match.match_num == maxMatchNum" class="btn-remove-match" title="ลบแมตช์สุดท้ายนี้"
+					<button v-if="isManager && match.match_num == maxMatchNum && !info.is_roster_locked" class="btn-remove-match" title="ลบแมตช์สุดท้ายนี้"
 						v-on:click.stop="promptDeleteMatch(match)">🗑️</button>
 				</div>
 			</div>
@@ -1624,7 +1625,7 @@
 			</div>
 
 			<!-- Inline Pitch & Lineup Details (ถ้าเปิดดูผังสนามก็แสดงในแถบนี้เลย) -->
-			<div v-if="expandedPitchMatchNum === match.match_num" class="match-inline-pitch-card">
+			<div v-if="!info.is_roster_locked && expandedPitchMatchNum === match.match_num" class="match-inline-pitch-card">
 				<div class="inline-pitch-header">
 					<div style="display: flex; align-items: center; gap: 0.4rem;">
 						<span style="font-weight: 800; font-size: 0.84rem;">🏟️ ผังนักเตะ Match {{ match.match_num }}</span>
@@ -2429,6 +2430,10 @@
 					return sorted;
 				},
 				toggleMatchPitch(matchNum) {
+					if (this.info && this.info.is_roster_locked) {
+						this.expandedPitchMatchNum = null;
+						return;
+					}
 					this.expandedPitchMatchNum = (this.expandedPitchMatchNum === matchNum) ? null : matchNum;
 				},
 				scrollToCurrentMatch(smooth = true, targetMatchNum = null) {
@@ -2796,7 +2801,7 @@
 							// Auto-scroll to current match on load for viewers only (disabled on manager screen to manage score results)
 							if (!this.initialScrolled) {
 								this.initialScrolled = true;
-								if (!this.isManager) {
+								if (!this.isManager && !this.info.is_roster_locked) {
 									setTimeout(() => {
 										this.scrollToCurrentMatch(true);
 									}, 350);
@@ -2807,6 +2812,10 @@
 								this.matchCount = Object.keys(this.all_match).length;
 							} else {
 								this.matchCount = 0;
+							}
+
+							if (this.info && this.info.is_roster_locked) {
+								this.expandedPitchMatchNum = null;
 							}
 
 							this.loadSavedLoans();
