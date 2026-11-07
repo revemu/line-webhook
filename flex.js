@@ -1358,21 +1358,7 @@ function buildLiveFlex(matchInfo, theme) {
       paddingTop: 'none',
       spacing: 'xs',
       contents: [
-        makeBoxUriButton('🌐 ดูผลสกอร์จากหน้าเว็บ', targetWebUrl, '#0284c7'),
-        {
-          type: 'text',
-          text: '🔗 เข้าไปดูผลสกอร์จากหน้าเว็บ คลิกที่นี่ ↗',
-          size: 'xs',
-          color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
-          align: 'center',
-          decoration: 'underline',
-          margin: 'xs',
-          action: {
-            type: 'uri',
-            label: 'ดูผลสกอร์จากหน้าเว็บ',
-            uri: targetWebUrl
-          }
-        }
+        makeBoxUriButton('🌐 ดูผลสกอร์จากหน้าเว็บ', targetWebUrl, '#0284c7')
       ]
     }
   };
