@@ -7562,6 +7562,34 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   };
 
   // =========================================================================
+  // Phase 0: Lock in Pre-assigned Members (players who already have a team)
+  // Rule: ถ้ามีทีมอยู่แล้ว เวลา /randomteam ไม่ต้องเปลี่ยนทีม
+  // =========================================================================
+  const preassignedMembers = registeredMembers.filter(m => Number(m.team_id) > 0 && Number(m.team_id) !== 100);
+  for (const m of preassignedMembers) {
+    const tId = Number(m.team_id);
+    const existingTeam = teams.find(t => t.teamId === tId) || teams.find(t => t.teamIndex === tId);
+    if (existingTeam) {
+      addPlayerToTeam(m, existingTeam);
+      logger.info(`[randomteam] Preserved pre-assigned team ${existingTeam.color} for player ${m.name || m.alias} (id: ${m.member_id})`);
+    }
+  }
+
+  // Ensure team capacities accommodate pre-assigned players and remaining unassigned players
+  for (const t of teams) {
+    if (t.members.length > t.maxCapacity) {
+      t.maxCapacity = t.members.length;
+    }
+  }
+  const unassignedCount = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id)).length;
+  let remainingCapacity = teams.reduce((sum, t) => sum + Math.max(0, t.maxCapacity - t.members.length), 0);
+  while (remainingCapacity < unassignedCount) {
+    const candidateTeam = [...teams].sort((a, b) => a.members.length - b.members.length)[0];
+    candidateTeam.maxCapacity++;
+    remainingCapacity++;
+  }
+
+  // =========================================================================
   // Phase 1: Place Bound Groups First (member_team_week_tbl.team > 0)
   // Members sharing the same team number must be placed on the same team
   // =========================================================================
@@ -7582,10 +7610,21 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     const group = boundGroupsMap[gNum].filter(m => !assignedMemberIds.has(m.member_id));
     if (group.length === 0) continue;
 
-    const candidateTeams = findCandidateTeamsForGroup(group.length);
-    const bestTeam = pickBestTeam(candidateTeams, group, group[0]?.posCode, false);
-    if (bestTeam) {
-      placeGroupIntoTeam(group, bestTeam);
+    // If any member of this bound group was already pre-assigned to a team, place the remaining members in that same team
+    const alreadyAssignedMember = boundGroupsMap[gNum].find(m => assignedMemberIds.has(m.member_id));
+    let preassignedGroupTeam = null;
+    if (alreadyAssignedMember) {
+      preassignedGroupTeam = teams.find(t => t.members.some(tm => tm.member_id === alreadyAssignedMember.member_id));
+    }
+
+    if (preassignedGroupTeam) {
+      placeGroupIntoTeam(group, preassignedGroupTeam);
+    } else {
+      const candidateTeams = findCandidateTeamsForGroup(group.length);
+      const bestTeam = pickBestTeam(candidateTeams, group, group[0]?.posCode, false);
+      if (bestTeam) {
+        placeGroupIntoTeam(group, bestTeam);
+      }
     }
   }
 

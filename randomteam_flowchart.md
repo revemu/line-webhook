@@ -33,7 +33,19 @@ flowchart TD
 
     P --> Q[คำนวณ Capacity ของแต่ละทีม\nbaseCap = N div K\nextraCount = N mod K\nทีมแรก extraCount ทีม จะได้ baseCap+1]
 
-    Q --> PH1
+    Q --> PH0
+
+    subgraph PH0["🟢 Phase 0: Lock in Pre-assigned Members (team_id > 0)"]
+        direction TB
+        P0A[ดึงผู้เล่นที่มีทีมอยู่แล้ว
+member_team_week_tbl.team_id > 0]
+        P0A --> P0B[ล็อกผู้เล่นเข้าทีมเดิมทันที
+ไม่เปลี่ยนทีมเด็ดขาด]
+        P0B --> P0C[ปรับคำนวณ Capacity ที่เหลือ
+เพื่อให้ผู้เล่นที่ยังไม่มีทีมกระจายตัวสมดุล]
+    end
+
+    PH0 --> PH1
 
     subgraph PH1["🔵 Phase 1: Bound Groups (mtw.team > 0)"]
         direction TB
@@ -97,6 +109,7 @@ flowchart TD
 |--------|----------|
 | **เตรียมข้อมูล** | ดึงรายชื่อผู้เล่น, จำกัด maxPlayers, สร้าง avoidMap, ดึง rating ประจำปี |
 | **จำนวนทีม** | ≤24 คน → 3 ทีม, >24 คน → 4 ทีม |
+| **Phase 0** | ล็อกผู้เล่นที่มีทีมอยู่แล้ว (team_id > 0) ให้อยู่ทีมเดิม ไม่เปลี่ยนทีม |
 | **Phase 1** | วางกลุ่มที่ถูกล็อกไว้ (week_team > 0) ให้อยู่ทีมเดียวกันก่อน |
 | **Phase 2** | วาง Priority 1 (ผู้เล่นสำคัญ) โดยกระจายตำแหน่งให้สมดุล |
 | **Phase 3** | วางผู้เล่นที่มี avoid_ids โดยหลีกเลี่ยง conflict |
