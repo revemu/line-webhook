@@ -4,6 +4,18 @@
 
 ---
 
+## [0.7.24] - 2026-11-07
+
+### Fix: Automatic Schedule Sync with Added maxweek & time_range (/schedule)
+- **แก้ปัญหาคำสั่ง `/schedule` ไม่อัปเดตตาม `maxweek` ที่เพิ่มเข้ามา (`query.js`, `cmd.js`)**:
+  - **ตรวจจับจำนวนทีมที่ลงแข่งจริงในฐานข้อมูล (`playingTeamCount`)**: ปรับ `getScheduleFromDb` ให้ดึงเฉพาะทีมที่ปรากฏในตารางแมตช์จริง (`team_a_id`, `team_b_id`) มาคำนวณจำนวนทีม รอบการแข่งขัน และทีมที่พัก (`resting`) แทนการอิงจากจำนวนสีทั้งหมดใน `team_color_week_tbl` ป้องกันไม่ให้ตารางเก่า 3 ทีมมองเห็นเป็น 4 ทีมจอมปลอม
+  - **Auto-Regenerate Schedule When maxweek Increases**: ใน `getScheduleText` หากพบว่าจำนวนทีมที่แข่งจริงในฐานข้อมูลไม่ตรงกับ `desiredTeamCount` (เช่น เดิมมี 3 ทีม แต่ปรับ `maxweek > 24` เป็น 4 ทีม), จำนวนแมตช์ไม่ครบรอบ Round-Robin, หรือเวลาเริ่มไม่ตรงกับ `time_range` ที่ตั้งใหม่ และยังไม่มีการแข่งจริง (`hasPlayedMatches = false`) ระบบจะ Invalidate และคำนวณตารางใหม่ให้ทุกทีมได้ลงแข่งทันที
+  - **Proactive Schedule Reset เมื่อตั้งค่าสัปดาห์ใหม่**: ใน `updateMaxNumberWeek` (`/setmaxweek`) และ `updateWeekTimeRange` (`/weektime`) จะตรวจสอบและล้างแมตช์ที่รอแข่ง (`status = 'scheduled'`) โดยอัตโนมัติหากมีการเปลี่ยนแปลงจำนวนทีมหรือช่วงเวลาแข่งขัน
+  - **รองรับ Arguments จำนวนคน/โควตาใน `/schedule`**: รองรับการระบุตัวเลขผู้เล่นหรือโควตา เช่น `/schedule 32คน`, `/schedule max:32`, หรือ `/schedule 32` โดยแปลงเป็น 4 ทีม และ 3 ทีมตามเงื่อนไขอย่างถูกต้อง ป้องกันการตีความเป็นเวลาแมตช์นาที
+  - **ซิงค์เงื่อนไขจำนวนทีมใน `/randomteam`**: ปรับ `K = (maxPlayers > 24 || N > 24) ? 4 : 3` ใน `randomTeamByPosition` ให้สอดคล้องกันทั่วทั้งระบบ
+
+---
+
 ## [0.7.23] - 2026-11-07
 
 ### Feat: Preserve Pre-assigned Teams During /randomteam

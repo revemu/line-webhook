@@ -1185,11 +1185,24 @@ const COMMAND_REGISTRY = {
                 }
             }
 
-            // 6. Generic numbers: 3 or 4 represents team count, while 5+ represents match duration in minutes
+            // 5.1 Player count / maxweek formats (e.g. 32คน, 24คน, 32p, 32player, max:32, maxweek:32, quota:32)
+            const maxPlayerMatch = arg.match(/^(\d+)\s*(คน|p|player|players)$/i) || arg.match(/^(?:max|maxweek|quota)[:=](\d+)$/i);
+            if (maxPlayerMatch) {
+                const pNum = parseInt(maxPlayerMatch[1], 10);
+                if (!isNaN(pNum) && pNum > 0) {
+                    targetTeamCount = pNum > 24 ? 4 : 3;
+                    forceRegen = true;
+                    continue;
+                }
+            }
+
+            // 6. Generic numbers: 3 or 4 represents team count, 18-40 represents maxweek/players, while other numbers represent match duration
             const parsedNum = parseInt(arg, 10);
             if (!isNaN(parsedNum) && parsedNum > 0) {
                 if ((parsedNum === 3 || parsedNum === 4) && targetTeamCount === null) {
                     targetTeamCount = parsedNum;
+                } else if (parsedNum >= 18 && parsedNum <= 40 && targetTeamCount === null) {
+                    targetTeamCount = parsedNum > 24 ? 4 : 3;
                 } else if (!matchDuration) {
                     matchDuration = parsedNum;
                 }

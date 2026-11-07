@@ -646,6 +646,30 @@ async function updateWeekTimeRange(timeRangeStr, targetWeekId = 0) {
   }
   const query = "UPDATE week_tbl SET time_range = ? WHERE id = ?";
   await executeQuery(query, [timeRangeStr, week_id]);
+
+  // If match_stat_tbl has unplayed matches with an outdated start time, clear them so /schedule regenerates with updated time
+  try {
+    const played = await executeQuery(
+      "SELECT 1 FROM match_stat_tbl WHERE week_id = ? AND (status IN ('finished', 'in_progress') OR team_a_goal IS NOT NULL) LIMIT 1",
+      [week_id]
+    );
+    if (!played || played.length === 0) {
+      const existingMatches = await executeQuery(
+        "SELECT start_time FROM match_stat_tbl WHERE week_id = ? ORDER BY match_num ASC LIMIT 1",
+        [week_id]
+      );
+      if (existingMatches && existingMatches.length > 0 && existingMatches[0].start_time) {
+        const parts = timeRangeStr.split('-').map(s => s.trim().replace('.', ':'));
+        if (parts.length >= 1 && parts[0] && parts[0] !== existingMatches[0].start_time) {
+          await executeQuery("DELETE FROM match_stat_tbl WHERE week_id = ?", [week_id]);
+          logger.info(`[updateWeekTimeRange] Cleared unplayed match_stat_tbl for week ${week_id} because start_time changed from ${existingMatches[0].start_time} to ${parts[0]}`);
+        }
+      }
+    }
+  } catch (cleanErr) {
+    logger.error('[updateWeekTimeRange] Error checking/clearing unplayed match_stat_tbl:', cleanErr.message);
+  }
+
   return { success: true, week_id, time_range: timeRangeStr };
 }
 
@@ -736,6 +760,34 @@ async function updateMaxNumberWeek(max_number = 24) {
           logger.info(`[setmaxweek] Added 4th team color '${chosenColor}' for week ID ${week_id}`);
         }
       }
+    }
+
+    // Auto-clean unplayed scheduled matches if team count configuration changed
+    try {
+      const played = await executeQuery(
+        "SELECT 1 FROM match_stat_tbl WHERE week_id = ? AND (status IN ('finished', 'in_progress') OR team_a_goal IS NOT NULL) LIMIT 1",
+        [week_id]
+      );
+      if (!played || played.length === 0) {
+        const existingMatches = await executeQuery(
+          "SELECT team_a_id, team_b_id FROM match_stat_tbl WHERE week_id = ?",
+          [week_id]
+        );
+        if (existingMatches && existingMatches.length > 0) {
+          const playingIds = new Set();
+          existingMatches.forEach(m => {
+            if (m.team_a_id) playingIds.add(m.team_a_id);
+            if (m.team_b_id) playingIds.add(m.team_b_id);
+          });
+          const desiredTeams = max_number > 24 ? 4 : 3;
+          if (playingIds.size !== desiredTeams) {
+            await executeQuery("DELETE FROM match_stat_tbl WHERE week_id = ?", [week_id]);
+            logger.info(`[updateMaxNumberWeek] Cleared unplayed match_stat_tbl for week ${week_id} because team count changed from ${playingIds.size} to ${desiredTeams}`);
+          }
+        }
+      }
+    } catch (cleanErr) {
+      logger.error('[updateMaxNumberWeek] Error checking/clearing unplayed match_stat_tbl:', cleanErr.message);
     }
 
     return res;
@@ -4694,7 +4746,28 @@ async function getScheduleFromDb(week_id) {
       teamColors.forEach(c => colorMap.set(c.id, c.color));
     }
     const teams = teamColors && teamColors.length > 0 ? teamColors.map(c => c.color) : [];
-    const numTeams = teams.length || 4;
+
+    // Find the teams actually playing in dbMatches
+    const playingTeamIdSet = new Set();
+    const playingTeamColorSet = new Set();
+    dbMatches.forEach(r => {
+      if (r.team_a_id) {
+        playingTeamIdSet.add(r.team_a_id);
+        const c = colorMap.get(r.team_a_id);
+        if (c) playingTeamColorSet.add(c);
+      }
+      if (r.team_b_id) {
+        playingTeamIdSet.add(r.team_b_id);
+        const c = colorMap.get(r.team_b_id);
+        if (c) playingTeamColorSet.add(c);
+      }
+    });
+
+    // Use actual playing teams to determine cycles, resting teams, and team count
+    const playingTeams = playingTeamColorSet.size > 0
+      ? teams.filter(t => playingTeamColorSet.has(t))
+      : teams;
+    const numTeams = playingTeams.length || teams.length || 4;
     const cycleLen = (numTeams * (numTeams - 1)) / 2 || 6;
 
     const scheduleMatches = dbMatches.map((r, i) => {
@@ -4709,7 +4782,7 @@ async function getScheduleFromDb(week_id) {
         teamAId: r.team_a_id,
         teamB,
         teamBId: r.team_b_id,
-        resting: teams.filter(t => t !== teamA && t !== teamB),
+        resting: playingTeams.filter(t => t !== teamA && t !== teamB),
         status: r.status,
         team_a_goal: r.team_a_goal,
         team_b_goal: r.team_b_goal
@@ -4798,7 +4871,9 @@ async function getScheduleFromDb(week_id) {
       matchMinutes: matchMin,
       breakMinutes: breakMin,
       totalHours: totalHours,
-      teams: teams,
+      teams: playingTeams,
+      allWeekTeams: teams,
+      playingTeamCount: playingTeamIdSet.size,
       totalMatches: scheduleMatches.length,
       totalRounds: totalRounds,
       currentMatch,
@@ -4851,10 +4926,21 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
   const week_id = week[0].id;
 
   // Determine desired team count:
-  // If targetTeamCount is explicitly provided (e.g. 3 or 4), use it.
+  // If targetTeamCount is explicitly provided (e.g. 3 or 4, or player count like 24 or 32), use it.
   // Otherwise, automatically check the number of registered players for this week:
   // If registered members > 24 (or week max > 24) -> 4 teams, otherwise -> 3 teams.
-  let desiredTeamCount = targetTeamCount ? parseInt(targetTeamCount, 10) : null;
+  let desiredTeamCount = null;
+  if (targetTeamCount) {
+    const parsedTarget = parseInt(targetTeamCount, 10);
+    if (!isNaN(parsedTarget)) {
+      if (parsedTarget > 6) {
+        desiredTeamCount = parsedTarget > 24 ? 4 : 3;
+      } else if (parsedTarget >= 2) {
+        desiredTeamCount = parsedTarget;
+      }
+    }
+  }
+
   let registeredCount = 0;
   try {
     const regRes = await executeQuery(
@@ -4879,10 +4965,26 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
   if (!forceRegen) {
     try {
       const dbSched = await getScheduleFromDb(week_id);
-      const dbTeamCount = Array.isArray(dbSched?.teams) ? dbSched.teams.length : 0;
-      if (dbSched && Array.isArray(dbSched.matches) && dbSched.matches.length > 0 && dbTeamCount === desiredTeamCount) {
-        const lines = formatScheduleLines(dbSched);
-        return [lines, dbSched];
+      if (dbSched && Array.isArray(dbSched.matches) && dbSched.matches.length > 0) {
+        const dbPlayingTeamCount = dbSched.playingTeamCount || (dbSched.teams ? dbSched.teams.length : 0);
+        const allDesiredTeamsPlay = dbPlayingTeamCount === desiredTeamCount;
+        const cycleLen = (desiredTeamCount * (desiredTeamCount - 1)) / 2;
+        const isFullCycles = (dbSched.matches.length % cycleLen === 0);
+
+        const hasPlayedMatches = dbSched.matches.some(m => m.status === 'in_progress' || m.status === 'finished' || (m.team_a_goal !== null && m.team_a_goal !== undefined));
+
+        let timeRangeMismatch = false;
+        if (!hasPlayedMatches && week[0]?.time_range && dbSched.startTime) {
+          const parts = week[0].time_range.split('-').map(s => s.trim().replace('.', ':'));
+          if (parts.length >= 1 && parts[0] && parts[0] !== dbSched.startTime) {
+            timeRangeMismatch = true;
+          }
+        }
+
+        if (hasPlayedMatches || (allDesiredTeamsPlay && isFullCycles && !timeRangeMismatch)) {
+          const lines = formatScheduleLines(dbSched);
+          return [lines, dbSched];
+        }
       }
     } catch (err) {
       logger.error('[schedule] failed to load schedule from DB:', err.message);
@@ -7274,8 +7376,8 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   }
 
   const N = registeredMembers.length;
-  // Rule: <= 24 -> 3 teams, > 24 -> 4 teams
-  const K = N <= 24 ? 3 : 4;
+  // Rule: maxweek > 24 or registered outfield > 24 -> 4 teams, otherwise 3 teams
+  const K = (maxPlayers > 24 || N > 24) ? 4 : 3;
 
   // Check if all players within maxweek quota already have teams assigned
   const allHadTeam = registeredMembers.length > 0 && registeredMembers.every(m => Number(m.team_id) > 0);

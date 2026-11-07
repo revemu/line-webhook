@@ -172,8 +172,11 @@ line-webhook/
 
 ### 4.6 ระบบจัดตารางแข่งและ Match Lifecycle (`/schedule`, `/now`, `/live`)
 - **ฐานข้อมูลเป็น Single Source of Truth (MySQL `match_stat_tbl` 100%)**:
-  - เมื่อรันคำสั่ง `/schedule` ระบบจะตรวจสอบข้อมูลจาก `match_stat_tbl` โดยตรงผ่านฟังก์ชัน `getScheduleFromDb(week_id)` หากมีอยู่แล้วจะดึงขึ้นมาสร้าง Flex Message ทันทีโดยไม่ต้องอ่านไฟล์ JSON
-  - หากยังไม่มีตารางแข่งขัน (หรือสั่ง `/schedule reset` / `force`) ระบบจะคำนวณผัง Round-Robin พร้อมเวลาเริ่ม-สิ้นสุด และทำการบันทึกทั้ง 18 แมตช์ลงในตาราง `match_stat_tbl` โดยตรง (`saveScheduleToDb`)
+  - เมื่อรันคำสั่ง `/schedule` ระบบจะตรวจสอบข้อมูลจาก `match_stat_tbl` โดยตรงผ่านฟังก์ชัน `getScheduleFromDb(week_id)`
+  - **Dynamic Schedule Invalidation & Team Sync (`maxweek`, `time_range`)**: 
+    - ฟังก์ชัน `getScheduleFromDb` ตรวจสอบจำนวนทีมที่ลงเล่นจริงในแมตช์ (`playingTeamCount`) เทียบกับจำนวนทีมที่ต้องการ (`desiredTeamCount` ซึ่งคำนวณจาก `maxweek` หรือจำนวนผู้ลงทะเบียน) หากจำนวนทีมไม่ตรงกัน, จำนวนแมตช์ไม่ครบรอบ Round-Robin, หรือเวลาเริ่มต้น (`startTime`) ไม่ตรงกับ `time_range` ที่ตั้งไว้ และยังไม่มีการแข่งขันจริง (`hasPlayedMatches = false`) ระบบจะ Invalidate ตารางเดิมและทำการ Generate ตารางใหม่ให้สอดคล้องกับ `maxweek` ทันที
+    - คำสั่ง `/setmaxweek` และ `/weektime` จะทำการล้างแมตช์ที่รอแข่ง (`status = 'scheduled'`) ใน `match_stat_tbl` โดยอัตโนมัติหากมีการเปลี่ยนจำนวนทีมหรือเวลา เพื่อให้ตารางแข่งขันอัปเดตตรงตามการตั้งค่าใหม่เสมอ
+  - หากยังไม่มีตารางแข่งขัน (หรือสั่ง `/schedule reset` / `force`) ระบบจะคำนวณผัง Round-Robin พร้อมเวลาเริ่ม-สิ้นสุด และทำการบันทึกแมตช์ลงในตาราง `match_stat_tbl` โดยตรง (`saveScheduleToDb`)
   - คำสั่ง `/now` และ `/live` (`getCurrentMatch`) ดึงข้อมูลตารางและสถานะการแข่งขันจาก `match_stat_tbl` JOIN กับ `team_color_week_tbl` และ `week_tbl` โดยตรง ไม่จำเป็นต้องพึ่งพาไฟล์ `schedule.json` อีกต่อไป
   - โครงสร้างคอลัมน์รองรับ: `round` (รอบที่), `start_time` (เวลาเริ่ม), `end_time` (เวลาจบ), `status` (`scheduled`, `in_progress`, `finished`), `team_a_goal`, `team_b_goal` (รองรับ NULL สำหรับแมตช์ที่รอแข่ง)
   - รองรับการป้องกันการเขียนทับผลการแข่งขันของแมตช์ที่แข่งเสร็จแล้ว เว้นแต่จะระบุคำสั่ง reset/force
