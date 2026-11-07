@@ -1216,7 +1216,7 @@ const COMMAND_REGISTRY = {
         return { type: 'flex', altText: `⚽ แมตช์ปัจจุบัน [${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}`, contents: flex.buildNowFlex(matchInfo, theme) };
     },
     'live': async (context) => {
-        const { groupId } = context;
+        const { groupId, is_flex } = context;
         const theme = await db.getTheme();
         const matchInfo = await db.getCurrentMatch(groupId);
         if (!matchInfo || !matchInfo.sched) return [{ type: 'text', text: 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ' }];
@@ -1224,9 +1224,16 @@ const COMMAND_REGISTRY = {
         const rawWebLiveUrl = (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
         const webLiveUrl = rawWebLiveUrl.includes('openExternalBrowser=1') ? rawWebLiveUrl : (rawWebLiveUrl.includes('?') ? `${rawWebLiveUrl}&openExternalBrowser=1` : `${rawWebLiveUrl}?openExternalBrowser=1`);
         if (matchInfo) { matchInfo.webLiveUrl = webLiveUrl; }
+
+        if (is_flex === false) {
+            let textMsg = `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''}\n`;
+            textMsg += `🌐 เข้าไปดูผลสกอร์จากหน้าเว็บ: ${webLiveUrl}`;
+            return [{ type: 'text', text: textMsg }];
+        }
+
         return { 
             type: 'flex', 
-            altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''} | ดูผลการแข่งขันผ่านเว็บ`, 
+            altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''} | ดูผลสกอร์จากหน้าเว็บ: ${webLiveUrl}`, 
             contents: flex.buildLiveFlex(matchInfo, theme) 
         };
     },

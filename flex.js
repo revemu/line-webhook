@@ -947,7 +947,7 @@ function buildLiveFlex(matchInfo, theme) {
     alignItems: 'center',
     action: {
       type: 'uri',
-      label: 'ดูผลการแข่งขันผ่านเว็บ',
+      label: 'ดูผลสกอร์จากหน้าเว็บ',
       uri: targetWebUrl
     },
     contents: [
@@ -959,7 +959,7 @@ function buildLiveFlex(matchInfo, theme) {
       },
       {
         type: 'text',
-        text: 'ดูผลการแข่งขันผ่านเว็บ',
+        text: 'ดูผลสกอร์จากหน้าเว็บ',
         size: 'xs',
         color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
         weight: 'bold',
@@ -1118,6 +1118,11 @@ function buildLiveFlex(matchInfo, theme) {
       margin: 'xs',
       alignItems: 'center',
       cornerRadius: 'sm',
+      action: {
+        type: 'uri',
+        label: `ดูผลสกอร์ Match ${m.matchNo}`,
+        uri: targetWebUrl
+      },
       contents: matchBoxContents
     };
 
@@ -1353,7 +1358,21 @@ function buildLiveFlex(matchInfo, theme) {
       paddingTop: 'none',
       spacing: 'xs',
       contents: [
-        makeBoxUriButton('🌐 ดูผลการแข่งขันผ่านเว็บ', targetWebUrl, '#0284c7')
+        makeBoxUriButton('🌐 ดูผลสกอร์จากหน้าเว็บ', targetWebUrl, '#0284c7'),
+        {
+          type: 'text',
+          text: '🔗 เข้าไปดูผลสกอร์จากหน้าเว็บ คลิกที่นี่ ↗',
+          size: 'xs',
+          color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
+          align: 'center',
+          decoration: 'underline',
+          margin: 'xs',
+          action: {
+            type: 'uri',
+            label: 'ดูผลสกอร์จากหน้าเว็บ',
+            uri: targetWebUrl
+          }
+        }
       ]
     }
   };
