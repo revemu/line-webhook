@@ -4,6 +4,18 @@
 
 ---
 
+## [0.7.22] - 2026-11-07
+
+### Fix: Auto-Refresh & Instant WebSocket Reconnect on Mobile Screen Wake-Up
+- **แก้ปัญหาหน้าเว็บดูผลสกอร์ไม่อัปเดตเมื่อเปิด/ปลดล็อกหน้าจอมือถือใหม่ (`public/update.shtml`, `update.shtml`)**:
+  - **กำจัด Zombie WebSocket ด้วย Force Reconnect**: ตรวจจับระยะเวลาที่หน้าจอดับหรือสลับแอป (`hiddenDuration > 3500ms`) และสั่ง Teardown ท่อเดิมพร้อมเปิดการเชื่อมต่อ WebSocket ใหม่ทันที 100% ป้องกันปัญหาค้างสถานะ `readyState === 1` ขณะที่ฝั่ง Server ตัดการเชื่อมต่อไปแล้ว
+  - **Clean Socket Teardown**: เพิ่มฟังก์ชันถอด Event Listeners (`onopen`, `onmessage`, `onclose`, `onerror`) และเคลียร์ตัวจับเวลา (`wsPingTimer`, `wsHandshakeTimer`) ก่อนสร้าง WebSocket ตัวใหม่ ป้องกันปัญหา Ghost/Duplicate Socket บนมือถือ
+  - **Bypass Mobile Cache ด้วย `_t` Timestamp**: ใส่พารามิเตอร์ `&_t=${Date.now()}` ในคำขอ `/match_view_data` ทุกครั้ง เพื่อป้องกัน Safari/Chrome บนมือถือดึงข้อมูลเก่าจาก Memory Cache
+  - **Instant Data Fetch & Timer Restart on Wake-up**: ดึงข้อมูลสกอร์ล่าสุดทันทีที่จอสว่างขึ้นมา พร้อมสั่งรีเซ็ตตัวนับถอยหลัง 30 วินาที (`startAutoRefreshTimer`) ใหม่ทันที
+  - **ป้องกันข้อผิดพลาดกรณีข้อมูลสัปดาห์ยังไม่พร้อม**: ปรับการเข้าถึง `this.week ? (this.week.number || this.week.id || 0) : 0` ให้ปลอดภัย ไม่ทำให้ JavaScript Interval หยุดทำงาน
+
+---
+
 ## [0.7.21] - 2026-11-07
 
 ### Feat: Add Web Live Score Links and Interactive Match Navigation to /live

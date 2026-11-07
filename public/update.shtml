@@ -2224,10 +2224,11 @@
 				this.refreshMatch(initialWeek);
 
 				// Lifecycle & Visibility Reconnect: Ensures WebSocket is restored immediately
-				// when Safari returns from background, finishes app transition from LINE, or wakes up
-				const ensureActiveWebSocket = () => {
+				// when mobile screen wakes up, returns from background, finishes app switch from LINE, or wakes up
+				let lastHiddenTime = 0;
+				const ensureActiveWebSocket = (forceReconnect = false) => {
 					const isStalled = this.ws && this.ws.readyState === WebSocket.CONNECTING && (Date.now() - (this.wsConnectStartTime || 0) > 2000);
-					if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING || isStalled) {
+					if (forceReconnect || !this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING || isStalled) {
 						this.initWebSocket();
 					} else if (this.ws.readyState === WebSocket.OPEN) {
 						this.subscribeToCurrentWeek();
@@ -2235,15 +2236,13 @@
 				};
 
 				// Connect WebSocket with foreground priority:
-				// If page opened while hidden during LINE app switch, wait for visibilitychange
-				// to connect with 100% foreground priority (the exact same environment as a manual page refresh!)
 				if (document.visibilityState === 'visible') {
 					this.initWebSocket();
 				} else {
 					const onFirstVisible = () => {
 						if (document.visibilityState === 'visible') {
 							document.removeEventListener('visibilitychange', onFirstVisible);
-							ensureActiveWebSocket();
+							ensureActiveWebSocket(false);
 						}
 					};
 					document.addEventListener('visibilitychange', onFirstVisible);
@@ -2257,29 +2256,50 @@
 				}
 
 				let lastDataRefreshTime = 0;
-				// When page becomes visible or user switches back to Safari:
+				// When mobile screen turns on / user switches back to browser:
 				document.addEventListener('visibilitychange', () => {
-					if (!document.hidden) {
-						// 1. WebSocket health check is NEVER debounced or delayed
-						ensureActiveWebSocket();
-						// 2. HTTP match data refresh is throttled (at most once every 3 seconds)
+					if (document.hidden) {
+						lastHiddenTime = Date.now();
+					} else {
 						const now = Date.now();
-						if (now - lastDataRefreshTime > 3000) {
+						const hiddenDuration = lastHiddenTime > 0 ? (now - lastHiddenTime) : 0;
+						lastHiddenTime = 0;
+
+						// If screen was locked or backgrounded > 3.5s, mobile OS has likely severed the TCP socket
+						// Force a clean WebSocket reconnect so real-time push feed continues working immediately
+						const needsReconnect = hiddenDuration > 3500;
+						ensureActiveWebSocket(needsReconnect);
+
+						// Always trigger an immediate fresh score fetch on wake-up
+						if (now - lastDataRefreshTime > 1500) {
 							lastDataRefreshTime = now;
 							if (this.isManager) {
 								this.fetchCurrentUser();
 							}
+							this.isRefreshing = true;
 							this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+							setTimeout(() => {
+								this.isRefreshing = false;
+							}, 400);
+						}
+
+						if (!this.isManager) {
+							this.startAutoRefreshTimer();
 						}
 					}
 				});
 
-				window.addEventListener('pageshow', () => {
-					ensureActiveWebSocket();
+				window.addEventListener('pageshow', (event) => {
+					// Waking from bfcache or back navigation
+					ensureActiveWebSocket(true);
+					this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+					if (!this.isManager) {
+						this.startAutoRefreshTimer();
+					}
 				});
 
 				window.addEventListener('focus', () => {
-					ensureActiveWebSocket();
+					ensureActiveWebSocket(false);
 					if (this.isManager) {
 						this.fetchCurrentUser();
 					}
@@ -2514,7 +2534,7 @@
 					} else if (this.ws.readyState === WebSocket.OPEN) {
 						this.subscribeToCurrentWeek();
 					}
-					this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
+					this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
 					setTimeout(() => {
 						this.isRefreshing = false;
 					}, 400);
@@ -2528,7 +2548,7 @@
 						if (this.refreshCountdown <= 0) {
 							this.refreshCountdown = 30;
 							this.isRefreshing = true;
-							this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
+							this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
 							setTimeout(() => {
 								this.isRefreshing = false;
 							}, 400);
@@ -2630,6 +2650,26 @@
 					const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 					const wsUrl = `${protocol}//${window.location.host}/webhook/ws${initialWeekQuery}`;
 					this.wsConnectStartTime = Date.now();
+
+					// Tear down any existing socket or timers to prevent ghost/zombie connections on mobile
+					if (this.ws) {
+						try {
+							this.ws.onopen = null;
+							this.ws.onmessage = null;
+							this.ws.onclose = null;
+							this.ws.onerror = null;
+							this.ws.close();
+						} catch (e) { }
+						this.ws = null;
+					}
+					if (this.wsPingTimer) {
+						clearInterval(this.wsPingTimer);
+						this.wsPingTimer = null;
+					}
+					if (this.wsHandshakeTimer) {
+						clearTimeout(this.wsHandshakeTimer);
+						this.wsHandshakeTimer = null;
+					}
 
 					try {
 						this.ws = new WebSocket(wsUrl);
@@ -2764,7 +2804,7 @@
 					this.refreshMatch(weeknum, true);
 				},
 				refreshMatch: function (weeknum, update_team_lists = true, matchindex = 0) {
-					const url = (this.base_url || '/webhook') + '/match_view_data?weeknum=' + (weeknum || 0);
+					const url = (this.base_url || '/webhook') + '/match_view_data?weeknum=' + (weeknum || 0) + '&_t=' + Date.now();
 					axios.get(url)
 						.then(response => {
 							if (response.data && response.data.asset_version) {
@@ -3547,11 +3587,11 @@
 								if (!this.isManager) {
 									this.showToast('🗑️ ลบประตูเรียบร้อย');
 								}
-								this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
+								this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบประตูได้';
 								this.showToast('❌ ลบประตูล้มเหลว: ' + errMsg);
-								this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
+								this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
 							}
 						})
 						.catch(err => {
@@ -3561,7 +3601,7 @@
 							} else {
 								this.showToast('❌ ลบประตูล้มเหลว: ' + err.message);
 							}
-							this.refreshMatch(this.week.number || this.week.id || 0, false, this.selectedMatchIndex);
+							this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
 						});
 				},
 				promptDeleteMatch(match) {
