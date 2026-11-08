@@ -356,9 +356,9 @@
 
 		<div class="top-nav-bar">
 			<div class="nav-tabs">
-				<a :href="'/webhook/match' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">⚽ Match Manager</a>
-				<a :href="'/webhook/view' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">📺 Match Viewer</a>
-				<a :href="'/webhook/position' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab active">🛡️ Position Manager</a>
+				<a :href="'/webhook/match' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab">⚽ Match Manager</a>
+				<a :href="'/webhook/view' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab">📺 Match Viewer</a>
+				<a :href="'/webhook/position' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab active">🛡️ Position Manager</a>
 			</div>
 			<div class="user-status-pill" v-if="currentUser">
 				<span class="user-role-badge" :class="currentUser.role">
@@ -1410,7 +1410,7 @@
 					<div v-for="w in weeks" :key="w.id" class="player-card"
 						:style="w.id === week.id ? { borderColor: 'var(--primary-color)', background: 'rgba(79, 70, 229, 0.08)' } : {}"
 						style="cursor: pointer;"
-						@click.stop="changeWeek(w.number || w.id)">
+						@click.stop="changeWeek(w.id)">
 						<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
 							<div>
 								<div style="font-weight: 700; font-size: 1rem;">📅 {{ w.date }}</div>
@@ -2558,7 +2558,7 @@
 						team_id: this.pendingChanges[id].team_id
 					}));
 
-					axios.post(`${this.base_url}/batch_update_positions`, { updates })
+					axios.post(`${this.base_url}/batch_update_positions`, { updates, week_id: this.week ? (this.week.id || this.week.number) : 0 })
 						.then(res => {
 							this.saving = false;
 							if (res.data && res.data.success) {
@@ -2715,7 +2715,9 @@
 					return this.isDarkTheme ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.4)';
 				},
 				fetchCurrentUser() {
-					axios.get('/webhook/auth/me')
+					const urlParams = new URLSearchParams(window.location.search);
+					const initialWeek = urlParams.get('weeknum') || urlParams.get('week') || urlParams.get('week_id') || 0;
+					axios.get('/webhook/auth/me?weeknum=' + initialWeek)
 						.then(res => {
 							if (res.data && res.data.asset_version) {
 								if (this.assetVersion && res.data.asset_version !== this.assetVersion) {
@@ -2727,13 +2729,11 @@
 							}
 							if (res.data && res.data.authenticated) {
 								this.currentUser = res.data.user;
-								if (this.currentUser.role !== 'root' && (this.currentUser.role !== 'admin' || res.data.is_roster_locked)) {
+								if (this.currentUser.role !== 'root' && (this.currentUser.role !== 'admin' || (initialWeek > 0 && res.data.is_roster_locked))) {
 									window.location.href = '/webhook/match';
 									return;
 								}
-								// Load initial page data once verified root or admin (after Friday 20:00)
-								const urlParams = new URLSearchParams(window.location.search);
-								const initialWeek = urlParams.get('weeknum') || urlParams.get('week') || urlParams.get('week_id') || 0;
+								// Load initial page data once verified root or admin
 								this.fetchPageData(initialWeek);
 							} else {
 								window.location.href = '/webhook/login?redirect=' + encodeURIComponent(window.location.pathname);

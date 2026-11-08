@@ -7,6 +7,13 @@
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
+- **แก้ไขปัญหา Admin เลือก Week ไม่ได้ และกระโดดไป Week ล่าสุดตลอด (`routes/web.js`, `public/position.shtml`, `public/update.shtml`)**:
+  - **แก้ไขการชนกันของ `week_tbl.id` กับ `week_tbl.number` ใน `queryWeekId`**: แก้ไขข้อผิดพลาดที่คำสั่ง SQL เดิมใช้ `WHERE number = ${num} OR id = ${num} ORDER BY id DESC LIMIT 1` ซึ่งทำให้เมื่อผู้ใช้เลือกสัปดาห์ในอดีต (เช่น Week ID 331) จะไปตรงกับหมายเลขสัปดาห์ `number: 331` ของ Week ล่าสุด (Week ID 336) เสมอ ทำให้ระบบกระโดดกลับไป Week ล่าสุดตลอดเวลา ปรับแก้ให้ค้นหาด้วย Primary Key `WHERE id = ${num}` ก่อนเป็นลำดับแรก และค้นหาตาม `number` เป็น fallback
+  - **ปรับ Frontend Date Picker ให้ส่ง Unique ID (`w.id`)**: ใน Modal เลือกวันทั้งหน้าจัดการตำแหน่ง (`position.shtml`) และหน้าแมตช์ (`update.shtml`) เปลี่ยนการส่งพารามิเตอร์จาก `w.number || w.id` เป็น `w.id` และปรับ Navigation Tab Links ให้ยึด `week.id` เป็นหลัก เพื่อระบุสัปดาห์ที่ต้องการเปิดดูได้อย่างแม่นยำ 100%
+  - **ปรับปรุงการตรวจสอบสิทธิ์ Admin ตามสัปดาห์ที่เปิด (`reqWeek`) ไม่ติดล็อกสัปดาห์ล่าสุดในอนาคต**:
+    - ใน Middleware `requireRoot`, Endpoint `/webhook/auth/me`, และ `get_position_page_data`: ปรับให้ตรวจสอบสถานะล็อก `isWeekRosterLocked` ตามสัปดาห์ที่ร้องขอจริง ไม่ล็อกตายตัวที่ Week 0 (สัปดาห์ล่าสุดในอนาคต)
+    - กรณี Admin เข้าใช้งานหน้า `/position` โดยไม่ระบุ `?weeknum=` และสัปดาห์ล่าสุดในอนาคตยังติดล็อก (ก่อนวันศุกร์ 20:00 น.): เพิ่มฟังก์ชัน `getLatestUnlockedWeek` ทำการ Redirect Admin ไปยังสัปดาห์ล่าสุดที่ปลดล็อกแล้วให้อัตโนมัติ (เช่น สัปดาห์ปัจจุบันที่แข่งเสร็จแล้ว) แทนการเตะ Admin ออกไปหน้า `/match`
+    - เพิ่มการส่ง `week_id` ในคำสั่งบันทึกตำแหน่งแบบกลุ่ม (`batch_update_positions`) พร้อมระบบ Fallback ตรวจสอบ `week_id` จากฐานข้อมูล ช่วยให้ Admin สามารถจัดตัวและบันทึกตำแหน่งผู้เล่นในสัปดาห์ที่ปลดล็อกได้อย่างราบรื่น
 - **แก้ไขตัวเลือกแมตช์บน Scoreboard ให้เลื่อนไปแมตช์ถัดไปอัตโนมัติ พร้อมคงระบบ Progressive Lock ตามปกติ (`public/update.shtml`)**:
   - แก้ไขการคำนวณแมตช์ถัดไปใน `finishCurrentMatch`: เปลี่ยนจากการบวกเลขตรง (`match.match_num + 1`) เป็นการค้นหาคู่ถัดไปผ่าน `sortedMatchesAscending` ด้วย `Number(match.match_num)` ป้องกันปัญหา String Concatenation และรองรับทุกกรณีที่หมายเลขแมตช์ไม่ต่อเนื่อง
   - **คงการล็อกแมตช์ล่วงหน้าตามปกติ (Progressive Lock)**: แมตช์ในอนาคต (เช่น แมตช์ 3, 4, ...) ยังคงติดสถานะล็อก `🔒 รอแข่ง` ตามปกติ ไม่มีการปลดล็อกล่วงหน้าทั้งหมด

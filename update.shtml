@@ -96,9 +96,9 @@
 
 		<div class="top-nav-bar">
 			<div class="nav-tabs">
-				<a v-if="currentUser" :href="'/webhook/match' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab" :class="{ active: isManager }">⚽ Manager</a>
-				<a :href="'/webhook/view' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab" :class="{ active: !isManager }">📺 Viewer</a>
-				<a v-if="currentUser && currentUser.role === 'root'" :href="'/webhook/position' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">🛡️ Position</a>
+				<a v-if="currentUser" :href="'/webhook/match' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab" :class="{ active: isManager }">⚽ Manager</a>
+				<a :href="'/webhook/view' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab" :class="{ active: !isManager }">📺 Viewer</a>
+				<a v-if="currentUser && currentUser.role === 'root'" :href="'/webhook/position' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab">🛡️ Position</a>
 			</div>
 			<div class="user-status-pill" v-if="currentUser">
 				<span class="user-role-badge" :class="currentUser.role">
@@ -147,7 +147,7 @@
 					<div v-for="w in weeks" :key="w.id" class="player-card"
 						:style="w.id === week.id ? { borderColor: 'var(--primary-color)', background: 'rgba(79, 70, 229, 0.08)' } : {}"
 						style="cursor: pointer;"
-						@click.stop="changeWeek(w.number || w.id)">
+						@click.stop="changeWeek(w.id)">
 						<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
 							<div>
 								<div style="font-weight: 700; font-size: 1rem;">📅 {{ w.date }}</div>

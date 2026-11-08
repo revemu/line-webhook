@@ -331,8 +331,34 @@ async function requireRoot(req, res, next) {
 
     // Admin can access only after Friday 20:00 (cannot access in advance)
     if (req.user.role === 'admin') {
-        const isLocked = await isWeekRosterLocked(0, req.user);
+        let reqWeek = req.query.weeknum || req.query.week || req.query.week_id || req.body?.week_id || 0;
+        if (!reqWeek && req.body && Array.isArray(req.body.updates) && req.body.updates.length > 0) {
+            const firstId = parseInt(req.body.updates[0].id, 10);
+            if (firstId > 0) {
+                const [row] = await doQuery(`SELECT week_id FROM member_team_week_tbl WHERE id = ${firstId}`);
+                if (row) reqWeek = row.week_id;
+            }
+        }
+        if (!reqWeek && req.body && req.body.id) {
+            const mid = parseInt(req.body.id, 10);
+            if (mid > 0) {
+                const [row] = await doQuery(`SELECT week_id FROM member_team_week_tbl WHERE id = ${mid}`);
+                if (row) reqWeek = row.week_id;
+            }
+        }
+
+        const isLocked = await isWeekRosterLocked(reqWeek, req.user);
         if (isLocked) {
+            // If admin visited without specifying a week (reqWeek=0) and the latest week is locked,
+            // redirect to the latest unlocked week so they can manage available weeks
+            if (!reqWeek || reqWeek == 0) {
+                const unlockedWeek = await getLatestUnlockedWeek(req.user);
+                if (unlockedWeek && unlockedWeek.id) {
+                    const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
+                    return res.redirect(`${prefix}/position?weeknum=${unlockedWeek.id}`);
+                }
+            }
+
             const isApiOrAjax = req.xhr ||
                 req.headers['x-requested-with'] === 'XMLHttpRequest' ||
                 req.method !== 'GET';
@@ -566,7 +592,8 @@ router.get(['/webhook/auth/me', '/web/auth/me'], async (req, res) => {
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
     if (req.user) {
-        const isLocked = await isWeekRosterLocked(0, req.user);
+        const weeknum = req.query.weeknum || req.query.week || req.query.week_id || 0;
+        const isLocked = await isWeekRosterLocked(weeknum, req.user);
         return res.json({
             authenticated: true,
             user: {
@@ -672,13 +699,23 @@ router.get(['/webhook/get_info', '/web/get_info'], requireAuth, async (req, res)
                 if (req.user.role !== 'root' && req.user.role !== 'admin') {
                     return res.status(403).json({ success: false, error: 'Access denied: Admin or Root role required' });
                 }
+                let targetPosWeek = weeknum || 0;
                 if (req.user.role === 'admin') {
-                    const isLocked = await isWeekRosterLocked(weeknum || 0, req.user);
+                    if (!targetPosWeek || targetPosWeek == 0) {
+                        const isLatestLocked = await isWeekRosterLocked(0, req.user);
+                        if (isLatestLocked) {
+                            const unlocked = await getLatestUnlockedWeek(req.user);
+                            if (unlocked && unlocked.id) {
+                                targetPosWeek = unlocked.id;
+                            }
+                        }
+                    }
+                    const isLocked = await isWeekRosterLocked(targetPosWeek, req.user);
                     if (isLocked) {
                         return res.status(403).json({ success: false, error: 'Access denied: Admin can edit positions after Friday 20:00 only' });
                     }
                 }
-                const pageData = await queryPositionPageData(weeknum || 0);
+                const pageData = await queryPositionPageData(targetPosWeek);
                 res.json(pageData);
                 break;
 
@@ -1173,11 +1210,26 @@ async function queryWeekId(weeknum = 0) {
     const num = parseInt(weeknum, 10);
     if (!num || isNaN(num) || num <= 0) {
         sql = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date, time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
-    } else {
-        sql = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date, time_range FROM week_tbl WHERE number = ${num} OR id = ${num} ORDER BY id DESC LIMIT 1`;
+        const result = await doQuery(sql);
+        if (result.length > 0) {
+            return {
+                success: true,
+                id: result[0].id,
+                date: result[0].date,
+                raw_date: result[0].raw_date,
+                time_range: result[0].time_range || '17:30-20:00',
+                number: result[0].number,
+                sql: sql
+            };
+        }
+        return { success: false };
     }
 
-    const result = await doQuery(sql);
+    // Try matching primary key (id) first so week IDs never collide with season week numbers
+    let result = await doQuery(`SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date, time_range FROM week_tbl WHERE id = ${num} LIMIT 1`);
+    if (result.length === 0) {
+        result = await doQuery(`SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date, time_range FROM week_tbl WHERE number = ${num} ORDER BY id DESC LIMIT 1`);
+    }
 
     if (result.length > 0) {
         return {
@@ -1186,8 +1238,7 @@ async function queryWeekId(weeknum = 0) {
             date: result[0].date,
             raw_date: result[0].raw_date,
             time_range: result[0].time_range || '17:30-20:00',
-            number: result[0].number,
-            sql: sql
+            number: result[0].number
         };
     }
 
@@ -1298,6 +1349,25 @@ function isBeforeFriday2000(dateStr) {
     // Cutoff is Friday 20:00:00 in Bangkok (UTC+7)
     const cutoffTime = new Date(`${fy}-${fm}-${fd}T20:00:00+07:00`).getTime();
     return Date.now() < cutoffTime;
+}
+
+/**
+ * Find the latest week that is unlocked for admin/users (i.e. already past Friday 20:00).
+ * @param {object|null} currentUser
+ * @returns {Promise<object|null>}
+ */
+async function getLatestUnlockedWeek(currentUser = null) {
+    if (currentUser && currentUser.role === 'root') {
+        const [latest] = await doQuery("SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY id DESC LIMIT 1");
+        return latest || null;
+    }
+    const weeks = await doQuery("SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date FROM week_tbl ORDER BY id DESC LIMIT 10");
+    for (const w of weeks) {
+        if (!isBeforeFriday2000(w.raw_date)) {
+            return w;
+        }
+    }
+    return weeks[0] || null;
 }
 
 /**
