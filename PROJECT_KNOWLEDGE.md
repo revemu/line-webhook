@@ -222,7 +222,7 @@ line-webhook/
   - **การอ้างอิงสัปดาห์ที่แม่นยำ (`queryWeekId`)**: ค้นหาด้วย Primary Key `WHERE id = ${num}` ก่อนเสมอ เพื่อป้องกันปัญหา ID ชนกับหมายเลขสัปดาห์ `number` ซึ่งเดิมทำให้การเลือกสัปดาห์ในอดีตกระโดดกลับไปสัปดาห์ล่าสุดตลอดเวลา
 - **กลไกการเปลี่ยนตำแหน่งและสลับตัวผู้เล่น (Multi-input UX)**:
   - **HTML5 Drag & Drop**: ลากการ์ดผู้เล่นไปวางลงบนช่องตำแหน่ง (Slot), ม้านั่งสำรอง (Bench), กล่องผู้เล่นไม่มีทีม (Unassigned), หรือลากทับผู้เล่นคนอื่นเพื่อสลับตัว (Swap)
-  - **Horizontal Pitch Scroll Containment**: ห่อหุ้มผังสนามแบบ Landscape Formation ด้วย `.tactical-pitch-scroll-wrapper` (`overflow-x: auto`, `overscroll-behavior-x: contain`) และล็อกระดับหน้าจอด้วย `overflow-x: hidden` ทำให้บนมือถือสามารถเลื่อนดูผู้เล่นตั้งแต่ GK ไปจนถึง CF ได้เฉพาะภายในกรอบสนาม โดยที่หัวการ์ด, แถบโควตา, เมนูนำทาง และทั้งหน้าจอไม่เลื่อนหลุดออกไปด้านข้าง
+  - **Horizontal Pitch Scroll Containment & Mobile Responsive Layout**: ห่อหุ้มผังสนามแบบ Landscape Formation ด้วย `.tactical-pitch-scroll-wrapper` (`overflow-x: auto`, `overscroll-behavior-x: contain`) โดยไม่บล็อกการเลื่อนแนวตั้ง (`overflow-y`) ทำให้บนมือถือสามารถเลื่อนดูผู้เล่นตั้งแต่ GK ไปจนถึง CF ได้เฉพาะภายในกรอบสนามอย่างลื่นไหล และเลื่อนหน้าจอขึ้น-ลงได้ตามปกติ พร้อมจัดเรียงชิปโควตาทั้ง 7 ตำแหน่ง (`GK`, `DF`, `DW`, `DM`, `MF`, `AM`, `CF`) ด้วย CSS Grid 7 คอลัมน์ในบรรทัดเดียว ซ่อนปุ่มควบคุมของจอคอมพิวเตอร์ และปรับขนาดไอคอนบนมือถือให้กะทัดรัดพอดีจอ
   - **Touch Long-Press & Tap Support**: แตะหรือกดค้าง (380ms) บนการ์ดผู้เล่นเพื่อเปิด **Player Action Modal** ทันที ไม่ต้องลากนิ้วข้ามจอ
   - **1-Click Position Switcher**: เปลี่ยนตำแหน่งระหว่าง GK, DF, DW, DM, MF, AM, CF หรือม้านั่งสำรองได้ในคลิกเดียว
   - **1-Click Team Transfer**: ย้ายทีมหรือปลดออกจากทีมได้ทันทีพร้อมอัปเดตสีและจำนวนผู้เล่นในทีม

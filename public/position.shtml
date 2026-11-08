@@ -356,9 +356,9 @@
 
 		<div class="top-nav-bar">
 			<div class="nav-tabs">
-				<a :href="'/webhook/match' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab">⚽ Match Manager</a>
-				<a :href="'/webhook/view' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab">📺 Match Viewer</a>
-				<a :href="'/webhook/position' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab active">🛡️ Position Manager</a>
+				<a :href="'/webhook/match' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab">⚽ Manager</a>
+				<a :href="'/webhook/view' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab">📺 Viewer</a>
+				<a :href="'/webhook/position' + (week && (week.id || week.number) ? '?weeknum=' + (week.id || week.number) : '')" class="nav-tab active">🛡️ จัดทีม/ตำแหน่ง</a>
 			</div>
 			<div class="user-status-pill" v-if="currentUser">
 				<span class="user-role-badge" :class="currentUser.role">
@@ -370,27 +370,27 @@
 		</div>
 
 		<!-- Date Info & Switcher Card -->
-		<div class="card">
+		<div class="card pos-date-card">
 			<div class="week-info-bar">
 				<div>
-					<div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Match Date</div>
-					<div style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+					<div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">วันที่แข่งขัน</div>
+					<div style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
 						<span>📅 {{ week.date }}</span>
 					</div>
 				</div>
 
-				<button type="button" class="week-badge-pill" @click.stop="showWeekPicker = true" title="Switch Match Date">
-					<span>📅 Switch Date</span>
-					<span style="font-size: 0.75rem;">▼</span>
+				<button type="button" class="week-badge-pill" @click.stop="showWeekPicker = true" title="เปลี่ยนวันแข่งขัน">
+					<span>📅 เปลี่ยนวัน</span>
+					<span style="font-size: 0.7rem;">▼</span>
 				</button>
 			</div>
 
 			<!-- Position Stats / Quota Chips -->
-			<div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
-				<div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.4rem;">Position Breakdown (Click to filter):</div>
+			<div style="margin-top: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 0.6rem;">
+				<div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.35rem;">สรุปจำนวนตามตำแหน่ง (แตะเพื่อกรอง):</div>
 				<div class="pos-stats-container">
 					<div class="pos-stat-chip" :class="{ active: selectedPosFilter === null }" @click="selectedPosFilter = null">
-						<span>All</span>
+						<span>ทั้งหมด</span>
 						<span class="pos-stat-count">{{ members.length }}</span>
 					</div>
 					<div v-for="p in positions" :key="p.id" class="pos-stat-chip"
@@ -401,7 +401,7 @@
 					</div>
 					<div class="pos-stat-chip" :class="{ active: selectedPosFilter === 0 }"
 						@click="selectedPosFilter = (selectedPosFilter === 0 ? null : 0)">
-						<span>⚪ Unset</span>
+						<span>⚪ สำรอง</span>
 						<span class="pos-stat-count">{{ countByPos(0) }}</span>
 					</div>
 				</div>
@@ -420,7 +420,7 @@
 					</button>
 				</div>
 
-				<div v-show="viewMode === 'pitch'" class="view-mode-tabs" style="margin-left: 0.35rem;">
+				<div v-show="viewMode === 'pitch'" class="view-mode-tabs desktop-only-control" style="margin-left: 0.35rem;">
 					<button class="view-mode-btn" :class="{ active: pitchGridCols === 2 }" @click="pitchGridCols = 2" title="แสดง 2 คอลัมน์">
 						🔲 2 คอลัมน์
 					</button>
@@ -429,7 +429,7 @@
 					</button>
 				</div>
 
-				<div class="view-mode-tabs" style="margin-left: 0.35rem;">
+				<div class="view-mode-tabs desktop-only-control" style="margin-left: 0.35rem;">
 					<button type="button" class="view-mode-btn btn-fullscreen-toggle" :class="{ active: isFullscreen }" @click="toggleFullscreen" :title="isFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มหน้าจอ (Full Screen)'">
 						<span v-if="isFullscreen">🗗 ออกจากเต็มจอ</span>
 						<span v-else>⛶ ขยายเต็มจอ</span>
@@ -437,20 +437,20 @@
 				</div>
 
 				<span v-if="hasUnsavedChanges" class="changes-pulse-badge">
-					● มี {{ unsavedCount }} การเปลี่ยนแปลง
+					● แก้ไข {{ unsavedCount }} รายการ
 				</span>
-				<span v-else style="font-size: 0.8rem; color: var(--text-muted);">
-					✓ บันทึกตำแหน่งและทีมแล้ว
+				<span v-else class="saved-status-text" style="font-size: 0.78rem; color: var(--text-muted);">
+					✓ บันทึกแล้ว
 				</span>
 			</div>
 
-			<div style="display: flex; align-items: center; gap: 0.5rem;">
+			<div class="save-action-buttons" style="display: flex; align-items: center; gap: 0.4rem;">
 				<button v-if="hasUnsavedChanges" @click="resetPositions" class="btn-reset-positions" title="ยกเลิกการเปลี่ยนแปลงที่ยังไม่ได้บันทึก">
 					↺ ยกเลิก
 				</button>
 				<button @click="saveAllPositions" class="btn-save-positions" :disabled="!hasUnsavedChanges || saving">
 					<span v-if="saving">⏳ กำลังบันทึก...</span>
-					<span v-else>💾 บันทึกตำแหน่งและทีม {{ hasUnsavedChanges ? '(' + unsavedCount + ')' : '' }}</span>
+					<span v-else>💾 บันทึก {{ hasUnsavedChanges ? '(' + unsavedCount + ')' : '' }}</span>
 				</button>
 			</div>
 		</div>
@@ -462,17 +462,17 @@
 			@dragleave="onDragLeaveUnassigned($event)"
 			@drop.prevent="onDropToUnassigned($event)">
 
-			<div class="unassigned-panel-header">
+			<div class="unassigned-panel-header" v-if="unassignedMembers.length > 0">
 				<div class="unassigned-panel-title">
-					<span>⚪ ผู้เล่นที่ยังไม่มีทีม / นอกสนาม</span>
-					<span style="font-weight: 800; color: var(--primary-color);">({{ unassignedMembers.length }} คน)</span>
-					<span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">
-						(ลากผู้เล่นไปใส่ในสนามของทีมที่ต้องการ หรือลากผู้เล่นจากสนามมาปล่อยที่นี่เพื่อปลดออกจากทีม)
+					<span>⚪ นอกสนาม / ไม่มีทีม</span>
+					<span style="font-weight: 800; color: var(--primary-color);">({{ unassignedMembers.length }})</span>
+					<span class="unassigned-hint-text">
+						แตะผู้เล่นเพื่อเลือกทีม หรือลากมาวางเพื่อปลดทีม
 					</span>
 				</div>
 			</div>
 
-			<div class="unassigned-player-grid">
+			<div class="unassigned-player-grid" :class="{ 'is-empty-pool': unassignedMembers.length === 0 }">
 				<div v-for="p in unassignedMembers" :key="p.id"
 					class="unassigned-card"
 					:class="{
@@ -501,8 +501,9 @@
 					<span v-if="isPlayerChanged(p.id)" style="color: #f59e0b; font-size: 0.7rem;">● แก้ไข</span>
 				</div>
 
-				<div v-if="unassignedMembers.length === 0" style="font-size: 0.85rem; color: var(--text-muted); font-style: italic; padding: 0.4rem 0;">
-					✓ ผู้เล่นทุกคนมีทีมแล้ว (สามารถลากผู้เล่นจากสนามมาวางที่นี่เพื่อปลดออกจากทีมได้)
+				<div v-if="unassignedMembers.length === 0" class="unassigned-empty-banner">
+					<span>✓ จัดทีมครบทุกคนแล้ว</span>
+					<span class="unassigned-empty-sub">(แตะผู้เล่นหรือลากมาวางที่นี่เพื่อปลดทีม)</span>
 				</div>
 			</div>
 		</div>
@@ -518,42 +519,42 @@
 					<div class="team-pitch-title">
 						<span class="team-color-chip"
 							:style="{ backgroundColor: (team.color || '#ccc').toLowerCase(), color: getContrastColor(team.color), border: '1px solid ' + getBorderColor(team.color) }">
-							● {{ team.color }} ({{ getTeamMembers(team.id).length }} คน)
+							● {{ team.color }} ({{ getTeamMembers(team.id).length }})
 						</span>
 						<span class="team-rule-badge">
-							📋 โควตา: {{ is8PlayerTeam(team.id) ? 'ทีม 8 คน' : 'ทีม 7 คน' }}
+							โควตา {{ is8PlayerTeam(team.id) ? '8' : '7' }} คน
 						</span>
 						<span v-if="isTeamFormationValid(team.id)" class="slot-quota-badge ok" title="ตำแหน่งครบตามขั้นต่ำ">
-							✓ โควตาครบ
+							✓ ครบ
 						</span>
 						<span v-else class="slot-quota-badge under" title="มีตำแหน่งที่ยังขาดผู้เล่นตามขั้นต่ำ">
-							⚠️ ขาดบางตำแหน่ง
+							⚠️ ขาดตำแหน่ง
 						</span>
-						<span class="pitch-scroll-hint">↔ เลื่อนดูสนาม</span>
+						<span class="pitch-scroll-hint">↔ เลื่อนสนาม</span>
 					</div>
 
-					<!-- Mini Quota Summary Chips -->
+					<!-- Mini Quota Summary Chips (Ordered Left-to-Right matching Pitch: GK -> CF) -->
 					<div class="team-quota-chips">
-						<span class="quota-chip" :class="getSlotStatusClass(team.id, 4)" title="Center Forward (โควตา 1-2 คน)">
-							CF: {{ getPlayersInPos(team.id, 4).length }}/{{ getPosMax(4, team.id) }}
-						</span>
-						<span class="quota-chip" :class="getSlotStatusClass(team.id, 7)" title="Attacking Midfield (โควตา 0-1 คน)">
-							AM: {{ getPlayersInPos(team.id, 7).length }}/1
-						</span>
-						<span class="quota-chip" :class="getSlotStatusClass(team.id, 3)" title="Midfielder (โควตา 1-2 คน)">
-							MF: {{ getPlayersInPos(team.id, 3).length }}/{{ is8PlayerTeam(team.id) ? '2' : '1' }}
-						</span>
-						<span class="quota-chip" :class="getSlotStatusClass(team.id, 6)" title="Defensive Midfield (โควตา 0-1 คน)">
-							DM: {{ getPlayersInPos(team.id, 6).length }}/1
-						</span>
-						<span class="quota-chip" :class="getSlotStatusClass(team.id, 5)" title="Wingers (โควตา 2 คน)">
-							DW: {{ getPlayersInPos(team.id, 5).length }}/2
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 1)" title="Goalkeeper (โควตา 0-1 คน)">
+							GK:{{ getPlayersInPos(team.id, 1).length }}/1
 						</span>
 						<span class="quota-chip" :class="getSlotStatusClass(team.id, 2)" title="Defender (โควตา 1 คน)">
-							DF: {{ getPlayersInPos(team.id, 2).length }}/1
+							DF:{{ getPlayersInPos(team.id, 2).length }}/1
 						</span>
-						<span class="quota-chip" :class="getSlotStatusClass(team.id, 1)" title="Goalkeeper (โควตา 0-1 คน)">
-							GK: {{ getPlayersInPos(team.id, 1).length }}/1
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 5)" title="Wingers (โควตา 2 คน)">
+							DW:{{ getPlayersInPos(team.id, 5).length }}/2
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 6)" title="Defensive Midfield (โควตา 0-1 คน)">
+							DM:{{ getPlayersInPos(team.id, 6).length }}/1
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 3)" title="Midfielder (โควตา 1-2 คน)">
+							MF:{{ getPlayersInPos(team.id, 3).length }}/{{ is8PlayerTeam(team.id) ? '2' : '1' }}
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 7)" title="Attacking Midfield (โควตา 0-1 คน)">
+							AM:{{ getPlayersInPos(team.id, 7).length }}/1
+						</span>
+						<span class="quota-chip" :class="getSlotStatusClass(team.id, 4)" title="Center Forward (โควตา 1-2 คน)">
+							CF:{{ getPlayersInPos(team.id, 4).length }}/{{ getPosMax(4, team.id) }}
 						</span>
 					</div>
 				</div>
@@ -1237,11 +1238,11 @@
 					@drop.prevent="onDropToTeamBench($event, team.id)">
 					<div class="bench-header">
 						<div class="bench-title">
-							<span>⚪ สำรองทีม {{ team.color }}</span>
+							<span>⚪ สำรอง {{ team.color }}</span>
 							<span>({{ getBenchPlayers(team.id).length }})</span>
 						</div>
-						<span style="font-size: 0.72rem; color: var(--text-muted);">
-							(ลากมาวางเพื่อพักสำรอง)
+						<span class="bench-hint-text">
+							แตะเพื่อเลือกตำแหน่ง
 						</span>
 					</div>
 
