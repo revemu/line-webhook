@@ -931,7 +931,12 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
 
         // Add new match
         if (data.weekid !== undefined && data.matchnum !== undefined && data.teamaid !== undefined && data.teambid !== undefined) {
-            const status = (data.status === 'scheduled') ? 'scheduled' : 'in_progress';
+            const unfinished = await doQuery(`SELECT id, match_num FROM match_stat_tbl WHERE week_id = ${data.weekid} AND (status != 'finished' OR status IS NULL)`);
+            let status = (data.status === 'scheduled') ? 'scheduled' : 'in_progress';
+            if (unfinished && unfinished.length > 0) {
+                status = 'scheduled';
+                logger.info(`Week ${data.weekid} still has ${unfinished.length} unfinished match(es). Forcing new match ${data.matchnum} status to 'scheduled'.`);
+            }
             logger.info(`add week ${data.weekid} match ${data.matchnum} team ${data.teamaid} vs team ${data.teambid} status ${status}`);
             await addMatchWeek(data.matchnum, data.teamaid, data.teambid, data.weekid, status);
             msg = 'Match added successfully';
@@ -939,10 +944,11 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                 broadcastMatchEvent(data.weekid, {
                     type: 'MATCH_ADDED',
                     match_num: data.matchnum,
-                    message: `➕ เพิ่ม Match ${data.matchnum} ในตารางแข่งขันเรียบร้อย`
+                    status: status,
+                    message: `➕ เพิ่ม Match ${data.matchnum} ในตารางแข่งขันเรียบร้อย (${status === 'scheduled' ? 'รอเริ่มแข่ง' : 'กำลังแข่งขัน'})`
                 });
             } catch (eWs) { }
-            return res.json({ success: true, message: msg });
+            return res.json({ success: true, message: msg, status });
         }
 
         // Add goal

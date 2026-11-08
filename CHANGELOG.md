@@ -7,6 +7,9 @@
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
+- **จำกัดสถานะการสร้าง Match เป็น "รอแข่ง" เท่านั้นหากยังมีแมตช์ที่ยังไม่จบ (`public/update.shtml`, `routes/web.js`)**:
+  - **ตรวจสอบแมตช์ที่ยังไม่จบในสัปดาห์ (`hasUnfinishedMatches`)**: เมื่อกดเปิดหน้าต่าง "สร้าง Match ใหม่" (`openAddMatchModal`) หากยังมีแมตช์ในสัปดาห์ที่ยังแข่งไม่เสร็จ ระบบจะตั้งค่าสถานะเริ่มต้นเป็น `scheduled` (รอเริ่มแข่ง) ทันที พร้อมล็อกตัวเลือกสถานะ (`:disabled="hasUnfinishedMatches"`) และแสดงข้อความแจ้งเตือนสีส้ม `🔒 ยังมี Match ที่ยังไม่จบในสัปดาห์นี้ สถานะจึงต้องเป็น "รอเริ่มแข่ง" เท่านั้น`
+  - **Backend Protection ใน `/add_match`**: เพิ่มการตรวจสอบในระดับเซิร์ฟเวอร์ หากพบว่ายังมีแมตช์ใน `match_stat_tbl` ที่ `status != 'finished'` จะบังคับให้สถานะของแมตช์ที่สร้างใหม่เป็น `'scheduled'` เสมอ เพื่อป้องกันการเปิดแข่งซ้อนกันหลายคู่พร้อมกัน และเมื่อแมตช์ก่อนหน้าแข่งจบลง ระบบจะปลดล็อกและสลับมายังแมตช์นี้ให้อัตโนมัติตามลำดับ
 - **ปรับการเรียงลำดับตารางคะแนนด้วย GD และย้ายคอลัมน์ PTS ไปขวาสุด แสดง GD แทน G/A (`routes/web.js`, `query.js`, `flex.js`, `public/update.shtml`, `update.shtml`)**:
   - **การเรียงลำดับตารางคะแนนเมื่อแต้มเท่ากัน**: ปรับคำสั่ง SQL ใน `queryWeekTable` (`routes/web.js`) และ `queryTableWeek` (`query.js`) ให้เรียงลำดับตาม `PTS DESC` ➔ `GD (G - A) DESC` ➔ `G DESC` ➔ `W DESC` สอดคล้องกันทั้งหน้าเว็บและ LINE Bot
   - **ปรับคอลัมน์ตารางคะแนน (`Team | W | D | L | GD | PTS`)**: ย้ายคอลัมน์ `PTS` ไปไว้ขวาสุด และแสดงคอลัมน์ `GD` (ผลต่างประตูได้-เสีย พร้อมเครื่องหมาย `+` และสีเขียว/แดงตามค่าบวก/ลบ) แทนคอลัมน์ `G` และ `A` ทั้งบนหน้าเว็บ (`public/update.shtml`, `update.shtml`) และใน Flex Message (`flex.js`)

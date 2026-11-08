@@ -314,10 +314,13 @@
 						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">
 							สถานะการแข่งขันเริ่มต้น
 						</label>
-						<select v-model="newMatchForm.status" class="login-input">
-							<option value="in_progress">⚽ กำลังแข่งขัน (In Progress - บันทึกสกอร์ได้ทันที)</option>
+						<select v-model="newMatchForm.status" class="login-input" :disabled="hasUnfinishedMatches">
 							<option value="scheduled">⏳ รอเริ่มแข่ง (Scheduled)</option>
+							<option value="in_progress" :disabled="hasUnfinishedMatches">⚽ กำลังแข่งขัน (In Progress - บันทึกสกอร์ได้ทันที)</option>
 						</select>
+						<div v-if="hasUnfinishedMatches" style="font-size: 0.78rem; color: #f59e0b; margin-top: 0.35rem; display: flex; align-items: center; gap: 0.3rem;">
+							<span>🔒 ยังมี Match ที่ยังไม่จบในสัปดาห์นี้ สถานะจึงต้องเป็น "รอเริ่มแข่ง" เท่านั้น</span>
+						</div>
 					</div>
 
 					<div v-if="addMatchError" style="padding: 0.6rem 0.8rem; border-radius: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem; font-weight: 600; background: rgba(239, 68, 68, 0.1); color: var(--danger-color); border: 1px solid rgba(239, 68, 68, 0.3);">
@@ -2142,6 +2145,12 @@
 					if (!this.all_match) return [];
 					return Object.values(this.all_match).sort((a, b) => a.match_num - b.match_num);
 				},
+				hasUnfinishedMatches() {
+					if (!this.all_match) return false;
+					const matches = this.sortedMatchesAscending;
+					if (!matches || matches.length === 0) return false;
+					return matches.some(m => !this.isMatchFinished(m));
+				},
 				hasPrevMatch() {
 					const matches = this.sortedMatchesAscending;
 					if (!matches || matches.length <= 1) return false;
@@ -3082,11 +3091,12 @@
 					this.addMatchError = '';
 					const nextNum = (this.maxMatchNum || 0) + 1;
 					const teams = this.availableTeamsList;
+					const defaultStatus = this.hasUnfinishedMatches ? 'scheduled' : 'in_progress';
 					this.newMatchForm = {
 						match_num: nextNum > 0 ? nextNum : 1,
 						team_a_id: teams[0] ? teams[0].id : '',
 						team_b_id: teams[1] ? teams[1].id : (teams[0] ? teams[0].id : ''),
-						status: 'in_progress'
+						status: defaultStatus
 					};
 					this.showAddMatchModal = true;
 				},
@@ -3107,6 +3117,10 @@
 					if (!weekid) {
 						this.addMatchError = 'ไม่พบรหัสสัปดาห์ (Week ID)';
 						return;
+					}
+
+					if (this.hasUnfinishedMatches) {
+						this.newMatchForm.status = 'scheduled';
 					}
 
 					this.submittingMatch = true;
