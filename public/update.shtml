@@ -2561,6 +2561,8 @@
 					this.expandedPitchMatchNum = (this.expandedPitchMatchNum === matchNum) ? null : matchNum;
 				},
 				scrollToCurrentMatch(smooth = true, targetMatchNum = null) {
+					// Disable auto-scroll completely on score recording / manager page
+					if (this.isManager) return;
 					this.$nextTick(() => {
 						const cur = this.currentLiveMatch;
 						const curNum = targetMatchNum || (cur ? cur.match_num : (this.info && this.info.current_match_num ? this.info.current_match_num : 1));
@@ -2661,14 +2663,6 @@
 				},
 				toggleClassicForm() {
 					this.showClassicForm = !this.showClassicForm;
-					if (this.showClassicForm) {
-						this.$nextTick(() => {
-							const el = document.getElementById('classic-goal-form');
-							if (el) {
-								el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-							}
-						});
-					}
 				},
 				showToast(payload, options = {}) {
 					if (!payload) return;
@@ -2878,15 +2872,17 @@
 					const shouldUpdateTeamLists = data.type === 'MATCH_FINISHED' || data.type === 'MATCH_STARTED' || data.type === 'MATCH_ADDED';
 					this.refreshMatch(currentWeek, shouldUpdateTeamLists, this.selectedMatchIndex);
 
-					// When a match finishes, auto-scroll smoothly to the new current match
+					// When a match finishes, auto-scroll smoothly to the new current match (viewer mode only)
 					if (data.type === 'MATCH_FINISHED') {
 						const nextMatchNum = data.match_num ? Number(data.match_num) + 1 : 0;
 						if (nextMatchNum > 0) {
 							this.selectedMatchIndex = nextMatchNum;
 						}
-						setTimeout(() => {
-							this.scrollToCurrentMatch(true, nextMatchNum || null);
-						}, 400);
+						if (!this.isManager) {
+							setTimeout(() => {
+								this.scrollToCurrentMatch(true, nextMatchNum || null);
+							}, 400);
+						}
 					}
 				},
 				changeWeek(weeknum) {
@@ -3208,9 +3204,11 @@
 								const targetNum = hasNext ? nextMatchNum : match.match_num;
 								this.selectedMatchIndex = targetNum;
 								this.refreshMatch(this.week.number || 0, true, targetNum);
-								setTimeout(() => {
-									this.scrollToCurrentMatch(true, targetNum);
-								}, 350);
+								if (!this.isManager) {
+									setTimeout(() => {
+										this.scrollToCurrentMatch(true, targetNum);
+									}, 350);
+								}
 							} else {
 								const errMsg = (res.data && res.data.error) || 'เซิร์ฟเวอร์ไม่ได้ยืนยันการจบแมตช์';
 								this.showToast('❌ จบแมตช์ไม่สำเร็จ: ' + errMsg);
