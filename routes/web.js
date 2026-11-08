@@ -306,7 +306,7 @@ function requireAuth(req, res, next) {
     next();
 }
 
-// Middleware to require root role (Position Manager and position updates)
+// Middleware to require admin or root role (Position Manager and position updates)
 function requireRoot(req, res, next) {
     if (!req.user) {
         const isApiOrAjax = req.xhr ||
@@ -323,7 +323,7 @@ function requireRoot(req, res, next) {
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         return res.status(401).json({ success: false, error: 'เซสชันหมดอายุหรือไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่', session_expired: true });
     }
-    if (req.user.role !== 'root') {
+    if (req.user.role !== 'root' && req.user.role !== 'admin') {
         const isApiOrAjax = req.xhr ||
             req.headers['x-requested-with'] === 'XMLHttpRequest' ||
             req.method !== 'GET';
@@ -332,7 +332,7 @@ function requireRoot(req, res, next) {
             return res.redirect(`${prefix}/match`);
         }
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-        return res.status(403).json({ success: false, error: 'Access denied: Root role required.' });
+        return res.status(403).json({ success: false, error: 'Access denied: Admin or Root role required.' });
     }
     next();
 }
@@ -352,7 +352,7 @@ router.get(['/webhook/login', '/web/login'], (req, res) => {
     if (req.user) {
         const redirect = req.query.redirect;
         if (redirect && (redirect.startsWith('/webhook/') || redirect.startsWith('/web/'))) {
-            if (redirect.includes('position') && req.user.role !== 'root') {
+            if (redirect.includes('position') && req.user.role !== 'root' && req.user.role !== 'admin') {
                 return res.redirect(`${prefix}/match`);
             }
             return res.redirect(redirect);
@@ -436,7 +436,7 @@ router.post(['/webhook/login', '/web/login'], upload.none(), async (req, res) =>
         const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
         let targetRedirect = `${prefix}/match`;
         if (redirect && (redirect.startsWith('/webhook/') || redirect.startsWith('/web/'))) {
-            if (redirect.includes('position') && authenticatedUser.role !== 'root') {
+            if (redirect.includes('position') && authenticatedUser.role !== 'root' && authenticatedUser.role !== 'admin') {
                 targetRedirect = `${prefix}/match`;
             } else {
                 targetRedirect = redirect;
@@ -647,8 +647,8 @@ router.get(['/webhook/get_info', '/web/get_info'], requireAuth, async (req, res)
                 break;
 
             case 'get_position_page_data':
-                if (req.user.role !== 'root') {
-                    return res.status(403).json({ success: false, error: 'Access denied: Root role required' });
+                if (req.user.role !== 'root' && req.user.role !== 'admin') {
+                    return res.status(403).json({ success: false, error: 'Access denied: Admin or Root role required' });
                 }
                 const pageData = await queryPositionPageData(weeknum || 0);
                 res.json(pageData);
@@ -863,8 +863,9 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
 
         // Add new match
         if (data.weekid !== undefined && data.matchnum !== undefined && data.teamaid !== undefined && data.teambid !== undefined) {
-            logger.info(`add week ${data.weekid} match ${data.matchnum} team ${data.teamaid} vs team ${data.teambid}`);
-            await addMatchWeek(data.matchnum, data.teamaid, data.teambid, data.weekid);
+            const status = (data.status === 'scheduled') ? 'scheduled' : 'in_progress';
+            logger.info(`add week ${data.weekid} match ${data.matchnum} team ${data.teamaid} vs team ${data.teambid} status ${status}`);
+            await addMatchWeek(data.matchnum, data.teamaid, data.teambid, data.weekid, status);
             msg = 'Match added successfully';
             try {
                 broadcastMatchEvent(data.weekid, {
@@ -873,6 +874,7 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                     message: `➕ เพิ่ม Match ${data.matchnum} ในตารางแข่งขันเรียบร้อย`
                 });
             } catch (eWs) { }
+            return res.json({ success: true, message: msg });
         }
 
         // Add goal
@@ -1275,7 +1277,7 @@ function isBeforeFriday2000(dateStr) {
  * @returns {Promise<boolean>}
  */
 async function isWeekRosterLocked(weekid, currentUser = null) {
-    if (currentUser && currentUser.role === 'root') {
+    if (currentUser && (currentUser.role === 'root' || currentUser.role === 'admin')) {
         return false;
     }
     const [latestWeek] = await doQuery("SELECT id, DATE_FORMAT(date, '%Y-%m-%d') as raw_date FROM week_tbl ORDER BY id DESC LIMIT 1");
@@ -1296,7 +1298,7 @@ async function isWeekRosterLocked(weekid, currentUser = null) {
  * @returns {Promise<boolean>}
  */
 async function isMatchRosterLocked(matchid, currentUser = null) {
-    if (currentUser && currentUser.role === 'root') {
+    if (currentUser && (currentUser.role === 'root' || currentUser.role === 'admin')) {
         return false;
     }
     const mid = parseInt(matchid, 10);
@@ -1555,8 +1557,9 @@ async function updateMatchScore(matchid) {
     logger.info(`Updated match ${matchid} score: ${teamAGoal} - ${teamBGoal}`);
 }
 
-async function addMatchWeek(matchNum, teamAid, teamBid, weekid) {
-    const sql = `INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_a_goal, team_b_id, team_b_goal, status) VALUES (${weekid}, ${matchNum}, ${teamAid}, 0, ${teamBid}, 0, 'in_progress')`;
+async function addMatchWeek(matchNum, teamAid, teamBid, weekid, status = 'in_progress') {
+    const validStatus = (status === 'scheduled' || status === 'finished') ? status : 'in_progress';
+    const sql = `INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_a_goal, team_b_id, team_b_goal, status) VALUES (${weekid}, ${matchNum}, ${teamAid}, 0, ${teamBid}, 0, '${validStatus}')`;
     await doUpdate(sql);
 }
 

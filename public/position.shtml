@@ -42,6 +42,287 @@
 		})();
 
 	</script>
+	<style>
+		/* Swap Mode & Player Action Modal Styles */
+		.swap-floating-bar {
+			position: fixed;
+			bottom: 1.5rem;
+			left: 50%;
+			transform: translateX(-50%);
+			z-index: 2500;
+			background: rgba(17, 24, 39, 0.95);
+			backdrop-filter: blur(8px);
+			border: 2px solid #3b82f6;
+			box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.4);
+			border-radius: 9999px;
+			padding: 0.5rem 1.15rem;
+			color: #ffffff;
+			max-width: 90vw;
+			animation: floatBounce 0.25s ease-out;
+		}
+		@keyframes floatBounce {
+			from { opacity: 0; transform: translate(-50%, 20px); }
+			to { opacity: 1; transform: translate(-50%, 0); }
+		}
+		.swap-bar-content {
+			display: flex;
+			align-items: center;
+			gap: 0.85rem;
+		}
+		.swap-bar-info {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			font-size: 0.85rem;
+		}
+		.swap-bar-badge {
+			background: #3b82f6;
+			color: #fff;
+			padding: 0.2rem 0.55rem;
+			border-radius: 9999px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			text-transform: uppercase;
+		}
+		.swap-bar-hint {
+			color: #93c5fd;
+			font-size: 0.8rem;
+		}
+		.swap-bar-cancel-btn {
+			background: rgba(239, 68, 68, 0.2);
+			border: 1px solid rgba(239, 68, 68, 0.5);
+			color: #fca5a5;
+			padding: 0.25rem 0.75rem;
+			border-radius: 9999px;
+			font-size: 0.8rem;
+			font-weight: 700;
+			cursor: pointer;
+			transition: all 0.15s ease;
+		}
+		.swap-bar-cancel-btn:hover {
+			background: #ef4444;
+			color: #ffffff;
+		}
+		/* Source & Candidate Glows */
+		.pitch-circle-avatar.is-swap-source,
+		.unassigned-card.is-swap-source,
+		.pitch-player-card.is-swap-source {
+			box-shadow: 0 0 0 4px #3b82f6, 0 0 20px rgba(59, 130, 246, 0.9) !important;
+			animation: swapPulse 1.2s infinite alternate ease-in-out;
+			transform: scale(1.08);
+		}
+		@keyframes swapPulse {
+			from { box-shadow: 0 0 0 3px #3b82f6, 0 0 10px rgba(59, 130, 246, 0.6); }
+			to { box-shadow: 0 0 0 5px #60a5fa, 0 0 24px rgba(96, 165, 250, 0.95); }
+		}
+		.swap-mode-active .pitch-circle-avatar:not(.is-swap-source):not(.is-empty),
+		.swap-mode-active .unassigned-card:not(.is-swap-source),
+		.swap-mode-active .pitch-player-card:not(.is-swap-source) {
+			cursor: pointer !important;
+			border: 2px dashed #60a5fa !important;
+			animation: subtlePulse 2s infinite ease-in-out;
+		}
+		@keyframes subtlePulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.85; }
+		}
+		.swap-mode-active .pitch-circle-slot {
+			cursor: pointer !important;
+		}
+		.swap-mode-active .pitch-circle-avatar.is-empty {
+			border: 2px dashed #10b981 !important;
+			background: rgba(16, 185, 129, 0.2) !important;
+			cursor: pointer !important;
+		}
+
+		/* Player Action Modal */
+		.player-action-modal {
+			max-width: 480px;
+			padding: 1.25rem;
+			border-radius: 1rem;
+		}
+		.action-modal-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			border-bottom: 1px solid var(--border-color);
+			padding-bottom: 0.85rem;
+			margin-bottom: 1rem;
+		}
+		.action-player-profile {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+		}
+		.action-player-avatar {
+			width: 48px;
+			height: 48px;
+			border-radius: 50%;
+			overflow: hidden;
+			border: 2px solid var(--border-color);
+			background: var(--card-bg);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-weight: 700;
+			font-size: 1.15rem;
+		}
+		.action-player-avatar img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+		}
+		.action-player-name {
+			font-size: 1.15rem;
+			font-weight: 800;
+			color: var(--text-main);
+		}
+		.action-player-meta {
+			display: flex;
+			align-items: center;
+			gap: 0.35rem;
+			margin-top: 3px;
+		}
+		.action-badge-team {
+			padding: 1px 7px;
+			border-radius: 9999px;
+			font-size: 0.72rem;
+			font-weight: 700;
+		}
+		.action-badge-pos {
+			background: rgba(79, 70, 229, 0.12);
+			color: var(--primary-color);
+			padding: 1px 6px;
+			border-radius: 9999px;
+			font-size: 0.72rem;
+			font-weight: 700;
+		}
+		.action-badge-rating {
+			font-size: 0.72rem;
+			color: var(--text-muted);
+			font-weight: 600;
+		}
+		.action-modal-close {
+			background: none;
+			border: none;
+			font-size: 1.6rem;
+			color: var(--text-muted);
+			cursor: pointer;
+			line-height: 1;
+		}
+		.action-section {
+			margin-bottom: 1rem;
+		}
+		.action-section-title {
+			font-size: 0.78rem;
+			font-weight: 800;
+			color: var(--text-muted);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			margin-bottom: 0.5rem;
+		}
+		.btn-action-swap-mode {
+			width: 100%;
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.15));
+			border: 1.5px solid #3b82f6;
+			border-radius: 0.75rem;
+			padding: 0.75rem 1rem;
+			cursor: pointer;
+			text-align: left;
+			color: var(--text-main);
+			transition: all 0.15s ease;
+		}
+		.btn-action-swap-mode:hover {
+			background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(99, 102, 241, 0.25));
+			border-color: #2563eb;
+			transform: translateY(-1px);
+		}
+		.action-pos-grid {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 0.45rem;
+		}
+		.action-pos-btn {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 0.5rem 0.25rem;
+			border-radius: 0.6rem;
+			border: 1px solid var(--border-color);
+			background: var(--card-bg);
+			cursor: pointer;
+			transition: all 0.15s ease;
+			color: var(--text-main);
+		}
+		.action-pos-btn:hover {
+			border-color: var(--primary-color);
+			background: rgba(79, 70, 229, 0.08);
+		}
+		.action-pos-btn.active {
+			border-color: var(--primary-color);
+			background: var(--primary-color);
+			color: #ffffff;
+		}
+		.action-pos-btn.active .action-pos-name {
+			color: rgba(255, 255, 255, 0.85);
+		}
+		.action-pos-icon { font-size: 1.1rem; }
+		.action-pos-code { font-weight: 800; font-size: 0.8rem; margin-top: 1px; }
+		.action-pos-name { font-size: 0.65rem; color: var(--text-muted); }
+		.action-team-grid {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 0.45rem;
+		}
+		.action-team-btn {
+			display: flex;
+			align-items: center;
+			gap: 0.45rem;
+			padding: 0.55rem 0.65rem;
+			border-radius: 0.6rem;
+			border: 1px solid var(--border-color);
+			border-left-width: 4px;
+			background: var(--card-bg);
+			color: var(--text-main);
+			font-size: 0.82rem;
+			font-weight: 600;
+			cursor: pointer;
+			transition: all 0.15s ease;
+		}
+		.action-team-btn:hover {
+			border-color: var(--primary-color);
+			background: rgba(79, 70, 229, 0.08);
+		}
+		.action-team-btn.active {
+			background: rgba(79, 70, 229, 0.15);
+			border-color: var(--primary-color);
+			font-weight: 800;
+		}
+		.action-team-count {
+			margin-left: auto;
+			font-size: 0.72rem;
+			color: var(--text-muted);
+		}
+		.slot-picker-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 0.5rem 0.65rem;
+			border-radius: 0.5rem;
+			border: 1px solid var(--border-color);
+			background: var(--card-bg);
+			cursor: pointer;
+			transition: all 0.15s ease;
+		}
+		.slot-picker-row:hover {
+			border-color: var(--primary-color);
+			background: rgba(79, 70, 229, 0.08);
+		}
+	</style>
 </head>
 
 <body>
@@ -81,7 +362,7 @@
 			</div>
 			<div class="user-status-pill" v-if="currentUser">
 				<span class="user-role-badge" :class="currentUser.role">
-					👑 {{ currentUser.username }}
+					{{ currentUser.role === 'root' ? '👑 ' + currentUser.username : '👤 ' + currentUser.username }}
 				</span>
 				<button @click="openPasswordModal" class="btn-action-pill" title="เปลี่ยนรหัสผ่าน">🔑 รหัสผ่าน</button>
 				<button @click="logout" class="btn-logout" title="ออกจากระบบ">ออกจากระบบ</button>
@@ -196,16 +477,21 @@
 					class="unassigned-card"
 					:class="{
 						'is-changed': isPlayerChanged(p.id),
-						'is-swap-target': swapTargetPlayerId === p.id
+						'is-swap-target': swapTargetPlayerId === p.id,
+						'is-swap-source': swapModePlayer && swapModePlayer.id === p.id
 					}"
 					draggable="true"
+					@click="handlePlayerClick(p)"
+					@touchstart="onTouchStart($event, p)"
+					@touchend="onTouchEnd($event)"
+					@touchmove="onTouchMove($event)"
 					@dragstart="onDragStart($event, p)"
 					@dragend="onDragEnd($event)"
 					@dragover.prevent.stop="onDragOverPlayer($event, p)"
 					@dragleave.stop="onDragLeavePlayer($event, p)"
 					@drop.prevent.stop="onDropOnPlayer($event, p)"
-					@contextmenu.prevent="openContextMenu($event, p)"
-					:title="p.alias + ' (ลากไปวางในสนามทีมใดก็ได้ หรือคลิกขวาเพื่อเลือกทีม)'">
+					@contextmenu.prevent="openPlayerActionModal(p)"
+					:title="p.alias + ' (แตะ/กดค้างเพื่อเลือกตำแหน่ง/ทีม หรือลากไปวาง)'">
 					<div class="pitch-player-avatar" style="background: var(--border-color); color: var(--text-main); overflow: hidden;">
 						<img v-if="p.picture_url" :src="p.picture_url" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
 						<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
@@ -222,7 +508,7 @@
 		</div>
 
 		<!-- All Teams Pitches (Multi-Pitch Board) -->
-		<div v-show="viewMode === 'pitch'" class="multi-pitch-grid" :class="{ 'cols-1': pitchGridCols === 1 }">
+		<div v-show="viewMode === 'pitch'" class="multi-pitch-grid" :class="{ 'cols-1': pitchGridCols === 1, 'swap-mode-active': !!swapModePlayer }">
 			<div v-for="team in teamColors" :key="team.id"
 				class="team-pitch-card"
 				:class="{ 'has-changes': teamHasChanges(team.id) }">
@@ -298,47 +584,65 @@
 							@drop.prevent="onDropToSlot($event, team.id, 1)">
 							<template v-if="getPlayersInPos(team.id, 1)[0]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 1)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 1)[0].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 1)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 1)[0].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 1)[0].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 1)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 1)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 1)[0])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 1)[0])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 1)[0])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 1)[0])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 1)[0])"
-									:title="getPlayersInPos(team.id, 1)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 1)[0])"
+									:title="getPlayersInPos(team.id, 1)[0].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 1)[0].picture_url" :src="getPlayersInPos(team.id, 1)[0].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 1)[0].alias ? getPlayersInPos(team.id, 1)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 1)[0])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 1)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 1)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 1)[0])">
 									<span class="pitch-pos-tag pos-gk">GK</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 1)[0].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 1)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>GK</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 1)">+ ว่าง</div>
 							</template>
 						</div>
 
 						<!-- Extra GK players if any -->
 						<div v-for="p in getPlayersInPos(team.id, 1).slice(1)" :key="p.id" class="pitch-circle-slot">
 							<div class="pitch-circle-avatar"
-								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id, 'is-swap-source': swapModePlayer && swapModePlayer.id === p.id }"
 								draggable="true"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
 								@dragstart="onDragStart($event, p)"
 								@dragend="onDragEnd($event)"
 								@dragover.prevent.stop="onDragOverPlayer($event, p)"
 								@dragleave.stop="onDragLeavePlayer($event, p)"
 								@drop.prevent.stop="onDropOnPlayer($event, p)"
-								@contextmenu.prevent="openContextMenu($event, p)"
-								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								@contextmenu.prevent="openPlayerActionModal(p)"
+								:title="p.alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 								<img v-if="p.picture_url" :src="p.picture_url" />
 								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 							</div>
-							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+							<div class="pitch-player-pill"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
+								@contextmenu.prevent="openPlayerActionModal(p)">
 								<span class="pitch-pos-tag pos-gk">GK</span>
 								<span class="pitch-pill-name">{{ p.alias }}</span>
 							</div>
@@ -355,47 +659,65 @@
 							@drop.prevent="onDropToSlot($event, team.id, 2)">
 							<template v-if="getPlayersInPos(team.id, 2)[0]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 2)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 2)[0].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 2)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 2)[0].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 2)[0].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 2)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 2)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 2)[0])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 2)[0])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 2)[0])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 2)[0])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 2)[0])"
-									:title="getPlayersInPos(team.id, 2)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 2)[0])"
+									:title="getPlayersInPos(team.id, 2)[0].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 2)[0].picture_url" :src="getPlayersInPos(team.id, 2)[0].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 2)[0].alias ? getPlayersInPos(team.id, 2)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 2)[0])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 2)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 2)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 2)[0])">
 									<span class="pitch-pos-tag pos-df">DF</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 2)[0].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 2)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>DF</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 2)">+ ว่าง</div>
 							</template>
 						</div>
 
 						<!-- Extra DF players if any -->
 						<div v-for="p in getPlayersInPos(team.id, 2).slice(1)" :key="p.id" class="pitch-circle-slot">
 							<div class="pitch-circle-avatar"
-								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id, 'is-swap-source': swapModePlayer && swapModePlayer.id === p.id }"
 								draggable="true"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
 								@dragstart="onDragStart($event, p)"
 								@dragend="onDragEnd($event)"
 								@dragover.prevent.stop="onDragOverPlayer($event, p)"
 								@dragleave.stop="onDragLeavePlayer($event, p)"
 								@drop.prevent.stop="onDropOnPlayer($event, p)"
-								@contextmenu.prevent="openContextMenu($event, p)"
-								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								@contextmenu.prevent="openPlayerActionModal(p)"
+								:title="p.alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 								<img v-if="p.picture_url" :src="p.picture_url" />
 								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 							</div>
-							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+							<div class="pitch-player-pill"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
+								@contextmenu.prevent="openPlayerActionModal(p)">
 								<span class="pitch-pos-tag pos-df">DF</span>
 								<span class="pitch-pill-name">{{ p.alias }}</span>
 							</div>
@@ -412,28 +734,37 @@
 							@drop.prevent="onDropToSlot($event, team.id, 5)">
 							<template v-if="getPlayersInPos(team.id, 5)[0]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 5)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 5)[0].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 5)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 5)[0].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 5)[0].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 5)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 5)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 5)[0])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 5)[0])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 5)[0])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 5)[0])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 5)[0])"
-									:title="getPlayersInPos(team.id, 5)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 5)[0])"
+									:title="getPlayersInPos(team.id, 5)[0].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 5)[0].picture_url" :src="getPlayersInPos(team.id, 5)[0].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 5)[0].alias ? getPlayersInPos(team.id, 5)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 5)[0])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 5)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 5)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 5)[0])">
 									<span class="pitch-pos-tag pos-dw">DW</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 5)[0].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 5)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>DW</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 5)">+ ว่าง</div>
 							</template>
 						</div>
 
@@ -445,47 +776,65 @@
 							@drop.prevent="onDropToSlot($event, team.id, 5)">
 							<template v-if="getPlayersInPos(team.id, 5)[1]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 5)[1].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 5)[1].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 5)[1].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 5)[1].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 5)[1].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 5)[1])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 5)[1])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 5)[1])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 5)[1])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 5)[1])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 5)[1])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 5)[1])"
-									:title="getPlayersInPos(team.id, 5)[1].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 5)[1])"
+									:title="getPlayersInPos(team.id, 5)[1].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 5)[1].picture_url" :src="getPlayersInPos(team.id, 5)[1].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 5)[1].alias ? getPlayersInPos(team.id, 5)[1].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 5)[1])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 5)[1])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 5)[1])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 5)[1])">
 									<span class="pitch-pos-tag pos-dw">DW</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 5)[1].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 5)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>DW</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 5)">+ ว่าง</div>
 							</template>
 						</div>
 
 						<!-- Extra DW players if more than 2 -->
 						<div v-for="p in getPlayersInPos(team.id, 5).slice(2)" :key="p.id" class="pitch-circle-slot">
 							<div class="pitch-circle-avatar"
-								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id, 'is-swap-source': swapModePlayer && swapModePlayer.id === p.id }"
 								draggable="true"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
 								@dragstart="onDragStart($event, p)"
 								@dragend="onDragEnd($event)"
 								@dragover.prevent.stop="onDragOverPlayer($event, p)"
 								@dragleave.stop="onDragLeavePlayer($event, p)"
 								@drop.prevent.stop="onDropOnPlayer($event, p)"
-								@contextmenu.prevent="openContextMenu($event, p)"
-								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								@contextmenu.prevent="openPlayerActionModal(p)"
+								:title="p.alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 								<img v-if="p.picture_url" :src="p.picture_url" />
 								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 							</div>
-							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+							<div class="pitch-player-pill"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
+								@contextmenu.prevent="openPlayerActionModal(p)">
 								<span class="pitch-pos-tag pos-dw">DW</span>
 								<span class="pitch-pill-name">{{ p.alias }}</span>
 							</div>
@@ -502,47 +851,65 @@
 							@drop.prevent="onDropToSlot($event, team.id, 6)">
 							<template v-if="getPlayersInPos(team.id, 6)[0]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 6)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 6)[0].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 6)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 6)[0].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 6)[0].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 6)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 6)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 6)[0])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 6)[0])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 6)[0])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 6)[0])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 6)[0])"
-									:title="getPlayersInPos(team.id, 6)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 6)[0])"
+									:title="getPlayersInPos(team.id, 6)[0].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 6)[0].picture_url" :src="getPlayersInPos(team.id, 6)[0].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 6)[0].alias ? getPlayersInPos(team.id, 6)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 6)[0])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 6)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 6)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 6)[0])">
 									<span class="pitch-pos-tag pos-dm">DM</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 6)[0].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 6)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>DM</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 6)">+ ว่าง</div>
 							</template>
 						</div>
 
 						<!-- Extra DM players if any -->
 						<div v-for="p in getPlayersInPos(team.id, 6).slice(1)" :key="p.id" class="pitch-circle-slot">
 							<div class="pitch-circle-avatar"
-								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id, 'is-swap-source': swapModePlayer && swapModePlayer.id === p.id }"
 								draggable="true"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
 								@dragstart="onDragStart($event, p)"
 								@dragend="onDragEnd($event)"
 								@dragover.prevent.stop="onDragOverPlayer($event, p)"
 								@dragleave.stop="onDragLeavePlayer($event, p)"
 								@drop.prevent.stop="onDropOnPlayer($event, p)"
-								@contextmenu.prevent="openContextMenu($event, p)"
-								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								@contextmenu.prevent="openPlayerActionModal(p)"
+								:title="p.alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 								<img v-if="p.picture_url" :src="p.picture_url" />
 								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 							</div>
-							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+							<div class="pitch-player-pill"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
+								@contextmenu.prevent="openPlayerActionModal(p)">
 								<span class="pitch-pos-tag pos-dm">DM</span>
 								<span class="pitch-pill-name">{{ p.alias }}</span>
 							</div>
@@ -559,28 +926,37 @@
 							@drop.prevent="onDropToSlot($event, team.id, 3)">
 							<template v-if="getPlayersInPos(team.id, 3)[0]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 3)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 3)[0].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 3)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 3)[0].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 3)[0].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 3)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 3)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 3)[0])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 3)[0])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 3)[0])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 3)[0])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 3)[0])"
-									:title="getPlayersInPos(team.id, 3)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 3)[0])"
+									:title="getPlayersInPos(team.id, 3)[0].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 3)[0].picture_url" :src="getPlayersInPos(team.id, 3)[0].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 3)[0].alias ? getPlayersInPos(team.id, 3)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 3)[0])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 3)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 3)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 3)[0])">
 									<span class="pitch-pos-tag pos-mf">MF</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 3)[0].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 3)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>MF</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 3)">+ ว่าง</div>
 							</template>
 						</div>
 
@@ -592,47 +968,65 @@
 							@drop.prevent="onDropToSlot($event, team.id, 3)">
 							<template v-if="getPlayersInPos(team.id, 3)[1]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 3)[1].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 3)[1].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 3)[1].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 3)[1].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 3)[1].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 3)[1])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 3)[1])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 3)[1])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 3)[1])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 3)[1])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 3)[1])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 3)[1])"
-									:title="getPlayersInPos(team.id, 3)[1].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 3)[1])"
+									:title="getPlayersInPos(team.id, 3)[1].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 3)[1].picture_url" :src="getPlayersInPos(team.id, 3)[1].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 3)[1].alias ? getPlayersInPos(team.id, 3)[1].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 3)[1])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 3)[1])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 3)[1])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 3)[1])">
 									<span class="pitch-pos-tag pos-mf">MF</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 3)[1].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 3)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>MF</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 3)">+ ว่าง</div>
 							</template>
 						</div>
 
 						<!-- Extra MF players if more than 2 -->
 						<div v-for="p in getPlayersInPos(team.id, 3).slice(2)" :key="p.id" class="pitch-circle-slot">
 							<div class="pitch-circle-avatar"
-								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id, 'is-swap-source': swapModePlayer && swapModePlayer.id === p.id }"
 								draggable="true"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
 								@dragstart="onDragStart($event, p)"
 								@dragend="onDragEnd($event)"
 								@dragover.prevent.stop="onDragOverPlayer($event, p)"
 								@dragleave.stop="onDragLeavePlayer($event, p)"
 								@drop.prevent.stop="onDropOnPlayer($event, p)"
-								@contextmenu.prevent="openContextMenu($event, p)"
-								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								@contextmenu.prevent="openPlayerActionModal(p)"
+								:title="p.alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 								<img v-if="p.picture_url" :src="p.picture_url" />
 								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 							</div>
-							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+							<div class="pitch-player-pill"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
+								@contextmenu.prevent="openPlayerActionModal(p)">
 								<span class="pitch-pos-tag pos-mf">MF</span>
 								<span class="pitch-pill-name">{{ p.alias }}</span>
 							</div>
@@ -649,47 +1043,65 @@
 							@drop.prevent="onDropToSlot($event, team.id, 7)">
 							<template v-if="getPlayersInPos(team.id, 7)[0]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 7)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 7)[0].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 7)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 7)[0].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 7)[0].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 7)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 7)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 7)[0])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 7)[0])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 7)[0])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 7)[0])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 7)[0])"
-									:title="getPlayersInPos(team.id, 7)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 7)[0])"
+									:title="getPlayersInPos(team.id, 7)[0].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 7)[0].picture_url" :src="getPlayersInPos(team.id, 7)[0].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 7)[0].alias ? getPlayersInPos(team.id, 7)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 7)[0])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 7)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 7)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 7)[0])">
 									<span class="pitch-pos-tag pos-am">AM</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 7)[0].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 7)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>AM</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 7)">+ ว่าง</div>
 							</template>
 						</div>
 
 						<!-- Extra AM players if more than 1 -->
 						<div v-for="p in getPlayersInPos(team.id, 7).slice(1)" :key="p.id" class="pitch-circle-slot">
 							<div class="pitch-circle-avatar"
-								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id, 'is-swap-source': swapModePlayer && swapModePlayer.id === p.id }"
 								draggable="true"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
 								@dragstart="onDragStart($event, p)"
 								@dragend="onDragEnd($event)"
 								@dragover.prevent.stop="onDragOverPlayer($event, p)"
 								@dragleave.stop="onDragLeavePlayer($event, p)"
 								@drop.prevent.stop="onDropOnPlayer($event, p)"
-								@contextmenu.prevent="openContextMenu($event, p)"
-								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								@contextmenu.prevent="openPlayerActionModal(p)"
+								:title="p.alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 								<img v-if="p.picture_url" :src="p.picture_url" />
 								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 							</div>
-							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+							<div class="pitch-player-pill"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
+								@contextmenu.prevent="openPlayerActionModal(p)">
 								<span class="pitch-pos-tag pos-am">AM</span>
 								<span class="pitch-pill-name">{{ p.alias }}</span>
 							</div>
@@ -706,28 +1118,37 @@
 							@drop.prevent="onDropToSlot($event, team.id, 4)">
 							<template v-if="getPlayersInPos(team.id, 4)[0]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 4)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 4)[0].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 4)[0].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 4)[0].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 4)[0].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 4)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 4)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 4)[0])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 4)[0])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 4)[0])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 4)[0])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 4)[0])"
-									:title="getPlayersInPos(team.id, 4)[0].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 4)[0])"
+									:title="getPlayersInPos(team.id, 4)[0].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 4)[0].picture_url" :src="getPlayersInPos(team.id, 4)[0].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 4)[0].alias ? getPlayersInPos(team.id, 4)[0].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 4)[0])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 4)[0])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 4)[0])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 4)[0])">
 									<span class="pitch-pos-tag pos-cf">CF</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 4)[0].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 4)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>CF</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 4)">+ ว่าง</div>
 							</template>
 						</div>
 
@@ -739,47 +1160,65 @@
 							@drop.prevent="onDropToSlot($event, team.id, 4)">
 							<template v-if="getPlayersInPos(team.id, 4)[1]">
 								<div class="pitch-circle-avatar"
-									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 4)[1].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 4)[1].id }"
+									:class="{ 'is-changed': isPlayerChanged(getPlayersInPos(team.id, 4)[1].id), 'is-swap-target': swapTargetPlayerId === getPlayersInPos(team.id, 4)[1].id, 'is-swap-source': swapModePlayer && swapModePlayer.id === getPlayersInPos(team.id, 4)[1].id }"
 									draggable="true"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 4)[1])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 4)[1])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
 									@dragstart="onDragStart($event, getPlayersInPos(team.id, 4)[1])"
 									@dragend="onDragEnd($event)"
 									@dragover.prevent.stop="onDragOverPlayer($event, getPlayersInPos(team.id, 4)[1])"
 									@dragleave.stop="onDragLeavePlayer($event, getPlayersInPos(team.id, 4)[1])"
 									@drop.prevent.stop="onDropOnPlayer($event, getPlayersInPos(team.id, 4)[1])"
-									@contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 4)[1])"
-									:title="getPlayersInPos(team.id, 4)[1].alias + ' (ลากสลับตัว / คลิกขวา)'">
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 4)[1])"
+									:title="getPlayersInPos(team.id, 4)[1].alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 									<img v-if="getPlayersInPos(team.id, 4)[1].picture_url" :src="getPlayersInPos(team.id, 4)[1].picture_url" />
 									<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ getPlayersInPos(team.id, 4)[1].alias ? getPlayersInPos(team.id, 4)[1].alias.charAt(0).toUpperCase() : '?' }}</span>
 								</div>
-								<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, getPlayersInPos(team.id, 4)[1])">
+								<div class="pitch-player-pill"
+									@click="handlePlayerClick(getPlayersInPos(team.id, 4)[1])"
+									@touchstart="onTouchStart($event, getPlayersInPos(team.id, 4)[1])"
+									@touchend="onTouchEnd($event)"
+									@touchmove="onTouchMove($event)"
+									@contextmenu.prevent="openPlayerActionModal(getPlayersInPos(team.id, 4)[1])">
 									<span class="pitch-pos-tag pos-cf">CF</span>
 									<span class="pitch-pill-name">{{ getPlayersInPos(team.id, 4)[1].alias }}</span>
 								</div>
 							</template>
 							<template v-else>
-								<div class="pitch-circle-avatar is-empty">
+								<div class="pitch-circle-avatar is-empty" @click="handleEmptySlotClick(team.id, 4)" title="แตะเพื่อเลือกผู้เล่นใส่ตำแหน่งนี้">
 									<span>CF</span>
 								</div>
-								<div class="pitch-empty-pill">+ ว่าง</div>
+								<div class="pitch-empty-pill" @click="handleEmptySlotClick(team.id, 4)">+ ว่าง</div>
 							</template>
 						</div>
 
 						<!-- Extra CF players if more than 2 -->
 						<div v-for="p in getPlayersInPos(team.id, 4).slice(2)" :key="p.id" class="pitch-circle-slot">
 							<div class="pitch-circle-avatar"
-								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id }"
+								:class="{ 'is-changed': isPlayerChanged(p.id), 'is-swap-target': swapTargetPlayerId === p.id, 'is-swap-source': swapModePlayer && swapModePlayer.id === p.id }"
 								draggable="true"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
 								@dragstart="onDragStart($event, p)"
 								@dragend="onDragEnd($event)"
 								@dragover.prevent.stop="onDragOverPlayer($event, p)"
 								@dragleave.stop="onDragLeavePlayer($event, p)"
 								@drop.prevent.stop="onDropOnPlayer($event, p)"
-								@contextmenu.prevent="openContextMenu($event, p)"
-								:title="p.alias + ' (ลากสลับตัว / คลิกขวา)'">
+								@contextmenu.prevent="openPlayerActionModal(p)"
+								:title="p.alias + ' (แตะ/กดค้างเพื่อเลือก หรือลากสลับ)'">
 								<img v-if="p.picture_url" :src="p.picture_url" />
 								<span v-else class="avatar-letter" :style="{ color: getContrastColor(team.color) }">{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
 							</div>
-							<div class="pitch-player-pill" @contextmenu.prevent="openContextMenu($event, p)">
+							<div class="pitch-player-pill"
+								@click="handlePlayerClick(p)"
+								@touchstart="onTouchStart($event, p)"
+								@touchend="onTouchEnd($event)"
+								@touchmove="onTouchMove($event)"
+								@contextmenu.prevent="openPlayerActionModal(p)">
 								<span class="pitch-pos-tag pos-cf">CF</span>
 								<span class="pitch-pill-name">{{ p.alias }}</span>
 							</div>
@@ -808,17 +1247,22 @@
 							class="pitch-player-card"
 							:class="{
 								'is-changed': isPlayerChanged(p.id),
-								'is-swap-target': swapTargetPlayerId === p.id
+								'is-swap-target': swapTargetPlayerId === p.id,
+								'is-swap-source': swapModePlayer && swapModePlayer.id === p.id
 							}"
 							style="background: var(--card-bg); color: var(--text-main); border-color: var(--border-color);"
 							draggable="true"
+							@click="handlePlayerClick(p)"
+							@touchstart="onTouchStart($event, p)"
+							@touchend="onTouchEnd($event)"
+							@touchmove="onTouchMove($event)"
 							@dragstart="onDragStart($event, p)"
 							@dragend="onDragEnd($event)"
 							@dragover.prevent.stop="onDragOverPlayer($event, p)"
 							@dragleave.stop="onDragLeavePlayer($event, p)"
 							@drop.prevent.stop="onDropOnPlayer($event, p)"
-							@contextmenu.prevent="openContextMenu($event, p)"
-							:title="p.alias + ' (ลากไปวางบนสนาม / สลับตัว / คลิกขวา)'">
+							@contextmenu.prevent="openPlayerActionModal(p)"
+							:title="p.alias + ' (แตะ/กดค้างเพื่อเลือกตำแหน่ง/ทีม หรือลากสลับ)'">
 							<div class="pitch-player-avatar"
 								:style="{ backgroundColor: (team.color || '#ccc').toLowerCase(), color: getContrastColor(team.color), overflow: 'hidden' }">
 								<img v-if="p.picture_url" :src="p.picture_url" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
@@ -1079,6 +1523,144 @@
 			</div>
 		</div>
 
+		<!-- Swap Mode Floating Bar -->
+		<div class="swap-floating-bar" v-if="swapModePlayer">
+			<div class="swap-bar-content">
+				<div class="swap-bar-info">
+					<span class="swap-bar-badge">🔁 โหมดสลับตัว</span>
+					<span class="swap-bar-name">
+						<strong>{{ swapModePlayer.alias }}</strong>
+						<span class="swap-bar-sub">({{ swapModePlayer.team_color ? 'ทีม ' + swapModePlayer.team_color : 'ไม่มีทีม' }} - {{ getPosCode(swapModePlayer.pos_id) }})</span>
+					</span>
+					<span class="swap-bar-hint">👉 แตะที่ผู้เล่นคนอื่นหรือช่องว่างเพื่อสลับทันที</span>
+				</div>
+				<button type="button" class="swap-bar-cancel-btn" @click="cancelSwapMode">✕ ยกเลิก</button>
+			</div>
+		</div>
+
+		<!-- Player Action Modal -->
+		<div class="modal-overlay" v-if="showPlayerActionModal && activeModalPlayer" @click.self="closePlayerActionModal">
+			<div class="modal-content player-action-modal" @click.stop>
+				<div class="action-modal-header">
+					<div class="action-player-profile">
+						<div class="action-player-avatar" :style="{ borderColor: activeModalPlayer.team_color ? activeModalPlayer.team_color.toLowerCase() : 'var(--border-color)' }">
+							<img v-if="activeModalPlayer.picture_url" :src="activeModalPlayer.picture_url" />
+							<span v-else>{{ activeModalPlayer.alias ? activeModalPlayer.alias.charAt(0).toUpperCase() : '?' }}</span>
+						</div>
+						<div>
+							<div class="action-player-name">{{ activeModalPlayer.alias }}</div>
+							<div class="action-player-meta">
+								<span class="action-badge-team" :style="{ backgroundColor: (activeModalPlayer.team_color || '#888').toLowerCase(), color: getContrastColor(activeModalPlayer.team_color) }">
+									{{ activeModalPlayer.team_color ? 'ทีม ' + activeModalPlayer.team_color : 'ไม่มีทีม' }}
+								</span>
+								<span class="action-badge-pos">
+									{{ getPosName(activeModalPlayer.pos_id) }}
+								</span>
+								<span v-if="activeModalPlayer.rating" class="action-badge-rating">⭐ {{ activeModalPlayer.rating }}</span>
+							</div>
+						</div>
+					</div>
+					<button type="button" class="action-modal-close" @click="closePlayerActionModal">×</button>
+				</div>
+
+				<!-- Action 1: Swap Button -->
+				<div class="action-section">
+					<button type="button" class="btn-action-swap-mode" @click="startSwapModeFromModal">
+						<span style="font-size: 1.25rem;">🔁</span>
+						<div>
+							<div style="font-weight: 700; font-size: 0.95rem;">เลือกผู้เล่นเพื่อสลับตำแหน่ง (Swap)</div>
+							<div style="font-size: 0.75rem; opacity: 0.85;">กดปุ่มนี้ แล้วไปแตะผู้เล่นคนอื่นที่ต้องการสลับตัวได้ทันที (ไม่ต้องลาก)</div>
+						</div>
+					</button>
+				</div>
+
+				<!-- Action 2: Change Position -->
+				<div class="action-section">
+					<div class="action-section-title">🎯 เปลี่ยนตำแหน่ง (Position)</div>
+					<div class="action-pos-grid">
+						<button v-for="pos in positions" :key="'act-pos-' + pos.id"
+							type="button"
+							class="action-pos-btn"
+							:class="{ active: activeModalPlayer.pos_id == pos.id }"
+							@click="selectPositionFromActionModal(pos.id)">
+							<span class="action-pos-icon">{{ pos.icon }}</span>
+							<span class="action-pos-code">{{ pos.code }}</span>
+							<span class="action-pos-name">{{ pos.name }}</span>
+						</button>
+						<button type="button"
+							class="action-pos-btn"
+							:class="{ active: !activeModalPlayer.pos_id || activeModalPlayer.pos_id === 0 }"
+							@click="selectPositionFromActionModal(0)">
+							<span class="action-pos-icon">⚪</span>
+							<span class="action-pos-code">สำรอง</span>
+							<span class="action-pos-name">Bench</span>
+						</button>
+					</div>
+				</div>
+
+				<!-- Action 3: Move to Team -->
+				<div class="action-section">
+					<div class="action-section-title">👕 ย้ายไปทีม (Change Team)</div>
+					<div class="action-team-grid">
+						<button v-for="team in teamColors" :key="'act-team-' + team.id"
+							type="button"
+							class="action-team-btn"
+							:class="{ active: activeModalPlayer.team_id == team.id }"
+							:style="{ borderLeftColor: (team.color || '#ccc').toLowerCase() }"
+							@click="moveTeamFromActionModal(team.id)">
+							<span class="team-dot" :style="{ backgroundColor: (team.color || '#ccc').toLowerCase() }"></span>
+							<span>ทีม {{ team.color }}</span>
+							<span class="action-team-count">({{ getTeamMembers(team.id).length }} คน)</span>
+						</button>
+						<button type="button"
+							class="action-team-btn"
+							:class="{ active: !activeModalPlayer.team_id || activeModalPlayer.team_id === 0 }"
+							@click="moveTeamFromActionModal(0)">
+							<span class="team-dot" style="background-color: var(--text-muted);"></span>
+							<span>ปลดออกจากทีม (ไม่มีทีม)</span>
+							<span class="action-team-count">({{ unassignedMembers.length }} คน)</span>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Slot Picker Modal (Click Empty Slot to place player) -->
+		<div class="modal-overlay" v-if="showSlotPickerModal" @click.self="showSlotPickerModal = false">
+			<div class="modal-content" style="max-width: 440px; padding: 1.25rem;" @click.stop>
+				<div class="card-title" style="margin-bottom: 0.75rem;">
+					<div>
+						<div style="font-size: 1.05rem; font-weight: 700;">เลือกผู้เล่นใส่ตำแหน่ง {{ getPosCode(targetSlotPosId) }}</div>
+						<div style="font-size: 0.8rem; color: var(--text-muted);">ทีม {{ getTeamColorName(targetSlotTeamId) }}</div>
+					</div>
+					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="showSlotPickerModal = false">×</span>
+				</div>
+
+				<div style="max-height: 55vh; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem;">
+					<div v-if="eligibleSlotPlayers.length === 0" style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+						ไม่มีผู้เล่นที่ว่างอยู่
+					</div>
+					<div v-for="p in eligibleSlotPlayers" :key="'slot-p-' + p.id"
+						class="slot-picker-row"
+						@click="assignPlayerToTargetSlot(p)">
+						<div style="display: flex; align-items: center; gap: 0.6rem;">
+							<div class="pitch-player-avatar" style="width: 32px; height: 32px; font-size: 0.8rem; overflow: hidden; border-radius: 50%;">
+								<img v-if="p.picture_url" :src="p.picture_url" style="width: 100%; height: 100%; object-fit: cover;" />
+								<span v-else>{{ p.alias ? p.alias.charAt(0).toUpperCase() : '?' }}</span>
+							</div>
+							<div>
+								<div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">{{ p.alias }}</div>
+								<div style="font-size: 0.72rem; color: var(--text-muted);">
+									{{ p.team_color ? 'ทีม ' + p.team_color : 'ไม่มีทีม' }} • {{ getPosCode(p.pos_id) }}
+								</div>
+							</div>
+						</div>
+						<span v-if="p.rating" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">⭐ {{ p.rating }}</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Toast Notification -->
 		<div class="toast-box" v-if="toastMessage">
 			<span>{{ toastIcon }}</span>
@@ -1142,6 +1724,15 @@
 				swapTargetPlayerId: null,
 				showOtherTeams: true,
 				tabHoverTimer: null,
+				// Swap mode & touch/click selection state
+				swapModePlayer: null,
+				showPlayerActionModal: false,
+				activeModalPlayer: null,
+				showSlotPickerModal: false,
+				targetSlotTeamId: null,
+				targetSlotPosId: null,
+				longPressTimer: null,
+				longPressFired: false,
 				contextMenu: {
 					visible: false,
 					x: 0,
@@ -1167,6 +1758,13 @@
 				otherTeams() {
 					if (!this.teamColors) return [];
 					return this.teamColors.filter(t => t.id !== this.activePitchTeamId);
+				},
+				eligibleSlotPlayers() {
+					if (!this.members) return [];
+					const currentTeamBench = this.members.filter(m => m.team_id === this.targetSlotTeamId && (!m.pos_id || m.pos_id === 0));
+					const unassigned = this.members.filter(m => !m.team_id || m.team_id === 0);
+					const otherPlayers = this.members.filter(m => m.team_id !== this.targetSlotTeamId && m.team_id !== 0);
+					return [...currentTeamBench, ...unassigned, ...otherPlayers];
 				},
 				filteredMembers() {
 					let list = this.members;
@@ -1652,8 +2250,8 @@
 					playerB.team_color = aTeamColor;
 					playerB.pos_id = aPosId;
 					playerB.pos_code = aPosCode;
-					playerB.pos_name = bPosName;
-					playerB.pos_icon = bPosIcon;
+					playerB.pos_name = aPosName;
+					playerB.pos_icon = aPosIcon;
 
 					this.recordPlayerChange(playerA);
 					this.recordPlayerChange(playerB);
@@ -1665,6 +2263,154 @@
 						this.showToast(`สลับ ${playerA.alias} (${aLabel} ➜ ${bLabel}) กับ ${playerB.alias} (${bLabel} ➜ ${aLabel}) แล้ว`, '⇄');
 					} else {
 						this.showToast(`สลับตำแหน่ง ${playerA.alias} กับ ${playerB.alias} แล้ว`, '⇄');
+					}
+				},
+				getPosCode(posId) {
+					if (!posId || posId === 0) return 'สำรอง';
+					const pos = this.positions.find(p => p.id === posId);
+					return pos ? pos.code : 'สำรอง';
+				},
+				getPosName(posId) {
+					if (!posId || posId === 0) return 'สำรอง (Bench)';
+					const pos = this.positions.find(p => p.id === posId);
+					return pos ? `${pos.code} - ${pos.name}` : 'สำรอง';
+				},
+				getTeamColorName(teamId) {
+					if (!teamId || teamId === 0) return 'ไม่มีทีม';
+					const team = this.teamColors.find(t => t.id === teamId);
+					return team ? team.color : 'ไม่มีทีม';
+				},
+				onTouchStart(e, player) {
+					this.longPressFired = false;
+					if (this.longPressTimer) {
+						clearTimeout(this.longPressTimer);
+					}
+					this.longPressTimer = setTimeout(() => {
+						this.longPressFired = true;
+						this.openPlayerActionModal(player);
+						if (navigator.vibrate) {
+							try { navigator.vibrate(40); } catch (err) {}
+						}
+					}, 380);
+				},
+				onTouchEnd(e) {
+					if (this.longPressTimer) {
+						clearTimeout(this.longPressTimer);
+						this.longPressTimer = null;
+					}
+				},
+				onTouchMove(e) {
+					if (this.longPressTimer) {
+						clearTimeout(this.longPressTimer);
+						this.longPressTimer = null;
+					}
+				},
+				handlePlayerClick(player) {
+					if (this.longPressFired) {
+						this.longPressFired = false;
+						return;
+					}
+					if (this.swapModePlayer) {
+						if (this.swapModePlayer.id === player.id) {
+							this.cancelSwapMode();
+							return;
+						}
+						this.swapPlayers(this.swapModePlayer, player);
+						this.swapModePlayer = null;
+						return;
+					}
+					this.openPlayerActionModal(player);
+				},
+				handleEmptySlotClick(teamId, posId) {
+					if (this.swapModePlayer) {
+						this.movePlayerToSlot(this.swapModePlayer, teamId, posId);
+						this.swapModePlayer = null;
+						return;
+					}
+					this.openSlotPicker(teamId, posId);
+				},
+				openPlayerActionModal(player) {
+					this.activeModalPlayer = player;
+					this.showPlayerActionModal = true;
+					this.closeContextMenu();
+				},
+				closePlayerActionModal() {
+					this.showPlayerActionModal = false;
+					this.activeModalPlayer = null;
+				},
+				startSwapModeFromModal() {
+					if (!this.activeModalPlayer) return;
+					this.swapModePlayer = this.activeModalPlayer;
+					this.closePlayerActionModal();
+					this.showToast(`เลือก ${this.swapModePlayer.alias} แล้ว แตะที่ผู้เล่นคนอื่นหรือช่องว่างเพื่อสลับ`, '🔁');
+				},
+				cancelSwapMode() {
+					this.swapModePlayer = null;
+					this.showToast('ยกเลิกโหมดสลับตัวแล้ว', 'ℹ️');
+				},
+				selectPositionFromActionModal(posId) {
+					if (!this.activeModalPlayer) return;
+					const player = this.activeModalPlayer;
+					const pos = this.positions.find(p => p.id === posId);
+					const posLabel = pos ? pos.code : 'สำรอง';
+					this.assignPlayerPosition(player, posId);
+					this.showToast(`เปลี่ยนตำแหน่ง ${player.alias} เป็น ${posLabel} แล้ว`, '✓');
+					this.closePlayerActionModal();
+				},
+				moveTeamFromActionModal(teamId) {
+					if (!this.activeModalPlayer) return;
+					const player = this.activeModalPlayer;
+					const oldTeamColor = player.team_color || 'ไม่มีทีม';
+
+					if (!teamId || teamId === 0) {
+						player.team_id = 0;
+						player.team_color = null;
+						player.pos_id = 0;
+						player.pos_code = null;
+						player.pos_name = null;
+						player.pos_icon = null;
+						this.recordPlayerChange(player);
+						this.showToast(`ปลด ${player.alias} ออกจากทีมเรียบร้อยแล้ว`, '✓');
+					} else {
+						const team = this.teamColors.find(t => t.id === teamId);
+						if (team) {
+							player.team_id = teamId;
+							player.team_color = team.color;
+							this.recordPlayerChange(player);
+							this.showToast(`ย้าย ${player.alias} (${oldTeamColor} ➜ ทีม ${team.color}) เรียบร้อยแล้ว`, '✓');
+						}
+					}
+					this.closePlayerActionModal();
+				},
+				openSlotPicker(teamId, posId) {
+					this.targetSlotTeamId = teamId;
+					this.targetSlotPosId = posId;
+					this.showSlotPickerModal = true;
+				},
+				assignPlayerToTargetSlot(player) {
+					if (!player || !this.targetSlotTeamId || !this.targetSlotPosId) return;
+					this.movePlayerToSlot(player, this.targetSlotTeamId, this.targetSlotPosId);
+					this.showSlotPickerModal = false;
+					this.targetSlotTeamId = null;
+					this.targetSlotPosId = null;
+				},
+				movePlayerToSlot(player, teamId, posId) {
+					if (!player) return;
+					const targetTeam = this.teamColors.find(t => t.id === teamId);
+					if (!targetTeam) return;
+
+					const oldTeamColor = player.team_color || 'ไม่มีทีม';
+					player.team_id = teamId;
+					player.team_color = targetTeam.color;
+					this.assignPlayerPosition(player, posId);
+
+					const pos = this.positions.find(p => p.id === posId);
+					const posLabel = pos ? pos.code : 'ตำแหน่ง';
+
+					if (oldTeamColor !== targetTeam.color) {
+						this.showToast(`ย้าย ${player.alias} (${oldTeamColor} ➜ ${targetTeam.color}) เล่น ${posLabel} แล้ว`, '✓');
+					} else {
+						this.showToast(`จัด ${player.alias} ลงตำแหน่ง ${posLabel} แล้ว`, '✓');
 					}
 				},
 				onTeamTabDragOver(e, teamId) {
@@ -1976,11 +2722,11 @@
 							}
 							if (res.data && res.data.authenticated) {
 								this.currentUser = res.data.user;
-								if (this.currentUser.role !== 'root') {
+								if (this.currentUser.role !== 'root' && this.currentUser.role !== 'admin') {
 									window.location.href = '/webhook/match';
 									return;
 								}
-								// Load initial page data once verified root
+								// Load initial page data once verified root or admin
 								const urlParams = new URLSearchParams(window.location.search);
 								const initialWeek = urlParams.get('weeknum') || urlParams.get('week') || urlParams.get('week_id') || 0;
 								this.fetchPageData(initialWeek);

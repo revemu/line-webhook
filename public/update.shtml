@@ -98,7 +98,7 @@
 			<div class="nav-tabs">
 				<a v-if="currentUser" :href="'/webhook/match' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab" :class="{ active: isManager }">⚽ Manager</a>
 				<a :href="'/webhook/view' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab" :class="{ active: !isManager }">📺 Viewer</a>
-				<a v-if="currentUser && currentUser.role === 'root'" :href="'/webhook/position' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">🛡️ Position</a>
+				<a v-if="currentUser && (currentUser.role === 'root' || currentUser.role === 'admin')" :href="'/webhook/position' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">🛡️ จัดทีม/ตำแหน่ง</a>
 			</div>
 			<div class="user-status-pill" v-if="currentUser">
 				<span class="user-role-badge" :class="currentUser.role">
@@ -263,6 +263,78 @@
 			</div>
 		</div>
 
+		<!-- Create Match Modal -->
+		<div class="modal-overlay" v-if="showAddMatchModal" @click.self="showAddMatchModal = false">
+			<div class="modal-content" style="max-width: 440px; padding: 1.5rem;" @click.stop>
+				<div class="card-title" style="margin-bottom: 1.25rem;">
+					<span>➕ สร้าง Match ใหม่</span>
+					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="showAddMatchModal = false">×</span>
+				</div>
+
+				<form @submit.prevent="submitAddMatch">
+					<div style="margin-bottom: 0.85rem; font-size: 0.85rem; color: var(--text-muted); background: rgba(79, 70, 229, 0.06); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);">
+						📅 สัปดาห์: <strong>{{ week.date }}</strong> (Week {{ week.number || week.id }})
+						<span v-if="isWeekEnded" style="display: block; color: #f59e0b; font-size: 0.78rem; margin-top: 2px;">
+							⚠️ สัปดาห์นี้จบไปแล้ว คุณสามารถสร้างแมตช์เพิ่มและบันทึกคะแนนได้ตามปกติ
+						</span>
+					</div>
+
+					<div style="margin-bottom: 1rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">
+							นัดที่ (Match Number)
+						</label>
+						<input type="number" v-model.number="newMatchForm.match_num" min="1" class="login-input" required placeholder="เช่น 1, 2, 3">
+					</div>
+
+					<div style="margin-bottom: 1rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">
+							ทีม A (เจ้าบ้าน)
+						</label>
+						<select v-model="newMatchForm.team_a_id" class="login-input" required>
+							<option value="" disabled>-- เลือกทีม A --</option>
+							<option v-for="team in availableTeamsList" :key="'ta-' + team.id" :value="team.id">
+								ทีม {{ team.name }}
+							</option>
+						</select>
+					</div>
+
+					<div style="margin-bottom: 1rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">
+							ทีม B (ทีมเยือน)
+						</label>
+						<select v-model="newMatchForm.team_b_id" class="login-input" required>
+							<option value="" disabled>-- เลือกทีม B --</option>
+							<option v-for="team in availableTeamsList" :key="'tb-' + team.id" :value="team.id" :disabled="team.id === newMatchForm.team_a_id">
+								ทีม {{ team.name }} {{ team.id === newMatchForm.team_a_id ? '(เลือกซ้ำกับทีม A ไม่ได้)' : '' }}
+							</option>
+						</select>
+					</div>
+
+					<div style="margin-bottom: 1.25rem;">
+						<label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">
+							สถานะการแข่งขันเริ่มต้น
+						</label>
+						<select v-model="newMatchForm.status" class="login-input">
+							<option value="in_progress">⚽ กำลังแข่งขัน (In Progress - บันทึกสกอร์ได้ทันที)</option>
+							<option value="scheduled">⏳ รอเริ่มแข่ง (Scheduled)</option>
+						</select>
+					</div>
+
+					<div v-if="addMatchError" style="padding: 0.6rem 0.8rem; border-radius: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem; font-weight: 600; background: rgba(239, 68, 68, 0.1); color: var(--danger-color); border: 1px solid rgba(239, 68, 68, 0.3);">
+						⚠️ {{ addMatchError }}
+					</div>
+
+					<div style="display: flex; gap: 0.75rem; justify-content: flex-end; align-items: center;">
+						<button type="button" class="btn-logout" @click="showAddMatchModal = false">ยกเลิก</button>
+						<button type="submit" class="login-button" style="width: auto; padding: 0.5rem 1.25rem; font-size: 0.9rem;" :disabled="submittingMatch">
+							<span v-if="submittingMatch">⏳ กำลังสร้าง...</span>
+							<span v-else>➕ สร้าง Match</span>
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
 		<!-- Backdrop for Modal Pitch Mode -->
 		<div class="pitch-modal-backdrop" v-if="isPitchModal" @click="closePitchModal"></div>
 
@@ -378,8 +450,11 @@
 						<button v-if="!isMatchFinished(currentSelectedMatch)" type="button" class="btn-scoreboard-tool btn-finish-match" @click="finishCurrentMatch()" title="จบแมตช์นี้แล้วขึ้นนัดถัดไป">
 							🏁 จบ Match
 						</button>
-						<button v-if="isMatchFinished(currentSelectedMatch) && !isWeekEnded" type="button" class="btn-scoreboard-tool btn-reopen-match" @click="reopenCurrentMatch()" title="กลับมาแข่งขันต่อ / แก้ไขผล">
+						<button v-if="isMatchFinished(currentSelectedMatch)" type="button" class="btn-scoreboard-tool btn-reopen-match" @click="reopenCurrentMatch()" title="กลับมาแข่งขันต่อ / แก้ไขผล">
 							↩️ แข่งต่อ
+						</button>
+						<button type="button" class="btn-scoreboard-tool" @click="openAddMatchModal()" title="สร้าง Match การแข่งขันใหม่">
+							➕ สร้าง Match
 						</button>
 						<button type="button" class="btn-scoreboard-tool" @click="toggleClassicForm()" title="สลับฟอร์ม">
 							{{ showClassicForm ? '✕ ซ่อน' : '📋 ฟอร์ม' }}
@@ -1254,13 +1329,16 @@
 		<div class="card" v-if="matchCount === 0" style="text-align: center; padding: 2.5rem 1.5rem;">
 			<div style="font-size: 3rem; margin-bottom: 0.5rem;">⚽</div>
 			<div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem;">ยังไม่มีตารางการแข่งขันในสัปดาห์นี้</div>
-			<div style="font-size: 0.85rem; color: var(--text-muted);">
+			<div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
 				รอการสร้างตารางการแข่งขันอัตโนมัติ (/schedule) หรือเลือกวันที่อื่น
 			</div>
+			<button v-if="isManager" type="button" class="btn-scoreboard-tool" style="padding: 0.55rem 1.25rem; font-size: 0.9rem; font-weight: 700;" @click="openAddMatchModal()">
+				➕ สร้าง Match แรก
+			</button>
 		</div>
 
 		<!-- ==================== TEAM ROSTERS & REALTIME RATINGS SUMMARY ==================== -->
-		<div class="card team-summary-card" v-if="!info.is_roster_locked && matchCount > 0 && teamRostersSummary.length > 0">
+		<div class="card team-summary-card" v-if="!isManager && !info.is_roster_locked && matchCount > 0 && teamRostersSummary.length > 0">
 			<div class="team-summary-header">
 				<div class="team-summary-title">
 					<span class="team-summary-title-text">👥 สรุปทีม & เรทติ้ง</span>
@@ -1531,8 +1609,11 @@
 
 		<!-- Match List (All Matches Summary Cards) -->
 		<div v-if="matchCount > 0">
-			<div style="margin-top: 0.85rem; margin-bottom: 0.35rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
-				📑 แมตช์ทั้งหมด
+			<div style="margin-top: 0.85rem; margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
+				<span style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">📑 แมตช์ทั้งหมด</span>
+				<button v-if="isManager" type="button" class="btn-scoreboard-tool" style="font-size: 0.78rem; padding: 0.25rem 0.65rem;" @click="openAddMatchModal()" title="สร้าง Match การแข่งขันใหม่">
+					➕ สร้าง Match
+				</button>
 			</div>
 
 		<div v-for="(match, index) in orderedMatches" :key="match.id" class="match-card"
@@ -1864,6 +1945,10 @@
 				loanSearchQuery: '',
 				loanTeamFilter: 'all',
 				matchLoans: {}, // { [matchId]: { teamA: [memberId...], teamB: [memberId...] } }
+				showAddMatchModal: false,
+				submittingMatch: false,
+				addMatchError: '',
+				newMatchForm: { match_num: 1, team_a_id: '', team_b_id: '', status: 'in_progress' },
 				showAddMatchForm: false,
 				showClassicForm: false,
 				submittingGoal: false,
@@ -2029,6 +2114,25 @@
 				maxMatchNum() {
 					if (!this.all_match || Object.keys(this.all_match).length === 0) return 0;
 					return Math.max(...Object.values(this.all_match).map(m => Number(m.match_num) || 0));
+				},
+				availableTeamsList() {
+					if (!this.info) return [];
+					if (this.info.team_week && Object.keys(this.info.team_week).length > 0) {
+						return Object.keys(this.info.team_week).map(k => {
+							const item = this.info.team_week[k];
+							return {
+								id: parseInt(item.teamid || item.id || k, 10),
+								name: item.name || item.color || ('Team ' + k)
+							};
+						});
+					}
+					if (this.tableweek && this.tableweek.length > 0) {
+						return this.tableweek.map(tw => ({
+							id: parseInt(tw.team_week_id || tw.id, 10),
+							name: tw.color || ('Team ' + (tw.team_week_id || tw.id))
+						}));
+					}
+					return [];
 				},
 				isLastMatchSelected() {
 					if (!this.currentSelectedMatch) return false;
@@ -2953,45 +3057,65 @@
 						default: return { background: '#64748b', color: '#ffffff' };
 					}
 				},
-				addMatch() {
+				openAddMatchModal() {
+					this.addMatchError = '';
+					const nextNum = (this.maxMatchNum || 0) + 1;
+					const teams = this.availableTeamsList;
+					this.newMatchForm = {
+						match_num: nextNum > 0 ? nextNum : 1,
+						team_a_id: teams[0] ? teams[0].id : '',
+						team_b_id: teams[1] ? teams[1].id : (teams[0] ? teams[0].id : ''),
+						status: 'in_progress'
+					};
+					this.showAddMatchModal = true;
+				},
+				submitAddMatch() {
 					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
 						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
-						setTimeout(() => {
-							window.location.href = (this.base_url || '/webhook') + '/login?redirect=' + encodeURIComponent(window.location.pathname);
-						}, 1200);
+						return;
+					}
+					if (!this.newMatchForm.team_a_id || !this.newMatchForm.team_b_id) {
+						this.addMatchError = 'กรุณาเลือกทีม A และทีม B ให้ครบถ้วน';
+						return;
+					}
+					if (Number(this.newMatchForm.team_a_id) === Number(this.newMatchForm.team_b_id)) {
+						this.addMatchError = 'ทีม A และทีม B ต้องไม่เป็นทีมเดียวกัน';
+						return;
+					}
+					const weekid = (this.week && (this.week.id || this.week.number)) || 0;
+					if (!weekid) {
+						this.addMatchError = 'ไม่พบรหัสสัปดาห์ (Week ID)';
 						return;
 					}
 
-					var matchnum = this.$refs.match_num ? this.$refs.match_num.value : '';
-					var weekid = (this.week && (this.week.id || this.week.number)) || (this.$refs.week_id ? this.$refs.week_id.value : '');
-					var teamaid = this.$refs.team_a_id ? this.$refs.team_a_id.value : (this.teamA ? this.teamA.id : '');
-					var teambid = this.$refs.team_b_id ? this.$refs.team_b_id.value : (this.teamB ? this.teamB.id : '');
-
-					var formdata = new FormData();
-					formdata.append('matchnum', matchnum);
+					this.submittingMatch = true;
+					this.addMatchError = '';
+					const formdata = new FormData();
+					formdata.append('matchnum', this.newMatchForm.match_num);
 					formdata.append('weekid', weekid);
-					formdata.append('teamaid', teamaid);
-					formdata.append('teambid', teambid);
+					formdata.append('teamaid', this.newMatchForm.team_a_id);
+					formdata.append('teambid', this.newMatchForm.team_b_id);
+					formdata.append('status', this.newMatchForm.status || 'in_progress');
 
-					axios.post(this.base_url + '/add_match', formdata)
+					axios.post((this.base_url || '/webhook') + '/add_match', formdata)
 						.then(response => {
+							this.submittingMatch = false;
 							if (response.data && response.data.success) {
-								this.output = response;
-								this.teamA = null;
-								this.teamB = null;
-								this.selectedMatchIndex = 0;
-								this.showAddMatchForm = false;
-								this.showToast('✅ สร้าง Match ' + matchnum + ' สำเร็จ!');
+								const num = this.newMatchForm.match_num;
+								this.showAddMatchModal = false;
+								this.showToast('✅ สร้าง Match ' + num + ' สำเร็จ!');
 								this.refreshMatch(this.week.number || 0, true);
 							} else {
-								var errMsg = (response.data && response.data.error) || 'ไม่สามารถสร้างแมตช์ได้';
-								this.showToast('❌ ' + errMsg);
+								this.addMatchError = (response.data && response.data.error) || 'ไม่สามารถสร้างแมตช์ได้';
 							}
 						})
 						.catch(err => {
-							var errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
-							this.showToast('⚠️ ไม่สามารถสร้างแมตช์ได้: ' + errMsg);
+							this.submittingMatch = false;
+							this.addMatchError = (err.response && err.response.data && err.response.data.error) || err.message;
 						});
+				},
+				addMatch() {
+					this.openAddMatchModal();
 				},
 				openTeamPicker(side) {
 					this.pickingFor = side;
