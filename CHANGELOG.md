@@ -7,6 +7,9 @@
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
+- **ปรับการเรียงลำดับตารางคะแนนด้วย GD และย้ายคอลัมน์ PTS ไปขวาสุด แสดง GD แทน G/A (`routes/web.js`, `query.js`, `flex.js`, `public/update.shtml`, `update.shtml`)**:
+  - **การเรียงลำดับตารางคะแนนเมื่อแต้มเท่ากัน**: ปรับคำสั่ง SQL ใน `queryWeekTable` (`routes/web.js`) และ `queryTableWeek` (`query.js`) ให้เรียงลำดับตาม `PTS DESC` ➔ `GD (G - A) DESC` ➔ `G DESC` ➔ `W DESC` สอดคล้องกันทั้งหน้าเว็บและ LINE Bot
+  - **ปรับคอลัมน์ตารางคะแนน (`Team | W | D | L | GD | PTS`)**: ย้ายคอลัมน์ `PTS` ไปไว้ขวาสุด และแสดงคอลัมน์ `GD` (ผลต่างประตูได้-เสีย พร้อมเครื่องหมาย `+` และสีเขียว/แดงตามค่าบวก/ลบ) แทนคอลัมน์ `G` และ `A` ทั้งบนหน้าเว็บ (`public/update.shtml`, `update.shtml`) และใน Flex Message (`flex.js`)
 - **ปรับข้อความและจัดวางองค์ประกอบหน้า Position Manager ให้เหมาะกับหน้าจอมือถือ (`public/position.shtml`, `public/style.css`)**:
   - **กระชับข้อความและปุ่มควบคุม (Mobile-Friendly Copy & Toolbar)**:
     - ปรับชื่อแท็บนำทางด้านบนเป็น `⚽ Manager`, `📺 Viewer`, `🛡️ จัดทีม/ตำแหน่ง` ให้สอดคล้องกันทั้งระบบและไม่ล้นบรรทัดบนมือถือ

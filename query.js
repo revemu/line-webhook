@@ -1539,7 +1539,7 @@ async function queryMatchWeek(week_id) {
 
 async function queryTableWeek(week_id) {
 
-  let query = `SELECT team_color_week_tbl.color, table_week_tbl.* FROM table_week_tbl , team_color_week_tbl where table_week_tbl.week_id = ${week_id} AND table_week_tbl.team_week_id = team_color_week_tbl.id order by table_week_tbl.pts DESC, (table_week_tbl.g - table_week_tbl.a) DESC`;
+  let query = `SELECT team_color_week_tbl.color, table_week_tbl.*, (table_week_tbl.g - table_week_tbl.a) AS gd FROM table_week_tbl , team_color_week_tbl where table_week_tbl.week_id = ${week_id} AND table_week_tbl.team_week_id = team_color_week_tbl.id order by table_week_tbl.pts DESC, (table_week_tbl.g - table_week_tbl.a) DESC, table_week_tbl.g DESC, table_week_tbl.w DESC`;
 
   const result = await executeQuery(query);
   if (result.length > 0) {

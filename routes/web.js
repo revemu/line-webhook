@@ -1196,11 +1196,11 @@ async function queryMatchScorer(matchID) {
 
 async function queryWeekTable(weekid) {
     const sql = `
-    SELECT team_color_week_tbl.color, table_week_tbl.* 
+    SELECT team_color_week_tbl.color, table_week_tbl.*, (table_week_tbl.G - table_week_tbl.A) AS gd
     FROM table_week_tbl, team_color_week_tbl
     WHERE table_week_tbl.week_id = ${weekid}
       AND table_week_tbl.team_week_id = team_color_week_tbl.id 
-    ORDER BY table_week_tbl.pts DESC`;
+    ORDER BY table_week_tbl.pts DESC, (table_week_tbl.G - table_week_tbl.A) DESC, table_week_tbl.G DESC, table_week_tbl.w DESC`;
 
     return await doQuery(sql);
 }

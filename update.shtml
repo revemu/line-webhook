@@ -1504,9 +1504,8 @@
 							<th class="text-center">W</th>
 							<th class="text-center">D</th>
 							<th class="text-center">L</th>
+							<th class="text-center">GD</th>
 							<th class="text-center table-pts">PTS</th>
-							<th class="text-center">G</th>
-							<th class="text-center">A</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -1520,9 +1519,10 @@
 							<td class="text-center">{{ item.w }}</td>
 							<td class="text-center">{{ item.d }}</td>
 							<td class="text-center">{{ item.l }}</td>
+							<td class="text-center" :style="{ fontWeight: 700, color: ((item.G - item.A) > 0 ? '#10b981' : ((item.G - item.A) < 0 ? '#ef4444' : 'var(--text-muted)')) }">
+								{{ (item.G - item.A) > 0 ? '+' + (item.G - item.A) : (item.G - item.A) }}
+							</td>
 							<td class="text-center table-pts">{{ item.pts }}</td>
-							<td class="text-center">{{ item.G }}</td>
-							<td class="text-center">{{ item.A }}</td>
 						</tr>
 					</tbody>
 				</table>

@@ -4428,8 +4428,7 @@ function buildTableWeekFlex(dateStr, weekTables, teamColors) {
         { type: "text", text: "W", wrap: true, weight: "bold", size: "sm", align: "center", flex: 1 },
         { type: "text", text: "D", weight: "bold", size: "sm", align: "center", flex: 1 },
         { type: "text", text: "L", weight: "bold", size: "sm", align: "center", flex: 1 },
-        { type: "text", text: "G", weight: "bold", size: "sm", align: "center", flex: 1 },
-        { type: "text", text: "A", weight: "bold", size: "sm", align: "center", flex: 1 },
+        { type: "text", text: "GD", weight: "bold", size: "sm", align: "center", flex: 1 },
         { type: "text", text: "PTS", weight: "bold", size: "sm", align: "center", flex: 1 }
       ]
     }
@@ -4453,8 +4452,7 @@ function buildTableWeekFlex(dateStr, weekTables, teamColors) {
         { type: "text", text: `${table.w}`, align: "center", size: "sm", flex: 1 },
         { type: "text", text: `${table.d}`, size: "sm", align: "center", flex: 1 },
         { type: "text", text: `${table.l}`, size: "sm", align: "center", flex: 1 },
-        { type: "text", text: `${table.G}`, size: "sm", align: "center", flex: 1 },
-        { type: "text", text: `${table.A}`, size: "sm", align: "center", flex: 1 },
+        { type: "text", text: `${(table.G - table.A) > 0 ? '+' + (table.G - table.A) : (table.G - table.A)}`, size: "sm", align: "center", flex: 1 },
         { type: "text", text: `${table.pts}`, size: "sm", align: "center", flex: 1 }
       ]
     });
