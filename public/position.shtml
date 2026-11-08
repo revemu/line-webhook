@@ -1892,6 +1892,11 @@
 						.catch(err => {
 							this.loading = false;
 							console.error('Error fetching position page data:', err);
+							if (err.response && err.response.status === 403) {
+								this.showToast((err.response.data && err.response.data.error) ? err.response.data.error : 'Access denied', '🔒');
+								setTimeout(() => { window.location.href = '/webhook/match'; }, 1200);
+								return;
+							}
 							this.showToast('Failed to load page data', '❌');
 						});
 				},
@@ -2722,11 +2727,11 @@
 							}
 							if (res.data && res.data.authenticated) {
 								this.currentUser = res.data.user;
-								if (this.currentUser.role !== 'root' && this.currentUser.role !== 'admin') {
+								if (this.currentUser.role !== 'root' && (this.currentUser.role !== 'admin' || res.data.is_roster_locked)) {
 									window.location.href = '/webhook/match';
 									return;
 								}
-								// Load initial page data once verified root or admin
+								// Load initial page data once verified root or admin (after Friday 20:00)
 								const urlParams = new URLSearchParams(window.location.search);
 								const initialWeek = urlParams.get('weeknum') || urlParams.get('week') || urlParams.get('week_id') || 0;
 								this.fetchPageData(initialWeek);

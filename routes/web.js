@@ -307,7 +307,7 @@ function requireAuth(req, res, next) {
 }
 
 // Middleware to require admin or root role (Position Manager and position updates)
-function requireRoot(req, res, next) {
+async function requireRoot(req, res, next) {
     if (!req.user) {
         const isApiOrAjax = req.xhr ||
             req.headers['x-requested-with'] === 'XMLHttpRequest' ||
@@ -323,18 +323,38 @@ function requireRoot(req, res, next) {
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         return res.status(401).json({ success: false, error: 'เซสชันหมดอายุหรือไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่', session_expired: true });
     }
-    if (req.user.role !== 'root' && req.user.role !== 'admin') {
-        const isApiOrAjax = req.xhr ||
-            req.headers['x-requested-with'] === 'XMLHttpRequest' ||
-            req.method !== 'GET';
-        if (!isApiOrAjax && req.accepts('html')) {
-            const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
-            return res.redirect(`${prefix}/match`);
-        }
-        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-        return res.status(403).json({ success: false, error: 'Access denied: Admin or Root role required.' });
+
+    // Root has unrestricted access anytime (including in advance before Friday 20:00)
+    if (req.user.role === 'root') {
+        return next();
     }
-    next();
+
+    // Admin can access only after Friday 20:00 (cannot access in advance)
+    if (req.user.role === 'admin') {
+        const isLocked = await isWeekRosterLocked(0, req.user);
+        if (isLocked) {
+            const isApiOrAjax = req.xhr ||
+                req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+                req.method !== 'GET';
+            if (!isApiOrAjax && req.accepts('html')) {
+                const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
+                return res.redirect(`${prefix}/match`);
+            }
+            res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            return res.status(403).json({ success: false, error: 'Access denied: Admin can edit positions after Friday 20:00 only.' });
+        }
+        return next();
+    }
+
+    const isApiOrAjax = req.xhr ||
+        req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+        req.method !== 'GET';
+    if (!isApiOrAjax && req.accepts('html')) {
+        const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
+        return res.redirect(`${prefix}/match`);
+    }
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    return res.status(403).json({ success: false, error: 'Access denied: Admin or Root role required.' });
 }
 
 // ==================== AUTH & ROUTING ====================
@@ -541,11 +561,12 @@ router.all(['/webhook/logout', '/web/logout'], (req, res) => {
 });
 
 // Current user status endpoint
-router.get(['/webhook/auth/me', '/web/auth/me'], (req, res) => {
+router.get(['/webhook/auth/me', '/web/auth/me'], async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
     if (req.user) {
+        const isLocked = await isWeekRosterLocked(0, req.user);
         return res.json({
             authenticated: true,
             user: {
@@ -554,6 +575,7 @@ router.get(['/webhook/auth/me', '/web/auth/me'], (req, res) => {
                 role: req.user.role,
                 name: req.user.name
             },
+            is_roster_locked: isLocked,
             app_version: getAppVersion(),
             asset_version: getAssetVersion()
         });
@@ -649,6 +671,12 @@ router.get(['/webhook/get_info', '/web/get_info'], requireAuth, async (req, res)
             case 'get_position_page_data':
                 if (req.user.role !== 'root' && req.user.role !== 'admin') {
                     return res.status(403).json({ success: false, error: 'Access denied: Admin or Root role required' });
+                }
+                if (req.user.role === 'admin') {
+                    const isLocked = await isWeekRosterLocked(weeknum || 0, req.user);
+                    if (isLocked) {
+                        return res.status(403).json({ success: false, error: 'Access denied: Admin can edit positions after Friday 20:00 only' });
+                    }
                 }
                 const pageData = await queryPositionPageData(weeknum || 0);
                 res.json(pageData);
@@ -1276,15 +1304,15 @@ function isBeforeFriday2000(dateStr) {
  * @param {object|null} currentUser
  * @returns {Promise<boolean>}
  */
-async function isWeekRosterLocked(weekid, currentUser = null) {
-    if (currentUser && (currentUser.role === 'root' || currentUser.role === 'admin')) {
+async function isWeekRosterLocked(weekid = 0, currentUser = null) {
+    if (currentUser && currentUser.role === 'root') {
         return false;
     }
     const [latestWeek] = await doQuery("SELECT id, DATE_FORMAT(date, '%Y-%m-%d') as raw_date FROM week_tbl ORDER BY id DESC LIMIT 1");
     if (!latestWeek) return false;
 
     const targetWeekId = parseInt(weekid, 10);
-    if (targetWeekId !== latestWeek.id) {
+    if (targetWeekId !== 0 && !isNaN(targetWeekId) && targetWeekId !== latestWeek.id) {
         return false;
     }
 
@@ -1298,7 +1326,7 @@ async function isWeekRosterLocked(weekid, currentUser = null) {
  * @returns {Promise<boolean>}
  */
 async function isMatchRosterLocked(matchid, currentUser = null) {
-    if (currentUser && (currentUser.role === 'root' || currentUser.role === 'admin')) {
+    if (currentUser && currentUser.role === 'root') {
         return false;
     }
     const mid = parseInt(matchid, 10);

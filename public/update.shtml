@@ -98,7 +98,7 @@
 			<div class="nav-tabs">
 				<a v-if="currentUser" :href="'/webhook/match' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab" :class="{ active: isManager }">⚽ Manager</a>
 				<a :href="'/webhook/view' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab" :class="{ active: !isManager }">📺 Viewer</a>
-				<a v-if="currentUser && (currentUser.role === 'root' || currentUser.role === 'admin')" :href="'/webhook/position' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">🛡️ จัดทีม/ตำแหน่ง</a>
+				<a v-if="currentUser && (currentUser.role === 'root' || (currentUser.role === 'admin' && !info.is_roster_locked))" :href="'/webhook/position' + (week && (week.number || week.id) ? '?weeknum=' + (week.number || week.id) : '')" class="nav-tab">🛡️ จัดทีม/ตำแหน่ง</a>
 			</div>
 			<div class="user-status-pill" v-if="currentUser">
 				<span class="user-role-badge" :class="currentUser.role">

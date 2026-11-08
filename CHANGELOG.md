@@ -15,11 +15,10 @@
   - ปรับปรุงฟังก์ชัน `addMatchWeek` และ `POST /add_match` ให้รับและบันทึกสถานะแมตช์ พร้อมส่งคืน JSON ผลลัพธ์ความสำเร็จทันที
 - **ซ่อนสรุปทีมในหน้าจดสกอร์ (`public/update.shtml`)**:
   - ปรับการ์ดสรุปทีม (`team-summary-card`) ให้แสดงผลเฉพาะในหน้าผู้ชม (`!isManager` บน `/webhook/view`) และซ่อนออกจากหน้าจดสกอร์ของผู้จัดการ (`/webhook/match`) เพื่อลดความแออัดของ UI และไม่เกะกะพื้นที่จดคะแนน
-- **เปิดสิทธิ์การเข้าถึงและแก้ไขตำแหน่ง/ทีมให้ Admin (`routes/web.js`, `public/position.shtml`, `public/update.shtml`)**:
-  - ปรับปรุง Middleware `requireRoot` ใน `routes/web.js` ให้ครอบคลุมทั้งสิทธิ์ `admin` และ `root`
-  - ปรับ Endpoint `get_position_page_data`, สิทธิ์การ Login redirect และหน้า `/position` ให้ผู้ใช้สถานะ `admin` เข้าใช้งานและแก้ไขทีม/ตำแหน่งได้
-  - ยกเว้นการปิดกั้นรายชื่อทีมก่อนวันศุกร์ 20:00 น. (`isWeekRosterLocked`, `isMatchRosterLocked`) ให้สิทธิ์ `admin` เช่นเดียวกับ `root`
-  - อัปเดตแถบนำทาง Navbar ให้แสดงแท็บ `🛡️ จัดทีม/ตำแหน่ง` สำหรับทั้งผู้ใช้ `root` และ `admin`
+- **เปิดสิทธิ์การเข้าถึงและแก้ไขตำแหน่ง/ทีมให้ Admin หลังวันศุกร์ 20:00 น. (`routes/web.js`, `public/position.shtml`, `public/update.shtml`)**:
+  - ปรับปรุง Middleware `requireRoot` และ API `get_position_page_data` ใน `routes/web.js` ให้ผู้ใช้บทบาท `admin` สามารถเข้าใช้งานและแก้ไขตำแหน่งได้ **เฉพาะหลังวันศุกร์ 20:00 น. เป็นต้นไป** (ไม่สามารถเข้าล่วงหน้าก่อนเวลาตัดรอบได้ โดยสิทธิ์เข้าล่วงหน้าจะสงวนไว้ให้เฉพาะ `root` เท่านั้น)
+  - หาก `admin` พยายามเข้าหน้า `/position` ก่อนวันศุกร์ 20:00 น. ระบบจะทำการบล็อกและ Redirect กลับไปยังหน้า `/match` โดยอัตโนมัติ
+  - ใน `public/update.shtml` แถบนำทาง Navbar จะแสดงแท็บ `🛡️ จัดทีม/ตำแหน่ง` ให้ `admin` เห็นเฉพาะเมื่อพ้นช่วงล็อกวันศุกร์ 20:00 น. (`!info.is_roster_locked`) เท่านั้น
 - **ปรับปรุงการเปลี่ยนตำแหน่งและสลับตัวให้ง่ายยิ่งขึ้น ไม่ต้องพึ่งพาลากวางอย่างเดียว (`public/position.shtml`)**:
   - รองรับการแตะ (Tap), แตะค้าง (Touch Long-press 380ms) และคลิกขวา (Context Menu) เพื่อเปิด **Player Action Modal**
   - **1-Click Position Grid**: เปลี่ยนตำแหน่งผู้เล่นเป็น GK, DF, DW, DM, MF, AM, CF หรือสำรองได้ทันทีในคลิกเดียว
