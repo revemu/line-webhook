@@ -43,6 +43,15 @@
 
 	</script>
 	<style>
+		html, body {
+			max-width: 100vw;
+			overflow-x: hidden;
+		}
+		#position-app.container {
+			max-width: 100%;
+			overflow-x: hidden;
+		}
+
 		/* Swap Mode & Player Action Modal Styles */
 		.swap-floating-bar {
 			position: fixed;
@@ -529,6 +538,7 @@
 						<span v-else class="slot-quota-badge under" title="มีตำแหน่งที่ยังขาดผู้เล่นตามขั้นต่ำ">
 							⚠️ ขาดบางตำแหน่ง
 						</span>
+						<span class="pitch-scroll-hint">↔ เลื่อนดูสนาม</span>
 					</div>
 
 					<!-- Mini Quota Summary Chips -->
@@ -558,7 +568,8 @@
 				</div>
 
 				<!-- Soccer Pitch Field (Horizontal / Landscape Tactical Board) -->
-				<div class="pitch-field tactical-pitch">
+				<div class="tactical-pitch-scroll-wrapper">
+					<div class="pitch-field tactical-pitch">
 					<!-- Pitch Markings Overlay (Horizontal: Left Goal -> Right Goal) -->
 					<div class="pitch-markings">
 						<div class="pitch-half-line-h"></div>
@@ -1224,6 +1235,7 @@
 							</div>
 						</div>
 					</div>
+				</div>
 				</div>
 
 				<!-- Bench / Reserves for this Team -->

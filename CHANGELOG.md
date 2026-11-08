@@ -7,6 +7,11 @@
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
+- **จำกัดการเลื่อนสนามแนวนอนเฉพาะในสนาม ไม่เลื่อนหลุดทั้งหน้า (`public/position.shtml`, `public/style.css`)**:
+  - **ห่อหุ้มผังสนามด้วย `.tactical-pitch-scroll-wrapper`**: เพิ่มคอนเทนเนอร์แยกเฉพาะสำหรับผังสนามพร้อมเปิด `overflow-x: auto`, `overscroll-behavior-x: contain`, และ `-webkit-overflow-scrolling: touch` รองรับการปัดเลื่อนซ้าย-ขวาบนมือถือได้อย่างลื่นไหล
+  - **ล็อกการเลื่อนหน้าจอระดับ Page-Level**: เพิ่ม `max-width: 100vw; overflow-x: hidden;` บน `html, body`, `.container`, และ `max-width: 100%; overflow: hidden;` บน `.team-pitch-card` ป้องกันไม่ให้ผังสนามดันขนาดหน้าจอจนเกิดแถบเลื่อนแนวนอนทั้งหน้า
+  - หัวการ์ดทีม, ชิปแสดงสถิติโควตา, และม้านั่งสำรองยังคงตรึงขนาดความกว้างตามหน้าจอเดิม ไม่เลื่อนหลุดหายไปพร้อมกับสนาม
+  - เพิ่มแถบ Scrollbar ขนาดกะทัดรัด (6px) พร้อมป้ายแนะนำ `↔ เลื่อนดูสนาม` แสดงผลอัตโนมัติเฉพาะบนหน้าจอมือถือ
 - **แก้ไขปัญหา Admin เลือก Week ไม่ได้ และกระโดดไป Week ล่าสุดตลอด (`routes/web.js`, `public/position.shtml`, `public/update.shtml`)**:
   - **แก้ไขการชนกันของ `week_tbl.id` กับ `week_tbl.number` ใน `queryWeekId`**: แก้ไขข้อผิดพลาดที่คำสั่ง SQL เดิมใช้ `WHERE number = ${num} OR id = ${num} ORDER BY id DESC LIMIT 1` ซึ่งทำให้เมื่อผู้ใช้เลือกสัปดาห์ในอดีต (เช่น Week ID 331) จะไปตรงกับหมายเลขสัปดาห์ `number: 331` ของ Week ล่าสุด (Week ID 336) เสมอ ทำให้ระบบกระโดดกลับไป Week ล่าสุดตลอดเวลา ปรับแก้ให้ค้นหาด้วย Primary Key `WHERE id = ${num}` ก่อนเป็นลำดับแรก และค้นหาตาม `number` เป็น fallback
   - **ปรับ Frontend Date Picker ให้ส่ง Unique ID (`w.id`)**: ใน Modal เลือกวันทั้งหน้าจัดการตำแหน่ง (`position.shtml`) และหน้าแมตช์ (`update.shtml`) เปลี่ยนการส่งพารามิเตอร์จาก `w.number || w.id` เป็น `w.id` และปรับ Navigation Tab Links ให้ยึด `week.id` เป็นหลัก เพื่อระบุสัปดาห์ที่ต้องการเปิดดูได้อย่างแม่นยำ 100%
