@@ -7,9 +7,9 @@
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
-- **จำกัดการเลื่อนสนามแนวนอนเฉพาะในสนาม ไม่เลื่อนหลุดทั้งหน้า (`public/position.shtml`, `public/style.css`)**:
+- **จำกัดการเลื่อนสนามแนวนอนเฉพาะในสนาม พร้อมคืนค่าการเลื่อนขึ้น-ลงแนวตั้งให้ลื่นไหลตามปกติ (`public/position.shtml`, `public/style.css`)**:
   - **ห่อหุ้มผังสนามด้วย `.tactical-pitch-scroll-wrapper`**: เพิ่มคอนเทนเนอร์แยกเฉพาะสำหรับผังสนามพร้อมเปิด `overflow-x: auto`, `overscroll-behavior-x: contain`, และ `-webkit-overflow-scrolling: touch` รองรับการปัดเลื่อนซ้าย-ขวาบนมือถือได้อย่างลื่นไหล
-  - **ล็อกการเลื่อนหน้าจอระดับ Page-Level**: เพิ่ม `max-width: 100vw; overflow-x: hidden;` บน `html, body`, `.container`, และ `max-width: 100%; overflow: hidden;` บน `.team-pitch-card` ป้องกันไม่ให้ผังสนามดันขนาดหน้าจอจนเกิดแถบเลื่อนแนวนอนทั้งหน้า
+  - **คืนค่าการเลื่อนหน้าจอแนวตั้ง (Vertical Scroll Restore)**: ปลดการตั้งค่า `overflow-x: hidden` ออกจาก `html, body` และปลด `overflow-y: hidden` ออกจาก scroll wrapper ป้องกันไม่ให้เบราว์เซอร์บนมือถือล็อกการเลื่อนหน้าจอแนวตั้ง ช่วยให้สามารถเลื่อนหน้าจอขึ้น-ลงได้อย่างอิสระและนุ่มนวลตามปกติ
   - หัวการ์ดทีม, ชิปแสดงสถิติโควตา, และม้านั่งสำรองยังคงตรึงขนาดความกว้างตามหน้าจอเดิม ไม่เลื่อนหลุดหายไปพร้อมกับสนาม
   - เพิ่มแถบ Scrollbar ขนาดกะทัดรัด (6px) พร้อมป้ายแนะนำ `↔ เลื่อนดูสนาม` แสดงผลอัตโนมัติเฉพาะบนหน้าจอมือถือ
 - **แก้ไขปัญหา Admin เลือก Week ไม่ได้ และกระโดดไป Week ล่าสุดตลอด (`routes/web.js`, `public/position.shtml`, `public/update.shtml`)**:
