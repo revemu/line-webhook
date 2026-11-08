@@ -2154,7 +2154,7 @@
 					const idx = matches.findIndex(m => Number(m.match_num) === Number(this.selectedMatchIndex));
 					if (idx < 0 || idx >= matches.length - 1) return false;
 					const nextMatch = matches[idx + 1];
-					return this.isManager ? true : !this.isMatchLocked(nextMatch);
+					return !this.isMatchLocked(nextMatch);
 				},
 				orderedMatches() {
 					if (!this.all_match) return [];
@@ -2869,12 +2869,36 @@
 					// 2. Immediately refresh match and scoreboard data in background
 					const currentWeek = this.week ? (this.week.number || this.week.id || 0) : 0;
 					this.refreshCountdown = 30;
-					const shouldUpdateTeamLists = data.type === 'MATCH_FINISHED' || data.type === 'MATCH_STARTED' || data.type === 'MATCH_ADDED';
+					const shouldUpdateTeamLists = data.type === 'MATCH_FINISHED' || data.type === 'MATCH_STARTED' || data.type === 'MATCH_ADDED' || data.type === 'MATCH_REOPENED';
 					const nextMatchNum = data.next_match_num || (data.match_num ? Number(data.match_num) + 1 : 0);
 					if (data.type === 'MATCH_FINISHED' && nextMatchNum > 0) {
+						if (this.all_match && this.all_match[nextMatchNum]) {
+							this.all_match[nextMatchNum].is_locked = false;
+							this.all_match[nextMatchNum].status = 0;
+							this.all_match[nextMatchNum].match_status = '';
+							this.all_match[nextMatchNum].db_status = 'in_progress';
+							this.all_match[nextMatchNum].is_live = true;
+						}
 						this.selectedMatchIndex = nextMatchNum;
+						if (this.selectMatch) {
+							this.selectMatch(nextMatchNum);
+						}
 					}
-					const targetMatchIndex = (data.type === 'MATCH_FINISHED' && nextMatchNum > 0) ? nextMatchNum : this.selectedMatchIndex;
+					if (data.type === 'MATCH_REOPENED' && data.match_num) {
+						const reopenNum = Number(data.match_num);
+						if (this.all_match && this.all_match[reopenNum]) {
+							this.all_match[reopenNum].status = 0;
+							this.all_match[reopenNum].match_status = '';
+							this.all_match[reopenNum].db_status = 'in_progress';
+							this.all_match[reopenNum].is_live = true;
+							this.all_match[reopenNum].is_locked = false;
+						}
+						this.selectedMatchIndex = reopenNum;
+						if (this.selectMatch) {
+							this.selectMatch(reopenNum);
+						}
+					}
+					const targetMatchIndex = (data.type === 'MATCH_FINISHED' && nextMatchNum > 0) ? nextMatchNum : ((data.type === 'MATCH_REOPENED' && data.match_num) ? Number(data.match_num) : this.selectedMatchIndex);
 					this.refreshMatch(currentWeek, shouldUpdateTeamLists, targetMatchIndex);
 
 					// When a match finishes, auto-scroll smoothly to the new current match (viewer mode only)
@@ -3139,7 +3163,7 @@
 					const currentIndex = matches.findIndex(m => Number(m.match_num) === Number(this.selectedMatchIndex));
 					if (currentIndex === -1) return;
 					const target = matches[currentIndex + direction];
-					if (target && (this.isManager || !this.isMatchLocked(target))) {
+					if (target && !this.isMatchLocked(target)) {
 						this.selectMatch(Number(target.match_num));
 					}
 				},
@@ -3153,7 +3177,7 @@
 				selectMatch(index) {
 					const numIndex = Number(index);
 					if (this.all_match && this.all_match[numIndex]) {
-						if (!this.isManager && this.isMatchLocked(this.all_match[numIndex])) {
+						if (this.isMatchLocked(this.all_match[numIndex])) {
 							this.showToast('🔒 แมตช์นี้ยังไม่ถึงคิวแข่ง (รอจบแมตช์ก่อนหน้า)');
 							return;
 						}
@@ -3207,6 +3231,31 @@
 							if (res.data && res.data.success) {
 								this.showToast(`🏁 จบ Match ${match.match_num} เรียบร้อยแล้ว`);
 								const targetNum = hasNext ? nextMatchNum : Number(match.match_num);
+
+								// 1. Mark current match finished locally
+								if (this.all_match && this.all_match[match.match_num]) {
+									this.all_match[match.match_num].status = 1;
+									this.all_match[match.match_num].match_status = 'FT';
+									this.all_match[match.match_num].db_status = 'finished';
+									this.all_match[match.match_num].is_finished = true;
+									this.all_match[match.match_num].is_live = false;
+									this.all_match[match.match_num].is_locked = false;
+								}
+
+								// 2. Unlock specifically the next match (Match N+1) locally so it can be selected immediately
+								if (hasNext && this.all_match && this.all_match[nextMatchNum]) {
+									this.all_match[nextMatchNum].is_locked = false;
+									this.all_match[nextMatchNum].status = 0;
+									this.all_match[nextMatchNum].match_status = '';
+									this.all_match[nextMatchNum].db_status = 'in_progress';
+									this.all_match[nextMatchNum].is_live = true;
+								}
+								if (this.info) {
+									this.info.current_match_num = targetNum;
+								}
+
+								// 3. Immediately switch selection to target match
+								this.selectedMatchIndex = targetNum;
 								this.selectMatch(targetNum);
 								this.refreshMatch(this.week.number || 0, true, targetNum);
 								if (!this.isManager) {
@@ -3887,12 +3936,12 @@
 				},
 				isMatchLocked(m) {
 					if (!m) return false;
-					if (this.isManager) return false;
-					if (m.is_locked !== undefined) return m.is_locked;
 					if (this.isWeekTimePassed()) return false;
 					if (this.isMatchFinished(m)) return false;
+					if (this.isMatchLive(m)) return false;
+					if (m.is_locked !== undefined) return m.is_locked;
 					const activeNum = this.info?.current_match_num;
-					if (activeNum && m.match_num > activeNum) return true;
+					if (activeNum && Number(m.match_num) > Number(activeNum)) return true;
 					return false;
 				},
 				isMatchLive(m) {
