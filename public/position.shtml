@@ -8,7 +8,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="style.css?v=0.6.3">
+	<link rel="stylesheet" href="style.css?v=0.7.26">
 	<script>
 		(function () {
 			if (window.history && window.history.replaceState) {
@@ -322,6 +322,60 @@
 			border-color: var(--primary-color);
 			background: rgba(79, 70, 229, 0.08);
 		}
+		/* Guaranteed Pitch Horizontal Scroll & Grid Containment */
+		.multi-pitch-grid.cols-1 {
+			grid-template-columns: minmax(0, 1fr) !important;
+		}
+		@media (max-width: 1024px) {
+			.multi-pitch-grid {
+				grid-template-columns: minmax(0, 1fr) !important;
+			}
+		}
+		.team-pitch-card {
+			width: 100%;
+			max-width: 100%;
+			min-width: 0;
+			overflow: hidden;
+		}
+		.tactical-pitch-scroll-wrapper {
+			width: 100%;
+			max-width: 100%;
+			min-width: 0;
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+			overscroll-behavior-x: contain;
+			touch-action: pan-x pan-y;
+			border-radius: 0.85rem;
+			position: relative;
+			cursor: grab;
+		}
+		.tactical-pitch-scroll-wrapper.is-panning {
+			cursor: grabbing;
+		}
+		@media (max-width: 768px) {
+			.desktop-only-control {
+				display: none !important;
+			}
+			#position-app .team-quota-chips {
+				display: grid;
+				grid-template-columns: repeat(7, minmax(0, 1fr));
+				gap: 0.2rem;
+				margin-top: 0.15rem;
+			}
+			#position-app .team-quota-chips .quota-chip {
+				font-size: 0.62rem;
+				padding: 0.14rem 0.1rem;
+				text-align: center;
+				border-radius: 0.28rem;
+				letter-spacing: -0.02em;
+				white-space: nowrap;
+			}
+			#position-app .pitch-scroll-hint {
+				display: inline-flex;
+				margin-left: auto;
+				font-size: 0.66rem;
+			}
+		}
 	</style>
 </head>
 
@@ -560,7 +614,11 @@
 				</div>
 
 				<!-- Soccer Pitch Field (Horizontal / Landscape Tactical Board) -->
-				<div class="tactical-pitch-scroll-wrapper">
+				<div class="tactical-pitch-scroll-wrapper"
+					@mousedown="onPitchMouseDown($event)"
+					@mousemove="onPitchMouseMove($event)"
+					@mouseup="onPitchMouseUp($event)"
+					@mouseleave="onPitchMouseUp($event)">
 					<div class="pitch-field tactical-pitch">
 					<!-- Pitch Markings Overlay (Horizontal: Left Goal -> Right Goal) -->
 					<div class="pitch-markings">
@@ -2312,6 +2370,29 @@
 					if (this.longPressTimer) {
 						clearTimeout(this.longPressTimer);
 						this.longPressTimer = null;
+					}
+				},
+				onPitchMouseDown(e) {
+					if (e.button !== 0) return;
+					if (e.target.closest('.pitch-circle-avatar, .pitch-player-pill, .pitch-empty-pill')) return;
+					const wrapper = e.currentTarget;
+					this.pitchPanWrapper = wrapper;
+					this.pitchPanStartX = e.pageX - wrapper.offsetLeft;
+					this.pitchPanScrollLeft = wrapper.scrollLeft;
+					wrapper.classList.add('is-panning');
+				},
+				onPitchMouseMove(e) {
+					if (!this.pitchPanWrapper) return;
+					e.preventDefault();
+					const wrapper = this.pitchPanWrapper;
+					const x = e.pageX - wrapper.offsetLeft;
+					const walk = (x - this.pitchPanStartX) * 1.4;
+					wrapper.scrollLeft = this.pitchPanScrollLeft - walk;
+				},
+				onPitchMouseUp() {
+					if (this.pitchPanWrapper) {
+						this.pitchPanWrapper.classList.remove('is-panning');
+						this.pitchPanWrapper = null;
 					}
 				},
 				handlePlayerClick(player) {

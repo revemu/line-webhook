@@ -2243,17 +2243,20 @@ select.form-control {
 }
 
 .multi-pitch-grid.cols-1 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
 }
 
 @media (max-width: 1024px) {
     .multi-pitch-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
 .team-pitch-card {
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
     background: var(--card-bg);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius);
@@ -2422,7 +2425,9 @@ select.form-control {
 .tactical-pitch-scroll-wrapper {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
+    touch-action: pan-x pan-y;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
     border-radius: 0.85rem;
@@ -2835,101 +2840,101 @@ select.form-control {
         display: none !important;
     }
 
-    #soccer-position .card.pos-date-card {
+    #position-app .card.pos-date-card {
         padding: 0.75rem 0.85rem;
         margin-bottom: 0.75rem;
     }
 
-    #soccer-position .pos-stat-chip {
+    #position-app .pos-stat-chip {
         padding: 0.2rem 0.5rem;
         font-size: 0.75rem;
         gap: 0.25rem;
     }
 
-    #soccer-position .save-action-bar {
+    #position-app .save-action-bar {
         padding: 0.55rem 0.75rem;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
     }
 
-    #soccer-position .save-status-info {
+    #position-app .save-status-info {
         gap: 0.4rem;
         flex-wrap: wrap;
     }
 
-    #soccer-position .view-mode-btn {
+    #position-app .view-mode-btn {
         padding: 0.3rem 0.65rem;
         font-size: 0.78rem;
     }
 
-    #soccer-position .btn-save-positions {
+    #position-app .btn-save-positions {
         padding: 0.4rem 0.85rem;
         font-size: 0.8rem;
     }
 
-    #soccer-position .btn-reset-positions {
+    #position-app .btn-reset-positions {
         padding: 0.38rem 0.65rem;
         font-size: 0.78rem;
     }
 
-    #soccer-position .unassigned-panel {
+    #position-app .unassigned-panel {
         padding: 0.55rem 0.75rem;
         margin-bottom: 0.85rem;
     }
 
-    #soccer-position .unassigned-panel-header {
+    #position-app .unassigned-panel-header {
         margin-bottom: 0.4rem;
     }
 
-    #soccer-position .unassigned-panel-title {
+    #position-app .unassigned-panel-title {
         font-size: 0.82rem;
         gap: 0.35rem;
     }
 
-    #soccer-position .team-pitch-card {
+    #position-app .team-pitch-card {
         padding: 0.65rem;
         gap: 0.55rem;
     }
 
-    #soccer-position .team-pitch-header {
+    #position-app .team-pitch-header {
         gap: 0.35rem;
         padding-bottom: 0.45rem;
     }
 
-    #soccer-position .team-pitch-title {
+    #position-app .team-pitch-title {
         gap: 0.35rem;
         width: 100%;
     }
 
-    #soccer-position .team-color-chip {
+    #position-app .team-color-chip {
         padding: 0.2rem 0.55rem;
         font-size: 0.76rem;
     }
 
-    #soccer-position .team-rule-badge {
+    #position-app .team-rule-badge {
         font-size: 0.68rem;
         padding: 0.15rem 0.4rem;
     }
 
-    #soccer-position .slot-quota-badge {
+    #position-app .slot-quota-badge {
         font-size: 0.64rem;
         padding: 0.12rem 0.38rem;
         margin-left: 0;
     }
 
-    #soccer-position .pitch-scroll-hint {
+    #position-app .pitch-scroll-hint {
         margin-left: auto;
         font-size: 0.66rem;
     }
 
-    #soccer-position .team-quota-chips {
+    #position-app .team-quota-chips {
         display: grid;
         grid-template-columns: repeat(7, minmax(0, 1fr));
         gap: 0.2rem;
         margin-top: 0.15rem;
     }
 
-    #soccer-position .team-quota-chips .quota-chip {
+    #position-app .team-quota-chips .quota-chip {
         font-size: 0.62rem;
         padding: 0.14rem 0.1rem;
         text-align: center;
@@ -2938,73 +2943,73 @@ select.form-control {
         white-space: nowrap;
     }
 
-    #soccer-position .bench-container {
+    #position-app .bench-container {
         margin-top: 0.5rem;
         padding: 0.55rem 0.7rem;
     }
 
-    #soccer-position .bench-header {
+    #position-app .bench-header {
         margin-bottom: 0.4rem;
     }
 
-    #soccer-position .bench-title {
+    #position-app .bench-title {
         font-size: 0.76rem;
     }
 
-    #soccer-position .bench-grid {
+    #position-app .bench-grid {
         min-height: 36px;
         gap: 0.35rem;
     }
 }
 
 @media (max-width: 640px) {
-    #soccer-position .saved-status-text {
+    #position-app .saved-status-text {
         display: none;
     }
 
-    #soccer-position .pitch-field.tactical-pitch {
+    #position-app .pitch-field.tactical-pitch {
         min-width: 470px;
         min-height: 300px;
         height: 300px;
         padding: 0.35rem 0.25rem;
     }
 
-    #soccer-position .pitch-col-mf,
-    #soccer-position .pitch-col-cf {
+    #position-app .pitch-col-mf,
+    #position-app .pitch-col-cf {
         padding: 0.75rem 0;
     }
 
-    #soccer-position .pitch-circle-slot {
+    #position-app .pitch-circle-slot {
         min-width: 46px;
         gap: 0.15rem;
     }
 
-    #soccer-position .pitch-circle-avatar {
+    #position-app .pitch-circle-avatar {
         width: 40px;
         height: 40px;
     }
 
-    #soccer-position .pitch-circle-avatar.is-empty {
+    #position-app .pitch-circle-avatar.is-empty {
         font-size: 0.68rem;
     }
 
-    #soccer-position .pitch-player-pill {
+    #position-app .pitch-player-pill {
         max-width: 68px;
         padding: 1px 4px 1px 2px;
         gap: 2px;
     }
 
-    #soccer-position .pitch-pos-tag {
+    #position-app .pitch-pos-tag {
         font-size: 0.54rem;
         padding: 1px 3px;
     }
 
-    #soccer-position .pitch-pill-name {
+    #position-app .pitch-pill-name {
         font-size: 0.63rem;
         max-width: 42px;
     }
 
-    #soccer-position .pitch-empty-pill {
+    #position-app .pitch-empty-pill {
         font-size: 0.56rem;
         padding: 1px 4px;
     }
