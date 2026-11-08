@@ -1619,7 +1619,7 @@
 		<div v-for="(match, index) in orderedMatches" :key="match.id" class="match-card"
 			:id="'match-card-' + match.match_num"
 			:class="{
-				'selected-match-highlight': selectedMatchIndex && all_match[selectedMatchIndex] && match.id == all_match[selectedMatchIndex].id,
+				'selected-match-highlight': isManager ? (selectedMatchIndex && all_match[selectedMatchIndex] && match.id == all_match[selectedMatchIndex].id) : (selectedMatchIndex && all_match[selectedMatchIndex] && match.id == all_match[selectedMatchIndex].id && !isMatchFinished(match)),
 				'is-live-card': isMatchLive(match),
 				'is-current-match-card': currentLiveMatch && match.match_num == currentLiveMatch.match_num
 			}"
@@ -2054,10 +2054,10 @@
 					if (!matches || matches.length === 0) return null;
 					const live = matches.find(m => this.isMatchLive(m));
 					if (live) return live;
-					if (!this.isWeekEnded) {
-						const scheduled = matches.find(m => this.isMatchScheduled(m));
-						if (scheduled) return scheduled;
-					}
+					const scheduled = matches.find(m => this.isMatchScheduled(m));
+					if (scheduled) return scheduled;
+					const unfinished = matches.find(m => !this.isMatchFinished(m));
+					if (unfinished) return unfinished;
 					const finished = [...matches].reverse().find(m => this.isMatchFinished(m));
 					return finished || matches[0];
 				},
@@ -2870,14 +2870,15 @@
 					const currentWeek = this.week ? (this.week.number || this.week.id || 0) : 0;
 					this.refreshCountdown = 30;
 					const shouldUpdateTeamLists = data.type === 'MATCH_FINISHED' || data.type === 'MATCH_STARTED' || data.type === 'MATCH_ADDED';
-					this.refreshMatch(currentWeek, shouldUpdateTeamLists, this.selectedMatchIndex);
+					const nextMatchNum = data.next_match_num || (data.match_num ? Number(data.match_num) + 1 : 0);
+					if (data.type === 'MATCH_FINISHED' && nextMatchNum > 0) {
+						this.selectedMatchIndex = nextMatchNum;
+					}
+					const targetMatchIndex = (data.type === 'MATCH_FINISHED' && nextMatchNum > 0) ? nextMatchNum : this.selectedMatchIndex;
+					this.refreshMatch(currentWeek, shouldUpdateTeamLists, targetMatchIndex);
 
 					// When a match finishes, auto-scroll smoothly to the new current match (viewer mode only)
 					if (data.type === 'MATCH_FINISHED') {
-						const nextMatchNum = data.match_num ? Number(data.match_num) + 1 : 0;
-						if (nextMatchNum > 0) {
-							this.selectedMatchIndex = nextMatchNum;
-						}
 						if (!this.isManager) {
 							setTimeout(() => {
 								this.scrollToCurrentMatch(true, nextMatchNum || null);
@@ -2962,14 +2963,14 @@
 
 							const allm = this.info.allmembers || [];
 
-							if (update_team_lists) {
+							if (update_team_lists || !this.isManager) {
 								// Auto-select match: pick specified match, live match, or first unfinished match if not set
-								if (matchindex > 0 && this.all_match[matchindex]) {
+								if (matchindex > 0 && this.all_match[matchindex] && (this.isManager || !this.isMatchFinished(this.all_match[matchindex]))) {
 									this.selectedMatchIndex = matchindex;
 								} else if (!this.all_match || !this.all_match[this.selectedMatchIndex] || this.isMatchLocked(this.all_match[this.selectedMatchIndex]) || (!this.isManager && this.isMatchFinished(this.all_match[this.selectedMatchIndex]))) {
 									if (this.matchCount > 0) {
-										// 1. If backend specified current_match_num and it exists
-										if (this.info && this.info.current_match_num && this.all_match[this.info.current_match_num]) {
+										// 1. If backend specified current_match_num and it exists and not finished (or in manager mode)
+										if (this.info && this.info.current_match_num && this.all_match[this.info.current_match_num] && (this.isManager || !this.isMatchFinished(this.all_match[this.info.current_match_num]))) {
 											this.selectedMatchIndex = this.info.current_match_num;
 										} else {
 											const sorted = Object.values(this.all_match).sort((a, b) => a.match_num - b.match_num);
@@ -2982,7 +2983,7 @@
 													this.selectedMatchIndex = unfinished.match_num;
 												} else {
 													const maxMatchNum = Math.max(...Object.keys(this.all_match).map(Number));
-													this.selectedMatchIndex = maxMatchNum;
+													this.selectedMatchIndex = maxMatchNum > 0 ? maxMatchNum : 1;
 												}
 											}
 										}

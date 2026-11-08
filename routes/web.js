@@ -790,13 +790,15 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
             await updateMatchScore(data.matchid);
             await doUpdate(`UPDATE match_stat_tbl SET status = 'finished' WHERE id = ${data.matchid}`);
 
-            // Automatically start the next scheduled match
+            // Automatically start the next scheduled / unfinished match
             const [curMatch] = await doQuery(`SELECT match_num, week_id FROM match_stat_tbl WHERE id = ${data.matchid}`);
+            let nextMatchNum = null;
             if (curMatch) {
-                const nextMatches = await doQuery(`SELECT id FROM match_stat_tbl WHERE week_id = ${curMatch.week_id} AND match_num > ${curMatch.match_num} AND status = 'scheduled' ORDER BY match_num ASC LIMIT 1`);
+                const nextMatches = await doQuery(`SELECT id, match_num FROM match_stat_tbl WHERE week_id = ${curMatch.week_id} AND match_num > ${curMatch.match_num} AND (status != 'finished' OR status IS NULL) ORDER BY match_num ASC LIMIT 1`);
                 if (nextMatches.length > 0) {
                     await doUpdate(`UPDATE match_stat_tbl SET status = 'in_progress' WHERE id = ${nextMatches[0].id}`);
-                    logger.info(`Automatically started next match_id ${nextMatches[0].id}`);
+                    nextMatchNum = nextMatches[0].match_num;
+                    logger.info(`Automatically started next match_id ${nextMatches[0].id} (match_num ${nextMatchNum})`);
                 }
             }
 
@@ -831,6 +833,7 @@ router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none()
                         type: 'MATCH_FINISHED',
                         match_id: data.matchid,
                         match_num: finMatch?.match_num,
+                        next_match_num: nextMatchNum || (finMatch?.match_num ? finMatch.match_num + 1 : null),
                         message: `🏁 จบ Match ${finMatch?.match_num || ''} เรียบร้อยแล้ว ${plainScore}`.trim(),
                         html: `🏁 จบ Match ${finMatch?.match_num || ''} เรียบร้อยแล้ว ${scoreHtml}`.trim()
                     });
@@ -1445,8 +1448,8 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     let activeMatch = allMatches.find(m => m.status === 'in_progress');
 
     // If no in-progress match, find the first scheduled / unfinished match for display
-    if (!activeMatch && !isWeekTimeEnded) {
-        activeMatch = allMatches.find(m => m.status === 'scheduled');
+    if (!activeMatch) {
+        activeMatch = allMatches.find(m => m.status === 'scheduled' || m.status !== 'finished');
     }
 
     // Fallback: if all matches are finished or legacy data

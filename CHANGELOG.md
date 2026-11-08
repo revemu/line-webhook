@@ -7,6 +7,10 @@
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
+- **แก้ไขปัญหากรอบแมตช์ปัจจุบันไม่เปลี่ยนตามเมื่อจบแมตช์ในหน้าดูผลสกอร์ (`public/update.shtml`, `routes/web.js`)**:
+  - ปรับปรุง `currentLiveMatch` ใน Vue: ปลดการเช็ก `!this.isWeekEnded` ออก เพื่อให้ระบบสามารถค้นหาแมตช์ที่ยังไม่จบ (`!this.isMatchFinished(m)`) เป็นแมตช์ปัจจุบันได้เสมอ ไม่ติดค้างอยู่ที่แมตช์เดิมที่จบไปแล้ว
+  - ปรับปรุง Backend `routes/web.js`: ใน `finish_match` อัปเดตการค้นหาแมตช์ถัดไปให้ครอบคลุมสถานะที่ยังไม่จบ (`status != 'finished'`) พร้อมแนบ `next_match_num` ไปกับสัญญาณ WebSocket และใน `getLastMatchWeek` ปรับให้ระบุแมตช์ที่ยังไม่จบเป็น `activeMatch` เสมอ
+  - ปรับปรุงการสลับไฮไลท์ในโหมดผู้ชม: ใน `handleWebSocketMessage` และ `refreshMatch` เมื่อได้รับสัญญาณ `MATCH_FINISHED` ระบบจะสลับตัวเลือกและเลื่อนกรอบไฮไลท์ไปยังแมตช์ถัดไปทันที โดยไม่ค้างอยู่ที่แมตช์เดิม
 - **สร้าง Match เพิ่มได้ในหน้าจดสกอร์ แม้สัปดาห์จบไปแล้ว (`public/update.shtml`, `routes/web.js`)**:
   - เพิ่มปุ่ม `➕ สร้าง Match` ในแถบ Scoreboard Actions และในหัวข้อรายการแมตช์ทั้งหมด พร้อมปุ่ม `➕ สร้าง Match แรก` ในการ์ดกรณีที่ยังไม่มีตารางแมตช์
   - เพิ่ม Modal สร้างแมตช์ (`showAddMatchModal`) ให้เลือกหมายเลขแมตช์, ทีม A, ทีม B (พร้อมระบบตรวจสอบป้องกันการเลือกทีมเดียวกัน) และสถานะเริ่มต้น (กำลังแข่ง / รอเริ่มแข่ง)
