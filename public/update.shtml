@@ -2145,16 +2145,16 @@
 				hasPrevMatch() {
 					const matches = this.sortedMatchesAscending;
 					if (!matches || matches.length <= 1) return false;
-					const idx = matches.findIndex(m => m.match_num == this.selectedMatchIndex);
+					const idx = matches.findIndex(m => Number(m.match_num) === Number(this.selectedMatchIndex));
 					return idx > 0;
 				},
 				hasNextMatch() {
 					const matches = this.sortedMatchesAscending;
 					if (!matches || matches.length <= 1) return false;
-					const idx = matches.findIndex(m => m.match_num == this.selectedMatchIndex);
+					const idx = matches.findIndex(m => Number(m.match_num) === Number(this.selectedMatchIndex));
 					if (idx < 0 || idx >= matches.length - 1) return false;
 					const nextMatch = matches[idx + 1];
-					return !this.isMatchLocked(nextMatch);
+					return this.isManager ? true : !this.isMatchLocked(nextMatch);
 				},
 				orderedMatches() {
 					if (!this.all_match) return [];
@@ -3136,11 +3136,11 @@
 				navigateMatch(direction) {
 					const matches = this.sortedMatchesAscending;
 					if (!matches || matches.length === 0) return;
-					const currentIndex = matches.findIndex(m => m.match_num == this.selectedMatchIndex);
+					const currentIndex = matches.findIndex(m => Number(m.match_num) === Number(this.selectedMatchIndex));
 					if (currentIndex === -1) return;
 					const target = matches[currentIndex + direction];
-					if (target && !this.isMatchLocked(target)) {
-						this.selectMatch(target.match_num);
+					if (target && (this.isManager || !this.isMatchLocked(target))) {
+						this.selectMatch(Number(target.match_num));
 					}
 				},
 				togglePitchTeam(teamSide) {
@@ -3151,20 +3151,21 @@
 					}
 				},
 				selectMatch(index) {
-					if (this.all_match && this.all_match[index]) {
-						if (this.isMatchLocked(this.all_match[index])) {
+					const numIndex = Number(index);
+					if (this.all_match && this.all_match[numIndex]) {
+						if (!this.isManager && this.isMatchLocked(this.all_match[numIndex])) {
 							this.showToast('🔒 แมตช์นี้ยังไม่ถึงคิวแข่ง (รอจบแมตช์ก่อนหน้า)');
 							return;
 						}
 					}
-					this.selectedMatchIndex = index;
+					this.selectedMatchIndex = numIndex;
 					this.showMatchPicker = false;
 					this.activePitchTab = 'both';
 					const allm = this.info.allmembers || [];
 					if (this.info.is_roster_locked) {
 						this.member = [];
-					} else if (this.all_match && this.all_match[index]) {
-						const m = this.all_match[index];
+					} else if (this.all_match && this.all_match[numIndex]) {
+						const m = this.all_match[numIndex];
 						this.team_match = Object.values(this.info.team_week || {}).filter(team_week => team_week.teamid == m.team_a_id || team_week.teamid == m.team_b_id);
 						this.member = allm.filter(allmembers => allmembers.team_id == m.team_a_id || allmembers.team_id == m.team_b_id);
 					}
@@ -3183,8 +3184,11 @@
 					}
 
 					const match = this.currentSelectedMatch;
-					const nextMatchNum = match.match_num + 1;
-					const hasNext = this.all_match && this.all_match[nextMatchNum];
+					const matches = this.sortedMatchesAscending;
+					const currentIdx = matches.findIndex(m => Number(m.match_num) === Number(match.match_num));
+					const nextMatch = (currentIdx >= 0 && currentIdx < matches.length - 1) ? matches[currentIdx + 1] : null;
+					const nextMatchNum = nextMatch ? Number(nextMatch.match_num) : null;
+					const hasNext = !!nextMatch;
 
 					const scoreSummary = `${match.team_a_color} ${match.team_a_goal} - ${match.team_b_goal} ${match.team_b_color}`;
 					const confirmText = hasNext 
@@ -3202,8 +3206,8 @@
 						.then(res => {
 							if (res.data && res.data.success) {
 								this.showToast(`🏁 จบ Match ${match.match_num} เรียบร้อยแล้ว`);
-								const targetNum = hasNext ? nextMatchNum : match.match_num;
-								this.selectedMatchIndex = targetNum;
+								const targetNum = hasNext ? nextMatchNum : Number(match.match_num);
+								this.selectMatch(targetNum);
 								this.refreshMatch(this.week.number || 0, true, targetNum);
 								if (!this.isManager) {
 									setTimeout(() => {
@@ -3883,6 +3887,7 @@
 				},
 				isMatchLocked(m) {
 					if (!m) return false;
+					if (this.isManager) return false;
 					if (m.is_locked !== undefined) return m.is_locked;
 					if (this.isWeekTimePassed()) return false;
 					if (this.isMatchFinished(m)) return false;

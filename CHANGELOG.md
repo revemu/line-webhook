@@ -7,6 +7,10 @@
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
+- **แก้ไขตัวเลือกแมตช์บน Scoreboard ให้เลื่อนไปแมตช์ถัดไปอัตโนมัติเมื่อกดจบแมตช์ (`public/update.shtml`)**:
+  - แก้ไขการคำนวณแมตช์ถัดไปใน `finishCurrentMatch`: เปลี่ยนจากการบวกเลขตรง (`match.match_num + 1`) เป็นการค้นหาคู่ถัดไปผ่าน `sortedMatchesAscending` ด้วย `Number(match.match_num)` ป้องกันปัญหา String Concatenation และรองรับทุกกรณีที่หมายเลขแมตช์ไม่ต่อเนื่อง
+  - ปลดล็อก `isMatchLocked` สำหรับหน้าผู้จัดการ (`this.isManager = true`): ป้องกันไม่ให้ตัวเลือกใน Dropdown หรือปุ่ม `◀ / ▶` ติดสถานะ disabled ช่วยให้เลื่อนไปยังแมตช์ถัดไปได้ทันที
+  - สลับการแสดงผล Scoreboard และผังสนามทันที: เรียก `this.selectMatch(targetNum)` เมื่อจบแมตช์ เพื่ออัปเดตทั้งคู่ทีม, สกอร์บอร์ด, และผังสนามของแมตช์ถัดไปให้อัตโนมัติ (หากเป็นแมตช์สุดท้ายของวัน จะคงอยู่ที่แมตช์นั้นและแสดงสถานะ FT)
 - **แก้ไขปัญหากรอบแมตช์ปัจจุบันไม่เปลี่ยนตามเมื่อจบแมตช์ในหน้าดูผลสกอร์ (`public/update.shtml`, `routes/web.js`)**:
   - ปรับปรุง `currentLiveMatch` ใน Vue: ปลดการเช็ก `!this.isWeekEnded` ออก เพื่อให้ระบบสามารถค้นหาแมตช์ที่ยังไม่จบ (`!this.isMatchFinished(m)`) เป็นแมตช์ปัจจุบันได้เสมอ ไม่ติดค้างอยู่ที่แมตช์เดิมที่จบไปแล้ว
   - ปรับปรุง Backend `routes/web.js`: ใน `finish_match` อัปเดตการค้นหาแมตช์ถัดไปให้ครอบคลุมสถานะที่ยังไม่จบ (`status != 'finished'`) พร้อมแนบ `next_match_num` ไปกับสัญญาณ WebSocket และใน `getLastMatchWeek` ปรับให้ระบุแมตช์ที่ยังไม่จบเป็น `activeMatch` เสมอ
