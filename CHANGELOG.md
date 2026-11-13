@@ -7,6 +7,8 @@
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
+- **แก้ไขปัญหาหน้าเว็บเปลี่ยนไปแสดง Week อื่นเมื่อ Tab Freeze / พักหน้าจอ (`public/update.shtml`)**:
+  - เปลี่ยนการส่งรหัสสัปดาห์ใน `refreshMatch(...)` ทุกจุด (ทั้งตอน `visibilitychange`, `pageshow`, `autoRefresh`, WebSocket Reconnect/Event รวมถึงหลังบันทึกประตูและจบแมตช์) จาก `this.week.number` ให้ใช้ **`this.week.id || this.week.number || 0`** เป็นหลัก เพื่อไม่ให้เกิดการชนกันระหว่าง `week_tbl.id` กับ `week_tbl.number` ใน `queryWeekId`
 - **จำกัดสถานะการสร้าง Match เป็น "รอแข่ง" เท่านั้นหากยังมีแมตช์ที่ยังไม่จบ (`public/update.shtml`, `routes/web.js`)**:
   - **ตรวจสอบแมตช์ที่ยังไม่จบในสัปดาห์ (`hasUnfinishedMatches`)**: เมื่อกดเปิดหน้าต่าง "สร้าง Match ใหม่" (`openAddMatchModal`) หากยังมีแมตช์ในสัปดาห์ที่ยังแข่งไม่เสร็จ ระบบจะตั้งค่าสถานะเริ่มต้นเป็น `scheduled` (รอเริ่มแข่ง) ทันที พร้อมล็อกตัวเลือกสถานะ (`:disabled="hasUnfinishedMatches"`) และแสดงข้อความแจ้งเตือนสีส้ม `🔒 ยังมี Match ที่ยังไม่จบในสัปดาห์นี้ สถานะจึงต้องเป็น "รอเริ่มแข่ง" เท่านั้น`
   - **Backend Protection ใน `/add_match`**: เพิ่มการตรวจสอบในระดับเซิร์ฟเวอร์ หากพบว่ายังมีแมตช์ใน `match_stat_tbl` ที่ `status != 'finished'` จะบังคับให้สถานะของแมตช์ที่สร้างใหม่เป็น `'scheduled'` เสมอ เพื่อป้องกันการเปิดแข่งซ้อนกันหลายคู่พร้อมกัน และเมื่อแมตช์ก่อนหน้าแข่งจบลง ระบบจะปลดล็อกและสลับมายังแมตช์นี้ให้อัตโนมัติตามลำดับ

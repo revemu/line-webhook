@@ -2390,7 +2390,7 @@
 								this.fetchCurrentUser();
 							}
 							this.isRefreshing = true;
-							this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+							this.refreshMatch(this.week ? (this.week.id || this.week.number || 0) : 0, false, this.selectedMatchIndex);
 							setTimeout(() => {
 								this.isRefreshing = false;
 							}, 400);
@@ -2405,7 +2405,7 @@
 				window.addEventListener('pageshow', (event) => {
 					// Waking from bfcache or back navigation
 					ensureActiveWebSocket(true);
-					this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+					this.refreshMatch(this.week ? (this.week.id || this.week.number || 0) : 0, false, this.selectedMatchIndex);
 					if (!this.isManager) {
 						this.startAutoRefreshTimer();
 					}
@@ -2649,7 +2649,7 @@
 					} else if (this.ws.readyState === WebSocket.OPEN) {
 						this.subscribeToCurrentWeek();
 					}
-					this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+					this.refreshMatch(this.week ? (this.week.id || this.week.number || 0) : 0, false, this.selectedMatchIndex);
 					setTimeout(() => {
 						this.isRefreshing = false;
 					}, 400);
@@ -2663,7 +2663,7 @@
 						if (this.refreshCountdown <= 0) {
 							this.refreshCountdown = 30;
 							this.isRefreshing = true;
-							this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+							this.refreshMatch(this.week ? (this.week.id || this.week.number || 0) : 0, false, this.selectedMatchIndex);
 							setTimeout(() => {
 								this.isRefreshing = false;
 							}, 400);
@@ -2865,7 +2865,7 @@
 
 					// Background Ratings Update: Silently refresh leaderboard & player ratings without celebration toast
 					if (data.type === 'RATINGS_UPDATED') {
-						const currentWeek = this.week ? (this.week.number || this.week.id || 0) : 0;
+						const currentWeek = this.week ? (this.week.id || this.week.number || 0) : 0;
 						this.refreshMatch(currentWeek, false, this.selectedMatchIndex);
 						return;
 					}
@@ -2876,7 +2876,7 @@
 					}
 
 					// 2. Immediately refresh match and scoreboard data in background
-					const currentWeek = this.week ? (this.week.number || this.week.id || 0) : 0;
+					const currentWeek = this.week ? (this.week.id || this.week.number || 0) : 0;
 					this.refreshCountdown = 30;
 					const shouldUpdateTeamLists = data.type === 'MATCH_FINISHED' || data.type === 'MATCH_STARTED' || data.type === 'MATCH_ADDED' || data.type === 'MATCH_REOPENED';
 					const nextMatchNum = data.next_match_num || (data.match_num ? Number(data.match_num) + 1 : 0);
@@ -3139,7 +3139,7 @@
 								const num = this.newMatchForm.match_num;
 								this.showAddMatchModal = false;
 								this.showToast('✅ สร้าง Match ' + num + ' สำเร็จ!');
-								this.refreshMatch(this.week.number || 0, true);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, true);
 							} else {
 								this.addMatchError = (response.data && response.data.error) || 'ไม่สามารถสร้างแมตช์ได้';
 							}
@@ -3271,7 +3271,7 @@
 								// 3. Immediately switch selection to target match
 								this.selectedMatchIndex = targetNum;
 								this.selectMatch(targetNum);
-								this.refreshMatch(this.week.number || 0, true, targetNum);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, true, targetNum);
 								if (!this.isManager) {
 									setTimeout(() => {
 										this.scrollToCurrentMatch(true, targetNum);
@@ -3280,7 +3280,7 @@
 							} else {
 								const errMsg = (res.data && res.data.error) || 'เซิร์ฟเวอร์ไม่ได้ยืนยันการจบแมตช์';
 								this.showToast('❌ จบแมตช์ไม่สำเร็จ: ' + errMsg);
-								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 							}
 						})
 						.catch(err => {
@@ -3295,7 +3295,7 @@
 								this.showToast('⚠️ เกิดข้อผิดพลาดในการจบแมตช์: ' + errMsg);
 							}
 							console.error('finishCurrentMatch error:', err);
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 						});
 				},
 				startCurrentMatch() {
@@ -3314,18 +3314,18 @@
 						.then(res => {
 							if (res.data && res.data.success) {
 								this.showToast(`▶️ Match ${match.match_num} เริ่มแข่งขันแล้ว (LIVE)`);
-								this.refreshMatch(this.week.number || 0, false, match.match_num);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, match.match_num);
 							} else {
 								const errMsg = (res.data && res.data.error) || 'ไม่สามารถเริ่มแมตช์ได้';
 								this.showToast('❌ ' + errMsg);
-								this.refreshMatch(this.week.number || 0, false, match.match_num);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, match.match_num);
 							}
 						})
 						.catch(err => {
 							const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
 							this.showToast('⚠️ เกิดข้อผิดพลาดในการเริ่มแมตช์: ' + errMsg);
 							console.error('startCurrentMatch error:', err);
-							this.refreshMatch(this.week.number || 0, false, match.match_num);
+							this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, match.match_num);
 						});
 				},
 				reopenCurrentMatch() {
@@ -3346,18 +3346,18 @@
 						.then(res => {
 							if (res.data && res.data.success) {
 								this.showToast(`↩️ Match ${match.match_num} กลับมาแข่งขันต่อแล้ว`);
-								this.refreshMatch(this.week.number || 0, false, match.match_num);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, match.match_num);
 							} else {
 								const errMsg = (res.data && res.data.error) || 'ไม่สามารถเปิดแมตช์ได้';
 								this.showToast('❌ ' + errMsg);
-								this.refreshMatch(this.week.number || 0, false, match.match_num);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, match.match_num);
 							}
 						})
 						.catch(err => {
 							const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
 							this.showToast('⚠️ เกิดข้อผิดพลาดในการเปิดแมตช์: ' + errMsg);
 							console.error('reopenCurrentMatch error:', err);
-							this.refreshMatch(this.week.number || 0, false, match.match_num);
+							this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, match.match_num);
 						});
 				},
 				// ==================== FAST 1-CLICK GOAL / ASSIST (0.4) ====================
@@ -3402,11 +3402,11 @@
 									const pAlias = (player && (player.alias || player.name)) || 'ผู้เล่น';
 									this.showToast(icon + ' ' + pAlias + ' ' + label);
 								}
-								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'เซิร์ฟเวอร์ไม่ได้บันทึกผล';
 								this.showToast('❌ บันทึกผลไม่สำเร็จ: ' + errMsg);
-								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 							}
 						})
 						.catch(err => {
@@ -3425,7 +3425,7 @@
 								this.showToast('⚠️ บันทึกผลไม่สำเร็จ: ' + errMsg);
 							}
 							console.error('quickAddGoal error:', err);
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 						});
 				},
 				quickRemoveGoal(goalId) {
@@ -3443,11 +3443,11 @@
 								if (!this.isManager) {
 									this.showToast('🗑️ ลบประตูเรียบร้อย');
 								}
-								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบประตูได้';
 								this.showToast('❌ ลบประตูล้มเหลว: ' + errMsg);
-								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 							}
 						})
 						.catch(err => {
@@ -3459,7 +3459,7 @@
 								this.showToast('⚠️ เกิดข้อผิดพลาดในการลบ: ' + errMsg);
 							}
 							console.error('quickRemoveGoal error:', err);
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 						});
 				},
 				getPlayerGoalsInMatch(playerId, alias) {
@@ -3507,11 +3507,11 @@
 									const pAlias = (player && (player.alias || player.name)) || 'ผู้เล่น';
 									this.showToast('🗑️ ลบ' + label + 'ของ ' + pAlias + ' (-1)');
 								}
-								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบรายการได้';
 								this.showToast('❌ ลบล้มเหลว: ' + errMsg);
-								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 							}
 						})
 						.catch(err => {
@@ -3524,7 +3524,7 @@
 								this.showToast('⚠️ เกิดข้อผิดพลาดในการลบ: ' + errMsg);
 							}
 							console.error('quickRemovePlayerEvent error:', err);
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 						});
 				},
 				isGoalForTeam(goal, side) {
@@ -3710,11 +3710,11 @@
 								if (!this.isManager) {
 									this.showToast('✅ บันทึกผลสำเร็จ');
 								}
-								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'เซิร์ฟเวอร์ไม่ได้บันทึกผล';
 								this.showToast('❌ บันทึกผลไม่สำเร็จ: ' + errMsg);
-								this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+								this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 							}
 						})
 						.catch(err => {
@@ -3728,7 +3728,7 @@
 								const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
 								this.showToast('❌ บันทึกผลล้มเหลว: ' + errMsg);
 							}
-							this.refreshMatch(this.week.number || 0, false, this.selectedMatchIndex);
+							this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, this.selectedMatchIndex);
 						});
 				},
 				updateStatusTeam() {
@@ -3742,7 +3742,7 @@
 						} else {
 							this.member = allm.filter(allmembers => allmembers.team_id == this.all_match[matchindex].team_a_id || allmembers.team_id == this.all_match[matchindex].team_b_id);
 						}
-						this.refreshMatch(this.week.number || 0, false, matchindex);
+						this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, matchindex);
 					}
 				},
 				updateStatus() {
@@ -3758,7 +3758,7 @@
 						} else {
 							this.member = allm.filter(allmembers => allmembers.team_id == this.all_match[matchindex].team_a_id || allmembers.team_id == this.all_match[matchindex].team_b_id);
 						}
-						this.refreshMatch(this.week.number || 0, false, matchindex);
+						this.refreshMatch((this.week && (this.week.id || this.week.number)) || 0, false, matchindex);
 					}
 				},
 				removeGoalbyID: function (goal_id) {
@@ -3777,11 +3777,11 @@
 								if (!this.isManager) {
 									this.showToast('🗑️ ลบประตูเรียบร้อย');
 								}
-								this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+								this.refreshMatch(this.week ? (this.week.id || this.week.number || 0) : 0, false, this.selectedMatchIndex);
 							} else {
 								const errMsg = (response.data && response.data.error) || 'ไม่สามารถลบประตูได้';
 								this.showToast('❌ ลบประตูล้มเหลว: ' + errMsg);
-								this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+								this.refreshMatch(this.week ? (this.week.id || this.week.number || 0) : 0, false, this.selectedMatchIndex);
 							}
 						})
 						.catch(err => {
@@ -3791,7 +3791,7 @@
 							} else {
 								this.showToast('❌ ลบประตูล้มเหลว: ' + err.message);
 							}
-							this.refreshMatch(this.week ? (this.week.number || this.week.id || 0) : 0, false, this.selectedMatchIndex);
+							this.refreshMatch(this.week ? (this.week.id || this.week.number || 0) : 0, false, this.selectedMatchIndex);
 						});
 				},
 				promptDeleteMatch(match) {
@@ -3841,7 +3841,7 @@
 							this.showToast(`🗑️ ลบ Match ${targetNum} เรียบร้อยแล้ว`);
 							// Automatically switch selection to previous match
 							this.selectedMatchIndex = Math.max(0, targetNum - 1);
-							this.refreshMatch(this.week.number || this.week.id || 0);
+							this.refreshMatch(this.week.id || this.week.number || 0);
 						})
 						.catch(err => {
 							this.isDeletingMatch = false;
