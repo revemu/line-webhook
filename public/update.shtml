@@ -151,7 +151,6 @@
 						<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
 							<div>
 								<div style="font-weight: 700; font-size: 1rem;">📅 {{ w.date }}</div>
-								<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Week {{ w.number || w.id }}</div>
 							</div>
 							<span v-if="w.id === week.id" style="color: var(--primary-color); font-weight: bold;">Current ✓</span>
 						</div>
@@ -273,7 +272,7 @@
 
 				<form @submit.prevent="submitAddMatch">
 					<div style="margin-bottom: 0.85rem; font-size: 0.85rem; color: var(--text-muted); background: rgba(79, 70, 229, 0.06); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);">
-						📅 สัปดาห์: <strong>{{ week.date }}</strong> (Week {{ week.number || week.id }})
+						📅 วันที่: <strong>{{ week.date }}</strong>
 						<span v-if="isWeekEnded" style="display: block; color: #f59e0b; font-size: 0.78rem; margin-top: 2px;">
 							⚠️ สัปดาห์นี้จบไปแล้ว คุณสามารถสร้างแมตช์เพิ่มและบันทึกคะแนนได้ตามปกติ
 						</span>
@@ -350,7 +349,7 @@
 					ผังการเล่นและรายชื่อทีมจะแสดงผลอัตโนมัติหลังการสุ่มทีมครับ
 				</p>
 				<div class="roster-locked-badge">
-					<span>📅 Match Week {{ week ? (week.number || week.id) : '' }}</span>
+					<span>📅 {{ week ? week.date : '' }}</span>
 					<span>⏰ เวลาสุ่มทีม: วันศุกร์ 20:00 น.</span>
 				</div>
 			</div>

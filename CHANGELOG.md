@@ -7,6 +7,8 @@
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
+- **ซ่อนการแสดง Week Number / ID ออกจากหน้าเว็บ (`public/update.shtml`, `public/position.shtml`)**:
+  - ลบข้อความแสดง `Week {{ ... }}` ออกจากหน้าต่างเลือกวันที่, หน้าต่างสร้าง Match ใหม่ และป้ายแจ้งเตือนสุ่มทีม โดยแสดงเฉพาะวันที่ (`📅 {{ date }}`) เพื่อความสะอาดตาและดูง่ายขึ้น
 - **แก้ไขปัญหาหน้าเว็บเปลี่ยนไปแสดง Week อื่นเมื่อ Tab Freeze / พักหน้าจอ (`public/update.shtml`)**:
   - เปลี่ยนการส่งรหัสสัปดาห์ใน `refreshMatch(...)` ทุกจุด (ทั้งตอน `visibilitychange`, `pageshow`, `autoRefresh`, WebSocket Reconnect/Event รวมถึงหลังบันทึกประตูและจบแมตช์) จาก `this.week.number` ให้ใช้ **`this.week.id || this.week.number || 0`** เป็นหลัก เพื่อไม่ให้เกิดการชนกันระหว่าง `week_tbl.id` กับ `week_tbl.number` ใน `queryWeekId`
 - **จำกัดสถานะการสร้าง Match เป็น "รอแข่ง" เท่านั้นหากยังมีแมตช์ที่ยังไม่จบ (`public/update.shtml`, `routes/web.js`)**:
