@@ -144,6 +144,7 @@ async function testConnection() {
     await ensureScheduledTaskTable();
     await ensureMatchStatScheduleColumns();
     await ensureUserTable();
+    await ensureMemberFeeExemptColumn();
   } catch (error) {
     logger.error('❌ Error connecting to MySQL database:', error.message);
   }
@@ -250,6 +251,21 @@ async function ensureUserTable() {
     }
   } catch (err) {
     logger.warn('Notice: user_tbl schema check:', err.message);
+  }
+}
+
+async function ensureMemberFeeExemptColumn() {
+  try {
+    const colCheck = await executeQuery("SHOW COLUMNS FROM member_tbl LIKE 'fee_exempt'");
+    if (!colCheck || colCheck.length === 0) {
+      await executeQuery(`
+        ALTER TABLE member_tbl
+          ADD COLUMN fee_exempt TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = ยกเว้นไม่ตั้งยอดค้างชำระ/ไม่แสดงในรายการทวงเงิน, 0 = เรียกเก็บเงินปกติ'
+      `);
+      logger.info('✅ Auto-migrated member_tbl with fee_exempt column');
+    }
+  } catch (err) {
+    logger.warn('Notice: member_tbl fee_exempt schema check (manual migration: migrations/member_fee_exempt.sql):', err.message);
   }
 }
 
@@ -893,6 +909,16 @@ async function updateMemberWeek(member_id, value, type = 0) {
   }
 }
 
+/**
+ * Returns true if a member is exempt from automatic pitch fee debt assignment.
+ * Decoupled from `admin` so admins without `fee_exempt > 0` are billed normally.
+ */
+function isFeeExemptMember(member) {
+  return Boolean(member && (Number(member.team_id) === 101 || Number(member.fee_exempt) > 0));
+}
+
+const UNPAID_MEMBER_FILTER = " and pay=0 and (member_tbl.fee_exempt IS NULL or member_tbl.fee_exempt <= 0) and (member_tbl.team_id IS NULL or member_tbl.team_id <> 101)";
+
 async function setWeekCost(totalCost) {
   const week = await queryWeekID();
   if (week.length === 0) {
@@ -903,7 +929,7 @@ async function setWeekCost(totalCost) {
 
   // Query all members registered for this week in FIFO order
   const membersQuery = `
-    SELECT mtw.member_id, mtw.pay, m.team_id, m.admin 
+    SELECT mtw.member_id, mtw.pay, m.team_id, m.fee_exempt
     FROM member_team_week_tbl mtw
     INNER JOIN member_tbl m ON mtw.member_id = m.id
     WHERE mtw.week_id = ?
@@ -943,26 +969,20 @@ async function setWeekCost(totalCost) {
     [sharedFee, week_id]
   );
 
-  // Update debt for main field players:
-  // Non-admins get sharedFee, admins (admin > 0 or team_id = 101) get 0
-  // หมายเหตุ: Admin ไม่ได้เล่นฟรี แต่ Admin เป็นคนสำรองจ่ายค่าสนามและเคลียร์หักยอดกันเอง จึงตั้ง debt = 0 เพื่อไม่ต้องส่ง slip ยืนยัน
-  for (const m of mainFieldPlayers) {
-    const isExempt = (m.team_id === 101 || (m.admin && m.admin > 0));
-    const debtAmount = isExempt ? 0 : sharedFee;
-    await executeQuery(
-      "UPDATE member_tbl SET debt = ? WHERE id = ?",
-      [debtAmount, m.member_id]
-    );
-  }
-
-  // Set fixed fee of 40 baht for main goalkeepers (unless exempt)
-  for (const m of mainGoalies) {
-    const isExempt = (m.team_id === 101 || (m.admin && m.admin > 0));
-    const debtAmount = isExempt ? 0 : 40;
-    await executeQuery(
-      "UPDATE member_tbl SET debt = ? WHERE id = ?",
-      [debtAmount, m.member_id]
-    );
+  // Update debt for main field players and main goalkeepers:
+  // Non-exempt members get sharedFee (40 baht for goalies); exempt members (fee_exempt > 0 or team_id = 101) get 0
+  const feeGroups = [
+    { membersList: mainFieldPlayers, fee: sharedFee },
+    { membersList: mainGoalies, fee: 40 }
+  ];
+  for (const { membersList, fee } of feeGroups) {
+    for (const m of membersList) {
+      const debtAmount = isFeeExemptMember(m) ? 0 : fee;
+      await executeQuery(
+        "UPDATE member_tbl SET debt = ? WHERE id = ?",
+        [debtAmount, m.member_id]
+      );
+    }
   }
 
   // Ensure reserves have debt set to 0
@@ -3922,7 +3942,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.team_id as member_team_id, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <= 0)";
+      query += UNPAID_MEMBER_FILTER;
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+";
@@ -4074,7 +4094,7 @@ async function getMemberWeek(type = 0) {
     query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.team_id as member_team_id, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <= 0)";
+      query += UNPAID_MEMBER_FILTER;
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+"
@@ -4169,7 +4189,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
     query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.avoid_ids FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <= 0)";
+      query += UNPAID_MEMBER_FILTER;
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+"
@@ -8897,5 +8917,6 @@ module.exports = {
   checkTeamWeekAccess,
   pool,
   executeQuery,
-  ensureUserTable
+  ensureUserTable,
+  ensureMemberFeeExemptColumn
 };

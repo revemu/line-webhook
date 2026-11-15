@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.26] - 2026-11-15
+
+### Feat: Decouple Pitch Fee Exemption (`fee_exempt`) from Admin Role
+- **แยกฟิลด์ยกเว้นค่าสนาม (`member_tbl.fee_exempt`) ออกจาก `admin` (`query.js`, `migrations/member_fee_exempt.sql`, `PROJECT_KNOWLEDGE.md`)**:
+  - เพิ่มคอลัมน์ `fee_exempt TINYINT(1) NOT NULL DEFAULT 0` ในตาราง `member_tbl` พร้อมระบบ Auto-migration (`ensureMemberFeeExemptColumn()`) เมื่อเชื่อมต่อฐานข้อมูล และไฟล์สคริปต์ SQL (`migrations/member_fee_exempt.sql`)
+  - ปรับฟังก์ชัน `setWeekCost` ใน `query.js` ให้ตรวจสอบ `isFeeExemptMember` (`team_id === 101 || fee_exempt > 0`) แทน `admin > 0` เพื่อให้ Admin ที่ไม่ได้เปิด `fee_exempt` ถูกคำนวณและตั้งยอดค้างชำระ (`debt`) ตามปกติ
+  - ปรับเงื่อนไขรายการผู้เล่นที่ยังไม่ชำระเงิน (`getMemberWeek0`, `getMemberWeek`, `getMemberWeek2` เมื่อ `type == 0`) ให้กรองด้วย `UNPAID_MEMBER_FILTER` (`fee_exempt <= 0` และ `team_id <> 101`) แทนการยกเว้นจากคอลัมน์ `admin`
+  - คงเงื่อนไขใน `cmd.js` (`process_cmd`) ให้ Admin (`admin === 1 || admin === 2`) ยังสามารถใช้งานคำสั่งบอทได้ตามเดิมแม้จะมียอดค้างชำระ (`debt > 0`)
+
+---
+
 ## [0.7.25] - 2026-11-08
 
 ### Feat: Match Creation on Ended Weeks, Scorekeeper UI Cleanup, Admin Position Management & Multi-touch Position UX
