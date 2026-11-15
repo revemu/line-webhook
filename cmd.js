@@ -6,6 +6,7 @@ const qrGen = require('./qr_gen');
 const teamImg = require('./team_img');
 const axios = require('axios');
 const slipService = require('./slip');
+const slipVerifier = require('./scheduler/slipVerifier');
 const logger = require('./utils/logger');
 const { getNextSaturday } = require('./utils/date');
 
@@ -1368,18 +1369,44 @@ const COMMAND_REGISTRY = {
     'sliplist': async (context) => COMMAND_REGISTRY['slip'](context),
     'verify': async (context) => {
         const { param, member, quoteToken } = context;
-        if (!param || isNaN(Number(param))) return [{ type: 'text', quoteToken, text: '⚠️ กรุณาระบุหมายเลขสลิป เช่น /verify 123' }];
+        const isAdmin = member && (member.admin === 1 || member.admin === 2);
+
+        if (param && param.trim().toLowerCase() === 'all') {
+            if (!isAdmin) return [{ type: 'text', quoteToken, text: '⚠️ เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถตรวจสอบสลิปทั้งหมดได้' }];
+            const summary = await slipVerifier.runPendingSlipVerification({ force: true, notify: false });
+            if (summary.skipped) {
+                return [{ type: 'text', quoteToken, text: '⏳ ระบบกำลังตรวจสอบสลิปค้างอยู่ กรุณารอสักครู่แล้วลองใหม่' }];
+            }
+            if (summary.checked === 0) {
+                return [{ type: 'text', quoteToken, text: '✅ ไม่มีสลิปสถานะ noticed ที่รอตรวจสอบผ่าน EasySlip แล้ว' }];
+            }
+            const lines = [
+                `🔍 ตรวจสอบสลิปย้อนหลังเสร็จสิ้น`,
+                `• ตรวจทั้งหมด: ${summary.checked} รายการ`,
+                `• สำเร็จ: ${summary.verified} รายการ`,
+                `• ยังไม่สำเร็จ: ${summary.failed} รายการ`
+            ];
+            for (const r of summary.results) {
+                if (r.outcome === 'verified') {
+                    lines.push(`✅ #${r.slipId} (${r.senderName}) → ${r.amount || '-'} บาท (${r.slipToMe ? 'ค่าสนาม' : 'ไม่เกี่ยวกับค่าสนาม'})`);
+                } else {
+                    lines.push(`❌ #${r.slipId} (${r.senderName}) → ${r.error}`);
+                }
+            }
+            return [{ type: 'text', quoteToken, text: lines.join('\n') }];
+        }
+
+        if (!param || isNaN(Number(param))) return [{ type: 'text', quoteToken, text: '⚠️ กรุณาระบุหมายเลขสลิป เช่น /verify 123 หรือ /verify all' }];
         const slipId = Number(param);
         const slip = await db.getSlipById(slipId);
         if (!slip) return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบสลิป #${slipId}` }];
-        const isAdmin = member && (member.admin === 1 || member.admin === 2);
         if (!isAdmin && member && String(slip.sender_id) !== String(member.line_user_id)) return [{ type: 'text', quoteToken, text: '⚠️ คุณสามารถตรวจสอบได้เฉพาะสลิปของตัวเองเท่านั้น' }];
         if (!slip.qrcode) return [{ type: 'text', quoteToken, text: `⚠️ สลิป #${slipId} ไม่มี QR Code ไม่สามารถตรวจสอบได้` }];
 
         const verifyResult = await slipService.verifySlipPayload(slip.qrcode, slip.sender_name);
         if (verifyResult.success && verifyResult.slipData) {
             const { details, slipToMe, logStatus } = slipService.processSlipData(verifyResult.slipData, slip.sender_name);
-            await db.updateSlipLog(slipId, logStatus, verifyResult.slipData);
+            await db.markSlipVerified(slipId, logStatus, verifyResult.slipData);
             let msg = `✅ ตรวจสอบสลิป #${slipId} สำเร็จ!\n\n`;
             msg += `💰 ยอดเงิน: ${details.amountStr} บาท\n`;
             msg += `💸 โอนจาก: ${details.senderName} - ${details.senderBank}\n`;

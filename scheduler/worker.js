@@ -3,6 +3,7 @@ const db = require('../query');
 const lineClient = require('../lineClient');
 const cmd = require('../cmd');
 const taskRegistry = require('./taskRegistry');
+const slipVerifier = require('./slipVerifier');
 const logger = require('../utils/logger');
 const { setBaseUrl } = require('../utils/url');
 
@@ -12,7 +13,9 @@ if (currentBaseUrl) {
 }
 let isExecuting = false;
 let lastDbReloadTime = 0;
+let lastSlipVerifyTime = 0;
 const DB_RELOAD_INTERVAL_MS = 5 * 60 * 1000; // Reload tasks from DB every 5 mins
+const SLIP_VERIFY_POLL_MS = Math.max(15000, Number(process.env.SLIP_VERIFY_POLL_MS) || 60 * 1000); // Poll pending noticed slips every 1 min
 
 logger.info('[SchedulerWorker] Starting background scheduler worker thread...');
 
@@ -234,6 +237,11 @@ async function tick() {
         await runTask(task, 'schedule');
       }
     }
+
+    if (Date.now() - lastSlipVerifyTime >= SLIP_VERIFY_POLL_MS) {
+      lastSlipVerifyTime = Date.now();
+      await slipVerifier.runPendingSlipVerification();
+    }
   } catch (err) {
     logger.error('[SchedulerWorker] Error in tick loop:', err.message);
   } finally {
@@ -270,7 +278,10 @@ if (parentPort) {
         break;
 
       case 'TRIGGER_TASK':
-        if (message.taskId) {
+        if (message.taskId === 'verify_slips') {
+          logger.info('[SchedulerWorker] Manual trigger received for verify_slips');
+          await slipVerifier.runPendingSlipVerification({ force: true });
+        } else if (message.taskId) {
           // Check in active registry or fetch from DB directly if not found (e.g. if disabled)
           let task = taskRegistry.getTaskById(message.taskId);
           if (!task) {

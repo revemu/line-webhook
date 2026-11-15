@@ -6108,26 +6108,52 @@ async function getMemberStats(memberId, groupId = null) {
   };
 }
 
+let slipLogSchemaEnsured = false;
+
+async function ensureSlipLogSchema() {
+  if (slipLogSchemaEnsured) return;
+
+  const createSql = `CREATE TABLE IF NOT EXISTS slip_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id VARCHAR(255),
+    sender_name VARCHAR(255),
+    image_path VARCHAR(255),
+    status VARCHAR(50),
+    qrcode TEXT,
+    response_json TEXT,
+    verify_attempts INT DEFAULT 0,
+    last_verify_at DATETIME NULL,
+    last_verify_error VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+  await executeQuery(createSql, []);
+
+  const requiredCols = [
+    { name: 'qrcode', ddl: 'ALTER TABLE slip_log ADD COLUMN qrcode TEXT' },
+    { name: 'response_json', ddl: 'ALTER TABLE slip_log ADD COLUMN response_json TEXT' },
+    { name: 'verify_attempts', ddl: 'ALTER TABLE slip_log ADD COLUMN verify_attempts INT DEFAULT 0' },
+    { name: 'last_verify_at', ddl: 'ALTER TABLE slip_log ADD COLUMN last_verify_at DATETIME NULL' },
+    { name: 'last_verify_error', ddl: 'ALTER TABLE slip_log ADD COLUMN last_verify_error VARCHAR(255) NULL' }
+  ];
+
+  const colRows = await executeQuery(
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'slip_log'`,
+    []
+  );
+  const existingCols = new Set((colRows || []).map(r => String(r.column_name || r.COLUMN_NAME || '').toLowerCase()));
+
+  for (const col of requiredCols) {
+    if (!existingCols.has(col.name)) {
+      await executeQuery(col.ddl, []);
+    }
+  }
+
+  slipLogSchemaEnsured = true;
+}
+
 async function logSlip(senderId, senderName, imagePath, status, qrcode = null, responseJson = null) {
   try {
-    const createSql = `CREATE TABLE IF NOT EXISTS slip_log (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      sender_id VARCHAR(255),
-      sender_name VARCHAR(255),
-      image_path VARCHAR(255),
-      status VARCHAR(50),
-      qrcode TEXT,
-      response_json TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`;
-    await executeQuery(createSql, []);
-
-    const checkColSql = `SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'slip_log' AND column_name = 'qrcode'`;
-    const colExists = await executeQuery(checkColSql, []);
-    if (colExists && colExists.length > 0 && colExists[0].count === 0) {
-      await executeQuery("ALTER TABLE slip_log ADD COLUMN qrcode TEXT", []);
-      await executeQuery("ALTER TABLE slip_log ADD COLUMN response_json TEXT", []);
-    }
+    await ensureSlipLogSchema();
 
     const sql = `INSERT INTO slip_log (sender_id, sender_name, image_path, status, qrcode, response_json) VALUES (?, ?, ?, ?, ?, ?)`;
     const jsonStr = responseJson ? JSON.stringify(responseJson) : null;
@@ -6162,6 +6188,53 @@ async function updateSlipLog(id, status, responseJson = null) {
     await executeQuery(sql, [status, jsonStr, id]);
   } catch (err) {
     logger.error("Error updating slip log:", err);
+  }
+}
+
+async function markSlipVerified(id, status, responseJson = null) {
+  try {
+    await ensureSlipLogSchema();
+    const jsonStr = responseJson ? JSON.stringify(responseJson) : null;
+    const sql = `UPDATE slip_log SET status = ?, response_json = ?, last_verify_at = CURRENT_TIMESTAMP, last_verify_error = NULL WHERE id = ?`;
+    await executeQuery(sql, [status, jsonStr, id]);
+  } catch (err) {
+    logger.error("Error marking slip verified:", err);
+  }
+}
+
+async function recordSlipVerifyAttempt(id, errorMessage = null) {
+  try {
+    await ensureSlipLogSchema();
+    const trimmedError = errorMessage ? String(errorMessage).substring(0, 250) : null;
+    const sql = `UPDATE slip_log SET verify_attempts = COALESCE(verify_attempts, 0) + 1, last_verify_at = CURRENT_TIMESTAMP, last_verify_error = ? WHERE id = ?`;
+    await executeQuery(sql, [trimmedError, id]);
+  } catch (err) {
+    logger.error("Error recording slip verify attempt:", err);
+  }
+}
+
+async function getPendingSlipsForVerify({ maxAttempts = 8, maxAgeHours = 24, limit = 10 } = {}) {
+  try {
+    await ensureSlipLogSchema();
+    const safeLimit = Math.max(1, Math.min(100, Number(limit) || 10));
+    const safeMaxAttempts = Math.max(1, Number(maxAttempts) || 8);
+    const safeMaxAgeHours = Math.max(1, Number(maxAgeHours) || 24);
+    const sql = `
+      SELECT id, sender_id, sender_name, image_path, status, qrcode, response_json, created_at,
+             COALESCE(verify_attempts, 0) AS verify_attempts, last_verify_at, last_verify_error
+      FROM slip_log
+      WHERE status = 'noticed'
+        AND qrcode IS NOT NULL
+        AND TRIM(qrcode) != ''
+        AND COALESCE(verify_attempts, 0) < ?
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+      ORDER BY created_at ASC
+      LIMIT ?
+    `;
+    return await executeQuery(sql, [safeMaxAttempts, safeMaxAgeHours, safeLimit]);
+  } catch (err) {
+    logger.error("Error getting pending slips for verify:", err);
+    return [];
   }
 }
 
@@ -8848,8 +8921,12 @@ module.exports = {
   getMvpList,
   getAdminCommands,
   logSlip,
+  ensureSlipLogSchema,
   getSlipByQRCode,
   updateSlipLog,
+  markSlipVerified,
+  recordSlipVerifyAttempt,
+  getPendingSlipsForVerify,
   getNoticedSlips,
   getSlipById,
   setMemberDebt,
