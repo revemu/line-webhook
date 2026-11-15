@@ -155,11 +155,12 @@ async function verifySlipPayload(payload, defaultSenderName = '') {
  * @param {Object} [options={}]
  * @param {boolean} [options.isDuplicate=false] - True if slip was already found in cache/DB.
  * @param {number} [options.memberDebt=0] - Current member debt amount.
+ * @param {number} [options.weekCost=0] - Current week pitch fee per field player.
  * @param {Function} [options.formatDateFn] - Function to format date string.
- * @returns {Object} { details, slipToMe, logStatus, header }
+ * @returns {Object} { details, slipToMe, logStatus, header, shouldClearDebt }
  */
 function processSlipData(slipData, memberName, options = {}) {
-    const { isDuplicate = false, memberDebt = 0, formatDateFn } = options;
+    const { isDuplicate = false, memberDebt = 0, weekCost = 0, formatDateFn } = options;
 
     if (!slipData) {
         let header = `🙏 ${memberName} ได้รับสลิปโอนแล้ว`;
@@ -172,13 +173,15 @@ function processSlipData(slipData, memberName, options = {}) {
             details: null,
             slipToMe: true,
             logStatus,
-            header
+            header,
+            shouldClearDebt: true
         };
     }
 
     const details = parseSlipDetails(slipData, memberName);
     const slipToMe = details.slipToMe;
     let logStatus = 'success';
+    let shouldClearDebt = slipToMe;
     let header = `🙏 ${memberName} ได้รับสลิปโอนแล้ว **💰 ${details.amountStr} บาท**`;
 
     if (slipToMe) {
@@ -188,8 +191,22 @@ function processSlipData(slipData, memberName, options = {}) {
         } else {
             logStatus = 'success';
         }
-        if (details.amount !== undefined && memberDebt > 0 && Number(details.amount) > Number(memberDebt)) {
-            header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n`;
+
+        const amountNum = (details.amount !== undefined && details.amount !== null) ? Number(details.amount) : null;
+        const debtNum = Number(memberDebt) || 0;
+        const weekCostNum = Number(weekCost) || 0;
+        const hasValidAmount = amountNum !== null && !Number.isNaN(amountNum);
+
+        if (debtNum > 0) {
+            if (hasValidAmount && amountNum < debtNum) {
+                shouldClearDebt = false;
+                header += `\n\n⚠️ ยอดโอนน้อยกว่ายอดค้างชำระ (โอน ${details.amountStr} / ค้าง ${debtNum.toLocaleString('th-TH')} บาท) — ยังไม่หักยอดค้าง \n`;
+            } else if (hasValidAmount && amountNum > debtNum) {
+                header += `\n\n⚠️ ยอดโอนมากกว่าค่าสนาม \n`;
+            }
+        } else if (weekCostNum > 0 && hasValidAmount && amountNum !== weekCostNum) {
+            shouldClearDebt = false;
+            header += `\n\nℹ️ ไม่มียอดค้างชำระ และยอดโอนไม่ตรงค่าสนาม (${weekCostNum.toLocaleString('th-TH')} บาท) — อาจเป็นค่าใช้จ่ายอื่น \n`;
         }
     } else {
         header += `\n\n**📝 ไม่เกี่ยวกับค่าสนามบอล **`;
@@ -203,7 +220,8 @@ function processSlipData(slipData, memberName, options = {}) {
         details,
         slipToMe,
         logStatus,
-        header
+        header,
+        shouldClearDebt
     };
 }
 
@@ -294,12 +312,18 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     const relativeSlipPath = `/img/slip/${slipFileName}`;
     await fs.writeFile(slipFilePath, imageBuffer);
 
+    const weekInfoList = await db.queryWeekID(0);
+    const activeWeekCost = (weekInfoList && weekInfoList.length > 0 && weekInfoList[0].cost > 0)
+        ? Number(weekInfoList[0].cost)
+        : 0;
+
     const processed = processSlipData(slipData, member.name, {
         isDuplicate,
         memberDebt: member.debt,
+        weekCost: activeWeekCost,
         formatDateFn: getFormatDate
     });
-    const { details, slipToMe, logStatus, header } = processed;
+    const { details, slipToMe, logStatus, header, shouldClearDebt } = processed;
     if (details) {
         logger.debug('[EasySlip] Recipient:', details.recipient);
         logger.debug('[EasySlip] Recipient TH:', details.recipient_th);
@@ -326,7 +350,7 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     const tDbWeekStart = Date.now();
     let replyMessages;
 
-    if (slipToMe) {
+    if (slipToMe && shouldClearDebt) {
         if (!isDuplicate) {
             await db.updateMemberWeek(member.id, 1, 0);
         }
@@ -426,13 +450,7 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
                 }
             } else if (count > 0) {
                 try {
-                    let cost = Number(weekCost) || 0;
-                    if (cost <= 0) {
-                        const weekInfo = await db.queryWeekID(0);
-                        if (weekInfo && weekInfo.length > 0 && weekInfo[0].cost > 0) {
-                            cost = Number(weekInfo[0].cost);
-                        }
-                    }
+                    let cost = Number(weekCost) || activeWeekCost || 0;
                     logger.debug(`[slip] Unpaid week members count: ${count}, cost: ${cost}`);
                     if (cost > 0) {
                         const filename = await qrGen.generateQrCode(cost, '006660080321320');

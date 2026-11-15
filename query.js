@@ -4537,17 +4537,6 @@ async function getTopStat(limit = 10, type = 0, groupId = null) {
   }
 }
 
-async function checkDebtCall() {
-  const debt_call = `SELECT value from template_tpl where name = 'call'`;
-  const debt_call_res = await executeQuery(debt_call);
-  if (debt_call_res.length > 0) {
-    if (debt_call_res[0].value == 0) {
-      proceed = true;
-    }
-  }
-  return proceed;
-}
-
 async function getDebtList(type = 0) {
   logger.info(`[getDebtList] Called with type = ${type} (0=daily auto, 1=manual)`);
   let debt_str = "=== สมาชิกที่มียอดค้าง ===\n\n";
