@@ -4,6 +4,13 @@
 
 ---
 
+## [0.7.42] - 2026-11-16
+
+### Docs
+- Updated workspace rules in `GEMINI.md` to document the `hydromet` PostgreSQL production environment, PostgreSQL schema conventions (`week_tbl.year` integer, `"G"`/`"A"` aliases), pre-`/schedule` match guardrails, zero-idle scheduler/slip-verifier behavior, and RAM-first image rendering / favicon invariants.
+
+---
+
 ## [0.7.41] - 2026-11-16
 
 ### Changed
