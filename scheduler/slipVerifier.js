@@ -1,8 +1,12 @@
+const fs = require('fs').promises;
+const path = require('path');
 const db = require('../query');
 const slipService = require('../slip');
 const lineClient = require('../lineClient');
 const logger = require('../utils/logger');
 const { getFormatDate } = require('../utils/date');
+
+const SLIP_IMG_DIR = path.resolve(__dirname, '..', 'img', 'slip');
 
 const DEFAULT_RETRY_DELAYS_SECONDS = [120, 300, 600, 900, 1800, 3600, 7200, 14400];
 const INTER_REQUEST_DELAY_MS = 500;
@@ -111,12 +115,23 @@ async function pushNotifications(messages) {
  */
 async function verifySingleSlip(slip, activeWeekCost, cfg) {
   if (typeof slipService.isBankSlipQRCode === 'function' && !slipService.isBankSlipQRCode(slip.qrcode)) {
-    await db.markSlipVerified(slip.id, 'invalid_qr', null);
+    await db.deleteSlipLog(slip.id);
+    if (slip.image_path) {
+      try {
+        const relPath = String(slip.image_path).replace(/^\/+/, '');
+        const resolved = path.resolve(__dirname, '..', relPath);
+        if (resolved.startsWith(SLIP_IMG_DIR + path.sep)) {
+          await fs.unlink(resolved);
+        }
+      } catch (unlinkErr) {
+        // Ignore missing local file
+      }
+    }
     return {
       outcome: 'invalid_qr',
       slipId: slip.id,
       senderName: slip.sender_name,
-      error: 'Not a bank slip Mini-QR'
+      error: 'Deleted non-bank-slip QR from DB'
     };
   }
 
@@ -263,7 +278,7 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
         }
       } else if (res.outcome === 'invalid_qr') {
         summary.failed++;
-        logger.info(`[SlipVerifier] Slip #${slip.id} (${slip.sender_name}) marked invalid_qr (not a bank slip Mini-QR)`);
+        logger.info(`[SlipVerifier] Slip #${slip.id} (${slip.sender_name}) deleted from slip_log (not a bank slip Mini-QR)`);
         continue;
       } else if (res.outcome === 'paused') {
         summary.checked--;

@@ -6202,6 +6202,16 @@ async function markSlipVerified(id, status, responseJson = null) {
   }
 }
 
+async function deleteSlipLog(id) {
+  try {
+    await ensureSlipLogSchema();
+    const sql = `DELETE FROM slip_log WHERE id = ?`;
+    await executeQuery(sql, [id]);
+  } catch (err) {
+    logger.error("Error deleting slip log:", err);
+  }
+}
+
 async function recordSlipVerifyAttempt(id, errorMessage = null, forceAttempts = null) {
   try {
     await ensureSlipLogSchema();
@@ -9138,6 +9148,7 @@ module.exports = {
   getSlipByQRCode,
   updateSlipLog,
   markSlipVerified,
+  deleteSlipLog,
   recordSlipVerifyAttempt,
   getPendingSlipsForVerify,
   ensureAppSettingsTable,
