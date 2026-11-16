@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.40] - 2026-11-16
+
+### Added
+- **App-Scoped Soccer Bot Favicon (`public/favicon.svg`, `utils/version.js`)**:
+  - Created custom vector soccer ball badge icon `public/favicon.svg` served at `/webhook/favicon.svg`.
+  - Linked `/webhook/favicon.svg` in `<head>` of `public/update.shtml`, `public/position.shtml`, `public/login.shtml`, and `public/view.shtml` so browser tabs display the Soccer Bot icon instead of inheriting the root site `/favicon.ico`.
+  - Updated `utils/version.js` `renderVersionedHtml()` to auto-append dynamic `?v=` cache-busting tokens to `favicon.svg` links.
+
+---
+
 ## [0.7.39] - 2026-11-16
 
 ### Fixed

@@ -4,6 +4,8 @@
 	<meta charset="utf-8">
 	<meta http-equiv="refresh" content="0; url=/webhook/view">
 	<title>Redirecting to Match Viewer...</title>
+	<link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg">
+	<link rel="shortcut icon" href="/webhook/favicon.svg">
 	<script>
 		window.location.replace('/webhook/view');
 	</script>

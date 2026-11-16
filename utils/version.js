@@ -151,9 +151,11 @@ function renderVersionedHtml(filePath, req = null) {
 
     let rawHtml = fs.readFileSync(filePath, 'utf8');
 
-    // 1. Replace style.css link with auto-busting assetVersion
+    // 1. Replace style.css and favicon.svg links with auto-busting assetVersion
     const cssReplacement = `href="${prefix}/style.css?v=${assetVersion}"`;
     rawHtml = rawHtml.replace(/href=["'][^"']*style\.css(?:\?v=[^"']*)?["']/g, cssReplacement);
+    const iconReplacement = `href="${prefix}/favicon.svg?v=${assetVersion}"`;
+    rawHtml = rawHtml.replace(/href=["'][^"']*favicon\.svg(?:\?v=[^"']*)?["']/g, iconReplacement);
 
     // 2. Prepare dynamic version config script
     const versionScript = `
