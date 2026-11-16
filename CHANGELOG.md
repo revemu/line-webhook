@@ -4,6 +4,14 @@
 
 ---
 
+## [0.7.31] - 2026-11-16
+
+### Fix: Escape Reserved Keyword `rank` for MySQL 8.4 Compatibility
+- **Escape คอลัมน์ `` `rank` `` ใน `query.js`**:
+  - แก้ไข `getDonateLeaderboard()` และ `updateMemberRank()` ให้ครอบ `` `rank` `` ด้วย backtick ป้องกัน `ER_PARSE_ERROR` บน MySQL 8.0+ ที่ `RANK` เป็นคำสงวน
+
+---
+
 ## [0.7.30] - 2026-11-16
 
 ### Feat: Donate History Log (`donate_log_tbl`), `+donate`/`-donate` Commands & Flex Leaderboard (`/donate`)

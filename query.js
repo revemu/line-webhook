@@ -495,7 +495,7 @@ async function updateMember(member_id, value, type = 0) {
 }
 
 async function updateMemberRank(member_id, rank) {
-  const query = "update member_tbl set rank=? where id=?";
+  const query = "update member_tbl set `rank`=? where id=?";
   return await executeQuery(query, [rank, member_id]);
 }
 
@@ -6574,7 +6574,7 @@ async function getDonateLeaderboard(limit = 100) {
   const [sumRows, donorRows] = await Promise.all([
     executeQuery("SELECT COUNT(*) AS donor_count, COALESCE(SUM(donate), 0) AS total_donate FROM member_tbl WHERE donate > 0", []),
     executeQuery(
-      `SELECT id, name, alias, rank, donate, picture_url, line_user_id
+      `SELECT id, name, alias, \`rank\`, donate, picture_url, line_user_id
        FROM member_tbl
        WHERE donate > 0
        ORDER BY donate DESC, id ASC
