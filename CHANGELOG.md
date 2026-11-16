@@ -4,6 +4,22 @@
 
 ---
 
+## [0.7.27] - 2026-11-16
+
+### Feat & Fix: Background EasySlip Verification Scheduler, `app_settings_tbl` & Bank Mini-QR Validation
+- **ระบบตรวจสลิปย้อนหลังอัตโนมัติ (`scheduler/slipVerifier.js`, `scheduler/worker.js`, `query.js`, `cmd.js`)**:
+  - เพิ่ม `scheduler/slipVerifier.js` สำหรับกวาดตรวจสลิปสถานะ `noticed` ที่มี QR Code ย้อนหลังผ่าน EasySlip API พร้อมระบบ Progressive Backoff (`2, 5, 10, 15, 30, 60, 120, 240` นาที), จำกัดอายุสลิปไม่เกิน `168` ชั่วโมง (1 สัปดาห์), หยุดรอบชั่วคราวเมื่อติด quota/rate-limit และแจ้งเตือนเข้ากลุ่ม LINE
+  - เพิ่มคอลัมน์ติดตามการตรวจซ้ำใน `slip_log` (`verify_attempts`, `last_verify_at`, `last_verify_error`) และฟังก์ชัน `getPendingSlipsForVerify()`, `recordSlipVerifyAttempt()`, `markSlipVerified()`, `deleteSlipLog()` ใน `query.js`
+  - แก้ไข `getPendingSlipsForVerify()` ให้ sanitize ค่า `LIMIT` และ `INTERVAL ... HOUR` เป็นจำนวนเต็มใน SQL เพื่อหลีกเลี่ยง error `ER_WRONG_ARGUMENTS` (`Incorrect arguments to mysqld_stmt_execute`) บน `mysql2`
+  - รองรับคำสั่งแอดมิน `/verify all` ใน `cmd.js` สำหรับสั่งตรวจสลิปค้างทั้งหมดทันที
+- **แยกตารางตั้งค่าระบบออกจาก `template_tpl` (`migrations/app_settings_tbl.sql`, `query.js`)**:
+  - สร้างตาราง `app_settings_tbl` พร้อม helper `getSetting()`, `setSetting()`, `getSettingsByCategory()`, `getSlipVerifyConfig()`, `setSlipVerifyConfig()` เพื่อเก็บค่า config ของระบบแยกจากเทมเพลตข้อความ
+- **ตรวจสอบรูปแบบ Thai Bank Mini-QR ก่อนยิง EasySlip (`slip.js`, `scheduler/slipVerifier.js`)**:
+  - เพิ่ม `parseBankSlipQRCode()` และ `isBankSlipQRCode()` เพื่อตรวจโครงสร้าง EMVCo Mini-QR (`00060000010103...5102TH9104...`) และคัดกรอง QR จ่าย/รับเงิน PromptPay (`000201...0016A000000677010111`) ออกตั้งแต่ต้นทาง
+  - ลบรายการใน `slip_log` (และไฟล์รูปใน `img/slip/` ถ้ามี) ที่ QR ไม่ใช่ Mini-QR ของธนาคารระหว่างการ sweep และหยุด retry ทันทีเมื่อพบ `VALIDATION_ERROR` / `INVALID_PAYLOAD`
+
+---
+
 ## [0.7.26] - 2026-11-15
 
 ### Feat: Decouple Pitch Fee Exemption (`fee_exempt`) from Admin Role
