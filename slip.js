@@ -8,6 +8,42 @@ const { getNextSaturday } = require('./utils/date');
 const EASYSLIP_API_KEY = process.env.EASYSLIP_API_KEY || '196e73b3-6b1a-4a46-be07-5ef89dffa11b';
 
 /**
+ * Parses and validates a Thai bank slip Mini-QR payload (BOT EMVCo Slip Verify standard).
+ * Rejects PromptPay payment/receive QRs (000201...0016A000000677010111) and non-slip QRs.
+ * @param {string} qrCode - Raw QR code payload string.
+ * @returns {{ isValid: boolean, bankCode?: string, refId?: string, crc?: string }}
+ */
+function parseBankSlipQRCode(qrCode) {
+    if (!qrCode || typeof qrCode !== 'string') return { isValid: false };
+    const trimmed = qrCode.trim();
+    // Standard PromptPay/EMVCo merchant/payment QRs start with 000201; slip Mini-QRs do not.
+    if (trimmed.startsWith('000201')) return { isValid: false };
+
+    const match = trimmed.match(/^00(\d{2})00060000010103(\d{3})02(\d{2})(.+?)5102TH9104([0-9A-Fa-f]{4})$/);
+    if (!match) return { isValid: false };
+
+    const containerLen = parseInt(match[1], 10);
+    const bankCode = match[2];
+    const refLen = parseInt(match[3], 10);
+    const refId = match[4];
+
+    if (refId.length !== refLen) return { isValid: false };
+    // Sub-tag 00 (10 chars) + sub-tag 01 (7 chars) + sub-tag 02 header (4 chars) + refLen
+    if (containerLen !== 10 + 7 + 4 + refLen) return { isValid: false };
+
+    return { isValid: true, bankCode, refId, crc: match[5] };
+}
+
+/**
+ * Checks whether a QR code payload is a valid Thai bank slip Mini-QR.
+ * @param {string} qrCode - Raw QR code payload string.
+ * @returns {boolean}
+ */
+function isBankSlipQRCode(qrCode) {
+    return parseBankSlipQRCode(qrCode).isValid;
+}
+
+/**
  * Verify bank slip via EasySlip API v2 using QR Code payload.
  * @param {string} payload - QR Code payload string.
  * @returns {Promise<Object|null>} EasySlip API response object.
@@ -240,6 +276,11 @@ function processSlipData(slipData, memberName, options = {}) {
 async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, replyMessage, getFormatDate, timing = {} }) {
     const { replyToken, message, source } = event;
 
+    if (!isBankSlipQRCode(qrCode)) {
+        logger.debug('[slip] Ignoring non-bank-slip QR code (e.g. PromptPay receive QR or general QR)');
+        return false;
+    }
+
     let isSlipValid = false;
     let slipData = null;
     let isDuplicate = false;
@@ -289,8 +330,8 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
                 logger.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
             }
             if (!isSlipValid) {
-                if (qrCode.includes("60000010103") || qrCode.includes("0016A000000677010111")) {
-                    logger.info('QR payload contains PromptPay identifier, accepting slip as fallback.');
+                if (isBankSlipQRCode(qrCode)) {
+                    logger.info('QR payload is a valid bank Mini-QR, accepting slip as fallback.');
                     isSlipValid = true;
                 }
             }
@@ -514,6 +555,8 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
 
 module.exports = {
     EASYSLIP_API_KEY,
+    parseBankSlipQRCode,
+    isBankSlipQRCode,
     verifyEasySlipByPayload,
     verifyEasySlipByImage,
     parseSlipDetails,

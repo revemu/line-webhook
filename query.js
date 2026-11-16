@@ -6202,12 +6202,17 @@ async function markSlipVerified(id, status, responseJson = null) {
   }
 }
 
-async function recordSlipVerifyAttempt(id, errorMessage = null) {
+async function recordSlipVerifyAttempt(id, errorMessage = null, forceAttempts = null) {
   try {
     await ensureSlipLogSchema();
     const trimmedError = errorMessage ? String(errorMessage).substring(0, 250) : null;
-    const sql = `UPDATE slip_log SET verify_attempts = COALESCE(verify_attempts, 0) + 1, last_verify_at = CURRENT_TIMESTAMP, last_verify_error = ? WHERE id = ?`;
-    await executeQuery(sql, [trimmedError, id]);
+    if (forceAttempts !== null && forceAttempts !== undefined && Number.isFinite(Number(forceAttempts))) {
+      const sql = `UPDATE slip_log SET verify_attempts = ?, last_verify_at = CURRENT_TIMESTAMP, last_verify_error = ? WHERE id = ?`;
+      await executeQuery(sql, [Math.max(1, Math.floor(Number(forceAttempts))), trimmedError, id]);
+    } else {
+      const sql = `UPDATE slip_log SET verify_attempts = COALESCE(verify_attempts, 0) + 1, last_verify_at = CURRENT_TIMESTAMP, last_verify_error = ? WHERE id = ?`;
+      await executeQuery(sql, [trimmedError, id]);
+    }
   } catch (err) {
     logger.error("Error recording slip verify attempt:", err);
   }

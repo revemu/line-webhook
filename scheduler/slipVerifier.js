@@ -59,6 +59,17 @@ function isQuotaOrAuthError(error) {
 }
 
 /**
+ * Detects permanent payload/validation errors where retrying the same QR will never succeed.
+ * @param {Object|null} error
+ * @returns {boolean}
+ */
+function isPermanentVerifyError(error) {
+  if (!error || typeof error !== 'object') return false;
+  const code = String(error.code || '').toUpperCase();
+  return code === 'VALIDATION_ERROR' || code === 'INVALID_PAYLOAD';
+}
+
+/**
  * Resolves the target LINE group ID for background verification notifications.
  * @returns {Promise<string|null>}
  */
@@ -99,6 +110,16 @@ async function pushNotifications(messages) {
  * @returns {Promise<Object>}
  */
 async function verifySingleSlip(slip, activeWeekCost, cfg) {
+  if (typeof slipService.isBankSlipQRCode === 'function' && !slipService.isBankSlipQRCode(slip.qrcode)) {
+    await db.markSlipVerified(slip.id, 'invalid_qr', null);
+    return {
+      outcome: 'invalid_qr',
+      slipId: slip.id,
+      senderName: slip.sender_name,
+      error: 'Not a bank slip Mini-QR'
+    };
+  }
+
   const verifyResult = await slipService.verifySlipPayload(slip.qrcode, slip.sender_name);
 
   if (verifyResult.success && verifyResult.slipData) {
@@ -157,8 +178,9 @@ async function verifySingleSlip(slip, activeWeekCost, cfg) {
     ? `${verifyResult.error.code || ''} - ${verifyResult.error.message || ''}`.replace(/^\s*-\s*/, '').trim()
     : 'No response / network error';
 
-  await db.recordSlipVerifyAttempt(slip.id, errText);
-  const nextAttempts = (Number(slip.verify_attempts) || 0) + 1;
+  const isPermanent = isPermanentVerifyError(verifyResult.error);
+  const nextAttempts = isPermanent ? cfg.maxAttempts : (Number(slip.verify_attempts) || 0) + 1;
+  await db.recordSlipVerifyAttempt(slip.id, errText, isPermanent ? cfg.maxAttempts : null);
   let notifyText = null;
   if (nextAttempts >= cfg.maxAttempts) {
     notifyText = `⚠️ สลิป #${slip.id} (${slip.sender_name}) ตรวจสอบผ่าน EasySlip ไม่สำเร็จหลังลอง ${nextAttempts} ครั้ง\nสาเหตุล่าสุด: ${errText}`;
@@ -239,6 +261,10 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
         if (res.notifyText) {
           notifyMessages.push({ type: 'text', text: res.notifyText });
         }
+      } else if (res.outcome === 'invalid_qr') {
+        summary.failed++;
+        logger.info(`[SlipVerifier] Slip #${slip.id} (${slip.sender_name}) marked invalid_qr (not a bank slip Mini-QR)`);
+        continue;
       } else if (res.outcome === 'paused') {
         summary.checked--;
         summary.deferred += (dueSlips.length - i);
