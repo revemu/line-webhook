@@ -129,6 +129,16 @@ function reloadTasks() {
 }
 
 /**
+ * Wakes the worker thread's slip verifier when a new unverified ('noticed') slip is queued.
+ */
+function notifySlipQueued() {
+  if (worker) {
+    worker.postMessage({ type: 'SLIP_NOTICED' });
+    logger.info('[SchedulerSupervisor] Notified worker of new noticed slip queued for verification.');
+  }
+}
+
+/**
  * Notifies the scheduler worker thread that a task was executed (e.g. via chat reply).
  * Updates in-memory last_run_date in worker thread immediately to prevent duplicate catch-up loops.
  * @param {string|number} taskId 
@@ -154,6 +164,7 @@ module.exports = {
   notifyBaseUrl,
   triggerTask,
   reloadTasks,
+  notifySlipQueued,
   notifyTaskExecuted,
   pendingManager
 };

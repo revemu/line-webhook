@@ -12,18 +12,30 @@ if (currentBaseUrl) {
   setBaseUrl(currentBaseUrl);
 }
 let isExecuting = false;
-let lastDbReloadTime = 0;
+let hasPendingSlips = false;
 let lastSlipVerifyTime = 0;
 let slipVerifyPollMs = 60 * 1000;
-const DB_RELOAD_INTERVAL_MS = 5 * 60 * 1000; // Reload tasks from DB every 5 mins
+
+/**
+ * Updates slip verifier polling state from a sweep summary.
+ * Pauses DB polling completely whenever no retryable noticed slips remain.
+ */
+function applySlipVerifySummary(verifySummary) {
+  hasPendingSlips = Boolean(verifySummary && verifySummary.hasPending);
+  if (verifySummary && verifySummary.pollSeconds) {
+    slipVerifyPollMs = Math.max(15000, Number(verifySummary.pollSeconds) * 1000);
+  }
+  if (!hasPendingSlips) {
+    logger.info('[SchedulerWorker] No remaining noticed slips to verify; pausing slip DB polling until a new noticed slip arrives.');
+  }
+}
 
 logger.info('[SchedulerWorker] Starting background scheduler worker thread...');
 
-// 1. Initial task discovery
+// 1. Initial task discovery (tasks reload only via /reloadtasks or CRUD commands; slips wake via SLIP_NOTICED)
 (async () => {
   try {
     await taskRegistry.loadTasks();
-    lastDbReloadTime = Date.now();
   } catch (err) {
     logger.error('[SchedulerWorker] Initial task loading error:', err.message);
   }
@@ -225,10 +237,9 @@ async function tick() {
   try {
     const now = new Date();
 
-    // Auto-refresh tasks from DB every DB_RELOAD_INTERVAL_MS (only updates/logs if DB rows changed)
-    if (!taskRegistry.isLoaded || (Date.now() - lastDbReloadTime > DB_RELOAD_INTERVAL_MS)) {
+    // Load tasks only if not yet loaded (use manual /reloadtasks or task CRUD commands to refresh)
+    if (!taskRegistry.isLoaded) {
       await taskRegistry.loadTasks();
-      lastDbReloadTime = Date.now();
     }
 
     const dueTasks = taskRegistry.getDueTasks(now);
@@ -238,12 +249,11 @@ async function tick() {
       }
     }
 
-    if (Date.now() - lastSlipVerifyTime >= slipVerifyPollMs) {
+    // Only poll MySQL for slip verification after a noticed slip wakes the worker
+    if (hasPendingSlips && (Date.now() - lastSlipVerifyTime >= slipVerifyPollMs)) {
       lastSlipVerifyTime = Date.now();
       const verifySummary = await slipVerifier.runPendingSlipVerification();
-      if (verifySummary && verifySummary.pollSeconds) {
-        slipVerifyPollMs = Math.max(15000, Number(verifySummary.pollSeconds) * 1000);
-      }
+      applySlipVerifySummary(verifySummary);
     }
   } catch (err) {
     logger.error('[SchedulerWorker] Error in tick loop:', err.message);
@@ -283,7 +293,9 @@ if (parentPort) {
       case 'TRIGGER_TASK':
         if (message.taskId === 'verify_slips') {
           logger.info('[SchedulerWorker] Manual trigger received for verify_slips');
-          await slipVerifier.runPendingSlipVerification({ force: true });
+          lastSlipVerifyTime = Date.now();
+          const verifySummary = await slipVerifier.runPendingSlipVerification({ force: true });
+          applySlipVerifySummary(verifySummary);
         } else if (message.taskId) {
           // Check in active registry or fetch from DB directly if not found (e.g. if disabled)
           let task = taskRegistry.getTaskById(message.taskId);
@@ -315,7 +327,12 @@ if (parentPort) {
       case 'RELOAD_TASKS':
         logger.info('[SchedulerWorker] Reloading tasks from DB upon main thread request...');
         await taskRegistry.loadTasks(true);
-        lastDbReloadTime = Date.now();
+        break;
+
+      case 'SLIP_NOTICED':
+        hasPendingSlips = true;
+        lastSlipVerifyTime = Date.now();
+        logger.info('[SchedulerWorker] Noticed slip queued; slip verification polling activated.');
         break;
 
       case 'TASK_EXECUTED':

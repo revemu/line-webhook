@@ -225,7 +225,7 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
   }
 
   isVerifying = true;
-  const summary = { checked: 0, verified: 0, failed: 0, deferred: 0, results: [], pollSeconds: 60 };
+  const summary = { checked: 0, verified: 0, failed: 0, deferred: 0, results: [], pollSeconds: 60, hasPending: false };
 
   try {
     const cfg = await db.getSlipVerifyConfig();
@@ -243,6 +243,7 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
     });
 
     if (!candidates || candidates.length === 0) {
+      summary.hasPending = false;
       return summary;
     }
 
@@ -251,6 +252,7 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
     summary.deferred = candidates.length - dueSlips.length;
 
     if (dueSlips.length === 0) {
+      summary.hasPending = true;
       return summary;
     }
 
@@ -302,7 +304,12 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
       await pushNotifications(notifyMessages);
     }
 
-    logger.info(`[SlipVerifier] Sweep finished: checked=${summary.checked}, verified=${summary.verified}, failed=${summary.failed}, deferred=${summary.deferred}`);
+    const hasRetryableResult = summary.results.some(
+      r => r.outcome === 'paused' || (r.outcome === 'failed' && r.attempts < cfg.maxAttempts)
+    );
+    summary.hasPending = (candidates.length >= cfg.batchLimit) || summary.deferred > 0 || hasRetryableResult;
+
+    logger.info(`[SlipVerifier] Sweep finished: checked=${summary.checked}, verified=${summary.verified}, failed=${summary.failed}, deferred=${summary.deferred}, hasPending=${summary.hasPending}`);
     return summary;
   } catch (err) {
     logger.error('[SlipVerifier] Unexpected error during verification sweep:', err);

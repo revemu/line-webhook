@@ -384,6 +384,13 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         }
     } else {
         await db.logSlip(source.userId, member.name, relativeSlipPath, logStatus, qrCode, slipData);
+        if (logStatus === 'noticed') {
+            try {
+                require('./scheduler').notifySlipQueued();
+            } catch (e) {
+                logger.debug('[slip] Could not notify scheduler of noticed slip:', e.message);
+            }
+        }
     }
     const tSave = Date.now() - tSaveStart;
 

@@ -4,6 +4,18 @@
 
 ---
 
+## [0.7.37] - 2026-11-16
+
+### Changed
+- **Zero-Idle Polling for Scheduler & Event-Driven Slip Verifier (`scheduler/worker.js`, `scheduler/index.js`, `scheduler/slipVerifier.js`, `slip.js`)**:
+  - Removed the 5-minute periodic `scheduled_task_tbl` reload loop from `scheduler/worker.js`; tasks now load once at startup and refresh via `/reloadtasks` or task CRUD commands (`/addtask`, `/deltask`, `/toggletask`).
+  - Made background slip verification event-driven with zero boot-time or idle-time DB polling: `worker.js` stays idle (`0` queries to `app_settings_tbl` / `slip_log`) until `slip.js` logs a `'noticed'` slip (`SLIP_NOTICED` IPC via `scheduler.notifySlipQueued()`) or an admin triggers `/verifyslips`, and automatically stops polling again once `slipVerifier.runPendingSlipVerification()` reports `hasPending: false`.
+- **Match Manager Guard Before `/schedule` (`public/update.shtml`, `routes/web.js`)**:
+  - Removed the `➕ สร้าง Match แรก` button from the Match Manager empty state when `matchCount === 0` and blocked `openAddMatchModal()` / `submitAddMatch()` before `/schedule` generates the week's matches.
+  - Added a backend guard in `POST /webhook/add_match` returning HTTP `400` if `match_stat_tbl` currently has `0` matches for that `week_id`.
+
+---
+
 ## [0.7.36] - 2026-11-16
 
 ### Changed

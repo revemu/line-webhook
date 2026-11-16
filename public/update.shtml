@@ -1331,12 +1331,9 @@
 		<div class="card" v-if="matchCount === 0" style="text-align: center; padding: 2.5rem 1.5rem;">
 			<div style="font-size: 3rem; margin-bottom: 0.5rem;">⚽</div>
 			<div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem;">ยังไม่มีตารางการแข่งขันในสัปดาห์นี้</div>
-			<div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+			<div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0;">
 				รอการสร้างตารางการแข่งขันอัตโนมัติ (/schedule) หรือเลือกวันที่อื่น
 			</div>
-			<button v-if="isManager" type="button" class="btn-scoreboard-tool" style="padding: 0.55rem 1.25rem; font-size: 0.9rem; font-weight: 700;" @click="openAddMatchModal()">
-				➕ สร้าง Match แรก
-			</button>
 		</div>
 
 		<!-- ==================== TEAM ROSTERS & REALTIME RATINGS SUMMARY ==================== -->
@@ -3087,6 +3084,10 @@
 					}
 				},
 				openAddMatchModal() {
+					if (!this.matchCount) {
+						this.showToast('⚠️ กรุณารันคำสั่ง /schedule เพื่อสร้างตารางการแข่งขันก่อนเพิ่ม Match');
+						return;
+					}
 					this.addMatchError = '';
 					const nextNum = (this.maxMatchNum || 0) + 1;
 					const teams = this.availableTeamsList;
@@ -3102,6 +3103,10 @@
 				submitAddMatch() {
 					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
 						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						return;
+					}
+					if (!this.matchCount) {
+						this.addMatchError = 'กรุณารันคำสั่ง /schedule เพื่อสร้างตารางการแข่งขันของสัปดาห์นี้ก่อนเพิ่ม Match';
 						return;
 					}
 					if (!this.newMatchForm.team_a_id || !this.newMatchForm.team_b_id) {

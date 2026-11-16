@@ -923,7 +923,19 @@ router.post('/webhook/add_match', requireAuth, upload.none(), async (req, res) =
 
         // Add new match
         if (data.weekid !== undefined && data.matchnum !== undefined && data.teamaid !== undefined && data.teambid !== undefined) {
-            const unfinished = await doQuery(`SELECT id, match_num FROM match_stat_tbl WHERE week_id = ${data.weekid} AND (status != 'finished' OR status IS NULL)`);
+            const safeWeekId = parseInt(data.weekid, 10) || 0;
+            if (safeWeekId <= 0) {
+                return res.status(400).json({ success: false, error: 'Invalid weekid' });
+            }
+            const existingRows = await doQuery('SELECT COUNT(*) AS cnt FROM match_stat_tbl WHERE week_id = ?', [safeWeekId]);
+            const existingCount = existingRows && existingRows[0] ? Number(existingRows[0].cnt || 0) : 0;
+            if (existingCount === 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'ยังไม่มีตารางการแข่งขันในสัปดาห์นี้ กรุณารันคำสั่ง /schedule ก่อนเพิ่ม Match'
+                });
+            }
+            const unfinished = await doQuery(`SELECT id, match_num FROM match_stat_tbl WHERE week_id = ? AND (status != 'finished' OR status IS NULL)`, [safeWeekId]);
             let status = (data.status === 'scheduled') ? 'scheduled' : 'in_progress';
             if (unfinished && unfinished.length > 0) {
                 status = 'scheduled';
