@@ -6,7 +6,7 @@ let heartbeatInterval = null;
 
 /**
  * Initialize WebSocket Server attached to HTTP server.
- * Handles connections on /ws/live, /webhook/ws, /web/ws
+ * Handles connections on /webhook/ws and /ws/live
  * @param {import('http').Server} server 
  */
 function initWebSocket(server) {
@@ -19,7 +19,7 @@ function initWebSocket(server) {
       const urlObj = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
       const pathname = urlObj.pathname;
 
-      if (pathname === '/ws/live' || pathname === '/webhook/ws' || pathname === '/web/ws') {
+      if (pathname === '/webhook/ws' || pathname === '/ws/live') {
         wss.handleUpgrade(request, socket, head, (ws) => {
           const weekParam = urlObj.searchParams.get('week_id') || urlObj.searchParams.get('week') || urlObj.searchParams.get('weeknum');
           if (weekParam) {

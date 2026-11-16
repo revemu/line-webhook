@@ -130,10 +130,7 @@ function renderVersionedHtml(filePath, req = null) {
     const changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');
     const changelogStat = fs.existsSync(changelogPath) ? fs.statSync(changelogPath) : { mtimeMs: 0 };
 
-    // Determine current prefix (/web or /webhook)
-    const urlPath = req && req.originalUrl ? req.originalUrl : '';
-    const isWebPrefix = urlPath.startsWith('/web/') || urlPath === '/web';
-    const prefix = isWebPrefix ? '/web' : '/webhook';
+    const prefix = '/webhook';
     const cacheKey = `${filePath}:${prefix}`;
 
     const baseVersion = getAppVersion();

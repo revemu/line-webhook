@@ -297,8 +297,7 @@ function requireAuth(req, res, next) {
             req.originalUrl.includes('/get_info') ||
             req.method !== 'GET';
         if (!isApiOrAjax && req.accepts('html')) {
-            const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
-            return res.redirect(`${prefix}/login?redirect=${encodeURIComponent(req.originalUrl)}`);
+            return res.redirect(`/webhook/login?redirect=${encodeURIComponent(req.originalUrl)}`);
         }
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         return res.status(401).json({ success: false, error: 'เซสชันหมดอายุหรือไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่', session_expired: true });
@@ -317,8 +316,7 @@ async function requireRoot(req, res, next) {
             req.originalUrl.includes('/get_info') ||
             req.method !== 'GET';
         if (!isApiOrAjax && req.accepts('html')) {
-            const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
-            return res.redirect(`${prefix}/login?redirect=${encodeURIComponent(req.originalUrl)}`);
+            return res.redirect(`/webhook/login?redirect=${encodeURIComponent(req.originalUrl)}`);
         }
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         return res.status(401).json({ success: false, error: 'เซสชันหมดอายุหรือไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่', session_expired: true });
@@ -354,8 +352,7 @@ async function requireRoot(req, res, next) {
             if (!reqWeek || reqWeek == 0) {
                 const unlockedWeek = await getLatestUnlockedWeek(req.user);
                 if (unlockedWeek && unlockedWeek.id) {
-                    const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
-                    return res.redirect(`${prefix}/position?weeknum=${unlockedWeek.id}`);
+                    return res.redirect(`/webhook/position?weeknum=${unlockedWeek.id}`);
                 }
             }
 
@@ -363,8 +360,7 @@ async function requireRoot(req, res, next) {
                 req.headers['x-requested-with'] === 'XMLHttpRequest' ||
                 req.method !== 'GET';
             if (!isApiOrAjax && req.accepts('html')) {
-                const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
-                return res.redirect(`${prefix}/match`);
+                return res.redirect('/webhook/match');
             }
             res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
             return res.status(403).json({ success: false, error: 'Access denied: Admin can edit positions after Friday 20:00 only.' });
@@ -376,8 +372,7 @@ async function requireRoot(req, res, next) {
         req.headers['x-requested-with'] === 'XMLHttpRequest' ||
         req.method !== 'GET';
     if (!isApiOrAjax && req.accepts('html')) {
-        const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
-        return res.redirect(`${prefix}/match`);
+        return res.redirect('/webhook/match');
     }
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     return res.status(403).json({ success: false, error: 'Access denied: Admin or Root role required.' });
@@ -385,31 +380,30 @@ async function requireRoot(req, res, next) {
 
 // ==================== AUTH & ROUTING ====================
 
-// Root & Web convenience redirects
-router.get(['/', '/webhook', '/webhook/', '/web', '/web/', '/update.shtml', '/webhook/update.shtml', '/web/update.shtml'], (req, res) => res.redirect('/webhook/match'));
-router.get(['/match', '/webhook/match.shtml', '/web/match.shtml'], (req, res) => res.redirect('/webhook/match'));
-router.get(['/view', '/view.shtml', '/webhook/view.shtml', '/web/view.shtml'], (req, res) => res.redirect('/webhook/view'));
-router.get(['/position', '/position.shtml', '/webhook/position.shtml', '/web/position.shtml'], (req, res) => res.redirect('/webhook/position'));
-router.get(['/login.shtml', '/webhook/login.shtml', '/web/login.shtml'], (req, res) => res.redirect('/webhook/login'));
+// Root & convenience redirects
+router.get(['/', '/webhook', '/webhook/', '/update.shtml', '/webhook/update.shtml'], (req, res) => res.redirect('/webhook/match'));
+router.get(['/match', '/webhook/match.shtml'], (req, res) => res.redirect('/webhook/match'));
+router.get(['/view', '/view.shtml', '/webhook/view.shtml'], (req, res) => res.redirect('/webhook/view'));
+router.get(['/position', '/position.shtml', '/webhook/position.shtml'], (req, res) => res.redirect('/webhook/position'));
+router.get(['/login.shtml', '/webhook/login.shtml'], (req, res) => res.redirect('/webhook/login'));
 
 // Login page
-router.get(['/webhook/login', '/web/login'], (req, res) => {
-    const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
+router.get('/webhook/login', (req, res) => {
     if (req.user) {
         const redirect = req.query.redirect;
-        if (redirect && (redirect.startsWith('/webhook/') || redirect.startsWith('/web/'))) {
+        if (redirect && redirect.startsWith('/webhook/')) {
             if (redirect.includes('position') && req.user.role !== 'root' && req.user.role !== 'admin') {
-                return res.redirect(`${prefix}/match`);
+                return res.redirect('/webhook/match');
             }
             return res.redirect(redirect);
         }
-        return res.redirect(req.user.role === 'root' ? `${prefix}/position` : `${prefix}/match`);
+        return res.redirect(req.user.role === 'root' ? '/webhook/position' : '/webhook/match');
     }
     sendVersionedHtml(req, res, path.join(__dirname, '..', 'public', 'login.shtml'));
 });
 
 // Login endpoint (POST) - Supports MySQL user_tbl with bcrypt + .env fallback
-router.post(['/webhook/login', '/web/login'], upload.none(), async (req, res) => {
+router.post('/webhook/login', upload.none(), async (req, res) => {
     try {
         const { username, password, redirect } = { ...req.query, ...req.body };
 
@@ -479,16 +473,15 @@ router.post(['/webhook/login', '/web/login'], upload.none(), async (req, res) =>
 
         logger.info(`User ${authenticatedUser.username} (${authenticatedUser.role}) logged in successfully`);
 
-        const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
-        let targetRedirect = `${prefix}/match`;
-        if (redirect && (redirect.startsWith('/webhook/') || redirect.startsWith('/web/'))) {
+        let targetRedirect = '/webhook/match';
+        if (redirect && redirect.startsWith('/webhook/')) {
             if (redirect.includes('position') && authenticatedUser.role !== 'root' && authenticatedUser.role !== 'admin') {
-                targetRedirect = `${prefix}/match`;
+                targetRedirect = '/webhook/match';
             } else {
                 targetRedirect = redirect;
             }
         } else if (authenticatedUser.role === 'root') {
-            targetRedirect = `${prefix}/position`;
+            targetRedirect = '/webhook/position';
         }
 
         return res.json({
@@ -503,7 +496,7 @@ router.post(['/webhook/login', '/web/login'], upload.none(), async (req, res) =>
 });
 
 // Change Password endpoint (POST) - Uses bcrypt hash
-router.post(['/webhook/change_password', '/web/change_password'], requireAuth, upload.none(), async (req, res) => {
+router.post('/webhook/change_password', requireAuth, upload.none(), async (req, res) => {
     try {
         const { current_password, new_password, confirm_password } = { ...req.query, ...req.body };
 
@@ -575,19 +568,18 @@ router.post(['/webhook/change_password', '/web/change_password'], requireAuth, u
 });
 
 // Logout endpoint
-router.all(['/webhook/logout', '/web/logout'], (req, res) => {
+router.all('/webhook/logout', (req, res) => {
     const user = req.user ? `${req.user.username} (${req.user.role})` : 'unknown';
     logger.info(`User ${user} logged out`);
     res.clearCookie('soccer_auth', { path: '/' });
-    const prefix = req.originalUrl.startsWith('/webhook') ? '/webhook' : '/web';
     if (req.accepts('html') && !req.xhr && !req.headers['x-requested-with']) {
-        return res.redirect(`${prefix}/login`);
+        return res.redirect('/webhook/login');
     }
     return res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // Current user status endpoint
-router.get(['/webhook/auth/me', '/web/auth/me'], async (req, res) => {
+router.get('/webhook/auth/me', async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
@@ -617,26 +609,26 @@ router.get(['/webhook/auth/me', '/web/auth/me'], async (req, res) => {
 
 // ==================== GET INFO ROUTES ====================
 
-router.get(['/webhook/match', '/web/match'], requireAuth, (req, res) => {
+router.get('/webhook/match', requireAuth, (req, res) => {
     sendVersionedHtml(req, res, path.join(__dirname, '..', 'public', 'update.shtml'));
 });
 
 // Match Viewer (Read-Only: shows current & past matches, accessible to everyone, uses shared base code update.shtml)
-router.get(['/webhook/view', '/web/view'], (req, res) => {
+router.get('/webhook/view', (req, res) => {
     sendVersionedHtml(req, res, path.join(__dirname, '..', 'public', 'update.shtml'));
 });
 
-router.get(['/webhook/view.shtml', '/web/view.shtml'], (req, res) => {
+router.get('/webhook/view.shtml', (req, res) => {
     res.redirect('/webhook/view');
 });
 
 // Alias for Match Viewer
-router.get(['/webhook/matches', '/web/matches'], (req, res) => {
+router.get('/webhook/matches', (req, res) => {
     res.redirect('/webhook/view');
 });
 
 // Public endpoint for Match Viewer data (Read-only, no auth required)
-router.get(['/webhook/match_view_data', '/web/match_view_data'], async (req, res) => {
+router.get('/webhook/match_view_data', async (req, res) => {
     try {
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         res.set('Pragma', 'no-cache');
@@ -651,11 +643,11 @@ router.get(['/webhook/match_view_data', '/web/match_view_data'], async (req, res
 });
 
 // Position Manager requires root user
-router.get(['/webhook/position', '/web/position'], requireRoot, (req, res) => {
+router.get('/webhook/position', requireRoot, (req, res) => {
     sendVersionedHtml(req, res, path.join(__dirname, '..', 'public', 'position.shtml'));
 });
 
-router.get(['/webhook/style.css', '/web/style.css'], (req, res) => {
+router.get('/webhook/style.css', (req, res) => {
     const stylePath = path.join(__dirname, '..', 'public', 'style.css');
     res.set('Cache-Control', 'no-cache, must-revalidate, max-age=0');
     res.set('Pragma', 'no-cache');
@@ -664,7 +656,7 @@ router.get(['/webhook/style.css', '/web/style.css'], (req, res) => {
 });
 
 // Get last match week
-router.get(['/webhook/get_info', '/web/get_info'], requireAuth, async (req, res) => {
+router.get('/webhook/get_info', requireAuth, async (req, res) => {
     try {
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         res.set('Pragma', 'no-cache');
@@ -730,7 +722,7 @@ router.get(['/webhook/get_info', '/web/get_info'], requireAuth, async (req, res)
 });
 
 // Update member position - Only root can update
-router.post(['/webhook/update_position', '/web/update_position'], requireRoot, upload.none(), async (req, res) => {
+router.post('/webhook/update_position', requireRoot, upload.none(), async (req, res) => {
     try {
         const data = { ...req.query, ...req.body };
         logger.info(`update_position Request: ${JSON.stringify(data)}`);
@@ -769,7 +761,7 @@ router.post(['/webhook/update_position', '/web/update_position'], requireRoot, u
 });
 
 // Batch update member positions & teams - Only root can update
-router.post(['/webhook/batch_update_positions', '/web/batch_update_positions'], requireRoot, upload.none(), async (req, res) => {
+router.post('/webhook/batch_update_positions', requireRoot, upload.none(), async (req, res) => {
     try {
         let updates = req.body.updates;
         if (typeof updates === 'string') {
@@ -814,7 +806,7 @@ router.post(['/webhook/batch_update_positions', '/web/batch_update_positions'], 
 // ==================== ADD MATCH ROUTES ====================
 
 // Add match or goal - with multer middleware to handle multipart/form-data
-router.post(['/webhook/add_match', '/web/add_match'], requireAuth, upload.none(), async (req, res) => {
+router.post('/webhook/add_match', requireAuth, upload.none(), async (req, res) => {
     try {
         const data = { ...req.query, ...req.body };
         let msg = "";

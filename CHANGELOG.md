@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.34] - 2026-11-16
+
+### Chore & Refactor (Phase 1): Remove Duplicate/Unused Files and Legacy `/web` Route Aliases
+- **ลบไฟล์ซ้ำและไฟล์ทดสอบเก่าที่ไม่ได้ใช้งานแล้ว**:
+  - ลบ `update.shtml` ที่ root (ซ้ำกับ `public/update.shtml`), `schema_user.sql` ที่ root (ซ้ำกับ `migrations/schema_user.sql`), `green_dot.png` ที่ root (ซ้ำกับ `img/green_dot.png`)
+  - ลบสคริปต์ benchmark/one-off เก่า (`benchmark_download.js`, `benchmark_qr.js`, `update_call_value.js`, และ `scratch/*`)
+- **ตัด Route `/web/*` เก่าที่ไม่ได้ใช้แล้วออก (`index.js`, `routes/web.js`, `utils/version.js`, `utils/wsBroadcaster.js`, `public/login.shtml`)**:
+  - รวมเส้นทางหน้าเว็บและ API ทั้งหมดมาใช้ `/webhook/*` เพียงชุดเดียว
+
+---
+
 ## [0.7.33] - 2026-11-16
 
 ### Fix: Prevent Duplicate `line_user_id` Member Registration

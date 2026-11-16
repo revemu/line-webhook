@@ -126,15 +126,9 @@ app.use(['/webhook/img', '/img'], express.static(path.join(__dirname, 'img')));
 // Mount Soccer Bot API & Web Dashboard routes (Merged from soccerbotapi - mounted before static to enable dynamic auto-versioning)
 app.use(webRouter);
 
-// Serve Soccer Bot Web Dashboard static assets (public folder) under both /webhook and /web
+// Serve Soccer Bot Web Dashboard static assets (public folder) under /webhook
 app.use('/webhook', express.static(path.join(__dirname, 'public')));
-app.use('/web', express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
-
-// Serve green_dot.png static asset and fallback route aliases
-/*app.get(['/green_dot.png', '/img/green_dot.png', '/green_pulse_true.png', '/img/green_pulse_true.png'], (req, res) => {
-    res.sendFile(path.join(__dirname, 'green_dot.png'));
-});*/
 
 
 // Function to get image content from LINE (Optimized: Axios with Keep-Alive Agent ~1.37ms/req)
