@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.35] - 2026-11-16
+
+### Changed
+- **Phase 2 Refactoring (`query.js`, `routes/web.js`, `cmd.js`)**:
+  - Unified week standings query into `query.queryTableWeek(week_id)` (parameterized query, guaranteed array return `result || []`, exported in `query.js`) and removed the duplicate `queryWeekTable` implementation from `routes/web.js`.
+  - Unified position listing query into `query.getAllPositions()`, replaced `queryAllPositions` in `routes/web.js` with `db.getAllPositions()`, and aliased `router.queryAllPositions = db.getAllPositions`.
+  - Deduplicated trailing integer argument parsing in `cmd.js` (`setrank`, `setdebt`, `setpriority`, `setpriorityweek`) using `extractTrailingInt(param)` and renamed `handleCommandSwitch` to `dispatchCommand`.
+
+---
+
 ## [0.7.34] - 2026-11-16
 
 ### Chore & Refactor (Phase 1): Remove Duplicate/Unused Files and Legacy `/web` Route Aliases

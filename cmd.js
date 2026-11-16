@@ -1604,41 +1604,17 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
 
         let rank_val = 0;
         if (cmd === 'setrank') {
-            const parts = param.split(/\s+/).filter(Boolean);
-            if (parts.length > 1) {
-                const possibleVal = parts.pop();
-                const parsed = parseInt(possibleVal, 10);
-                if (!isNaN(parsed)) {
-                    rank_val = parsed;
-                    param = parts.join(' ').trim();
-                }
-            }
+            ({ value: rank_val, param } = extractTrailingInt(param));
         }
 
         let debt_val = 0;
         if (cmd === 'setdebt') {
-            const parts = param.split(/\s+/).filter(Boolean);
-            if (parts.length > 1) {
-                const possibleVal = parts.pop();
-                const parsed = parseInt(possibleVal, 10);
-                if (!isNaN(parsed)) {
-                    debt_val = parsed;
-                    param = parts.join(' ').trim();
-                }
-            }
+            ({ value: debt_val, param } = extractTrailingInt(param));
         }
 
         let priority_val = 0;
         if (cmd === 'setpriority' || cmd === 'setpriorityweek') {
-            const parts = param.split(/\s+/).filter(Boolean);
-            if (parts.length > 1) {
-                const possibleVal = parts.pop();
-                const parsed = parseInt(possibleVal, 10);
-                if (!isNaN(parsed)) {
-                    priority_val = parsed;
-                    param = parts.join(' ').trim();
-                }
-            }
+            ({ value: priority_val, param } = extractTrailingInt(param));
         }
 
         let avoid_val = '';
@@ -1719,7 +1695,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         let is_mention = mentionResult.is_mention;
         param = mentionResult.param;
 
-        const result = await handleCommandSwitch({
+        const result = await dispatchCommand({
             cmd,
             param,
             quoteToken,
@@ -1761,14 +1737,9 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
     }
 }
 
-async function handleCommandSwitch(context) {
-    const { cmd, param, quoteToken, groupId, is_flex, rank_val, priority_val, debt_val, avoid_val, ny_guests, member, member_id, member_name, target_line_user_id, is_mention } = context;
-    let chat_type = "[cmd] -";
-    //console.log(`${chat_type} command: ${cmd} - param: ${param}`);
+async function dispatchCommand(context) {
+    const { cmd, quoteToken } = context;
 
-    // If a registry handler exists for this command, call it first. Handler may
-    // return a reply (array/object) to short-circuit; `undefined` continues to
-    // the legacy switch-based fallback.
     const registryHandler = COMMAND_REGISTRY[cmd];
     if (registryHandler && typeof registryHandler === 'function') {
         try {

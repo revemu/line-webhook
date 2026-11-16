@@ -1591,13 +1591,15 @@ async function queryMatchWeek(week_id) {
 }
 
 async function queryTableWeek(week_id) {
+  const safeWeekId = parseInt(week_id, 10) || 0;
+  const query = `SELECT team_color_week_tbl.color, table_week_tbl.*, (table_week_tbl.g - table_week_tbl.a) AS gd
+    FROM table_week_tbl, team_color_week_tbl
+    WHERE table_week_tbl.week_id = ?
+      AND table_week_tbl.team_week_id = team_color_week_tbl.id
+    ORDER BY table_week_tbl.pts DESC, (table_week_tbl.g - table_week_tbl.a) DESC, table_week_tbl.g DESC, table_week_tbl.w DESC`;
 
-  let query = `SELECT team_color_week_tbl.color, table_week_tbl.*, (table_week_tbl.g - table_week_tbl.a) AS gd FROM table_week_tbl , team_color_week_tbl where table_week_tbl.week_id = ${week_id} AND table_week_tbl.team_week_id = team_color_week_tbl.id order by table_week_tbl.pts DESC, (table_week_tbl.g - table_week_tbl.a) DESC, table_week_tbl.g DESC, table_week_tbl.w DESC`;
-
-  const result = await executeQuery(query);
-  if (result.length > 0) {
-    return result;
-  }
+  const result = await executeQuery(query, [safeWeekId]);
+  return result || [];
 }
 
 async function getTableWeek(week_id = 0) {
@@ -9386,6 +9388,7 @@ module.exports = {
   updateYearStatCache,
   ensurePosTables,
   getAllPositions,
+  queryTableWeek,
   getMemberPositions,
   setMemberPosition,
   updatePositionPoints,

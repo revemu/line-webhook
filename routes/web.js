@@ -683,7 +683,7 @@ router.get('/webhook/get_info', requireAuth, async (req, res) => {
                 break;
 
             case 'get_positions':
-                const positions = await queryAllPositions();
+                const positions = await db.getAllPositions();
                 res.json(positions);
                 break;
 
@@ -1192,17 +1192,6 @@ async function queryMatchScorer(matchID) {
     return await doQuery(sql);
 }
 
-async function queryWeekTable(weekid) {
-    const sql = `
-    SELECT team_color_week_tbl.color, table_week_tbl.*, (table_week_tbl.G - table_week_tbl.A) AS gd
-    FROM table_week_tbl, team_color_week_tbl
-    WHERE table_week_tbl.week_id = ${weekid}
-      AND table_week_tbl.team_week_id = team_color_week_tbl.id 
-    ORDER BY table_week_tbl.pts DESC, (table_week_tbl.G - table_week_tbl.A) DESC, table_week_tbl.G DESC, table_week_tbl.w DESC`;
-
-    return await doQuery(sql);
-}
-
 async function queryWeekId(weeknum = 0) {
     let sql;
     const num = parseInt(weeknum, 10);
@@ -1273,11 +1262,6 @@ async function queryAllTeamWeekId(weekID) {
     return output;
 }
 
-async function queryAllPositions() {
-    const sql = `SELECT * FROM pos_tbl ORDER BY id`;
-    return await doQuery(sql);
-}
-
 async function queryRecentWeeks(limit = 20) {
     const sql = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY id DESC LIMIT ${limit}`;
     return await doQuery(sql);
@@ -1290,7 +1274,7 @@ async function queryPositionPageData(weeknum = 0) {
     }
 
     const weekid = weekInfo.id;
-    const positions = await queryAllPositions();
+    const positions = await db.getAllPositions();
     const weeks = await queryRecentWeeks();
     const teamColors = await queryAllTeamColors(weekid);
 
@@ -1585,8 +1569,8 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
         data.members = members || [];
     }
 
-    // Get week table
-    const weekTable = await queryWeekTable(weekid);
+    // Get week table via shared query.js helper
+    const weekTable = await db.queryTableWeek(weekid);
     data.tableweek = weekTable || [];
 
     data.week = weekInfo;
@@ -1753,7 +1737,7 @@ router.queryPositionPageData = queryPositionPageData;
 router.queryWeekId = queryWeekId;
 router.queryTeamMembers = queryTeamMembers;
 router.queryRegisteredMembers = queryRegisteredMembers;
-router.queryAllPositions = queryAllPositions;
+router.queryAllPositions = db.getAllPositions;
 router.addMatchWeek = addMatchWeek;
 router.addMatchGoal = addMatchGoal;
 router.removeMatchGoal = removeMatchGoal;
