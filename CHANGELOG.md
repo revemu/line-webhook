@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.41] - 2026-11-16
+
+### Changed
+- **RAM-First Image Rendering & Write-Behind Cache (`utils/ramImageCache.js`, `team_img.js`, `qr_gen.js`, `index.js`)**:
+  - Added `utils/ramImageCache.js` so newly rendered PNGs (`img/team/*` and `qr/*`) are cached in memory immediately upon `svg2img` completion (allowing LINE to fetch the first request directly from RAM via `serveRamImageMiddleware`) and flushed atomically to disk in the background (`write` → `rename`).
+  - Disabled full OS font scanning (`loadSystemFonts: false`) in `team_img.js` and `qr_gen.js` using bundled `fonts/Sarabun-Regular.ttf` and `fonts/LKKaohom.ttf`, cutting first-render latency dramatically.
+  - Updated `readQRCode` in `index.js` to store ephemeral `zbarimg` scan temp files under `/dev/shm/line-webhook-temp` on Linux when available (`resolveEphemeralTempDir`).
+
+---
+
 ## [0.7.40] - 2026-11-16
 
 ### Added

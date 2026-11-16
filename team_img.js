@@ -6,6 +6,7 @@ const axios = require('axios');
 const db = require('./query');
 const logger = require('./utils/logger');
 const { getFormatDate, getSlashDate } = require('./utils/date');
+const { hasRamImage, cacheAndPersistAsync } = require('./utils/ramImageCache');
 
 const teamImgDir = path.join(__dirname, 'img', 'team');
 const avatarCacheDir = path.join(__dirname, 'img', 'avatars');
@@ -860,7 +861,7 @@ async function convertSvgToPng(svgString, width = 1080, height = 1560, customFil
     imgOptions.resvg = {
       font: {
         fontFiles: fontFiles,
-        loadSystemFonts: true,
+        loadSystemFonts: false,
         defaultFontFamily: 'Sarabun',
         sansSerifFamily: 'Sarabun'
       }
@@ -870,17 +871,16 @@ async function convertSvgToPng(svgString, width = 1080, height = 1560, customFil
   return new Promise((resolve, reject) => {
     svg2img(svgString, imgOptions, (error, buffer) => {
       if (error) return reject(error);
-      fs.writeFile(filePath, buffer, (writeErr) => {
-        if (writeErr) return reject(writeErr);
-        resolve(filename);
-      });
+      // Cache in RAM immediately for first LINE fetch, then persist to disk asynchronously
+      cacheAndPersistAsync('team', filename, buffer, filePath, 'image/png');
+      resolve(filename);
     });
   });
 }
 
 /**
  * Generates an exported image for a single team formation with metadata-based disk caching.
- * If an image for the exact same metadata already exists on disk, it returns immediately (<1ms).
+ * If an image for the exact same metadata already exists in RAM or on disk, it returns immediately (<1ms).
  * @param {Object} team - FormationsData item
  * @param {string} dateStr - Short date string
  * @param {string} timeRange - Time range string
@@ -895,7 +895,11 @@ async function generateTeamImage(team, dateStr = '', timeRange = '', options = {
   const filename = `team_${safeId}_${mode}_${hash}.png`;
   const filePath = path.join(teamImgDir, filename);
 
-  // 1. Check disk cache: if identical formation image already exists and is non-empty, return immediately
+  // 1. Check RAM cache (pending background disk flush) or disk cache
+  if (!options.noCache && hasRamImage('team', filename)) {
+    const url = getPublicImageUrl(filename);
+    return options.returnMeta ? { url, cached: true, filename } : url;
+  }
   if (!options.noCache && fs.existsSync(filePath)) {
     try {
       const stats = fs.statSync(filePath);
@@ -944,6 +948,7 @@ function isTeamImageCached(team, dateStr = '', timeRange = '', options = {}) {
   const mode = pitchOnly ? 'pitch' : 'full';
   const filename = `team_${safeId}_${mode}_${hash}.png`;
   const filePath = path.join(teamImgDir, filename);
+  if (hasRamImage('team', filename)) return true;
   try {
     if (fs.existsSync(filePath)) {
       const stats = fs.statSync(filePath);

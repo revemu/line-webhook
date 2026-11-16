@@ -19,6 +19,7 @@ const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date')
 const { spamProtector } = require('./utils/spamProtection');
 const { initScheduler, notifyBaseUrl } = require('./scheduler');
 const { setBaseUrl } = require('./utils/url');
+const { serveRamImageMiddleware, resolveEphemeralTempDir } = require('./utils/ramImageCache');
 const webRouter = require('./routes/web');
 const { initWebSocket } = require('./utils/wsBroadcaster');
 
@@ -118,9 +119,9 @@ async function handleEvent(event) {
     }
 }
 
-// Serve static assets from project directory and 'pic' folder (under /webhook/img and legacy /img)
-app.use(['/webhook/img/qr', '/img/qr'], express.static(path.join(__dirname, 'qr')));
-app.use(['/webhook/img/team', '/img/team'], express.static(path.join(__dirname, 'img', 'team')));
+// Serve freshly rendered images directly from RAM on first hit, then fall through to static disk cache
+app.use(['/webhook/img/qr', '/img/qr'], serveRamImageMiddleware('qr'), express.static(path.join(__dirname, 'qr')));
+app.use(['/webhook/img/team', '/img/team'], serveRamImageMiddleware('team'), express.static(path.join(__dirname, 'img', 'team')));
 app.use(['/webhook/img', '/img'], express.static(path.join(__dirname, 'img')));
 
 // Mount Soccer Bot API & Web Dashboard routes (Merged from soccerbotapi - mounted before static to enable dynamic auto-versioning)
@@ -184,7 +185,7 @@ async function readQRCode(imageBuffer) {
     // 2. Secondary Pass: zbarimg CLI (Native C scanner fallback)
     let tempFilePath = null;
     try {
-        const tempDir = "./temp/";
+        const tempDir = resolveEphemeralTempDir(path.join(__dirname, 'temp'));
         await fs.mkdir(tempDir, { recursive: true });
 
         const timestamp = Date.now();

@@ -10,10 +10,10 @@ const svg2img = require('svg2img');
 const fs = require('fs');
 const path = require('path');
 const logger = require('./utils/logger');
+const { hasRamImage, cacheAndPersistAsync } = require('./utils/ramImageCache');
 
 const qrDir = path.join(__dirname, 'qr');
-//LKKaohom.ttf
-//Sarabun-Regular.ttf
+const fontPathSarabun = path.join(__dirname, 'fonts', 'Sarabun-Regular.ttf');
 const fontPath = path.join(__dirname, 'fonts', 'LKKaohom.ttf');
 const logoPath = path.join(__dirname, 'assets', 'logo.jpg');
 const headerPathJpg = path.join(__dirname, 'assets', 'header.jpg');
@@ -55,6 +55,9 @@ function isQrCodeCached(amount, promptPayNumber = '0850705894') {
   const numAmount = Number(amount) || 0;
   const sanitizedAmount = String(numAmount).replace(/[^a-zA-Z0-9._-]/g, '_');
   const filename = `qr_${sanitizedPromptPay}_${sanitizedAmount}.png`;
+  if (hasRamImage('qr', filename)) {
+    return true;
+  }
   const filePath = path.join(qrDir, filename);
   if (fs.existsSync(filePath)) {
     try {
@@ -68,8 +71,8 @@ function isQrCodeCached(amount, promptPayNumber = '0850705894') {
 }
 
 /**
- * Generates a PromptPay QR code image inside the 'qr' directory and returns its filename.
- * If a QR code for the same amount and PromptPay number already exists on disk, uses the cached image.
+ * Generates a PromptPay QR code image in RAM first (served instantly for the first fetch)
+ * and persists it to the 'qr' directory in the background.
  * 
  * @param {number} amount - The transaction amount.
  * @param {string} promptPayNumber - The PromptPay phone number or ID.
@@ -88,7 +91,11 @@ async function generateQrCode(amount, promptPayNumber = '0850705894', options = 
   const filename = `qr_${sanitizedPromptPay}_${sanitizedAmount}.png`;
   const filePath = path.join(qrDir, filename);
 
-  // 1. Check disk cache: if QR for this amount and promptPayNumber already exists, return cached image immediately
+  // 1. Check RAM cache or disk cache
+  if (!options.noCache && hasRamImage('qr', filename)) {
+    logger.info(`[QR-Gen] Used RAM cached QR image for amount ${numAmount} (${promptPayNumber}): ${filename}`);
+    return filename;
+  }
   if (!options.noCache && fs.existsSync(filePath)) {
     try {
       const stats = fs.statSync(filePath);
@@ -206,29 +213,28 @@ async function generateQrCode(amount, promptPayNumber = '0850705894', options = 
 
       const outputHeight = customHeaderDataUri ? 455 : 473;
       const imgOptions = { format: 'png', width: 400, height: outputHeight };
-      if (fs.existsSync(fontPath)) {
+      const fontFiles = [];
+      if (fs.existsSync(fontPathSarabun)) fontFiles.push(fontPathSarabun);
+      if (fs.existsSync(fontPath)) fontFiles.push(fontPath);
+      if (fontFiles.length > 0) {
         imgOptions.resvg = {
           font: {
-            fontFiles: [fontPath],
-            loadSystemFonts: true,
+            fontFiles,
+            loadSystemFonts: false,
             defaultFontFamily: 'Sarabun',
             sansSerifFamily: 'Sarabun'
           }
         };
       }
 
-      // Convert the SVG to PNG locally using svg2img
+      // Convert SVG to PNG in RAM, cache for instant first HTTP hit, and flush to disk in background
       await new Promise((resolve, reject) => {
         svg2img(svgString, imgOptions, function (error, buffer) {
           if (error) {
             return reject(error);
           }
-          fs.writeFile(filePath, buffer, function (writeErr) {
-            if (writeErr) {
-              return reject(writeErr);
-            }
-            resolve(filename);
-          });
+          cacheAndPersistAsync('qr', filename, buffer, filePath, 'image/png');
+          resolve(filename);
         });
       });
 
