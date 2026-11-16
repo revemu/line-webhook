@@ -263,8 +263,8 @@ async function handleJoinedMember(event) {
                 const res = await lineClient.fetchUserProfile(member.userId, source.groupId);
                 if (res && res.displayName) {
                     const line_name = `@${res.displayName}`;
-                    logger.info(`add new member ${member.userId}: ${line_name}`);
-                    await db.newMember(member.userId, line_name, res.pictureUrl);
+                    const existingMember = await db.queryMemberbyLineID(member.userId);
+                    await manageMember({ userId: member.userId }, existingMember, res.displayName, res.pictureUrl);
                     const theme = await db.getTheme();
                     const week = await db.queryWeekID(0);
                     const dateStr = week.length > 0 ? week[0].date : '';

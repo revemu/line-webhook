@@ -524,10 +524,42 @@ async function resetMemberTeam() {
 
 }
 
+/**
+ * Inserts a new member into member_tbl, or updates and returns the existing record
+ * if the same line_user_id already exists (prevents duplicates & ER_DUP_ENTRY race errors).
+ */
 async function newMember(lineID, name, pictureUrl = null, avoid_ids = '') {
-  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_ids, picture_url) values(?, 0, 0, 0, ?, ?, ?, ?)";
-  const res = await executeQuery(query, [name, name.replace('@', ''), lineID, avoid_ids || '', pictureUrl]);
-  return res;
+  const cleanLineId = (lineID && String(lineID).trim()) ? String(lineID).trim() : null;
+  const alias = String(name || '').replace('@', '');
+
+  if (cleanLineId) {
+    const existing = await executeQuery(
+      "SELECT id, name, picture_url FROM member_tbl WHERE line_user_id = ? LIMIT 1",
+      [cleanLineId]
+    );
+    if (existing && existing.length > 0) {
+      await updateMemberInfo(existing[0].id, name, pictureUrl !== null ? pictureUrl : existing[0].picture_url);
+      return { insertId: existing[0].id, affectedRows: 0, alreadyExists: true };
+    }
+  }
+
+  try {
+    const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_ids, picture_url) values(?, 0, 0, 0, ?, ?, ?, ?)";
+    const res = await executeQuery(query, [name, alias, cleanLineId, avoid_ids || '', pictureUrl]);
+    return res;
+  } catch (err) {
+    if (err && err.code === 'ER_DUP_ENTRY' && cleanLineId) {
+      const existing = await executeQuery(
+        "SELECT id, picture_url FROM member_tbl WHERE line_user_id = ? LIMIT 1",
+        [cleanLineId]
+      );
+      if (existing && existing.length > 0) {
+        await updateMemberInfo(existing[0].id, name, pictureUrl !== null ? pictureUrl : existing[0].picture_url);
+        return { insertId: existing[0].id, affectedRows: 0, alreadyExists: true };
+      }
+    }
+    throw err;
+  }
 }
 
 async function updateMemberInfo(member_id, name, pictureUrl = undefined) {

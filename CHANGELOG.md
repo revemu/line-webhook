@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.33] - 2026-11-16
+
+### Fix: Prevent Duplicate `line_user_id` Member Registration
+- **ป้องกันการเพิ่มสมาชิก `line_user_id` ซ้ำใน `member_tbl` (`index.js`, `query.js`)**:
+  - ปรับ `handleJoinedMember()` ใน `index.js` ให้ตรวจสอบ `db.queryMemberbyLineID()` และใช้ `manageMember()` แทนการเรียก `newMember()` ตรงๆ เพื่ออัปเดตข้อมูลสมาชิกเดิมเมื่อกลับเข้ากลุ่มซ้ำ
+  - ปรับ `newMember()` ใน `query.js` ให้เช็ก `line_user_id` ก่อน insert และรองรับกรณี race condition (`ER_DUP_ENTRY`) โดยอัปเดตข้อมูลและคืนค่า `id` เดิมอย่างปลอดภัย
+
+---
+
 ## [0.7.32] - 2026-11-16
 
 ### Fix: Sanitize Command Error Replies to Users
