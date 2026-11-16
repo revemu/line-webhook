@@ -6216,9 +6216,9 @@ async function recordSlipVerifyAttempt(id, errorMessage = null) {
 async function getPendingSlipsForVerify({ maxAttempts = 8, maxAgeHours = 168, limit = 10 } = {}) {
   try {
     await ensureSlipLogSchema();
-    const safeLimit = Math.max(1, Math.min(100, Number(limit) || 10));
-    const safeMaxAttempts = Math.max(1, Number(maxAttempts) || 8);
-    const safeMaxAgeHours = Math.max(1, Number(maxAgeHours) || 168);
+    const safeLimit = Math.max(1, Math.min(100, Math.floor(Number(limit) || 10)));
+    const safeMaxAttempts = Math.max(1, Math.floor(Number(maxAttempts) || 8));
+    const safeMaxAgeHours = Math.max(1, Math.floor(Number(maxAgeHours) || 168));
     const sql = `
       SELECT id, sender_id, sender_name, image_path, status, qrcode, response_json, created_at,
              COALESCE(verify_attempts, 0) AS verify_attempts, last_verify_at, last_verify_error
@@ -6227,11 +6227,11 @@ async function getPendingSlipsForVerify({ maxAttempts = 8, maxAgeHours = 168, li
         AND qrcode IS NOT NULL
         AND TRIM(qrcode) != ''
         AND COALESCE(verify_attempts, 0) < ?
-        AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ${safeMaxAgeHours} HOUR)
       ORDER BY created_at ASC
-      LIMIT ?
+      LIMIT ${safeLimit}
     `;
-    return await executeQuery(sql, [safeMaxAttempts, safeMaxAgeHours, safeLimit]);
+    return await executeQuery(sql, [safeMaxAttempts]);
   } catch (err) {
     logger.error("Error getting pending slips for verify:", err);
     return [];
