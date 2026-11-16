@@ -4,6 +4,14 @@
 
 ---
 
+## [0.7.39] - 2026-11-16
+
+### Fixed
+- **PostgreSQL `text = integer` on `week_tbl.year` & `hof_tbl.year` ([query.js](query.js))**:
+  - Cast `w.year::text` / `week_tbl.year::text` when comparing against year strings/numbers in `getTopStat` (`/top` builders), `getMemberStats` (`/stat`), `updateYearStatCache`, and `syncHofRecords` (`hof_tbl.year::text = ?::text`), resolving `operator does not exist: text = integer` (`42883`).
+
+---
+
 ## [0.7.38] - 2026-11-16
 
 ### Changed

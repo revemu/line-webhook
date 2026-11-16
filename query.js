@@ -2534,9 +2534,9 @@ async function updateYearStatCache(year = null, memberIds = null) {
       yearsToSync = [Number(year)];
     } else {
       const distinctYearsRes = await executeQuery(`
-        SELECT DISTINCT COALESCE(w.year, EXTRACT(YEAR FROM w.date)::int) as yr 
+        SELECT DISTINCT COALESCE(CASE WHEN TRIM(w.year::text) ~ '^[0-9]+$' THEN TRIM(w.year::text)::int ELSE NULL END, EXTRACT(YEAR FROM w.date)::int) as yr 
         FROM week_tbl w 
-        WHERE w.date IS NOT NULL OR w.year > 0
+        WHERE w.date IS NOT NULL OR (TRIM(COALESCE(w.year::text, '')) ~ '^[0-9]+$' AND TRIM(w.year::text)::int > 0)
         ORDER BY yr ASC
       `);
       yearsToSync = (distinctYearsRes || []).map(r => Number(r.yr)).filter(y => y > 0);
@@ -2603,7 +2603,7 @@ async function updateYearStatCache(year = null, memberIds = null) {
           MAX(CASE WHEN mtw.rating > 0 THEN mtw.rating ELSE 0 END) as mtw_max_rating
         FROM member_team_week_tbl mtw
         JOIN week_tbl w ON mtw.week_id = w.id
-        WHERE (w.year = ? OR EXTRACT(YEAR FROM w.date)::int = ?) AND mtw.member_id > 0 AND mtw.team_id > 0${memFilterMtw}
+        WHERE (w.year::text = ?::text OR EXTRACT(YEAR FROM w.date)::int = ?) AND mtw.member_id > 0 AND mtw.team_id > 0${memFilterMtw}
         GROUP BY mtw.member_id
       `, [targetYear, targetYear]);
 
@@ -2616,7 +2616,7 @@ async function updateYearStatCache(year = null, memberIds = null) {
         FROM match_goal_tbl mgt
         JOIN match_stat_tbl mst ON mgt.match_id = mst.id
         JOIN week_tbl w ON mst.week_id = w.id
-        WHERE (w.year = ? OR EXTRACT(YEAR FROM w.date)::int = ?) AND mgt.member_id > 0${memFilterMgt}
+        WHERE (w.year::text = ?::text OR EXTRACT(YEAR FROM w.date)::int = ?) AND mgt.member_id > 0${memFilterMgt}
         GROUP BY mgt.member_id
       `, [targetYear, targetYear]);
 
@@ -2629,7 +2629,7 @@ async function updateYearStatCache(year = null, memberIds = null) {
           COUNT(DISTINCT CASE WHEN m.rating > 0 THEN m.week_id ELSE NULL END) as rated_weeks
         FROM mvp_week_tbl m
         JOIN week_tbl w ON m.week_id = w.id
-        WHERE (w.year = ? OR EXTRACT(YEAR FROM w.date)::int = ?) AND m.member_id > 0${memFilterMvp}
+        WHERE (w.year::text = ?::text OR EXTRACT(YEAR FROM w.date)::int = ?) AND m.member_id > 0${memFilterMvp}
         GROUP BY m.member_id
       `, [targetYear, targetYear]);
 
@@ -4112,7 +4112,7 @@ function buildAvgMvpPtsQuery(year, limit = null) {
     JOIN member_tbl ON mtw.member_id = member_tbl.id
     JOIN week_tbl w ON mtw.week_id = w.id
     LEFT JOIN mvp_week_tbl m ON mtw.week_id = m.week_id AND mtw.member_id = m.member_id
-    WHERE (w.year = ${year} OR EXTRACT(YEAR FROM w.date)::int = ${year})
+    WHERE (w.year::text = '${year}' OR EXTRACT(YEAR FROM w.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
@@ -4137,7 +4137,7 @@ function buildMvpCountQuery(year, limit = null) {
     FROM mvp_week_tbl m
     JOIN week_tbl w ON m.week_id = w.id
     JOIN member_tbl ON m.member_id = member_tbl.id
-    WHERE (w.year = ${year} OR EXTRACT(YEAR FROM w.date)::int = ${year})
+    WHERE (w.year::text = '${year}' OR EXTRACT(YEAR FROM w.date)::int = ${year})
       AND m.raw_score > 0
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
@@ -4173,7 +4173,7 @@ function buildMostPtsQuery(year, limit = null) {
     JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
     JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
     JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
-    WHERE (week_tbl.year = ${year} OR EXTRACT(YEAR FROM week_tbl.date)::int = ${year})
+    WHERE (week_tbl.year::text = '${year}' OR EXTRACT(YEAR FROM week_tbl.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
@@ -4207,7 +4207,7 @@ function buildAvgPtsQuery(year, limit = null) {
     JOIN member_tbl ON mtw.member_id = member_tbl.id
     JOIN week_tbl w ON mtw.week_id = w.id
     LEFT JOIN mvp_week_tbl m ON mtw.week_id = m.week_id AND mtw.member_id = m.member_id
-    WHERE (w.year = ${year} OR EXTRACT(YEAR FROM w.date)::int = ${year})
+    WHERE (w.year::text = '${year}' OR EXTRACT(YEAR FROM w.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
@@ -4215,7 +4215,7 @@ function buildAvgPtsQuery(year, limit = null) {
   WHERE weeks > (
       SELECT COUNT(*) * 0.5
       FROM week_tbl
-      WHERE (week_tbl.year = ${year} OR EXTRACT(YEAR FROM week_tbl.date)::int = ${year})
+      WHERE (week_tbl.year::text = '${year}' OR EXTRACT(YEAR FROM week_tbl.date)::int = ${year})
   )
   AND goal > 0
   ORDER BY goal DESC`;
@@ -4238,7 +4238,7 @@ function buildBottomQuery(year, limit = null) {
     JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
     JOIN member_tbl ON mtw.member_id = member_tbl.id
     JOIN week_tbl w ON mtw.week_id = w.id
-    WHERE w.year = ${year}
+    WHERE (w.year::text = '${year}' OR EXTRACT(YEAR FROM w.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169 AND member_tbl.team_id <> 101
       AND tw.team_week_id = (
         SELECT t2.team_week_id
@@ -4262,7 +4262,7 @@ function buildLuckyColorQuery(year) {
     FROM table_week_tbl tw
     JOIN team_color_week_tbl t_col ON tw.team_week_id = t_col.id
     JOIN week_tbl w ON tw.week_id = w.id
-    WHERE w.year = ${year}
+    WHERE (w.year::text = '${year}' OR EXTRACT(YEAR FROM w.date)::int = ${year})
     GROUP BY t_col.color
     ORDER BY (SUM(tw.w)::numeric / NULLIF(SUM(tw.w + tw.d + tw.l), 0)::numeric) DESC, SUM(tw.w + tw.d + tw.l) DESC
   `;
@@ -5429,8 +5429,8 @@ async function setTheme(themeName) {
 async function syncHofRecords(type, year, newMemberIds) {
   // 1. Fetch existing records for this type and year
   const existing = await executeQuery(
-    "SELECT id, member_id FROM hof_tbl WHERE type = ? AND year = ? ORDER BY id ASC",
-    [type, year]
+    "SELECT id, member_id FROM hof_tbl WHERE type = ? AND year::text = ?::text ORDER BY id ASC",
+    [type, String(year)]
   );
 
   const numExisting = existing.length;
@@ -5676,11 +5676,11 @@ async function getMemberStats(memberId, groupId = null) {
   // Query goals, assists, own goals
   const goalQuery = `
     SELECT 
-      SUM(CASE WHEN mgt.status < 2 AND w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as goals_year,
+      SUM(CASE WHEN mgt.status < 2 AND w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text THEN 1 ELSE 0 END) as goals_year,
       SUM(CASE WHEN mgt.status < 2 THEN 1 ELSE 0 END) as goals_alltime,
-      SUM(CASE WHEN mgt.status = 3 AND w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as assists_year,
+      SUM(CASE WHEN mgt.status = 3 AND w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text THEN 1 ELSE 0 END) as assists_year,
       SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END) as assists_alltime,
-      SUM(CASE WHEN mgt.status = 2 AND w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as owngoals_year,
+      SUM(CASE WHEN mgt.status = 2 AND w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text THEN 1 ELSE 0 END) as owngoals_year,
       SUM(CASE WHEN mgt.status = 2 THEN 1 ELSE 0 END) as owngoals_alltime
     FROM match_goal_tbl mgt
     JOIN match_stat_tbl mst ON mgt.match_id = mst.id
@@ -5691,10 +5691,10 @@ async function getMemberStats(memberId, groupId = null) {
   // Query pts, matches, weeks, wins
   const ptQuery = `
     SELECT 
-      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN tw.pts ELSE 0 END) as pts_year,
-      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN (tw.w + tw.d + tw.l) ELSE 0 END) as matches_year,
-      COUNT(DISTINCT CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN w.id ELSE NULL END) as weeks_year,
-      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN tw.w ELSE 0 END) as wins_year,
+      SUM(CASE WHEN w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text THEN tw.pts ELSE 0 END) as pts_year,
+      SUM(CASE WHEN w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text THEN (tw.w + tw.d + tw.l) ELSE 0 END) as matches_year,
+      COUNT(DISTINCT CASE WHEN w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text THEN w.id ELSE NULL END) as weeks_year,
+      SUM(CASE WHEN w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text THEN tw.w ELSE 0 END) as wins_year,
       SUM(tw.pts) as pts_alltime,
       SUM(tw.w + tw.d + tw.l) as matches_alltime,
       COUNT(DISTINCT w.id) as weeks_alltime,
@@ -5714,7 +5714,7 @@ async function getMemberStats(memberId, groupId = null) {
 
   const bottomQuery = `
     SELECT 
-      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as bottom_year,
+      SUM(CASE WHEN w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text THEN 1 ELSE 0 END) as bottom_year,
       COUNT(*) as bottom_alltime
     FROM member_team_week_tbl mtw
     JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
@@ -5730,7 +5730,7 @@ async function getMemberStats(memberId, groupId = null) {
 
   const champQuery = `
     SELECT 
-      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as champ_year,
+      SUM(CASE WHEN w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text THEN 1 ELSE 0 END) as champ_year,
       COUNT(*) as champ_alltime
     FROM member_team_week_tbl mtw
     JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
@@ -5758,7 +5758,7 @@ async function getMemberStats(memberId, groupId = null) {
 
   const mvpQuery = `
     SELECT 
-      SUM(CASE WHEN (w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int OR EXTRACT(YEAR FROM w.date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int) THEN 1 ELSE 0 END) as mvp_year,
+      SUM(CASE WHEN (w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text OR EXTRACT(YEAR FROM w.date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int) THEN 1 ELSE 0 END) as mvp_year,
       COUNT(*) as mvp_alltime
     FROM mvp_week_tbl m
     JOIN week_tbl w ON m.week_id = w.id
@@ -5777,7 +5777,7 @@ async function getMemberStats(memberId, groupId = null) {
 
   const ratingQuery = `
     SELECT 
-      MAX(CASE WHEN (w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int OR EXTRACT(YEAR FROM w.date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int) THEN mtw.rating ELSE 0 END) as best_rating_year,
+      MAX(CASE WHEN (w.year::text = EXTRACT(YEAR FROM CURRENT_DATE)::text OR EXTRACT(YEAR FROM w.date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int) THEN mtw.rating ELSE 0 END) as best_rating_year,
       MAX(mtw.rating) as best_rating_alltime
     FROM member_team_week_tbl mtw
     JOIN week_tbl w ON mtw.week_id = w.id
