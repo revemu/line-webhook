@@ -118,10 +118,10 @@ async function handleEvent(event) {
     }
 }
 
-// Serve static assets from project directory and 'pic' folder
-app.use('/img/qr', express.static(path.join(__dirname, 'qr')));
-app.use('/img/team', express.static(path.join(__dirname, 'img', 'team')));
-app.use('/img', express.static(path.join(__dirname, 'img')));
+// Serve static assets from project directory and 'pic' folder (under /webhook/img and legacy /img)
+app.use(['/webhook/img/qr', '/img/qr'], express.static(path.join(__dirname, 'qr')));
+app.use(['/webhook/img/team', '/img/team'], express.static(path.join(__dirname, 'img', 'team')));
+app.use(['/webhook/img', '/img'], express.static(path.join(__dirname, 'img')));
 
 // Mount Soccer Bot API & Web Dashboard routes (Merged from soccerbotapi - mounted before static to enable dynamic auto-versioning)
 app.use(webRouter);

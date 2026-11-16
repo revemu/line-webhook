@@ -502,7 +502,7 @@ function buildNowFlex(matchInfo, theme) {
         alignItems: 'center',
         contents: makeHeaderContents(
           'image',
-          `${getBaseUrl()}/img/green_pulse_true.png`,
+          getFullUrl('/img/green_pulse_true.png'),
           matchStatus === 'in_progress' ? 'กำลังแข่ง (LIVE)' : (matchStatus === 'all_finished' ? 'จบการแข่งขัน' : (matchStatus === 'scheduled' ? 'แมตช์ถัดไป (รอเริ่ม)' : 'แมตช์ปัจจุบัน')),
           cur.matchNo,
           cur.startTime,
@@ -1032,7 +1032,7 @@ function buildLiveFlex(matchInfo, theme) {
             contents: [
               {
                 type: 'image',
-                url: `${getBaseUrl()}/img/green_pulse_true.png`,
+                url: getFullUrl('/img/green_pulse_true.png'),
                 size: 'full',
                 aspectRatio: '1:1',
                 aspectMode: 'cover',
@@ -3498,7 +3498,7 @@ function buildSlipListFlex(slips, theme) {
   for (const slip of slips) {
     const senderName = (slip.sender_name || 'ไม่ทราบ').replace('@', '');
     const dateStr = slip.created_at ? new Date(slip.created_at).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }) : '-';
-    const slipImgUrl = slip.image_path ? `${baseUrl}${slip.image_path}` : null;
+    const slipImgUrl = slip.image_path ? getFullUrl(slip.image_path) : null;
 
     let headerTitle = '📋 สลิปรอตรวจสอบ';
     let statusText = 'รอตรวจสอบ';

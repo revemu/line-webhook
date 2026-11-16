@@ -43,7 +43,10 @@ function getFullUrl(relativePath) {
     return p.replace(/^http:\/\//i, 'https://');
   }
   const baseUrl = getBaseUrl();
-  const cleanPath = p.startsWith('/') ? p : `/${p}`;
+  let cleanPath = p.startsWith('/') ? p : `/${p}`;
+  if (cleanPath.startsWith('/img/')) {
+    cleanPath = `/webhook${cleanPath}`;
+  }
   return `${baseUrl}${cleanPath}`;
 }
 

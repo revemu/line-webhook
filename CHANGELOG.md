@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.28] - 2026-11-16
+
+### Feat: Consolidate All Static Image Paths Under `/webhook/img`
+- **รวม path รูปภาพทั้งหมดไว้ใต้ `/webhook/img` เพื่อใช้ Reverse Proxy บน Nginx แค่ path `/webhook` เดียว (`index.js`, `utils/url.js`, `qr_gen.js`, `team_img.js`, `flex.js`)**:
+  - Mount static asset ใน `index.js` รองรับทั้ง `/webhook/img/qr`, `/webhook/img/team`, `/webhook/img` (พร้อมคง `/img/*` เดิมไว้เป็น fallback)
+  - ปรับ `getFullUrl()` ใน `utils/url.js` ให้แปลง relative path ที่ขึ้นต้นด้วย `/img/` เป็น `/webhook/img/...` อัตโนมัติ (ทำให้รูปใน `template_tpl` และ `slip_log.image_path` ชี้ผ่าน `/webhook/img/...` ได้ทันทีโดยไม่ต้องแก้ข้อมูลในฐานข้อมูล)
+  - ปรับ `qr_gen.js` (`getQrImageUrl`), `team_img.js` (`getPublicImageUrl`) และ `flex.js` (`green_pulse_true.png` และ `buildSlipListFlex`) ให้สร้าง URL ภายใต้ `/webhook/img/...`
+
+---
+
 ## [0.7.27] - 2026-11-16
 
 ### Feat & Fix: Background EasySlip Verification Scheduler, `app_settings_tbl` & Bank Mini-QR Validation

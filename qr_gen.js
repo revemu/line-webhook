@@ -248,7 +248,7 @@ const { getBaseUrl } = require('./utils/url');
 function getQrImageUrl(filename, customBaseUrl = null) {
   let base = customBaseUrl || getBaseUrl();
   if (base.startsWith('http://')) base = base.replace('http://', 'https://');
-  return `${base}/img/qr/${filename}`;
+  return `${base}/webhook/img/qr/${filename}`;
 }
 
 module.exports = {

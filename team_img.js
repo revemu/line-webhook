@@ -836,7 +836,7 @@ const { getBaseUrl } = require('./utils/url');
 function getPublicImageUrl(filename) {
   let baseUrl = getBaseUrl();
   if (baseUrl.startsWith('http://')) baseUrl = baseUrl.replace('http://', 'https://');
-  return `${baseUrl}/img/team/${filename}`;
+  return `${baseUrl}/webhook/img/team/${filename}`;
 }
 
 /**
