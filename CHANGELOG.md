@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.46] - 2026-11-17
+
+### Changed
+- **Fast In-Memory QR Slip Scanning (`index.js`)**:
+  - Updated `readQRCode` in `index.js` to use `zxing-wasm` `readBarcodesFromImageFile(new Blob([imageBuffer]))` directly in-memory as the primary QR scanner (bypassing pure-JS `Jimp.read()`, child-process spawning, and temp file I/O — measured ~35.7 ms avg vs ~173 ms on real production slips).
+  - Pre-warms `zxing-wasm` via `prepareZXingModule({ fireImmediately: true })` during server startup so the first slip does not incur WASM cold-start overhead.
+  - Upgraded `zbarimg` fallback in `readQRCode` and `checkZbarimgInstalled` from `exec` (shell) to `execFile` using `/dev/shm` on Linux.
+
+---
+
 ## [0.7.45] - 2026-11-17
 
 ### Added

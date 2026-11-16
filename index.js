@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const { middleware } = require('@line/bot-sdk');
 const fs = require('fs').promises;
 const path = require('path');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const util = require('util');
 const axios = require('axios');
 const https = require('https');
@@ -23,12 +23,10 @@ const { serveRamImageMiddleware, resolveEphemeralTempDir } = require('./utils/ra
 const webRouter = require('./routes/web');
 const { initWebSocket } = require('./utils/wsBroadcaster');
 
-const execPromise = util.promisify(exec);
+const execFilePromise = util.promisify(execFile);
 
 const fsSync = require('fs');
-const { Jimp } = require('jimp');
-const jsQR = require('jsqr');
-const { readBarcodes, readBarcodesFromImageData, setZXingModuleOverrides } = require('zxing-wasm');
+const { readBarcodesFromImageFile, prepareZXingModule, setZXingModuleOverrides } = require('zxing-wasm');
 
 // Configure zxing-wasm to load local .wasm binary from node_modules (prevents CDN fetch failures)
 try {
@@ -161,28 +159,43 @@ async function getImageAxios(messageId) {
 // Function to verify bank slip via EasySlip API v2 using QR Code payload
 const verifyEasySlipByPayload = slipService.verifyEasySlipByPayload;
 const verifyEasySlipByImage = slipService.verifyEasySlipByImage;
-// Function to read QR code from image buffer (Primary: zxing-wasm in-memory ~6ms, Secondary: zbarimg CLI, Tertiary: jsQR)
-async function readQRCode(imageBuffer) {
-    let jimpImage = null;
+function detectImageMimeAndExt(buffer) {
+    if (buffer && buffer.length >= 4) {
+        if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+            return { mime: 'image/png', ext: 'png' };
+        }
+        if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+            return { mime: 'image/webp', ext: 'webp' };
+        }
+        if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+            return { mime: 'image/gif', ext: 'gif' };
+        }
+    }
+    return { mime: 'image/jpeg', ext: 'jpg' };
+}
 
-    // 1. Primary Pass: zxing-wasm (Fast WebAssembly scanner, in-memory)
-    /*try {
-        jimpImage = await Jimp.read(imageBuffer);
-        const imageData = {
-            data: new Uint8ClampedArray(jimpImage.bitmap.data),
-            width: jimpImage.bitmap.width,
-            height: jimpImage.bitmap.height
-        };
-        //const results = await readBarcodesFromImageData(imageData, { formats: ['QRCode'] });
-        const results = await readBarcodes(imageData, { formats: ['QRCode'] });
+// Function to read QR code from image buffer (Primary: zxing-wasm Direct Blob ~35ms, Fallback: zbarimg CLI on /dev/shm)
+async function readQRCode(imageBuffer) {
+    if (!imageBuffer || imageBuffer.length === 0) return null;
+    const { mime, ext } = detectImageMimeAndExt(imageBuffer);
+
+    // 1. Primary Pass: zxing-wasm Direct Blob (WASM decodes JPEG/PNG directly in-memory, bypassing Jimp)
+    try {
+        const blob = new Blob([imageBuffer], { type: mime });
+        const results = await readBarcodesFromImageFile(blob, { formats: ['QRCode'] });
         if (results && results.length > 0) {
-            return results.map(r => ({ type: r.format || 'QR-Code', data: r.text }));
+            const codes = results
+                .filter(r => r && r.text)
+                .map(r => ({ type: r.format || 'QR-Code', data: r.text }));
+            if (codes.length > 0) {
+                return codes;
+            }
         }
     } catch (zxingErr) {
         logger.warn('[readQRCode] Primary zxing-wasm decoder warning:', zxingErr.message || zxingErr);
-    }*/
+    }
 
-    // 2. Secondary Pass: zbarimg CLI (Native C scanner fallback)
+    // 2. Fallback Pass: zbarimg CLI via execFile (no shell) on /dev/shm RAM tmpfs
     let tempFilePath = null;
     try {
         const tempDir = resolveEphemeralTempDir(path.join(__dirname, 'temp'));
@@ -190,22 +203,20 @@ async function readQRCode(imageBuffer) {
 
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substr(2, 9);
-        tempFilePath = path.join(tempDir, `qr_${timestamp}_${randomStr}.jpg`);
+        tempFilePath = path.join(tempDir, `qr_${timestamp}_${randomStr}.${ext}`);
         await fs.writeFile(tempFilePath, imageBuffer);
 
-        const { stdout } = await execPromise(`zbarimg "${tempFilePath}"`);
-        await fs.unlink(tempFilePath);
-
+        const { stdout } = await execFilePromise('zbarimg', [tempFilePath]);
         if (stdout && stdout.trim()) {
             const lines = stdout.trim().split('\n');
             const codes = lines.map(line => {
                 const colonIndex = line.indexOf(':');
                 if (colonIndex > 0) {
                     const type = line.substring(0, colonIndex);
-                    const data = line.substring(colonIndex + 1);
+                    const data = line.substring(colonIndex + 1).trim();
                     return { type, data };
                 }
-                return { type: 'UNKNOWN', data: line };
+                return { type: 'UNKNOWN', data: line.trim() };
             }).filter(code => code.data);
 
             if (codes.length > 0) {
@@ -213,27 +224,12 @@ async function readQRCode(imageBuffer) {
             }
         }
     } catch (error) {
+        logger.debug('[readQRCode] Fallback zbarimg scan warning:', error.message || error);
+    } finally {
         if (tempFilePath) {
             try { await fs.unlink(tempFilePath); } catch (unlinkError) { }
         }
     }
-    /*
-    // 3. Tertiary Fallback Pass: jsQR + Jimp in-memory
-    try {
-        if (!jimpImage) {
-            jimpImage = await Jimp.read(imageBuffer);
-        }
-        const qrCode = jsQR(
-            new Uint8ClampedArray(jimpImage.bitmap.data),
-            jimpImage.bitmap.width,
-            jimpImage.bitmap.height
-        );
-        if (qrCode && qrCode.data) {
-            return [{ type: 'QR-Code', data: qrCode.data }];
-        }
-    } catch (jsqrErr) {
-        console.warn('[readQRCode] Tertiary jsQR fallback warning:', jsqrErr.message);
-    }*/
 
     return null;
 }
@@ -241,7 +237,7 @@ async function readQRCode(imageBuffer) {
 // Function to check if zbarimg is installed
 async function checkZbarimgInstalled() {
     try {
-        await execPromise('zbarimg --help');
+        await execFilePromise('zbarimg', ['--help']);
         return true;
     } catch (error) {
         return false;
@@ -539,12 +535,20 @@ const server = app.listen(PORT, async () => {
 
     await db.testConnection();
 
-    // Check if zbarimg is installed
+    // Warm up zxing-wasm WASM module at boot to eliminate cold-start latency on the first slip
+    try {
+        await prepareZXingModule({ fireImmediately: true });
+        logger.info('✅ zxing-wasm Direct Blob QR scanner initialized in-memory');
+    } catch (wasmWarmErr) {
+        logger.warn('⚠️  Could not pre-warm zxing-wasm module:', wasmWarmErr.message || wasmWarmErr);
+    }
+
+    // Check if zbarimg fallback is installed
     const zbarimgInstalled = await checkZbarimgInstalled();
     if (zbarimgInstalled) {
-        logger.info('✅ zbarimg command line tool is available');
+        logger.info('✅ zbarimg CLI fallback tool is available (execFile)');
     } else {
-        logger.warn('⚠️  zbarimg CLI not found. Using zxing-wasm (WebAssembly) & jsQR engines.');
+        logger.warn('⚠️  zbarimg CLI fallback not found. Relying on zxing-wasm (Direct Blob) engine.');
     }
 
     // Initialize in-process scheduler worker thread
