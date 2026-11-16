@@ -50,8 +50,25 @@ function getFullUrl(relativePath) {
   return `${baseUrl}${cleanPath}`;
 }
 
+/**
+ * Resolves the live match viewer URL, preferring an explicit override or LIVE_WEB_URL,
+ * otherwise building dynamically from getBaseUrl() + '/webhook/view', and ensuring openExternalBrowser=1.
+ * @param {string|null} [overrideUrl=null]
+ * @returns {string}
+ */
+function getLiveWebUrl(overrideUrl = null) {
+  const baseUrl = getBaseUrl();
+  const dynamicDefault = baseUrl ? `${baseUrl}/webhook/view` : 'https://hydromet.rid.go.th/webhook/view';
+  const raw = (overrideUrl && String(overrideUrl).trim())
+    || (process.env.LIVE_WEB_URL && process.env.LIVE_WEB_URL.trim())
+    || dynamicDefault;
+  if (raw.includes('openExternalBrowser=1')) return raw;
+  return raw.includes('?') ? `${raw}&openExternalBrowser=1` : `${raw}?openExternalBrowser=1`;
+}
+
 module.exports = {
   getBaseUrl,
   setBaseUrl,
-  getFullUrl
+  getFullUrl,
+  getLiveWebUrl
 };

@@ -9,6 +9,7 @@ const slipService = require('./slip');
 const slipVerifier = require('./scheduler/slipVerifier');
 const logger = require('./utils/logger');
 const { getNextSaturday } = require('./utils/date');
+const { getLiveWebUrl } = require('./utils/url');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
 const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3', '-guest', '-guests', '-follower', 'delguest', 'remguest', 'cancelguest']);
@@ -1235,8 +1236,7 @@ const COMMAND_REGISTRY = {
         const matchInfo = await db.getCurrentMatch(groupId);
         if (!matchInfo || !matchInfo.sched) return [{ type: 'text', text: 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ' }];
         const cur = matchInfo.currentMatch;
-        const rawWebLiveUrl = (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
-        const webLiveUrl = rawWebLiveUrl.includes('openExternalBrowser=1') ? rawWebLiveUrl : (rawWebLiveUrl.includes('?') ? `${rawWebLiveUrl}&openExternalBrowser=1` : `${rawWebLiveUrl}?openExternalBrowser=1`);
+        const webLiveUrl = getLiveWebUrl(matchInfo && matchInfo.webLiveUrl);
         if (matchInfo) { matchInfo.webLiveUrl = webLiveUrl; }
 
         if (is_flex === false) {

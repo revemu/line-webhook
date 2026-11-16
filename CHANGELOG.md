@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.29] - 2026-11-16
+
+### Fix: Dynamic Live Viewer URL (`/live`) Using `getBaseUrl()`
+- **เลิก hardcode โดเมนเก่า `boxch2.kdnstream.com` ในคำสั่ง `/live` (`utils/url.js`, `cmd.js`, `flex.js`, `query.js`)**:
+  - เพิ่ม helper `getLiveWebUrl()` ใน `utils/url.js` เพื่อสร้างลิงก์หน้า Live Viewer จาก `getBaseUrl() + '/webhook/view?openExternalBrowser=1'` แบบ dynamic (และรองรับ override ผ่าน `LIVE_WEB_URL`)
+  - ปรับ `cmd.js` (`/live`), `flex.js` (`buildLiveFlex`), และ `query.js` (`getCurrentMatch`) ให้ใช้ `getLiveWebUrl()` ร่วมกัน ลดโค้ดซ้ำและรองรับการย้ายโดเมนอัตโนมัติ
+
+---
+
 ## [0.7.28] - 2026-11-16
 
 ### Feat: Consolidate All Static Image Paths Under `/webhook/img`
