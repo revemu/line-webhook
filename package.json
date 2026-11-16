@@ -1,13 +1,14 @@
 {
   "name": "line-webhook",
-  "version": "0.7.44",
+  "version": "0.7.45",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "server": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prune:images": "node prune_images.js",
-    "migrate:pg": "node scripts/migrate-mysql-to-pg.js"
+    "migrate:pg": "node scripts/migrate-mysql-to-pg.js",
+    "bench:qr": "node scripts/bench-qr.js"
   },
   "keywords": [],
   "author": "",

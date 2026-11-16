@@ -4,6 +4,14 @@
 
 ---
 
+## [0.7.45] - 2026-11-17
+
+### Added
+- **QR Scanner Benchmark Script (`scripts/bench-qr.js`, `package.json`)**:
+  - Added `npm run bench:qr` (`scripts/bench-qr.js`) to benchmark real slip images in `img/slip/` on `hydromet` (or fallback test samples) comparing `zbarimg` (`exec` & `execFile` using `/dev/shm` on Linux), `zxing-wasm` Direct Blob (`readBarcodesFromImageFile`, bypassing `Jimp`), `zxing-wasm` via `Jimp`, and `jsQR` via `Jimp`.
+
+---
+
 ## [0.7.44] - 2026-11-16
 
 ### Added
