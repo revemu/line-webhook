@@ -1010,7 +1010,8 @@ const COMMAND_REGISTRY = {
                 };
             }
         } catch (qrErr) {
-            return [{ type: 'text', text: `เกิดข้อผิดพลาดในการสร้าง QR Code: ${qrErr.message}` }];
+            logger.error('⚠️ Error generating QR code:', qrErr);
+            return [{ type: 'text', text: '⚠️ ขออภัย ไม่สามารถสร้าง QR Code ได้ในขณะนี้ กรุณาลองใหม่อีกครั้งครับ' }];
         }
     },
     'qrpay': async (context) => {
@@ -1752,11 +1753,10 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         return result;
     } catch (err) {
         logger.error('⚠️ Error processing command:', err);
-        const errDetail = err && err.message ? err.message : String(err);
         return [{
             type: 'text',
             quoteToken,
-            text: `เกิดข้อผิดพลาด: ${errDetail}`
+            text: '⚠️ ขออภัย ระบบเกิดข้อผิดพลาดชั่วคราว กรุณาลองใหม่อีกครั้งครับ'
         }];
     }
 }
@@ -1778,11 +1778,10 @@ async function handleCommandSwitch(context) {
             }
         } catch (handlerErr) {
             logger.error('⚠️ Error in command registry handler for', cmd, handlerErr.message || handlerErr);
-            const errDetail = handlerErr && handlerErr.message ? handlerErr.message : String(handlerErr);
             return [{
                 type: 'text',
                 quoteToken,
-                text: `เกิดข้อผิดพลาด (${cmd}): ${errDetail}`
+                text: '⚠️ ขออภัย ไม่สามารถดำเนินการคำสั่งได้ในขณะนี้ กรุณาลองใหม่อีกครั้งครับ'
             }];
         }
     }

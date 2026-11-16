@@ -4,6 +4,14 @@
 
 ---
 
+## [0.7.32] - 2026-11-16
+
+### Fix: Sanitize Command Error Replies to Users
+- **ซ่อนรายละเอียด Error ทางเทคนิค (เช่น SQL / Stack Error) ไม่ให้แสดงในแชท LINE (`cmd.js`)**:
+  - คงการบันทึกรายละเอียดเต็มลง Server Log (`logger.error`) สำหรับแอดมิน/นักพัฒนา และตอบกลับผู้ใช้เป็นข้อความสั้นๆ ที่เข้าใจง่ายแทนเมื่อเกิดข้อยกเว้นใน `process_cmd`, `handleCommandSwitch` และ `/qr`
+
+---
+
 ## [0.7.31] - 2026-11-16
 
 ### Fix: Escape Reserved Keyword `rank` for MySQL 8.4 Compatibility
