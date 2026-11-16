@@ -6213,12 +6213,12 @@ async function recordSlipVerifyAttempt(id, errorMessage = null) {
   }
 }
 
-async function getPendingSlipsForVerify({ maxAttempts = 8, maxAgeHours = 24, limit = 10 } = {}) {
+async function getPendingSlipsForVerify({ maxAttempts = 8, maxAgeHours = 168, limit = 10 } = {}) {
   try {
     await ensureSlipLogSchema();
     const safeLimit = Math.max(1, Math.min(100, Number(limit) || 10));
     const safeMaxAttempts = Math.max(1, Number(maxAttempts) || 8);
-    const safeMaxAgeHours = Math.max(1, Number(maxAgeHours) || 24);
+    const safeMaxAgeHours = Math.max(1, Number(maxAgeHours) || 168);
     const sql = `
       SELECT id, sender_id, sender_name, image_path, status, qrcode, response_json, created_at,
              COALESCE(verify_attempts, 0) AS verify_attempts, last_verify_at, last_verify_error
@@ -6242,7 +6242,7 @@ const DEFAULT_SLIP_VERIFY_CONFIG = {
   slip_verify_enabled: { value: '1', description: 'Enable background EasySlip verification for noticed slips (1=on, 0=off)' },
   slip_verify_poll_seconds: { value: '60', description: 'Polling interval in seconds for checking due noticed slips (min 15)' },
   slip_verify_max_attempts: { value: '8', description: 'Maximum EasySlip verification retry attempts per slip' },
-  slip_verify_max_age_hours: { value: '24', description: 'Maximum slip age in hours to keep retrying verification' },
+  slip_verify_max_age_hours: { value: '168', description: 'Maximum slip age in hours to keep retrying verification (168 = 1 week)' },
   slip_verify_batch_limit: { value: '10', description: 'Maximum number of slips checked per scheduler sweep' },
   slip_verify_notify_success: { value: '1', description: 'Push LINE notification when delayed slip verifies cleanly (1=on, 0=off)' },
   slip_verify_retry_delays: { value: '120,300,600,900,1800,3600,7200,14400', description: 'Comma-separated retry backoff delays in seconds per attempt' }
@@ -6423,7 +6423,7 @@ async function getSlipVerifyConfig() {
     enabled: map.slip_verify_enabled !== '0' && map.slip_verify_enabled.toLowerCase() !== 'false',
     pollSeconds: Math.max(15, parseInt(map.slip_verify_poll_seconds, 10) || 60),
     maxAttempts: Math.max(1, parseInt(map.slip_verify_max_attempts, 10) || 8),
-    maxAgeHours: Math.max(1, parseInt(map.slip_verify_max_age_hours, 10) || 24),
+    maxAgeHours: Math.max(1, parseInt(map.slip_verify_max_age_hours, 10) || 168),
     batchLimit: Math.max(1, Math.min(100, parseInt(map.slip_verify_batch_limit, 10) || 10)),
     notifySuccess: map.slip_verify_notify_success !== '0' && map.slip_verify_notify_success.toLowerCase() !== 'false',
     retryDelaysSeconds: parseRetryDelaysSeconds(map.slip_verify_retry_delays)
