@@ -14,8 +14,8 @@ if (currentBaseUrl) {
 let isExecuting = false;
 let lastDbReloadTime = 0;
 let lastSlipVerifyTime = 0;
+let slipVerifyPollMs = 60 * 1000;
 const DB_RELOAD_INTERVAL_MS = 5 * 60 * 1000; // Reload tasks from DB every 5 mins
-const SLIP_VERIFY_POLL_MS = Math.max(15000, Number(process.env.SLIP_VERIFY_POLL_MS) || 60 * 1000); // Poll pending noticed slips every 1 min
 
 logger.info('[SchedulerWorker] Starting background scheduler worker thread...');
 
@@ -238,9 +238,12 @@ async function tick() {
       }
     }
 
-    if (Date.now() - lastSlipVerifyTime >= SLIP_VERIFY_POLL_MS) {
+    if (Date.now() - lastSlipVerifyTime >= slipVerifyPollMs) {
       lastSlipVerifyTime = Date.now();
-      await slipVerifier.runPendingSlipVerification();
+      const verifySummary = await slipVerifier.runPendingSlipVerification();
+      if (verifySummary && verifySummary.pollSeconds) {
+        slipVerifyPollMs = Math.max(15000, Number(verifySummary.pollSeconds) * 1000);
+      }
     }
   } catch (err) {
     logger.error('[SchedulerWorker] Error in tick loop:', err.message);

@@ -6238,6 +6238,95 @@ async function getPendingSlipsForVerify({ maxAttempts = 8, maxAgeHours = 24, lim
   }
 }
 
+const DEFAULT_SLIP_VERIFY_CONFIG = {
+  slip_verify_enabled: '1',
+  slip_verify_poll_seconds: '60',
+  slip_verify_max_attempts: '8',
+  slip_verify_max_age_hours: '24',
+  slip_verify_batch_limit: '10',
+  slip_verify_notify_success: '1',
+  slip_verify_retry_delays: '120,300,600,900,1800,3600,7200,14400'
+};
+
+/**
+ * Parses comma-separated retry delay seconds string into a non-empty array of positive integers.
+ * @param {string} raw
+ * @returns {number[]}
+ */
+function parseRetryDelaysSeconds(raw) {
+  const parsed = String(raw || '')
+    .split(',')
+    .map(v => parseInt(v.trim(), 10))
+    .filter(n => Number.isFinite(n) && n > 0);
+  return parsed.length > 0 ? parsed : [120, 300, 600, 900, 1800, 3600, 7200, 14400];
+}
+
+/**
+ * Loads slip verification scheduler settings from template_tpl, seeding defaults if missing.
+ * @returns {Promise<Object>}
+ */
+async function getSlipVerifyConfig() {
+  const map = { ...DEFAULT_SLIP_VERIFY_CONFIG };
+  try {
+    const keys = Object.keys(DEFAULT_SLIP_VERIFY_CONFIG);
+    const placeholders = keys.map(() => '?').join(', ');
+    const rows = await executeQuery(
+      `SELECT name, value FROM template_tpl WHERE name IN (${placeholders})`,
+      keys
+    );
+    const found = new Set();
+    for (const r of rows || []) {
+      if (r.name && r.value !== undefined && r.value !== null && String(r.value).trim() !== '') {
+        map[r.name] = String(r.value).trim();
+        found.add(r.name);
+      }
+    }
+    for (const key of keys) {
+      if (!found.has(key)) {
+        try {
+          await executeQuery(
+            "INSERT INTO template_tpl (id, name, value) VALUES (null, ?, ?)",
+            [key, DEFAULT_SLIP_VERIFY_CONFIG[key]]
+          );
+        } catch (insertErr) {
+          logger.debug(`Could not seed template_tpl setting '${key}':`, insertErr.message);
+        }
+      }
+    }
+  } catch (err) {
+    logger.error("Error loading slip verify config from template_tpl:", err.message);
+  }
+
+  return {
+    enabled: map.slip_verify_enabled !== '0' && map.slip_verify_enabled.toLowerCase() !== 'false',
+    pollSeconds: Math.max(15, parseInt(map.slip_verify_poll_seconds, 10) || 60),
+    maxAttempts: Math.max(1, parseInt(map.slip_verify_max_attempts, 10) || 8),
+    maxAgeHours: Math.max(1, parseInt(map.slip_verify_max_age_hours, 10) || 24),
+    batchLimit: Math.max(1, Math.min(100, parseInt(map.slip_verify_batch_limit, 10) || 10)),
+    notifySuccess: map.slip_verify_notify_success !== '0' && map.slip_verify_notify_success.toLowerCase() !== 'false',
+    retryDelaysSeconds: parseRetryDelaysSeconds(map.slip_verify_retry_delays)
+  };
+}
+
+/**
+ * Updates a slip verification setting in template_tpl.
+ * @param {string} name
+ * @param {string|number|boolean} value
+ */
+async function setSlipVerifyConfig(name, value) {
+  const key = String(name || '').trim();
+  if (!Object.prototype.hasOwnProperty.call(DEFAULT_SLIP_VERIFY_CONFIG, key)) {
+    throw new Error(`Unknown slip verify config key: ${key}`);
+  }
+  const strVal = String(value);
+  const existing = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
+  if (existing && existing.length > 0) {
+    await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [strVal, key]);
+  } else {
+    await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, ?, ?)", [key, strVal]);
+  }
+}
+
 async function getNoticedSlips(senderId = null) {
   try {
     let sql = `SELECT id, sender_name, image_path, status, qrcode, created_at FROM slip_log WHERE status = 'noticed'`;
@@ -8927,6 +9016,8 @@ module.exports = {
   markSlipVerified,
   recordSlipVerifyAttempt,
   getPendingSlipsForVerify,
+  getSlipVerifyConfig,
+  setSlipVerifyConfig,
   getNoticedSlips,
   getSlipById,
   setMemberDebt,

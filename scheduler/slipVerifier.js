@@ -4,10 +4,7 @@ const lineClient = require('../lineClient');
 const logger = require('../utils/logger');
 const { getFormatDate } = require('../utils/date');
 
-const RETRY_DELAYS_SECONDS = [120, 300, 600, 900, 1800, 3600, 7200, 14400];
-const MAX_ATTEMPTS = Math.max(1, Number(process.env.SLIP_VERIFY_MAX_ATTEMPTS) || RETRY_DELAYS_SECONDS.length);
-const MAX_AGE_HOURS = Math.max(1, Number(process.env.SLIP_VERIFY_MAX_AGE_HOURS) || 24);
-const BATCH_LIMIT = Math.max(1, Number(process.env.SLIP_VERIFY_BATCH_LIMIT) || 10);
+const DEFAULT_RETRY_DELAYS_SECONDS = [120, 300, 600, 900, 1800, 3600, 7200, 14400];
 const INTER_REQUEST_DELAY_MS = 500;
 
 let isVerifying = false;
@@ -27,13 +24,17 @@ function sleep(ms) {
  * @param {Object} slip - Row from slip_log
  * @param {number} nowMs - Current epoch timestamp in ms
  * @param {boolean} [force=false] - Bypass backoff timer when triggered manually
+ * @param {number[]} [retryDelaysSeconds=DEFAULT_RETRY_DELAYS_SECONDS] - Backoff schedule in seconds
  * @returns {boolean}
  */
-function isSlipDueForVerify(slip, nowMs, force = false) {
+function isSlipDueForVerify(slip, nowMs, force = false, retryDelaysSeconds = DEFAULT_RETRY_DELAYS_SECONDS) {
   if (force) return true;
 
+  const schedule = (Array.isArray(retryDelaysSeconds) && retryDelaysSeconds.length > 0)
+    ? retryDelaysSeconds
+    : DEFAULT_RETRY_DELAYS_SECONDS;
   const attempts = Number(slip.verify_attempts) || 0;
-  const delaySeconds = RETRY_DELAYS_SECONDS[Math.min(attempts, RETRY_DELAYS_SECONDS.length - 1)];
+  const delaySeconds = schedule[Math.min(attempts, schedule.length - 1)];
   const refDate = (attempts === 0 || !slip.last_verify_at) ? slip.created_at : slip.last_verify_at;
   if (!refDate) return true;
 
@@ -63,7 +64,7 @@ function isQuotaOrAuthError(error) {
  */
 async function resolveNotifyGroupId() {
   try {
-    const rawGroupId = process.env.LINE_GROUP_ID || (await db.getActiveGroupId());
+    const rawGroupId = await db.getActiveGroupId();
     if (!rawGroupId) return null;
     return await db.resolveLineGroupId(rawGroupId);
   } catch (err) {
@@ -94,9 +95,10 @@ async function pushNotifications(messages) {
  * Verifies a single pending slip against EasySlip, updates slip_log, and returns outcome details.
  * @param {Object} slip
  * @param {number} activeWeekCost
+ * @param {Object} cfg - Config loaded from DB template_tpl
  * @returns {Promise<Object>}
  */
-async function verifySingleSlip(slip, activeWeekCost) {
+async function verifySingleSlip(slip, activeWeekCost, cfg) {
   const verifyResult = await slipService.verifySlipPayload(slip.qrcode, slip.sender_name);
 
   if (verifyResult.success && verifyResult.slipData) {
@@ -119,7 +121,7 @@ async function verifySingleSlip(slip, activeWeekCost) {
 
     const isCleanSuccess = processed.slipToMe && processed.shouldClearDebt;
     let notifyText = null;
-    if (isCleanSuccess && process.env.SLIP_VERIFY_NOTIFY_SUCCESS !== 'false') {
+    if (isCleanSuccess && cfg.notifySuccess) {
       const d = processed.details;
       notifyText = `✅ ตรวจสอบสลิป #${slip.id} (${slip.sender_name}) ย้อนหลังสำเร็จ\n`
         + `💰 ยอดเงิน: ${d.amountStr} บาท\n`
@@ -158,7 +160,7 @@ async function verifySingleSlip(slip, activeWeekCost) {
   await db.recordSlipVerifyAttempt(slip.id, errText);
   const nextAttempts = (Number(slip.verify_attempts) || 0) + 1;
   let notifyText = null;
-  if (nextAttempts >= MAX_ATTEMPTS) {
+  if (nextAttempts >= cfg.maxAttempts) {
     notifyText = `⚠️ สลิป #${slip.id} (${slip.sender_name}) ตรวจสอบผ่าน EasySlip ไม่สำเร็จหลังลอง ${nextAttempts} ครั้ง\nสาเหตุล่าสุด: ${errText}`;
   }
 
@@ -173,9 +175,9 @@ async function verifySingleSlip(slip, activeWeekCost) {
 }
 
 /**
- * Sweeps pending 'noticed' slips and verifies due records against EasySlip API.
+ * Sweeps pending 'noticed' slips and verifies due records against EasySlip API using DB configuration.
  * @param {Object} [options={}]
- * @param {boolean} [options.force=false] - Ignore backoff window and check all recent noticed slips
+ * @param {boolean} [options.force=false] - Ignore enabled flag and backoff window when triggered manually
  * @param {boolean} [options.notify=true] - Push LINE notifications on verification results
  * @returns {Promise<Object>} Summary of the verification sweep
  */
@@ -186,13 +188,21 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
   }
 
   isVerifying = true;
-  const summary = { checked: 0, verified: 0, failed: 0, deferred: 0, results: [] };
+  const summary = { checked: 0, verified: 0, failed: 0, deferred: 0, results: [], pollSeconds: 60 };
 
   try {
+    const cfg = await db.getSlipVerifyConfig();
+    summary.pollSeconds = cfg.pollSeconds;
+
+    if (!force && !cfg.enabled) {
+      summary.disabled = true;
+      return summary;
+    }
+
     const candidates = await db.getPendingSlipsForVerify({
-      maxAttempts: MAX_ATTEMPTS,
-      maxAgeHours: MAX_AGE_HOURS,
-      limit: BATCH_LIMIT
+      maxAttempts: cfg.maxAttempts,
+      maxAgeHours: cfg.maxAgeHours,
+      limit: cfg.batchLimit
     });
 
     if (!candidates || candidates.length === 0) {
@@ -200,7 +210,7 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
     }
 
     const nowMs = Date.now();
-    const dueSlips = candidates.filter(slip => isSlipDueForVerify(slip, nowMs, force));
+    const dueSlips = candidates.filter(slip => isSlipDueForVerify(slip, nowMs, force, cfg.retryDelaysSeconds));
     summary.deferred = candidates.length - dueSlips.length;
 
     if (dueSlips.length === 0) {
@@ -220,7 +230,7 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
       const slip = dueSlips[i];
       summary.checked++;
 
-      const res = await verifySingleSlip(slip, activeWeekCost);
+      const res = await verifySingleSlip(slip, activeWeekCost, cfg);
       summary.results.push(res);
 
       if (res.outcome === 'verified') {
@@ -236,7 +246,7 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
         break;
       } else {
         summary.failed++;
-        logger.debug(`[SlipVerifier] Slip #${slip.id} attempt ${res.attempts}/${MAX_ATTEMPTS} failed: ${res.error}`);
+        logger.debug(`[SlipVerifier] Slip #${slip.id} attempt ${res.attempts}/${cfg.maxAttempts} failed: ${res.error}`);
         if (res.notifyText) {
           notifyMessages.push({ type: 'text', text: res.notifyText });
         }
@@ -264,6 +274,5 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
 module.exports = {
   runPendingSlipVerification,
   isSlipDueForVerify,
-  RETRY_DELAYS_SECONDS,
-  MAX_ATTEMPTS
+  DEFAULT_RETRY_DELAYS_SECONDS
 };
