@@ -4,6 +4,19 @@
 
 ---
 
+## [0.7.38] - 2026-11-16
+
+### Changed
+- **Full PostgreSQL Migration (`pg`)**:
+  - Migrated [db/pool.js](db/pool.js) from `mysql2/promise` to PostgreSQL (`pg` `Pool`) with `INT8`/`NUMERIC` JS number parsers, unquoted `?` → `$1..$n` SQL placeholder translator (`convertPlaceholders`), `pg.Pool`-backed transaction connection facade, and MySQL-compatible `executeQuery` / `[rows, fields]` tuple results.
+  - Converted all DDL, upserts (`ON DUPLICATE KEY UPDATE` / `INSERT IGNORE` → `ON CONFLICT`), date functions (`YEAR/MONTH/DAY` → `EXTRACT`, `DATE_FORMAT` → `TO_CHAR`, `DATE_SUB` → `INTERVAL`), multi-table `UPDATE`/`DELETE JOIN`s, `HAVING` aliases, `ROUND(...::numeric, 2)`, `"rank"` identifier quoting, and `table_week_tbl` `G`/`A` compatibility aliases across `query.js`, `routes/web.js`, `services/appSettings.js`, `services/donate.js`, and `services/slipLog.js`.
+  - Updated error-code checks to PostgreSQL SQLSTATE codes (`23505` unique violation, `42P01` undefined table, `42703` undefined column).
+- **Schema & Data Migration Tooling**:
+  - Added `scripts/migrate-mysql-to-pg.js` (`npm run migrate:pg`) to introspect live MySQL `soccerbot` tables, create matching PostgreSQL tables/constraints/indexes/`updated_at` triggers, stream all rows cleanly with zero-date sanitization, reset identity sequences, and verify 100% row-count parity.
+  - Added `.env.example` documenting `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, and `DATABASE_URL`.
+
+---
+
 ## [0.7.37] - 2026-11-16
 
 ### Changed

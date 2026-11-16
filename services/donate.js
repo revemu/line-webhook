@@ -10,18 +10,18 @@ async function ensureDonateLogTable() {
   if (donateLogTableEnsured) return;
   const createSql = `
     CREATE TABLE IF NOT EXISTS donate_log_tbl (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      member_id INT NOT NULL,
-      amount INT NOT NULL,
+      id SERIAL PRIMARY KEY,
+      member_id INTEGER NOT NULL,
+      amount INTEGER NOT NULL,
       source VARCHAR(50) NOT NULL DEFAULT 'manual',
       note VARCHAR(255) NULL,
       created_by VARCHAR(100) NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_donate_member (member_id),
-      INDEX idx_donate_created (created_at)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
   `;
   await executeQuery(createSql, []);
+  await executeQuery("CREATE INDEX IF NOT EXISTS idx_donate_member ON donate_log_tbl (member_id)", []);
+  await executeQuery("CREATE INDEX IF NOT EXISTS idx_donate_created ON donate_log_tbl (created_at)", []);
 
   const countRows = await executeQuery("SELECT COUNT(*) AS cnt FROM donate_log_tbl", []);
   const existingCount = (countRows && countRows[0]) ? Number(countRows[0].cnt || 0) : 0;
@@ -76,7 +76,7 @@ async function adjustMemberDonate(memberId, deltaAmount, { source = 'manual', no
       const cleanNote = note ? String(note).trim().substring(0, 250) : null;
       const cleanBy = createdBy ? String(createdBy).trim().substring(0, 95) : null;
       const [insertRes] = await conn.execute(
-        "INSERT INTO donate_log_tbl (member_id, amount, source, note, created_by) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO donate_log_tbl (member_id, amount, source, note, created_by) VALUES (?, ?, ?, ?, ?) RETURNING id",
         [memberId, actualDelta, source, cleanNote, cleanBy]
       );
       logId = insertRes ? insertRes.insertId : null;
@@ -114,7 +114,7 @@ async function getDonateLeaderboard(limit = 100) {
   const [sumRows, donorRows] = await Promise.all([
     executeQuery("SELECT COUNT(*) AS donor_count, COALESCE(SUM(donate), 0) AS total_donate FROM member_tbl WHERE donate > 0", []),
     executeQuery(
-      `SELECT id, name, alias, \`rank\`, donate, picture_url, line_user_id
+      `SELECT id, name, alias, "rank", donate, picture_url, line_user_id
        FROM member_tbl
        WHERE donate > 0
        ORDER BY donate DESC, id ASC

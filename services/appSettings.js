@@ -20,14 +20,14 @@ async function ensureAppSettingsTable() {
   if (appSettingsTableEnsured) return;
   const sql = `
     CREATE TABLE IF NOT EXISTS app_settings_tbl (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       setting_key VARCHAR(100) NOT NULL UNIQUE,
       setting_value TEXT NULL,
       category VARCHAR(50) NOT NULL DEFAULT 'general',
       description VARCHAR(255) NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
   `;
   await executeQuery(sql, []);
   appSettingsTableEnsured = true;
@@ -69,10 +69,11 @@ async function setSetting(key, value, { category = 'general', description = null
   await executeQuery(
     `INSERT INTO app_settings_tbl (setting_key, setting_value, category, description)
      VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       setting_value = VALUES(setting_value),
-       category = COALESCE(NULLIF(VALUES(category), 'general'), category),
-       description = COALESCE(VALUES(description), description)`,
+     ON CONFLICT (setting_key) DO UPDATE SET
+       setting_value = EXCLUDED.setting_value,
+       category = COALESCE(NULLIF(EXCLUDED.category, 'general'), app_settings_tbl.category),
+       description = COALESCE(EXCLUDED.description, app_settings_tbl.description),
+       updated_at = CURRENT_TIMESTAMP`,
     [key, strVal, category, description]
   );
 }
@@ -168,8 +169,9 @@ async function getSlipVerifyConfig() {
           map[key] = valToSeed;
           try {
             await executeQuery(
-              `INSERT IGNORE INTO app_settings_tbl (setting_key, setting_value, category, description)
-               VALUES (?, ?, 'slip_verify', ?)`,
+              `INSERT INTO app_settings_tbl (setting_key, setting_value, category, description)
+               VALUES (?, ?, 'slip_verify', ?)
+               ON CONFLICT (setting_key) DO NOTHING`,
               [key, valToSeed, DEFAULT_SLIP_VERIFY_CONFIG[key].description]
             );
           } catch (insertErr) {

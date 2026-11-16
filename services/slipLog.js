@@ -10,30 +10,30 @@ async function ensureSlipLogSchema() {
   if (slipLogSchemaEnsured) return;
 
   const createSql = `CREATE TABLE IF NOT EXISTS slip_log (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     sender_id VARCHAR(255),
     sender_name VARCHAR(255),
     image_path VARCHAR(255),
     status VARCHAR(50),
     qrcode TEXT,
     response_json TEXT,
-    verify_attempts INT DEFAULT 0,
-    last_verify_at DATETIME NULL,
+    verify_attempts INTEGER DEFAULT 0,
+    last_verify_at TIMESTAMP NULL,
     last_verify_error VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`;
   await executeQuery(createSql, []);
 
   const requiredCols = [
-    { name: 'qrcode', ddl: 'ALTER TABLE slip_log ADD COLUMN qrcode TEXT' },
-    { name: 'response_json', ddl: 'ALTER TABLE slip_log ADD COLUMN response_json TEXT' },
-    { name: 'verify_attempts', ddl: 'ALTER TABLE slip_log ADD COLUMN verify_attempts INT DEFAULT 0' },
-    { name: 'last_verify_at', ddl: 'ALTER TABLE slip_log ADD COLUMN last_verify_at DATETIME NULL' },
-    { name: 'last_verify_error', ddl: 'ALTER TABLE slip_log ADD COLUMN last_verify_error VARCHAR(255) NULL' }
+    { name: 'qrcode', ddl: 'ALTER TABLE slip_log ADD COLUMN IF NOT EXISTS qrcode TEXT' },
+    { name: 'response_json', ddl: 'ALTER TABLE slip_log ADD COLUMN IF NOT EXISTS response_json TEXT' },
+    { name: 'verify_attempts', ddl: 'ALTER TABLE slip_log ADD COLUMN IF NOT EXISTS verify_attempts INTEGER DEFAULT 0' },
+    { name: 'last_verify_at', ddl: 'ALTER TABLE slip_log ADD COLUMN IF NOT EXISTS last_verify_at TIMESTAMP NULL' },
+    { name: 'last_verify_error', ddl: 'ALTER TABLE slip_log ADD COLUMN IF NOT EXISTS last_verify_error VARCHAR(255) NULL' }
   ];
 
   const colRows = await executeQuery(
-    `SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'slip_log'`,
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'slip_log'`,
     []
   );
   const existingCols = new Set((colRows || []).map(r => String(r.column_name || r.COLUMN_NAME || '').toLowerCase()));
@@ -76,7 +76,7 @@ async function getSlipByQRCode(qrcode) {
       };
     }
   } catch (err) {
-    if (err.code !== 'ER_BAD_FIELD_ERROR') {
+    if (err.code !== '42703' && err.code !== 'ER_BAD_FIELD_ERROR') {
       logger.error("Error getting slip by qrcode:", err);
     }
   }
@@ -159,7 +159,7 @@ async function getPendingSlipsForVerify({ maxAttempts = 8, maxAgeHours = 168, li
         AND qrcode IS NOT NULL
         AND TRIM(qrcode) != ''
         AND COALESCE(verify_attempts, 0) < ?
-        AND created_at >= DATE_SUB(NOW(), INTERVAL ${safeMaxAgeHours} HOUR)
+        AND created_at >= NOW() - (${safeMaxAgeHours} * INTERVAL '1 hour')
       ORDER BY created_at ASC
       LIMIT ${safeLimit}
     `;

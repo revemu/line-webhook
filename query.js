@@ -118,24 +118,17 @@ async function ensureLineGroupTable() {
   try {
     const sql = `
       CREATE TABLE IF NOT EXISTS line_group_id_tbl (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         line_group_id VARCHAR(64) NOT NULL UNIQUE,
         group_name VARCHAR(255) NULL,
-        member_count INT NULL DEFAULT 0,
+        member_count INTEGER NULL DEFAULT 0,
         picture_url VARCHAR(500) NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_line_group_id (line_group_id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
     `;
     await executeQuery(sql);
-
-    // Auto-align table collation if existing table was created with unicode collation
-    try {
-      await executeQuery("ALTER TABLE line_group_id_tbl CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
-    } catch (alterErr) {
-      // Ignore if table is already converted or insufficient alter permissions
-    }
+    await executeQuery("CREATE INDEX IF NOT EXISTS idx_line_group_id ON line_group_id_tbl (line_group_id)");
 
     // Load existing groups into memory cache
     const rows = await executeQuery("SELECT id, line_group_id, group_name, member_count, picture_url FROM line_group_id_tbl");
@@ -151,7 +144,7 @@ async function ensureLineGroupTable() {
 async function testConnection() {
   try {
     const connection = await pool.getConnection();
-    logger.info('✅ Connected to MySQL database successfully');
+    logger.info('✅ Connected to PostgreSQL database successfully');
     connection.release();
     await ensureLineGroupTable();
     await ensureScheduledTaskTable();
@@ -160,7 +153,7 @@ async function testConnection() {
     await ensureMemberFeeExemptColumn();
     await ensureDonateLogTable();
   } catch (error) {
-    logger.error('❌ Error connecting to MySQL database:', error.message);
+    logger.error('❌ Error connecting to PostgreSQL database:', error.message);
   }
 }
 
@@ -168,42 +161,25 @@ async function ensureScheduledTaskTable() {
   try {
     const sql = `
       CREATE TABLE IF NOT EXISTS scheduled_task_tbl (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         task_key VARCHAR(100) NOT NULL UNIQUE,
         task_name VARCHAR(255) NOT NULL,
-        task_type ENUM('command', 'text') NOT NULL DEFAULT 'command',
+        task_type VARCHAR(20) NOT NULL DEFAULT 'command',
         command VARCHAR(255) NULL,
         text_message TEXT NULL,
         schedule_days VARCHAR(100) NOT NULL DEFAULT '*',
         schedule_time VARCHAR(10) NOT NULL DEFAULT '20:00',
         group_id VARCHAR(100) NULL,
-        delivery_mode ENUM('push', 'reply_on_chat', 'log_only') NOT NULL DEFAULT 'push',
-        expire_minutes INT NULL DEFAULT 60,
-        enabled TINYINT(1) NOT NULL DEFAULT 1,
+        delivery_mode VARCHAR(20) NOT NULL DEFAULT 'push',
+        expire_minutes INTEGER NULL DEFAULT 60,
+        enabled SMALLINT NOT NULL DEFAULT 1,
         last_run_date VARCHAR(30) NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
     `;
     await executeQuery(sql);
-
-    // Ensure delivery_mode column exists and includes 'log_only'
-    try {
-      await executeQuery("ALTER TABLE scheduled_task_tbl MODIFY COLUMN delivery_mode ENUM('push', 'reply_on_chat', 'log_only') NOT NULL DEFAULT 'push'");
-    } catch (colErr) { }
-
-    // Ensure last_run_date column supports full datetime string
-    try {
-      await executeQuery("ALTER TABLE scheduled_task_tbl MODIFY COLUMN last_run_date VARCHAR(30) NULL");
-    } catch (colErr3) { }
-
-    // Ensure expire_minutes column exists for existing tables
-    try {
-      const colCheck2 = await executeQuery("SHOW COLUMNS FROM scheduled_task_tbl LIKE 'expire_minutes'");
-      if (!colCheck2 || colCheck2.length === 0) {
-        await executeQuery("ALTER TABLE scheduled_task_tbl ADD COLUMN expire_minutes INT NULL DEFAULT 60 AFTER delivery_mode");
-      }
-    } catch (colErr2) { }
+    await executeQuery("ALTER TABLE scheduled_task_tbl ADD COLUMN IF NOT EXISTS expire_minutes INTEGER NULL DEFAULT 60");
   } catch (err) {
     logger.error('Error ensuring scheduled_task_tbl:', err.message);
   }
@@ -211,28 +187,29 @@ async function ensureScheduledTaskTable() {
 
 async function ensureMatchStatScheduleColumns() {
   try {
-    const colCheck = await executeQuery("SHOW COLUMNS FROM match_stat_tbl LIKE 'status'");
+    const colCheck = await executeQuery(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'match_stat_tbl' AND column_name = 'status'"
+    );
     if (!colCheck || colCheck.length === 0) {
       await executeQuery(`
         ALTER TABLE match_stat_tbl
-          ADD COLUMN round INT NULL DEFAULT 1 COMMENT 'รอบการแข่งขัน' AFTER match_num,
-          ADD COLUMN start_time VARCHAR(10) NULL COMMENT 'เวลาเริ่ม เช่น 18:00' AFTER round,
-          ADD COLUMN end_time VARCHAR(10) NULL COMMENT 'เวลาสิ้นสุด เช่น 18:08' AFTER start_time,
-          ADD COLUMN status ENUM('scheduled', 'in_progress', 'finished') NOT NULL DEFAULT 'finished' COMMENT 'สถานะแมตช์' AFTER team_b_goal,
-          ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          ADD COLUMN IF NOT EXISTS round INTEGER NULL DEFAULT 1,
+          ADD COLUMN IF NOT EXISTS start_time VARCHAR(10) NULL,
+          ADD COLUMN IF NOT EXISTS end_time VARCHAR(10) NULL,
+          ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'finished',
+          ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       `);
       logger.info('✅ Auto-migrated match_stat_tbl with schedule and status columns');
     }
   } catch (err) {
-    // Graceful: MySQL user may not have ALTER privilege or manual migration will be used
     logger.warn('Notice: match_stat_tbl schema check (manual migration: migrations/match_stat_schedule.sql):', err.message);
   }
 
   try {
     await executeQuery(`
       ALTER TABLE match_stat_tbl
-        MODIFY COLUMN team_a_goal INT NULL DEFAULT NULL,
-        MODIFY COLUMN team_b_goal INT NULL DEFAULT NULL
+        ALTER COLUMN team_a_goal DROP NOT NULL,
+        ALTER COLUMN team_b_goal DROP NOT NULL
     `);
   } catch (modErr) { }
 }
@@ -241,25 +218,25 @@ async function ensureUserTable() {
   try {
     const sql = `
       CREATE TABLE IF NOT EXISTS user_tbl (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         username VARCHAR(50) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL COMMENT 'Bcrypt hashed password',
-        role ENUM('admin','root') NOT NULL DEFAULT 'admin',
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'admin',
         name VARCHAR(100) DEFAULT NULL,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_username (username)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
     `;
     await executeQuery(sql);
+    await executeQuery("CREATE INDEX IF NOT EXISTS idx_username ON user_tbl (username)");
 
     const users = await executeQuery('SELECT COUNT(*) as cnt FROM user_tbl');
-    if (users && users[0] && users[0].cnt === 0) {
+    if (users && users[0] && Number(users[0].cnt) === 0) {
       await executeQuery(`
         INSERT INTO user_tbl (username, password, role, name) VALUES
         ('admin', '$2b$10$DOtGRoaOcG3UGGBjWdxtFutYUcq/FJ47bKeLMf5hSPwSFl6HEr1xG', 'admin', 'Match Admin'),
         ('root', '$2b$10$NFftupORvl9C7xgWiLdeFujSb8m/W1otZZhXNFc7iOd.RJxv/RrK.', 'root', 'System Root')
-        ON DUPLICATE KEY UPDATE username = VALUES(username)
+        ON CONFLICT (username) DO NOTHING
       `);
       logger.info('✅ Initialized default user_tbl accounts (admin, root)');
     }
@@ -270,14 +247,7 @@ async function ensureUserTable() {
 
 async function ensureMemberFeeExemptColumn() {
   try {
-    const colCheck = await executeQuery("SHOW COLUMNS FROM member_tbl LIKE 'fee_exempt'");
-    if (!colCheck || colCheck.length === 0) {
-      await executeQuery(`
-        ALTER TABLE member_tbl
-          ADD COLUMN fee_exempt TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = ยกเว้นไม่ตั้งยอดค้างชำระ/ไม่แสดงในรายการทวงเงิน, 0 = เรียกเก็บเงินปกติ'
-      `);
-      logger.info('✅ Auto-migrated member_tbl with fee_exempt column');
-    }
+    await executeQuery("ALTER TABLE member_tbl ADD COLUMN IF NOT EXISTS fee_exempt SMALLINT NOT NULL DEFAULT 0");
   } catch (err) {
     logger.warn('Notice: member_tbl fee_exempt schema check (manual migration: migrations/member_fee_exempt.sql):', err.message);
   }
@@ -313,7 +283,7 @@ async function updateMember(member_id, value, type = 0) {
 }
 
 async function updateMemberRank(member_id, rank) {
-  const query = "update member_tbl set `rank`=? where id=?";
+  const query = 'UPDATE member_tbl SET "rank" = ? WHERE id = ?';
   return await executeQuery(query, [rank, member_id]);
 }
 
@@ -362,11 +332,11 @@ async function newMember(lineID, name, pictureUrl = null, avoid_ids = '') {
   }
 
   try {
-    const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_ids, picture_url) values(?, 0, 0, 0, ?, ?, ?, ?)";
+    const query = "INSERT INTO member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_ids, picture_url) VALUES (?, 0, 0, 0, ?, ?, ?, ?) RETURNING id";
     const res = await executeQuery(query, [name, alias, cleanLineId, avoid_ids || '', pictureUrl]);
     return res;
   } catch (err) {
-    if (err && err.code === 'ER_DUP_ENTRY' && cleanLineId) {
+    if (err && (err.code === '23505' || err.code === 'ER_DUP_ENTRY') && cleanLineId) {
       const existing = await executeQuery(
         "SELECT id, picture_url FROM member_tbl WHERE line_user_id = ? LIMIT 1",
         [cleanLineId]
@@ -399,10 +369,10 @@ function shuffleArray(array) {
 }
 
 async function newTeamColorWeek(color, index, week_id) {
-  const query = `insert into team_color_week_tbl values(null, ${index}, ${week_id}, '${color}')`;
-  logger.info(query);
+  const query = "INSERT INTO team_color_week_tbl VALUES (DEFAULT, ?, ?, ?)";
+  logger.info(`${query} [${index}, ${week_id}, ${color}]`);
 
-  const res = await executeQuery(query);
+  const res = await executeQuery(query, [index, week_id, color]);
   return res;
 }
 
@@ -491,13 +461,7 @@ async function addTeamMemberWeek() {
 
 async function ensureWeekTimeColumn() {
   try {
-    const checkQuery = "SHOW COLUMNS FROM week_tbl LIKE 'time_range'";
-    const res = await executeQuery(checkQuery);
-    if (res.length === 0) {
-      logger.info("[Migration] Adding time_range column to week_tbl...");
-      await executeQuery("ALTER TABLE week_tbl ADD COLUMN time_range VARCHAR(50) NOT NULL DEFAULT '17:30-20:00'");
-      logger.info("✅ time_range column added to week_tbl successfully!");
-    }
+    await executeQuery("ALTER TABLE week_tbl ADD COLUMN IF NOT EXISTS time_range VARCHAR(50) NOT NULL DEFAULT '17:30-20:00'");
   } catch (err) {
     logger.error("Error ensuring time_range column in week_tbl:", err.message);
   }
@@ -544,7 +508,7 @@ async function newWeek(week_date, custom_time_range = null) {
   await ensureWeekTimeColumn();
   // Self-healing cleanup for any previous corrupted B.E. dates in week_tbl
   try {
-    await executeQuery("UPDATE week_tbl SET date = DATE_SUB(date, INTERVAL 543 YEAR) WHERE YEAR(date) > 2400");
+    await executeQuery("UPDATE week_tbl SET date = date - INTERVAL '543 years' WHERE EXTRACT(YEAR FROM date) > 2400");
   } catch (e) { }
 
   const week = await queryWeekID();
@@ -558,7 +522,7 @@ async function newWeek(week_date, custom_time_range = null) {
 
   if (last_week != date_str) {
     new_week_num = week[0].number + 1;
-    const insertQuery = "INSERT INTO week_tbl (number, date, location_id, year, max, cost, time_range) VALUES (?, ?, 2, ?, 24, 0, ?)";
+    const insertQuery = "INSERT INTO week_tbl (number, date, location_id, year, max, cost, time_range) VALUES (?, ?, 2, ?, 24, 0, ?) RETURNING id";
     const res = await executeQuery(insertQuery, [new_week_num, date_str, y, time_range]);
     const new_week_id = res.insertId;
     target_week_id = new_week_id;
@@ -904,7 +868,7 @@ async function queryWeekID(week_param = 0) {
   await ensureWeekTimeColumn();
 
   if (!week_param || week_param === 0 || String(week_param).trim() === '0') {
-    const query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
+    const query = "SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
     return await executeQuery(query);
   }
 
@@ -913,7 +877,7 @@ async function queryWeekID(week_param = 0) {
   // 1. If numeric (e.g. 5, 12)
   if (/^\d+$/.test(strParam)) {
     const num = Number(strParam);
-    const query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE id = ? OR number = ? ORDER BY id DESC LIMIT 1";
+    const query = "SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE id = ? OR number = ? ORDER BY id DESC LIMIT 1";
     const res = await executeQuery(query, [num, num]);
     if (res && res.length > 0) return res;
   }
@@ -925,7 +889,7 @@ async function queryWeekID(week_param = 0) {
     const month = parseInt(isoMatch[2], 10);
     const day = parseInt(isoMatch[3], 10);
     if (year > 2500) year -= 543;
-    const query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE DAY(date) = ? AND MONTH(date) = ? AND YEAR(date) = ? ORDER BY id DESC LIMIT 1";
+    const query = "SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE EXTRACT(DAY FROM date)::int = ? AND EXTRACT(MONTH FROM date)::int = ? AND EXTRACT(YEAR FROM date)::int = ? ORDER BY id DESC LIMIT 1";
     const res = await executeQuery(query, [day, month, year]);
     if (res && res.length > 0) return res;
   }
@@ -941,10 +905,10 @@ async function queryWeekID(week_param = 0) {
       if (year > 2500) year -= 543;
     }
 
-    let query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE DAY(date) = ? AND MONTH(date) = ?";
+    let query = "SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE EXTRACT(DAY FROM date)::int = ? AND EXTRACT(MONTH FROM date)::int = ?";
     const params = [day, month];
     if (year) {
-      query += " AND YEAR(date) = ?";
+      query += " AND EXTRACT(YEAR FROM date)::int = ?";
       params.push(year);
     }
     query += " ORDER BY id DESC LIMIT 1";
@@ -987,10 +951,10 @@ async function queryWeekID(week_param = 0) {
         if (year > 2500) year -= 543;
       }
 
-      let query = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE DAY(date) = ? AND MONTH(date) = ?";
+      let query = "SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE EXTRACT(DAY FROM date)::int = ? AND EXTRACT(MONTH FROM date)::int = ?";
       const params = [day, month];
       if (year) {
-        query += " AND YEAR(date) = ?";
+        query += " AND EXTRACT(YEAR FROM date)::int = ?";
         params.push(year);
       }
       query += " ORDER BY id DESC LIMIT 1";
@@ -1001,7 +965,7 @@ async function queryWeekID(week_param = 0) {
   }
 
   // Fallback to latest week if nothing matched
-  const fallbackQuery = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
+  const fallbackQuery = "SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
   return await executeQuery(fallbackQuery);
 }
 
@@ -1043,37 +1007,20 @@ async function ensureNYTable() {
   try {
     const createSql = `
       CREATE TABLE IF NOT EXISTS member_ny_week_tbl (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        datetime DATETIME NOT NULL,
-        member_id INT NOT NULL,
+        id SERIAL PRIMARY KEY,
+        datetime TIMESTAMP NOT NULL,
+        member_id INTEGER NOT NULL,
         name VARCHAR(100) NULL,
+        guests INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uq_datetime_member (datetime, member_id),
-        KEY idx_datetime (datetime)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT uq_datetime_member UNIQUE (datetime, member_id)
+      )
     `;
     await executeQuery(createSql);
-
-    // Auto-migrate if table was previously created with week_id column instead of datetime
-    const checkColSql = "SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'member_ny_week_tbl' AND column_name = 'datetime'";
-    const colExists = await executeQuery(checkColSql);
-    if (colExists && colExists.length > 0 && colExists[0].count === 0) {
-      await executeQuery("ALTER TABLE member_ny_week_tbl ADD COLUMN datetime DATETIME NOT NULL DEFAULT '2026-12-19 19:00:00' AFTER id");
-      try {
-        await executeQuery("ALTER TABLE member_ny_week_tbl DROP INDEX uq_week_member");
-      } catch (e) { }
-      try {
-        await executeQuery("ALTER TABLE member_ny_week_tbl ADD UNIQUE KEY uq_datetime_member (datetime, member_id)");
-      } catch (e) { }
-    }
-
-    // Auto-migrate if guests column does not exist
-    const checkGuestsSql = "SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'member_ny_week_tbl' AND column_name = 'guests'";
-    const guestsColExists = await executeQuery(checkGuestsSql);
-    if (guestsColExists && guestsColExists.length > 0 && guestsColExists[0].count === 0) {
-      await executeQuery("ALTER TABLE member_ny_week_tbl ADD COLUMN guests INT NOT NULL DEFAULT 0 AFTER name");
-    }
+    await executeQuery("CREATE INDEX IF NOT EXISTS idx_datetime ON member_ny_week_tbl (datetime)");
+    await executeQuery("ALTER TABLE member_ny_week_tbl ADD COLUMN IF NOT EXISTS datetime TIMESTAMP NOT NULL DEFAULT '2026-12-19 19:00:00'");
+    await executeQuery("ALTER TABLE member_ny_week_tbl ADD COLUMN IF NOT EXISTS guests INTEGER NOT NULL DEFAULT 0");
   } catch (err) {
     logger.error("Error ensuring member_ny_week_tbl table:", err.message);
   }
@@ -1252,9 +1199,9 @@ async function registerNY(member_id, member_name = null, target_datetime = null,
   const query = `
     INSERT INTO member_ny_week_tbl (datetime, member_id, name, guests)
     VALUES (?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE 
-      name = COALESCE(VALUES(name), name), 
-      guests = VALUES(guests),
+    ON CONFLICT (datetime, member_id) DO UPDATE SET
+      name = COALESCE(EXCLUDED.name, member_ny_week_tbl.name),
+      guests = EXCLUDED.guests,
       updated_at = CURRENT_TIMESTAMP
   `;
   await executeQuery(query, [eventDatetime, member_id, member_name, safeGuests]);
@@ -1328,7 +1275,7 @@ async function queryMemberbyLineID(lineId) {
 }
 
 async function queryMemberbyName(name) {
-  const query = "SELECT * FROM member_tbl where name=?";
+  const query = "SELECT * FROM member_tbl WHERE LOWER(name) = LOWER(?)";
   const res = await executeQuery(query, [name]);
   return res;
 }
@@ -1350,7 +1297,7 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
       AND match_goal_tbl.member_id = member_tbl.id 
       AND match_goal_tbl.status ${status} 
       AND match_goal_tbl.status=goal_status_tbl.id 
-    GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
+    GROUP BY member_tbl.id, goal_status_tbl.status, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
 
   const match_goals = await executeQuery(query);
   if (match_goals.length === 0) {
@@ -1410,7 +1357,7 @@ async function queryMatchWeek(week_id) {
 
 async function queryTableWeek(week_id) {
   const safeWeekId = parseInt(week_id, 10) || 0;
-  const query = `SELECT team_color_week_tbl.color, table_week_tbl.*, (table_week_tbl.g - table_week_tbl.a) AS gd
+  const query = `SELECT team_color_week_tbl.color, table_week_tbl.*, table_week_tbl.g AS "G", table_week_tbl.a AS "A", (table_week_tbl.g - table_week_tbl.a) AS gd
     FROM table_week_tbl, team_color_week_tbl
     WHERE table_week_tbl.week_id = ?
       AND table_week_tbl.team_week_id = team_color_week_tbl.id
@@ -1570,7 +1517,7 @@ async function getYearMvpBenchmark(year, extraRaws = [], excludeWeekId = null) {
     rows = await executeQuery(`
       SELECT m.raw_score FROM mvp_week_tbl m
       JOIN week_tbl w ON m.week_id = w.id
-      WHERE YEAR(w.date) = ? AND m.raw_score > 0 ${excludeWeekId ? 'AND m.week_id <> ?' : ''}
+      WHERE EXTRACT(YEAR FROM w.date)::int = ? AND m.raw_score > 0 ${excludeWeekId ? 'AND m.week_id <> ?' : ''}
     `, excludeWeekId ? [year, excludeWeekId] : [year]);
   } catch (e) { }
   return percentileBenchmark([...(rows || []).map(r => r.raw_score), ...extraRaws]);
@@ -1590,16 +1537,20 @@ async function saveYearMvpBenchmark(year, bench) {
 async function renormalizeYearRatings(year, bench) {
   if (!bench || bench <= 0) return;
   await executeQuery(`
-    UPDATE mvp_week_tbl m JOIN week_tbl w ON m.week_id = w.id
-    SET m.rating = IF(m.raw_score > 0, LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2)), 0)
-    WHERE YEAR(w.date) = ?
+    UPDATE mvp_week_tbl m
+    SET rating = CASE WHEN m.raw_score > 0 THEN LEAST(10.00, ROUND(((m.raw_score / ?::numeric) * 10)::numeric, 2)) ELSE 0 END
+    FROM week_tbl w
+    WHERE m.week_id = w.id
+      AND EXTRACT(YEAR FROM w.date)::int = ?
   `, [bench, year]);
   await executeQuery(`
     UPDATE member_team_week_tbl mtw
-    JOIN mvp_week_tbl m ON m.week_id = mtw.week_id AND m.member_id = mtw.member_id
+    SET rating = m.rating
+    FROM mvp_week_tbl m
     JOIN week_tbl w ON m.week_id = w.id
-    SET mtw.rating = m.rating
-    WHERE YEAR(w.date) = ?
+    WHERE m.week_id = mtw.week_id
+      AND m.member_id = mtw.member_id
+      AND EXTRACT(YEAR FROM w.date)::int = ?
   `, [year]);
 }
 
@@ -2206,7 +2157,7 @@ async function ensurePosTables() {
   try {
     const createPosSql = `
       CREATE TABLE IF NOT EXISTS pos_tbl (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         code VARCHAR(10) NOT NULL UNIQUE,
         name VARCHAR(50) NOT NULL,
         icon VARCHAR(10) DEFAULT '',
@@ -2214,26 +2165,26 @@ async function ensurePosTables() {
         pts_assist DECIMAL(6,2) DEFAULT 0.00,
         pts_clean_sheet DECIMAL(6,2) DEFAULT 0.00,
         pts_conceded DECIMAL(6,2) DEFAULT 0.00
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      )
     `;
     await executeQuery(createPosSql);
 
     const createMemberPosSql = `
       CREATE TABLE IF NOT EXISTS member_pos_tbl (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        member_id INT NOT NULL,
-        pos_id INT NOT NULL,
-        is_primary TINYINT DEFAULT 1,
+        id SERIAL PRIMARY KEY,
+        member_id INTEGER NOT NULL,
+        pos_id INTEGER NOT NULL,
+        is_primary SMALLINT DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uq_member_pos (member_id, pos_id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT uq_member_pos UNIQUE (member_id, pos_id)
+      )
     `;
     await executeQuery(createMemberPosSql);
 
     // Seed default positions with category points if empty
     const countRes = await executeQuery("SELECT COUNT(*) as count FROM pos_tbl");
-    if (countRes && countRes[0] && countRes[0].count === 0) {
+    if (countRes && countRes[0] && Number(countRes[0].count) === 0) {
       await executeQuery(`
         INSERT INTO pos_tbl (code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded) VALUES
         ('GK', 'Goalkeeper', '🧤', 10.00, 6.00, 5.00, 1.00),
@@ -2257,37 +2208,19 @@ async function ensurePosTables() {
       }
     }
 
-    // Ensure min, max, min_8, max_8 columns exist in pos_tbl
+    // Ensure min, max, min_8, max_8 and MVP rating weight columns exist in pos_tbl
     try {
-      const colRows = await executeQuery("SHOW COLUMNS FROM pos_tbl");
-      if (colRows && colRows.length > 0) {
-        const existingCols = new Set(colRows.map(c => (c.Field || '').toLowerCase()));
-        if (!existingCols.has('min')) {
-          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN min INT DEFAULT 0");
-        }
-        if (!existingCols.has('max')) {
-          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN max INT DEFAULT 2");
-        }
-        if (!existingCols.has('min_8')) {
-          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN min_8 INT DEFAULT NULL");
-        }
-        if (!existingCols.has('max_8')) {
-          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN max_8 INT DEFAULT NULL");
-        }
-        // MVP rating weight columns
-        if (!existingCols.has('pts_og')) {
-          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_og DECIMAL(6,2) DEFAULT 2.00");
-        }
-        if (!existingCols.has('pts_wins')) {
-          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_wins DECIMAL(6,2) DEFAULT 3.00");
-        }
-        if (!existingCols.has('pts_draws')) {
-          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_draws DECIMAL(6,2) DEFAULT 1.00");
-        }
-        if (!existingCols.has('pts_team_goal')) {
-          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_team_goal DECIMAL(6,2) DEFAULT 0.00");
-        }
-      }
+      await executeQuery(`
+        ALTER TABLE pos_tbl
+          ADD COLUMN IF NOT EXISTS min INTEGER DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS max INTEGER DEFAULT 2,
+          ADD COLUMN IF NOT EXISTS min_8 INTEGER DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS max_8 INTEGER DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS pts_og DECIMAL(6,2) DEFAULT 2.00,
+          ADD COLUMN IF NOT EXISTS pts_wins DECIMAL(6,2) DEFAULT 3.00,
+          ADD COLUMN IF NOT EXISTS pts_draws DECIMAL(6,2) DEFAULT 1.00,
+          ADD COLUMN IF NOT EXISTS pts_team_goal DECIMAL(6,2) DEFAULT 0.00
+      `);
     } catch (colErr) {
       logger.error("Error ensuring pos_tbl columns:", colErr.message);
     }
@@ -2470,7 +2403,9 @@ async function setMemberPosition(member_id, pos_code, is_primary = 1) {
     await executeQuery(`
       INSERT INTO member_pos_tbl (member_id, pos_id, is_primary)
       VALUES (?, ?, ?)
-      ON DUPLICATE KEY UPDATE is_primary = VALUES(is_primary)
+      ON CONFLICT (member_id, pos_id) DO UPDATE SET
+        is_primary = EXCLUDED.is_primary,
+        updated_at = CURRENT_TIMESTAMP
     `, [member_id, posId, is_primary ? 1 : 0]);
 
     return { success: true, member_id, pos_code: pos_code.toUpperCase(), pos_id: posId };
@@ -2490,37 +2425,33 @@ async function ensureMvpWeekTable() {
   try {
     const createSql = `
       CREATE TABLE IF NOT EXISTS mvp_week_tbl (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        week_id INT NOT NULL,
-        member_id INT DEFAULT 0,
+        id SERIAL PRIMARY KEY,
+        week_id INTEGER NOT NULL,
+        member_id INTEGER DEFAULT 0,
         member_name VARCHAR(255) DEFAULT '',
-        goals INT DEFAULT 0,
-        own_goals INT DEFAULT 0,
-        assists INT DEFAULT 0,
-        clean_sheet INT DEFAULT 0,
-        conceded INT DEFAULT 0,
-        wins INT DEFAULT 0,
-        matches INT DEFAULT 0,
+        goals INTEGER DEFAULT 0,
+        own_goals INTEGER DEFAULT 0,
+        assists INTEGER DEFAULT 0,
+        clean_sheet INTEGER DEFAULT 0,
+        conceded INTEGER DEFAULT 0,
+        wins INTEGER DEFAULT 0,
+        matches INTEGER DEFAULT 0,
         pos_code VARCHAR(10) DEFAULT '',
         raw_score DECIMAL(10,4) DEFAULT 0.0000,
         rating DECIMAL(4,2) DEFAULT 0.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uq_week_member (week_id, member_id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT uq_mvp_week_member UNIQUE (week_id, member_id)
+      )
     `;
     await executeQuery(createSql);
 
-    // Ensure matches and pos_code columns exist if table was already created
     try {
-      const colRows = await executeQuery("SHOW COLUMNS FROM mvp_week_tbl");
-      const existingCols = new Set((colRows || []).map(c => (c.Field || '').toLowerCase()));
-      if (!existingCols.has('matches')) {
-        await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN matches INT DEFAULT 0 AFTER wins");
-      }
-      if (!existingCols.has('pos_code')) {
-        await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN pos_code VARCHAR(10) DEFAULT '' AFTER matches");
-      }
+      await executeQuery(`
+        ALTER TABLE mvp_week_tbl
+          ADD COLUMN IF NOT EXISTS matches INTEGER DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS pos_code VARCHAR(10) DEFAULT ''
+      `);
     } catch (eCol) { }
 
     // Cleanup temporary reserve slot records (@team1+1, @team1+7, +team1+2, etc.)
@@ -2553,18 +2484,19 @@ async function saveWeekMvpRecords(week_id, mvpList) {
     await executeQuery(`
       INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, own_goals, assists, clean_sheet, conceded, wins, matches, pos_code, raw_score, rating)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        member_name = VALUES(member_name),
-        goals = VALUES(goals),
-        own_goals = VALUES(own_goals),
-        assists = VALUES(assists),
-        clean_sheet = VALUES(clean_sheet),
-        conceded = VALUES(conceded),
-        wins = VALUES(wins),
-        matches = VALUES(matches),
-        pos_code = VALUES(pos_code),
-        raw_score = VALUES(raw_score),
-        rating = VALUES(rating)
+      ON CONFLICT (week_id, member_id) DO UPDATE SET
+        member_name = EXCLUDED.member_name,
+        goals = EXCLUDED.goals,
+        own_goals = EXCLUDED.own_goals,
+        assists = EXCLUDED.assists,
+        clean_sheet = EXCLUDED.clean_sheet,
+        conceded = EXCLUDED.conceded,
+        wins = EXCLUDED.wins,
+        matches = EXCLUDED.matches,
+        pos_code = EXCLUDED.pos_code,
+        raw_score = EXCLUDED.raw_score,
+        rating = EXCLUDED.rating,
+        updated_at = CURRENT_TIMESTAMP
     `, [week_id, memId, name, g, og, a, cs, ga, w, m, posCode, raw, rat]);
   }
 }
@@ -2573,24 +2505,20 @@ async function ensureMemberYearStatTable() {
   try {
     const createSql = `
       CREATE TABLE IF NOT EXISTS member_year_stat_tbl (
-        member_id INT NOT NULL,
-        year INT NOT NULL,
+        member_id INTEGER NOT NULL,
+        year INTEGER NOT NULL,
         total_rating DECIMAL(8,2) DEFAULT 0.00,
         avg_rating DECIMAL(4,2) DEFAULT 0.00,
         max_rating DECIMAL(4,2) DEFAULT 0.00,
-        total_goals INT DEFAULT 0,
-        total_assists INT DEFAULT 0,
-        weeks_played INT DEFAULT 0,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        total_goals INTEGER DEFAULT 0,
+        total_assists INTEGER DEFAULT 0,
+        weeks_played INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (member_id, year)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      )
     `;
     await executeQuery(createSql);
-
-    const cols = await executeQuery("SHOW COLUMNS FROM member_year_stat_tbl LIKE 'total_rating'");
-    if (!cols || cols.length === 0) {
-      await executeQuery("ALTER TABLE member_year_stat_tbl ADD COLUMN total_rating DECIMAL(8,2) DEFAULT 0.00 AFTER year");
-    }
+    await executeQuery("ALTER TABLE member_year_stat_tbl ADD COLUMN IF NOT EXISTS total_rating DECIMAL(8,2) DEFAULT 0.00");
   } catch (err) {
     logger.error("Error creating member_year_stat_tbl table:", err.message);
   }
@@ -2606,7 +2534,7 @@ async function updateYearStatCache(year = null, memberIds = null) {
       yearsToSync = [Number(year)];
     } else {
       const distinctYearsRes = await executeQuery(`
-        SELECT DISTINCT COALESCE(w.year, YEAR(w.date)) as yr 
+        SELECT DISTINCT COALESCE(w.year, EXTRACT(YEAR FROM w.date)::int) as yr 
         FROM week_tbl w 
         WHERE w.date IS NOT NULL OR w.year > 0
         ORDER BY yr ASC
@@ -2632,8 +2560,8 @@ async function updateYearStatCache(year = null, memberIds = null) {
       memFilterMvp = ` AND m.member_id IN (${idList})`;
     }
 
-    // Query member ranks and names from member_tbl (escape reserved keyword `rank`)
-    const memberRows = await executeQuery("SELECT id, `rank`, name FROM member_tbl");
+    // Query member ranks and names from member_tbl (quote reserved keyword "rank")
+    const memberRows = await executeQuery('SELECT id, "rank", name FROM member_tbl');
     const memberRankMap = {};
     const memberNameMap = {};
     if (memberRows) {
@@ -2650,9 +2578,11 @@ async function updateYearStatCache(year = null, memberIds = null) {
         : '';
       await executeQuery(`
         UPDATE member_team_week_tbl mtw
-        JOIN mvp_week_tbl m ON mtw.week_id = m.week_id AND mtw.member_id = m.member_id
-        SET mtw.rating = m.rating
-        WHERE m.rating > 0${memSyncClause}
+        SET rating = m.rating
+        FROM mvp_week_tbl m
+        WHERE mtw.week_id = m.week_id
+          AND mtw.member_id = m.member_id
+          AND m.rating > 0${memSyncClause}
       `);
       logger.info(`[Cache] Synchronized ratings from mvp_week_tbl into member_team_week_tbl (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
     } catch (e) { }
@@ -2673,7 +2603,7 @@ async function updateYearStatCache(year = null, memberIds = null) {
           MAX(CASE WHEN mtw.rating > 0 THEN mtw.rating ELSE 0 END) as mtw_max_rating
         FROM member_team_week_tbl mtw
         JOIN week_tbl w ON mtw.week_id = w.id
-        WHERE (w.year = ? OR YEAR(w.date) = ?) AND mtw.member_id > 0 AND mtw.team_id > 0${memFilterMtw}
+        WHERE (w.year = ? OR EXTRACT(YEAR FROM w.date)::int = ?) AND mtw.member_id > 0 AND mtw.team_id > 0${memFilterMtw}
         GROUP BY mtw.member_id
       `, [targetYear, targetYear]);
 
@@ -2686,7 +2616,7 @@ async function updateYearStatCache(year = null, memberIds = null) {
         FROM match_goal_tbl mgt
         JOIN match_stat_tbl mst ON mgt.match_id = mst.id
         JOIN week_tbl w ON mst.week_id = w.id
-        WHERE (w.year = ? OR YEAR(w.date) = ?) AND mgt.member_id > 0${memFilterMgt}
+        WHERE (w.year = ? OR EXTRACT(YEAR FROM w.date)::int = ?) AND mgt.member_id > 0${memFilterMgt}
         GROUP BY mgt.member_id
       `, [targetYear, targetYear]);
 
@@ -2699,7 +2629,7 @@ async function updateYearStatCache(year = null, memberIds = null) {
           COUNT(DISTINCT CASE WHEN m.rating > 0 THEN m.week_id ELSE NULL END) as rated_weeks
         FROM mvp_week_tbl m
         JOIN week_tbl w ON m.week_id = w.id
-        WHERE (w.year = ? OR YEAR(w.date) = ?) AND m.member_id > 0${memFilterMvp}
+        WHERE (w.year = ? OR EXTRACT(YEAR FROM w.date)::int = ?) AND m.member_id > 0${memFilterMvp}
         GROUP BY m.member_id
       `, [targetYear, targetYear]);
 
@@ -2750,13 +2680,14 @@ async function updateYearStatCache(year = null, memberIds = null) {
           await executeQuery(`
             INSERT INTO member_year_stat_tbl (member_id, year, total_rating, avg_rating, max_rating, total_goals, total_assists, weeks_played)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-              total_rating = VALUES(total_rating),
-              avg_rating = VALUES(avg_rating),
-              max_rating = VALUES(max_rating),
-              total_goals = VALUES(total_goals),
-              total_assists = VALUES(total_assists),
-              weeks_played = VALUES(weeks_played)
+            ON CONFLICT (member_id, year) DO UPDATE SET
+              total_rating = EXCLUDED.total_rating,
+              avg_rating = EXCLUDED.avg_rating,
+              max_rating = EXCLUDED.max_rating,
+              total_goals = EXCLUDED.total_goals,
+              total_assists = EXCLUDED.total_assists,
+              weeks_played = EXCLUDED.weeks_played,
+              updated_at = CURRENT_TIMESTAMP
           `, [
             mId,
             targetYear,
@@ -2998,7 +2929,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     if (reset) {
       if (year) {
         await executeQuery(
-          "DELETE m FROM mvp_week_tbl m JOIN week_tbl w ON m.week_id = w.id WHERE YEAR(w.date) = ?",
+          "DELETE FROM mvp_week_tbl m USING week_tbl w WHERE m.week_id = w.id AND EXTRACT(YEAR FROM w.date)::int = ?",
           [year]
         );
         logger.info(`[MVP Sync] Force reset mvp_week_tbl records for year ${year}`);
@@ -3011,7 +2942,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     let weekSql = "SELECT id, date FROM week_tbl";
     let weekParams = [];
     if (year) {
-      weekSql += " WHERE YEAR(date) = ?";
+      weekSql += " WHERE EXTRACT(YEAR FROM date)::int = ?";
       weekParams.push(year);
     }
     weekSql += " ORDER BY date DESC";
@@ -3065,17 +2996,17 @@ async function calcAndSaveMaxMvpScore(options = {}) {
 
     // Compute P95 percentile benchmark for each year from mvp_week_tbl (ratings scale: 10.0 at P95)
     let yearlyScoresSql = `
-      SELECT YEAR(w.date) as yr, m.raw_score
+      SELECT EXTRACT(YEAR FROM w.date)::int as yr, m.raw_score
       FROM mvp_week_tbl m
       JOIN week_tbl w ON m.week_id = w.id
       WHERE m.raw_score > 0
     `;
     let yearlyScoresParams = [];
     if (year) {
-      yearlyScoresSql += " AND YEAR(w.date) = ?";
+      yearlyScoresSql += " AND EXTRACT(YEAR FROM w.date)::int = ?";
       yearlyScoresParams.push(year);
     }
-    yearlyScoresSql += " ORDER BY YEAR(w.date) ASC, m.raw_score ASC";
+    yearlyScoresSql += " ORDER BY yr ASC, m.raw_score ASC";
 
     const allYearRawsRes = await executeQuery(yearlyScoresSql, yearlyScoresParams);
     const yearlyScoresMap = {};
@@ -3121,7 +3052,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     // ── Sync best MVP winner(s) of each year into hof_tbl (Hall of Fame) ──
     try {
       const yearlyBestMvpRes = await executeQuery(`
-        SELECT YEAR(w.date) as yr, m.member_id, m.raw_score
+        SELECT EXTRACT(YEAR FROM w.date)::int as yr, m.member_id, m.raw_score
         FROM mvp_week_tbl m
         JOIN week_tbl w ON m.week_id = w.id
         WHERE m.raw_score > 0
@@ -3159,7 +3090,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     `;
     let topParams = [];
     if (year) {
-      topSql += " WHERE YEAR(w.date) = ?";
+      topSql += " WHERE EXTRACT(YEAR FROM w.date)::int = ?";
       topParams.push(year);
     }
     topSql += " ORDER BY m.raw_score DESC LIMIT 5";
@@ -4151,59 +4082,62 @@ function buildGoalQuery(statusCondition, year, limit = null) {
     JOIN match_stat_tbl ON match_goal_tbl.match_id = match_stat_tbl.id
     JOIN week_tbl ON match_stat_tbl.week_id = week_tbl.id
     WHERE match_goal_tbl.status ${statusCondition}
-      AND YEAR(week_tbl.date) = ${year}
+      AND EXTRACT(YEAR FROM week_tbl.date)::int = ${year}
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, goal_status_tbl.status, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
     ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
 }
 
 function buildAvgMvpPtsQuery(year, limit = null) {
-  let sql = `SELECT 
-    member_tbl.id,
-    member_tbl.name, 
-    member_tbl.alias, 
-    member_tbl.rank,
-    member_tbl.donate,
-    member_tbl.picture_url,
-    member_tbl.line_user_id,
-    ROUND(
-      SUM(CASE WHEN m.rating > 0 THEN m.rating ELSE (CASE WHEN mtw.rating > 0 THEN mtw.rating ELSE 0 END) END)
-      / SUM(tw.w + tw.d + tw.l),
-      2
-    ) as goal,
-    SUM(tw.w + tw.d + tw.l) as matches
+  let sql = `SELECT * FROM (
+    SELECT 
+      member_tbl.id,
+      member_tbl.name, 
+      member_tbl.alias, 
+      member_tbl.rank,
+      member_tbl.donate,
+      member_tbl.picture_url,
+      member_tbl.line_user_id,
+      ROUND(
+        (SUM(CASE WHEN m.rating > 0 THEN m.rating ELSE (CASE WHEN mtw.rating > 0 THEN mtw.rating ELSE 0 END) END)::numeric
+        / NULLIF(SUM(tw.w + tw.d + tw.l), 0)::numeric),
+        2
+      ) as goal,
+      SUM(tw.w + tw.d + tw.l) as matches
     FROM member_team_week_tbl mtw
     JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
     JOIN member_tbl ON mtw.member_id = member_tbl.id
     JOIN week_tbl w ON mtw.week_id = w.id
     LEFT JOIN mvp_week_tbl m ON mtw.week_id = m.week_id AND mtw.member_id = m.member_id
-    WHERE (w.year = ${year} OR YEAR(w.date) = ${year})
+    WHERE (w.year = ${year} OR EXTRACT(YEAR FROM w.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
-    HAVING matches > 0 AND goal > 0
-    ORDER BY goal DESC`;
+  ) sub
+  WHERE matches > 0 AND goal > 0
+  ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
 }
 
 function buildMvpCountQuery(year, limit = null) {
-  let sql = `SELECT 
-    member_tbl.id,
-    member_tbl.name, 
-    member_tbl.alias, 
-    member_tbl.rank,
-    member_tbl.donate,
-    member_tbl.picture_url,
-    member_tbl.line_user_id,
-    COUNT(*) as goal
+  let sql = `SELECT * FROM (
+    SELECT 
+      member_tbl.id,
+      member_tbl.name, 
+      member_tbl.alias, 
+      member_tbl.rank,
+      member_tbl.donate,
+      member_tbl.picture_url,
+      member_tbl.line_user_id,
+      COUNT(*) as goal
     FROM mvp_week_tbl m
     JOIN week_tbl w ON m.week_id = w.id
     JOIN member_tbl ON m.member_id = member_tbl.id
-    WHERE (w.year = ${year} OR YEAR(w.date) = ${year})
+    WHERE (w.year = ${year} OR EXTRACT(YEAR FROM w.date)::int = ${year})
       AND m.raw_score > 0
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
@@ -4217,69 +4151,74 @@ function buildMvpCountQuery(year, limit = null) {
           AND m2.member_name NOT LIKE 'team%'
       )
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
-    HAVING goal > 0
-    ORDER BY goal DESC`;
+  ) sub
+  WHERE goal > 0
+  ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
 }
 
 function buildMostPtsQuery(year, limit = null) {
-  let sql = `SELECT 
-    member_tbl.id,
-    member_tbl.name, 
-    member_tbl.alias, 
-    member_tbl.rank,
-    member_tbl.donate,
-    member_tbl.picture_url,
-    member_tbl.line_user_id,
-    SUM(table_week_tbl.pts) as goal
+  let sql = `SELECT * FROM (
+    SELECT 
+      member_tbl.id,
+      member_tbl.name, 
+      member_tbl.alias, 
+      member_tbl.rank,
+      member_tbl.donate,
+      member_tbl.picture_url,
+      member_tbl.line_user_id,
+      SUM(table_week_tbl.pts) as goal
     FROM member_team_week_tbl
     JOIN table_week_tbl ON member_team_week_tbl.team_id = table_week_tbl.team_week_id
     JOIN member_tbl     ON member_team_week_tbl.member_id = member_tbl.id
     JOIN week_tbl       ON table_week_tbl.week_id = week_tbl.id
-    WHERE (week_tbl.year = ${year} OR YEAR(week_tbl.date) = ${year})
+    WHERE (week_tbl.year = ${year} OR EXTRACT(YEAR FROM week_tbl.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
-    HAVING goal > 0
-    ORDER BY goal DESC`;
+  ) sub
+  WHERE goal > 0
+  ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
 }
 
 function buildAvgPtsQuery(year, limit = null) {
-  let sql = `SELECT 
-    member_tbl.id,
-    member_tbl.name, 
-    member_tbl.alias, 
-    member_tbl.rank,
-    member_tbl.donate,
-    member_tbl.picture_url,
-    member_tbl.line_user_id,
-    ROUND(
-      SUM(CASE WHEN m.raw_score > 0 THEN m.raw_score ELSE 0 END)
-      / COUNT(DISTINCT mtw.week_id),
-      2
-    ) AS goal,
-    SUM(CASE WHEN m.raw_score > 0 THEN m.raw_score ELSE 0 END) AS total_raw,
-    COUNT(DISTINCT mtw.week_id) AS weeks,
-    COUNT(DISTINCT mtw.week_id) AS m
+  let sql = `SELECT * FROM (
+    SELECT 
+      member_tbl.id,
+      member_tbl.name, 
+      member_tbl.alias, 
+      member_tbl.rank,
+      member_tbl.donate,
+      member_tbl.picture_url,
+      member_tbl.line_user_id,
+      ROUND(
+        (SUM(CASE WHEN m.raw_score > 0 THEN m.raw_score ELSE 0 END)::numeric
+        / NULLIF(COUNT(DISTINCT mtw.week_id), 0)::numeric),
+        2
+      ) AS goal,
+      SUM(CASE WHEN m.raw_score > 0 THEN m.raw_score ELSE 0 END) AS total_raw,
+      COUNT(DISTINCT mtw.week_id) AS weeks,
+      COUNT(DISTINCT mtw.week_id) AS m
     FROM member_team_week_tbl mtw
     JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
     JOIN member_tbl ON mtw.member_id = member_tbl.id
     JOIN week_tbl w ON mtw.week_id = w.id
     LEFT JOIN mvp_week_tbl m ON mtw.week_id = m.week_id AND mtw.member_id = m.member_id
-    WHERE (w.year = ${year} OR YEAR(w.date) = ${year})
+    WHERE (w.year = ${year} OR EXTRACT(YEAR FROM w.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
     GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
-    HAVING weeks > (
-        SELECT COUNT(*) * 0.5
-        FROM week_tbl
-        WHERE (week_tbl.year = ${year} OR YEAR(week_tbl.date) = ${year})
-    )
-    AND goal > 0
-    ORDER BY goal DESC`;
+  ) sub
+  WHERE weeks > (
+      SELECT COUNT(*) * 0.5
+      FROM week_tbl
+      WHERE (week_tbl.year = ${year} OR EXTRACT(YEAR FROM week_tbl.date)::int = ${year})
+  )
+  AND goal > 0
+  ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
 }
@@ -4325,7 +4264,7 @@ function buildLuckyColorQuery(year) {
     JOIN week_tbl w ON tw.week_id = w.id
     WHERE w.year = ${year}
     GROUP BY t_col.color
-    ORDER BY (SUM(tw.w) / SUM(tw.w + tw.d + tw.l)) DESC, SUM(tw.w + tw.d + tw.l) DESC
+    ORDER BY (SUM(tw.w)::numeric / NULLIF(SUM(tw.w + tw.d + tw.l), 0)::numeric) DESC, SUM(tw.w + tw.d + tw.l) DESC
   `;
 }
 
@@ -5319,7 +5258,7 @@ async function getMatchScorersAndAssists(matchId, assets, groupId) {
     FROM match_goal_tbl
     JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
     WHERE match_goal_tbl.match_id = ${matchId} AND match_goal_tbl.status <= 2
-    GROUP BY member_tbl.id, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
+    GROUP BY member_tbl.id, goal_status_tbl.status, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
 
   const assistQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, count(*) as assist
     FROM match_goal_tbl
@@ -5448,7 +5387,7 @@ async function getCurrentMatch(groupId = null) {
         w: r.w,
         d: r.d,
         l: r.l,
-        gd: (r.G - r.A),
+        gd: Number(r.G ?? r.g ?? 0) - Number(r.A ?? r.a ?? 0),
         pts: r.pts
       }));
     }
@@ -5482,7 +5421,7 @@ async function setTheme(themeName) {
     const updateQuery = "UPDATE template_tpl SET value = ? WHERE name = 'theme'";
     return await executeQuery(updateQuery, [theme]);
   } else {
-    const insertQuery = "INSERT INTO template_tpl (id, name, value) VALUES (null, 'theme', ?)";
+    const insertQuery = "INSERT INTO template_tpl (name, value) VALUES ('theme', ?)";
     return await executeQuery(insertQuery, [theme]);
   }
 }
@@ -5616,7 +5555,7 @@ async function updateHof() {
       SELECT m.member_id, m.raw_score
       FROM mvp_week_tbl m
       JOIN week_tbl w ON m.week_id = w.id
-      WHERE YEAR(w.date) = ? AND m.raw_score > 0
+      WHERE EXTRACT(YEAR FROM w.date)::int = ? AND m.raw_score > 0
       ORDER BY m.raw_score DESC
     `, [currentYear]);
 
@@ -5648,18 +5587,18 @@ async function ensureAutoRegTable() {
   try {
     const createSql = `
       CREATE TABLE IF NOT EXISTS autoreg_tbl (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        member_id INT NOT NULL,
+        id SERIAL PRIMARY KEY,
+        member_id INTEGER NOT NULL,
         group_id VARCHAR(100) NOT NULL DEFAULT '',
-        priority_order INT DEFAULT 0,
-        status TINYINT(1) DEFAULT 1,
+        priority_order INTEGER DEFAULT 0,
+        status SMALLINT DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uq_member_group (member_id, group_id),
-        KEY idx_status_priority (status, priority_order, created_at)
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT uq_member_group UNIQUE (member_id, group_id)
       )
     `;
     await executeQuery(createSql);
+    await executeQuery("CREATE INDEX IF NOT EXISTS idx_status_priority ON autoreg_tbl (status, priority_order, created_at)");
 
     // Normalize any legacy NULL group_id to empty string
     await executeQuery("UPDATE autoreg_tbl SET group_id = '' WHERE group_id IS NULL");
@@ -5675,7 +5614,9 @@ async function updateMemberAutoReg(member_id, auto_reg, groupId = null) {
     const insertQuery = `
       INSERT INTO autoreg_tbl (member_id, group_id, status)
       VALUES (?, ?, 1)
-      ON DUPLICATE KEY UPDATE status = 1, updated_at = CURRENT_TIMESTAMP
+      ON CONFLICT (member_id, group_id) DO UPDATE SET
+        status = 1,
+        updated_at = CURRENT_TIMESTAMP
     `;
     await executeQuery(insertQuery, [member_id, targetGroup]);
   } else {
@@ -5735,11 +5676,11 @@ async function getMemberStats(memberId, groupId = null) {
   // Query goals, assists, own goals
   const goalQuery = `
     SELECT 
-      SUM(CASE WHEN mgt.status < 2 AND w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as goals_year,
+      SUM(CASE WHEN mgt.status < 2 AND w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as goals_year,
       SUM(CASE WHEN mgt.status < 2 THEN 1 ELSE 0 END) as goals_alltime,
-      SUM(CASE WHEN mgt.status = 3 AND w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as assists_year,
+      SUM(CASE WHEN mgt.status = 3 AND w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as assists_year,
       SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END) as assists_alltime,
-      SUM(CASE WHEN mgt.status = 2 AND w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as owngoals_year,
+      SUM(CASE WHEN mgt.status = 2 AND w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as owngoals_year,
       SUM(CASE WHEN mgt.status = 2 THEN 1 ELSE 0 END) as owngoals_alltime
     FROM match_goal_tbl mgt
     JOIN match_stat_tbl mst ON mgt.match_id = mst.id
@@ -5750,10 +5691,10 @@ async function getMemberStats(memberId, groupId = null) {
   // Query pts, matches, weeks, wins
   const ptQuery = `
     SELECT 
-      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN tw.pts ELSE 0 END) as pts_year,
-      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN (tw.w + tw.d + tw.l) ELSE 0 END) as matches_year,
-      COUNT(DISTINCT CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN w.id ELSE NULL END) as weeks_year,
-      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN tw.w ELSE 0 END) as wins_year,
+      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN tw.pts ELSE 0 END) as pts_year,
+      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN (tw.w + tw.d + tw.l) ELSE 0 END) as matches_year,
+      COUNT(DISTINCT CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN w.id ELSE NULL END) as weeks_year,
+      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN tw.w ELSE 0 END) as wins_year,
       SUM(tw.pts) as pts_alltime,
       SUM(tw.w + tw.d + tw.l) as matches_alltime,
       COUNT(DISTINCT w.id) as weeks_alltime,
@@ -5773,7 +5714,7 @@ async function getMemberStats(memberId, groupId = null) {
 
   const bottomQuery = `
     SELECT 
-      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as bottom_year,
+      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as bottom_year,
       COUNT(*) as bottom_alltime
     FROM member_team_week_tbl mtw
     JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
@@ -5789,7 +5730,7 @@ async function getMemberStats(memberId, groupId = null) {
 
   const champQuery = `
     SELECT 
-      SUM(CASE WHEN w.year = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as champ_year,
+      SUM(CASE WHEN w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int THEN 1 ELSE 0 END) as champ_year,
       COUNT(*) as champ_alltime
     FROM member_team_week_tbl mtw
     JOIN table_week_tbl tw ON mtw.week_id = tw.week_id AND mtw.team_id = tw.team_week_id
@@ -5817,7 +5758,7 @@ async function getMemberStats(memberId, groupId = null) {
 
   const mvpQuery = `
     SELECT 
-      SUM(CASE WHEN (w.year = YEAR(CURRENT_DATE()) OR YEAR(w.date) = YEAR(CURRENT_DATE())) THEN 1 ELSE 0 END) as mvp_year,
+      SUM(CASE WHEN (w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int OR EXTRACT(YEAR FROM w.date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int) THEN 1 ELSE 0 END) as mvp_year,
       COUNT(*) as mvp_alltime
     FROM mvp_week_tbl m
     JOIN week_tbl w ON m.week_id = w.id
@@ -5836,7 +5777,7 @@ async function getMemberStats(memberId, groupId = null) {
 
   const ratingQuery = `
     SELECT 
-      MAX(CASE WHEN (w.year = YEAR(CURRENT_DATE()) OR YEAR(w.date) = YEAR(CURRENT_DATE())) THEN mtw.rating ELSE 0 END) as best_rating_year,
+      MAX(CASE WHEN (w.year = EXTRACT(YEAR FROM CURRENT_DATE)::int OR EXTRACT(YEAR FROM w.date)::int = EXTRACT(YEAR FROM CURRENT_DATE)::int) THEN mtw.rating ELSE 0 END) as best_rating_year,
       MAX(mtw.rating) as best_rating_alltime
     FROM member_team_week_tbl mtw
     JOIN week_tbl w ON mtw.week_id = w.id
@@ -5976,7 +5917,7 @@ async function getMvpList(targetYear = null, groupId = null) {
       SELECT MAX(m.rating) as best_rating, MAX(m.raw_score) as best_raw
       FROM mvp_week_tbl m
       JOIN week_tbl w ON m.week_id = w.id
-      WHERE YEAR(w.date) = ?
+      WHERE EXTRACT(YEAR FROM w.date)::int = ?
     `, [year]);
     if (bestRes && bestRes[0]) {
       bestRating = parseFloat(bestRes[0].best_rating || 0);
@@ -6017,7 +5958,7 @@ async function getMvpList(targetYear = null, groupId = null) {
     JOIN week_tbl w ON m.week_id = w.id
     LEFT JOIN member_team_week_tbl mtw ON m.week_id = mtw.week_id AND m.member_id = mtw.member_id
     LEFT JOIN member_tbl mem ON m.member_id = mem.id
-    WHERE YEAR(w.date) = ?
+    WHERE EXTRACT(YEAR FROM w.date)::int = ?
     ORDER BY w.date DESC, m.raw_score DESC, m.rating DESC, (m.goals * 4 + m.assists * 3 + m.clean_sheet * 3) DESC
   `, [year]);
 
@@ -7649,7 +7590,7 @@ async function saveActiveGroupId(groupId) {
     if (existing.length > 0) {
       await executeQuery("UPDATE template_tpl SET value = ? WHERE name = 'active_group_id'", [groupId]);
     } else {
-      await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, 'active_group_id', ?)", [groupId]);
+      await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('active_group_id', ?)", [groupId]);
     }
   } catch (err) {
     logger.error('Error saving active_group_id in template_tpl:', err.message);
@@ -7691,7 +7632,7 @@ async function saveBaseUrl(baseUrl) {
     if (existing.length > 0) {
       await executeQuery("UPDATE template_tpl SET value = ? WHERE name = 'base_webhook_url'", [clean]);
     } else {
-      await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, 'base_webhook_url', ?)", [clean]);
+      await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('base_webhook_url', ?)", [clean]);
     }
   } catch (err) {
     logger.error('Error saving base_webhook_url in template_tpl:', err.message);
@@ -7735,7 +7676,7 @@ async function getTaskGroupId(taskId) {
 
   try {
     const res = await executeQuery(
-      "SELECT value FROM template_tpl WHERE name IN (?, ?, ?) ORDER BY FIELD(name, ?, ?, ?) LIMIT 1",
+      "SELECT value FROM template_tpl WHERE name IN (?, ?, ?) ORDER BY CASE name WHEN ? THEN 1 WHEN ? THEN 2 WHEN ? THEN 3 ELSE 4 END LIMIT 1",
       [key1, key2, key3, key1, key2, key3]
     );
     if (res.length > 0 && res[0].value) {
@@ -7755,7 +7696,7 @@ async function saveTaskGroupId(taskId, groupId) {
     if (existing.length > 0) {
       await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [groupId, key]);
     } else {
-      await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, ?, ?)", [key, groupId]);
+      await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, groupId]);
     }
   } catch (err) {
     logger.error(`Error saving ${key} in template_tpl:`, err.message);
@@ -7792,10 +7733,10 @@ async function saveGroupProfile(lineGroupId, groupName = null, memberCount = nul
     const sql = `
       INSERT INTO line_group_id_tbl (line_group_id, group_name, member_count, picture_url)
       VALUES (?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        group_name = COALESCE(VALUES(group_name), group_name),
-        member_count = COALESCE(VALUES(member_count), member_count),
-        picture_url = COALESCE(VALUES(picture_url), picture_url),
+      ON CONFLICT (line_group_id) DO UPDATE SET
+        group_name = COALESCE(EXCLUDED.group_name, line_group_id_tbl.group_name),
+        member_count = COALESCE(EXCLUDED.member_count, line_group_id_tbl.member_count),
+        picture_url = COALESCE(EXCLUDED.picture_url, line_group_id_tbl.picture_url),
         updated_at = CURRENT_TIMESTAMP
     `;
     await executeQuery(sql, [cleanId, cleanName, cleanCount, cleanPic]);
@@ -8005,6 +7946,7 @@ async function addScheduledTask(taskData) {
     INSERT INTO scheduled_task_tbl 
       (task_key, task_name, task_type, command, text_message, schedule_days, schedule_time, group_id, delivery_mode, expire_minutes, enabled)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    RETURNING id
   `;
   const result = await executeQuery(sql, [
     task_key,
@@ -8036,7 +7978,7 @@ async function updateScheduledTask(keyOrId, taskData) {
   const allowedCols = ['task_key', 'task_name', 'task_type', 'command', 'text_message', 'schedule_days', 'schedule_time', 'group_id', 'delivery_mode', 'expire_minutes', 'enabled', 'last_run_date'];
   for (const col of allowedCols) {
     if (taskData[col] !== undefined) {
-      fields.push(`\`${col}\` = ?`);
+      fields.push(`"${col}" = ?`);
       values.push(taskData[col]);
     }
   }

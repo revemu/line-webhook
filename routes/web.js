@@ -252,7 +252,7 @@ async function getUserByUsername(username) {
             return rows[0];
         }
     } catch (error) {
-        if (error.code === 'ER_NO_SUCH_TABLE') {
+        if (error.code === '42P01' || error.code === 'ER_NO_SUCH_TABLE') {
             logger.warn('user_tbl not found in database. Using .env credentials fallback.');
         } else {
             logger.error(`Error querying user_tbl: ${error.message}`);
@@ -1208,7 +1208,7 @@ async function queryWeekId(weeknum = 0) {
     let sql;
     const num = parseInt(weeknum, 10);
     if (!num || isNaN(num) || num <= 0) {
-        sql = "SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date, time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
+        sql = "SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, TO_CHAR(date, 'YYYY-MM-DD') as raw_date, time_range FROM week_tbl ORDER BY id DESC LIMIT 1";
         const result = await doQuery(sql);
         if (result.length > 0) {
             return {
@@ -1225,9 +1225,9 @@ async function queryWeekId(weeknum = 0) {
     }
 
     // Try matching primary key (id) first so week IDs never collide with season week numbers
-    let result = await doQuery(`SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date, time_range FROM week_tbl WHERE id = ${num} LIMIT 1`);
+    let result = await doQuery(`SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, TO_CHAR(date, 'YYYY-MM-DD') as raw_date, time_range FROM week_tbl WHERE id = ${num} LIMIT 1`);
     if (result.length === 0) {
-        result = await doQuery(`SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date, time_range FROM week_tbl WHERE number = ${num} ORDER BY id DESC LIMIT 1`);
+        result = await doQuery(`SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, TO_CHAR(date, 'YYYY-MM-DD') as raw_date, time_range FROM week_tbl WHERE number = ${num} ORDER BY id DESC LIMIT 1`);
     }
 
     if (result.length > 0) {
@@ -1275,7 +1275,7 @@ async function queryAllTeamWeekId(weekID) {
 }
 
 async function queryRecentWeeks(limit = 20) {
-    const sql = `SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY id DESC LIMIT ${limit}`;
+    const sql = `SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date FROM week_tbl ORDER BY id DESC LIMIT ${limit}`;
     return await doQuery(sql);
 }
 
@@ -1352,10 +1352,10 @@ function isBeforeFriday2000(dateStr) {
  */
 async function getLatestUnlockedWeek(currentUser = null) {
     if (currentUser && currentUser.role === 'root') {
-        const [latest] = await doQuery("SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date FROM week_tbl ORDER BY id DESC LIMIT 1");
+        const [latest] = await doQuery("SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date FROM week_tbl ORDER BY id DESC LIMIT 1");
         return latest || null;
     }
-    const weeks = await doQuery("SELECT id, number, DATE_FORMAT(date, '%e %b %Y') as date, DATE_FORMAT(date, '%Y-%m-%d') as raw_date FROM week_tbl ORDER BY id DESC LIMIT 10");
+    const weeks = await doQuery("SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, TO_CHAR(date, 'YYYY-MM-DD') as raw_date FROM week_tbl ORDER BY id DESC LIMIT 10");
     for (const w of weeks) {
         if (!isBeforeFriday2000(w.raw_date)) {
             return w;
@@ -1375,7 +1375,7 @@ async function isWeekRosterLocked(weekid = 0, currentUser = null) {
     if (currentUser && currentUser.role === 'root') {
         return false;
     }
-    const [latestWeek] = await doQuery("SELECT id, DATE_FORMAT(date, '%Y-%m-%d') as raw_date FROM week_tbl ORDER BY id DESC LIMIT 1");
+    const [latestWeek] = await doQuery("SELECT id, TO_CHAR(date, 'YYYY-MM-DD') as raw_date FROM week_tbl ORDER BY id DESC LIMIT 1");
     if (!latestWeek) return false;
 
     const targetWeekId = parseInt(weekid, 10);
@@ -1659,8 +1659,7 @@ async function addMatchWeek(matchNum, teamAid, teamBid, weekid, status = 'in_pro
 }
 
 async function addMatchGoal(matchId, teamId, memberId, statusId = 0) {
-    const sql = `INSERT INTO match_goal_tbl VALUES(default, ${matchId}, ${memberId}, ${teamId}, ${statusId})`;
-    await doUpdate(sql);
+    await doUpdate('INSERT INTO match_goal_tbl (match_id, member_id, team_week_id, status) VALUES (?, ?, ?, ?)', [matchId, memberId, teamId, statusId]);
 }
 
 async function removeMatchGoal(goalId) {
@@ -1678,14 +1677,18 @@ async function addTableWeek(teamID, weekID, record) {
     const { w, d, l, G, A, pts } = record;
     const exists = await checkTeamTableExist(teamID, weekID);
 
-    let sql;
     if (exists) {
-        sql = `UPDATE table_week_tbl SET w = ${w}, d = ${d}, l = ${l}, G = ${G}, A = ${A}, pts = ${pts} WHERE team_week_id = ${teamID} AND week_id = ${weekID}`;
+        await doUpdate(
+            'UPDATE table_week_tbl SET w = ?, d = ?, l = ?, g = ?, a = ?, pts = ? WHERE team_week_id = ? AND week_id = ?',
+            [w, d, l, G, A, pts, teamID, weekID]
+        );
     } else {
-        sql = `INSERT INTO table_week_tbl VALUES(default, ${teamID}, ${weekID}, ${w}, ${d}, ${l}, ${G}, ${A}, ${pts})`;
+        await doUpdate(
+            'INSERT INTO table_week_tbl (team_week_id, week_id, w, d, l, g, a, pts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [teamID, weekID, w, d, l, G, A, pts]
+        );
     }
 
-    await doUpdate(sql);
     return { success: true, message: `Success Add Team ID ${teamID} to Table Week ${weekID}` };
 }
 
