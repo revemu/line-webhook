@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.44] - 2026-11-16
+
+### Added
+- **Web UI Schedule Extension (`routes/web.js`, `public/update.shtml`, `query.js`)**:
+  - Added `POST /webhook/extend_schedule` endpoint calling `extendSchedule` cleanly with `weekId` targeting and `SCHEDULE_EXTENDED` WebSocket broadcast.
+  - Added quick `+30 นาที`, `+60 นาที`, and `⏱️ ต่อเวลา` controls in `public/update.shtml` (both match-list action bar and scoreboard tools modal supporting preset minutes `+30`/`+60`, `+1 รอบ`, or custom end time `HH:MM`).
+  - Updated `extendSchedule` & `insertScheduleMatchRow` so when all prior matches have already finished, the first newly appended match starts as `in_progress` immediately for live scoring.
+
+---
+
 ## [0.7.43] - 2026-11-16
 
 ### Added

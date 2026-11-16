@@ -339,6 +339,66 @@
 			</div>
 		</div>
 
+		<!-- Extend Schedule Modal -->
+		<div class="modal-overlay" v-if="showExtendModal" @click.self="showExtendModal = false">
+			<div class="modal-content" style="max-width: 440px; padding: 1.5rem;" @click.stop>
+				<div class="card-title" style="margin-bottom: 1.1rem;">
+					<span>⏱️ ต่อเวลา / เพิ่มแมตช์ต่อท้าย</span>
+					<span style="cursor: pointer; font-size: 1.5rem; line-height: 1;" @click="showExtendModal = false">×</span>
+				</div>
+
+				<form @submit.prevent="submitExtendSchedule">
+					<div style="margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-muted); background: rgba(79, 70, 229, 0.06); padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid var(--border-color);">
+						<div>📅 วันที่: <strong>{{ week.date }}</strong></div>
+						<div style="margin-top: 2px;">🕐 ช่วงเวลาเดิม: <strong>{{ week.time_range || '17:30-20:00' }}</strong> ({{ matchCount }} แมตช์)</div>
+						<div style="margin-top: 4px; font-size: 0.78rem; color: var(--text-muted);">
+							🔒 ระบบจะจัดคู่แมตช์ใหม่ต่อท้ายอัตโนมัติ โดยไม่แก้ไขหรือลบแมตช์เดิมที่เตะไปแล้ว
+						</div>
+					</div>
+
+					<div style="margin-bottom: 0.9rem;">
+						<label style="display: block; font-size: 0.82rem; font-weight: 700; margin-bottom: 0.45rem; color: var(--text-main);">
+							เลือกเวลาเพิ่มด่วน
+						</label>
+						<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+							<button type="button" class="btn-scoreboard-tool"
+								:style="extendForm.param === '30' ? { background: 'var(--primary-color, #4f46e5)', color: '#fff', borderColor: 'transparent' } : {}"
+								@click="extendForm.param = '30'">+30 นาที</button>
+							<button type="button" class="btn-scoreboard-tool"
+								:style="extendForm.param === '60' ? { background: 'var(--primary-color, #4f46e5)', color: '#fff', borderColor: 'transparent' } : {}"
+								@click="extendForm.param = '60'">+60 นาที</button>
+							<button type="button" class="btn-scoreboard-tool"
+								:style="extendForm.param === '1รอบ' ? { background: 'var(--primary-color, #4f46e5)', color: '#fff', borderColor: 'transparent' } : {}"
+								@click="extendForm.param = '1รอบ'">+1 รอบ</button>
+						</div>
+					</div>
+
+					<div style="margin-bottom: 1.1rem;">
+						<label style="display: block; font-size: 0.82rem; font-weight: 700; margin-bottom: 0.35rem; color: var(--text-main);">
+							หรือระบุนาที / เวลาสิ้นสุดเอง
+						</label>
+						<input type="text" v-model.trim="extendForm.param" class="login-input" required
+							placeholder="เช่น 30, 60, 21:00, 1รอบ">
+						<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.3rem;">
+							รองรับ: นาที (เช่น 30, 60) • เวลาสิ้นสุด (เช่น 20:45, 21:00) • รอบ (เช่น 1รอบ)
+						</div>
+					</div>
+
+					<div v-if="extendError" style="padding: 0.6rem 0.8rem; border-radius: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem; font-weight: 600; background: rgba(239, 68, 68, 0.1); color: var(--danger-color); border: 1px solid rgba(239, 68, 68, 0.3); white-space: pre-line;">
+						⚠️ {{ extendError }}
+					</div>
+
+					<div style="display: flex; gap: 0.75rem; justify-content: flex-end; align-items: center;">
+						<button type="button" class="btn-logout" @click="showExtendModal = false">ยกเลิก</button>
+						<button type="submit" class="login-button" style="width: auto; padding: 0.5rem 1.25rem; font-size: 0.9rem;" :disabled="extendingSchedule">
+							<span v-if="extendingSchedule">⏳ กำลังเพิ่มเวลา...</span>
+							<span v-else>⏱️ เพิ่มเวลาเตะ</span>
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
 		<!-- Backdrop for Modal Pitch Mode -->
 		<div class="pitch-modal-backdrop" v-if="isPitchModal" @click="closePitchModal"></div>
 
@@ -459,6 +519,9 @@
 						</button>
 						<button type="button" class="btn-scoreboard-tool" @click="openAddMatchModal()" title="สร้าง Match การแข่งขันใหม่">
 							➕ สร้าง Match
+						</button>
+						<button v-if="matchCount > 0" type="button" class="btn-scoreboard-tool" @click="openExtendScheduleModal()" title="ต่อเวลาและเพิ่มแมตช์ต่อท้ายตารางเดิม">
+							⏱️ ต่อเวลา
 						</button>
 						<button type="button" class="btn-scoreboard-tool" @click="toggleClassicForm()" title="สลับฟอร์ม">
 							{{ showClassicForm ? '✕ ซ่อน' : '📋 ฟอร์ม' }}
@@ -1610,11 +1673,24 @@
 
 		<!-- Match List (All Matches Summary Cards) -->
 		<div v-if="matchCount > 0">
-			<div style="margin-top: 0.85rem; margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
-				<span style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">📑 แมตช์ทั้งหมด</span>
-				<button v-if="isManager" type="button" class="btn-scoreboard-tool" style="font-size: 0.78rem; padding: 0.25rem 0.65rem;" @click="openAddMatchModal()" title="สร้าง Match การแข่งขันใหม่">
-					➕ สร้าง Match
-				</button>
+			<div style="margin-top: 0.85rem; margin-bottom: 0.45rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
+				<span style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+					📑 แมตช์ทั้งหมด <span v-if="week && week.time_range" style="font-weight: 600; opacity: 0.85;">({{ week.time_range }})</span>
+				</span>
+				<div v-if="isManager" style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+					<button v-if="!info.is_roster_locked" type="button" class="btn-scoreboard-tool" style="font-size: 0.76rem; padding: 0.25rem 0.6rem;" :disabled="extendingSchedule" @click="quickExtendSchedule(30)" title="ต่อเวลาเพิ่มอีก 30 นาที (+แมตช์อัตโนมัติ)">
+						+30 นาที
+					</button>
+					<button v-if="!info.is_roster_locked" type="button" class="btn-scoreboard-tool" style="font-size: 0.76rem; padding: 0.25rem 0.6rem;" :disabled="extendingSchedule" @click="quickExtendSchedule(60)" title="ต่อเวลาเพิ่มอีก 60 นาที (+แมตช์อัตโนมัติ)">
+						+60 นาที
+					</button>
+					<button v-if="!info.is_roster_locked" type="button" class="btn-scoreboard-tool" style="font-size: 0.76rem; padding: 0.25rem 0.6rem;" :disabled="extendingSchedule" @click="openExtendScheduleModal()" title="ต่อเวลาหรือระบุเวลาสิ้นสุดเอง">
+						⏱️ ต่อเวลา
+					</button>
+					<button type="button" class="btn-scoreboard-tool" style="font-size: 0.78rem; padding: 0.25rem 0.65rem;" @click="openAddMatchModal()" title="สร้าง Match การแข่งขันใหม่">
+						➕ สร้าง Match
+					</button>
+				</div>
 			</div>
 
 		<div v-for="(match, index) in orderedMatches" :key="match.id" class="match-card"
@@ -1950,6 +2026,10 @@
 				submittingMatch: false,
 				addMatchError: '',
 				newMatchForm: { match_num: 1, team_a_id: '', team_b_id: '', status: 'in_progress' },
+				showExtendModal: false,
+				extendingSchedule: false,
+				extendError: '',
+				extendForm: { param: '30' },
 				showAddMatchForm: false,
 				showClassicForm: false,
 				submittingGoal: false,
@@ -2876,7 +2956,7 @@
 					// 2. Immediately refresh match and scoreboard data in background
 					const currentWeek = this.week ? (this.week.id || this.week.number || 0) : 0;
 					this.refreshCountdown = 30;
-					const shouldUpdateTeamLists = data.type === 'MATCH_FINISHED' || data.type === 'MATCH_STARTED' || data.type === 'MATCH_ADDED' || data.type === 'MATCH_REOPENED';
+					const shouldUpdateTeamLists = data.type === 'MATCH_FINISHED' || data.type === 'MATCH_STARTED' || data.type === 'MATCH_ADDED' || data.type === 'MATCH_REOPENED' || data.type === 'SCHEDULE_EXTENDED';
 					const nextMatchNum = data.next_match_num || (data.match_num ? Number(data.match_num) + 1 : 0);
 					if (data.type === 'MATCH_FINISHED' && nextMatchNum > 0) {
 						if (this.all_match && this.all_match[nextMatchNum]) {
@@ -3157,6 +3237,70 @@
 				},
 				addMatch() {
 					this.openAddMatchModal();
+				},
+				openExtendScheduleModal(defaultParam = '30') {
+					if (!this.matchCount) {
+						this.showToast('⚠️ กรุณารันคำสั่ง /schedule เพื่อสร้างตารางการแข่งขันก่อนต่อเวลา');
+						return;
+					}
+					this.extendError = '';
+					this.extendForm = { param: String(defaultParam || '30') };
+					this.showExtendModal = true;
+				},
+				quickExtendSchedule(minutes) {
+					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
+						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						return;
+					}
+					if (!this.matchCount || this.extendingSchedule) return;
+					if (!confirm(`ต้องการต่อเวลาเพิ่มอีก ${minutes} นาที (จัดแมตช์ต่อท้ายอัตโนมัติ) ใช่หรือไม่?`)) return;
+					this.executeExtendSchedule(String(minutes), false);
+				},
+				submitExtendSchedule() {
+					if (this.isManager && (!this.currentUser || this.sessionExpired)) {
+						this.showToast('⚠️ เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+						return;
+					}
+					const param = (this.extendForm && this.extendForm.param ? String(this.extendForm.param).trim() : '');
+					if (!param) {
+						this.extendError = 'กรุณาระบุจำนวนนาที (เช่น 30, 60) หรือเวลาสิ้นสุด (เช่น 21:00)';
+						return;
+					}
+					this.executeExtendSchedule(param, true);
+				},
+				executeExtendSchedule(param, fromModal = false) {
+					const weekid = (this.week && (this.week.id || this.week.number)) || 0;
+					if (!weekid) {
+						if (fromModal) this.extendError = 'ไม่พบรหัสสัปดาห์ (Week ID)';
+						else this.showToast('⚠️ ไม่พบรหัสสัปดาห์ (Week ID)');
+						return;
+					}
+
+					this.extendingSchedule = true;
+					this.extendError = '';
+					const formdata = new FormData();
+					formdata.append('weekid', weekid);
+					formdata.append('param', param);
+
+					axios.post((this.base_url || '/webhook') + '/extend_schedule', formdata)
+						.then(response => {
+							this.extendingSchedule = false;
+							if (response.data && response.data.success) {
+								if (fromModal) this.showExtendModal = false;
+								this.showToast(response.data.message || '⏱️ ขยายเวลาตารางแข่งขันเรียบร้อย');
+								this.refreshMatch(weekid, true);
+							} else {
+								const errMsg = (response.data && response.data.error) || 'ไม่สามารถขยายเวลาตารางแข่งขันได้';
+								if (fromModal) this.extendError = errMsg;
+								else this.showToast('⚠️ ' + errMsg);
+							}
+						})
+						.catch(err => {
+							this.extendingSchedule = false;
+							const errMsg = (err.response && err.response.data && err.response.data.error) || err.message;
+							if (fromModal) this.extendError = errMsg;
+							else this.showToast('⚠️ ' + errMsg);
+						});
 				},
 				openTeamPicker(side) {
 					this.pickingFor = side;

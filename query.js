@@ -4430,11 +4430,11 @@ function formatMinsToTime(mins) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-async function insertScheduleMatchRow(week_id, matchNum, round, startTime, endTime, teamAId, teamBId) {
+async function insertScheduleMatchRow(week_id, matchNum, round, startTime, endTime, teamAId, teamBId, status = 'scheduled') {
   try {
     await executeQuery(
-      "INSERT INTO match_stat_tbl (week_id, match_num, round, start_time, end_time, team_a_id, team_b_id, team_a_goal, team_b_goal, status) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'scheduled')",
-      [week_id, matchNum, round, startTime, endTime, teamAId, teamBId]
+      "INSERT INTO match_stat_tbl (week_id, match_num, round, start_time, end_time, team_a_id, team_b_id, team_a_goal, team_b_goal, status) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)",
+      [week_id, matchNum, round, startTime, endTime, teamAId, teamBId, status]
     );
   } catch (insertColErr) {
     try {
@@ -5577,7 +5577,7 @@ function solveExtendedMatchups(numTeams, existingPairs, extraMatches) {
   return matchups;
 }
 
-async function extendSchedule(param = '') {
+async function extendSchedule(param = '', options = {}) {
   const parsed = parseExtendArgs(param);
   if (parsed.mode === 'empty' || parsed.mode === 'invalid') {
     return {
@@ -5586,7 +5586,17 @@ async function extendSchedule(param = '') {
     };
   }
 
-  const week = await queryWeekID(0);
+  let week;
+  const requestedWeekId = options && Number(options.weekId) > 0 ? Number(options.weekId) : 0;
+  if (requestedWeekId > 0) {
+    await ensureWeekTimeColumn();
+    week = await executeQuery(
+      "SELECT id, number, TO_CHAR(date, 'FMDD Mon YYYY') as date, max, cost, COALESCE(time_range, '17:30-20:00') as time_range FROM week_tbl WHERE id = ? LIMIT 1",
+      [requestedWeekId]
+    );
+  } else {
+    week = await queryWeekID(0);
+  }
   if (!week || week.length === 0) {
     return { success: false, message: 'ยังไม่มีข้อมูลสัปดาห์นี้' };
   }
@@ -5697,6 +5707,7 @@ async function extendSchedule(param = '') {
   const newMatchups = solveExtendedMatchups(numTeams, existingPairs, extraMatches);
   await ensureMatchStatScheduleColumns();
 
+  const hasUnfinished = (dbSched.dbMatches || []).some(r => r.status !== 'finished');
   const addedMatches = [];
   let extendedEndTotal = lastEndTotal;
   for (let i = 0; i < newMatchups.length; i++) {
@@ -5711,8 +5722,9 @@ async function extendSchedule(param = '') {
     const endTime = formatMinsToTime(slotEnd);
     const teamA = playingTeamList[a];
     const teamB = playingTeamList[b];
+    const matchStatus = (i === 0 && !hasUnfinished) ? 'in_progress' : 'scheduled';
 
-    await insertScheduleMatchRow(week_id, matchNum, round, startTime, endTime, teamA.id, teamB.id);
+    await insertScheduleMatchRow(week_id, matchNum, round, startTime, endTime, teamA.id, teamB.id, matchStatus);
     addedMatches.push({
       matchNo: matchNum,
       round,
@@ -5721,7 +5733,8 @@ async function extendSchedule(param = '') {
       teamA: teamA.color,
       teamAId: teamA.id,
       teamB: teamB.color,
-      teamBId: teamB.id
+      teamBId: teamB.id,
+      status: matchStatus
     });
   }
 

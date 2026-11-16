@@ -292,6 +292,7 @@ function requireAuth(req, res, next) {
         const isApiOrAjax = req.xhr ||
             req.headers['x-requested-with'] === 'XMLHttpRequest' ||
             req.originalUrl.includes('/add_match') ||
+            req.originalUrl.includes('/extend_schedule') ||
             req.originalUrl.includes('/change_password') ||
             req.originalUrl.includes('/update_') ||
             req.originalUrl.includes('/get_info') ||
@@ -311,6 +312,7 @@ async function requireRoot(req, res, next) {
         const isApiOrAjax = req.xhr ||
             req.headers['x-requested-with'] === 'XMLHttpRequest' ||
             req.originalUrl.includes('/add_match') ||
+            req.originalUrl.includes('/extend_schedule') ||
             req.originalUrl.includes('/change_password') ||
             req.originalUrl.includes('/update_') ||
             req.originalUrl.includes('/get_info') ||
@@ -1149,6 +1151,56 @@ router.post('/webhook/add_match', requireAuth, upload.none(), async (req, res) =
     } catch (error) {
         logger.error(`Error in add_match: ${error.message}`);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Extend schedule cleanly without touching existing/played matches (+30 / +60 mins or target end time)
+router.post('/webhook/extend_schedule', requireAuth, upload.none(), async (req, res) => {
+    try {
+        const data = { ...req.query, ...req.body };
+        const safeWeekId = parseInt(data.weekid || data.week_id, 10) || 0;
+        const rawParam = data.param !== undefined ? String(data.param).trim()
+            : (data.minutes !== undefined ? String(data.minutes).trim()
+                : (data.end_time !== undefined ? String(data.end_time).trim() : ''));
+
+        if (!rawParam) {
+            return res.status(400).json({
+                success: false,
+                error: 'กรุณาระบุจำนวนนาที (เช่น 30, 60) หรือเวลาสิ้นสุด (เช่น 21:00)'
+            });
+        }
+
+        const result = await db.extendSchedule(rawParam, safeWeekId > 0 ? { weekId: safeWeekId } : {});
+        if (!result.success) {
+            return res.status(400).json({
+                success: false,
+                error: result.message || 'ไม่สามารถขยายเวลาตารางแข่งขันได้'
+            });
+        }
+
+        const targetWeekId = (result.sched && result.sched.weekId) || safeWeekId;
+        const msg = `⏱️ ขยายเวลาเพิ่มอีก ${result.addedMatches.length} แมตช์ (สิ้นสุด ${result.extendedEndTime} น.)`;
+        try {
+            broadcastMatchEvent(targetWeekId, {
+                type: 'SCHEDULE_EXTENDED',
+                added_count: result.addedMatches.length,
+                extended_end_time: result.extendedEndTime,
+                message: msg
+            });
+        } catch (eWs) { }
+
+        return res.json({
+            success: true,
+            message: msg,
+            weekid: targetWeekId,
+            added_count: result.addedMatches.length,
+            added_matches: result.addedMatches,
+            extended_end_time: result.extendedEndTime,
+            time_range: result.sched ? `${result.sched.startTime}-${result.extendedEndTime}` : null
+        });
+    } catch (error) {
+        logger.error(`Error in extend_schedule: ${error.message}`);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
