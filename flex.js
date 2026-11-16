@@ -6607,6 +6607,379 @@ function buildPartyFlex(partyData = {}, theme = 'black') {
   return partyBubble;
 }
 
+/**
+ * Builds a single row box for the Donate Leaderboard Flex bubble.
+ * @param {Object} donor
+ * @param {Object} colors
+ * @returns {Object}
+ */
+function buildDonateRow(donor, colors) {
+  const rankIcons = { 1: '🥇', 2: '🥈', 3: '🥉' };
+  const isTop3 = donor.rankNum <= 3;
+  const rankLabel = rankIcons[donor.rankNum] || `${donor.rankNum}.`;
+  const leftContents = [
+    {
+      type: 'text',
+      text: rankLabel,
+      size: isTop3 ? 'sm' : 'xs',
+      weight: isTop3 ? 'bold' : 'regular',
+      color: colors.textMuted,
+      flex: 0
+    }
+  ];
+
+  if (donor.pictureUrl) {
+    const avatarBox = createMemberAvatarBox(donor.pictureUrl, isTop3 ? '24px' : '20px');
+    if (avatarBox) {
+      avatarBox.margin = 'sm';
+      leftContents.push(avatarBox);
+    }
+  }
+
+  if (isTop3 && donor.badgeUrl) {
+    leftContents.push({
+      type: 'box',
+      layout: 'vertical',
+      width: donor.badgeSize || '18px',
+      height: donor.badgeSize || '18px',
+      flex: 0,
+      margin: 'xs',
+      contents: [
+        {
+          type: 'image',
+          url: donor.badgeUrl,
+          size: 'full',
+          aspectRatio: '1:1',
+          aspectMode: 'fit',
+          animated: true
+        }
+      ]
+    });
+  }
+
+  leftContents.push({
+    type: 'text',
+    text: donor.name || '-',
+    size: isTop3 ? 'sm' : 'xs',
+    weight: isTop3 ? 'bold' : 'regular',
+    color: donor.nameColor || (isTop3 ? colors.textPrimary : colors.textMutedLight),
+    margin: 'sm',
+    flex: 1,
+    wrap: false
+  });
+
+  const amountColor = isTop3 ? (donor.nameColor || colors.accentSuccess || '#22c55e') : colors.textPrimary;
+
+  return {
+    type: 'box',
+    layout: 'horizontal',
+    alignItems: 'center',
+    backgroundColor: isTop3 ? colors.bgHighlight : undefined,
+    cornerRadius: isTop3 ? 'md' : undefined,
+    paddingAll: isTop3 ? 'sm' : 'xs',
+    paddingStart: isTop3 ? 'sm' : 'xs',
+    paddingEnd: isTop3 ? 'sm' : 'xs',
+    margin: 'xs',
+    contents: [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        alignItems: 'center',
+        flex: 1,
+        contents: leftContents
+      },
+      {
+        type: 'text',
+        text: `${Number(donor.donate || 0).toLocaleString('th-TH')} ฿`,
+        size: isTop3 ? 'sm' : 'xs',
+        weight: 'bold',
+        color: amountColor,
+        align: 'end',
+        flex: 0,
+        margin: 'sm'
+      }
+    ]
+  };
+}
+
+/**
+ * Builds the Donate Leaderboard Flex message (single bubble or carousel if > 15 donors).
+ * @param {Object} leaderboardData - { donors, totalDonate, donorCount }
+ * @param {string} theme
+ * @returns {Object} LINE Flex contents
+ */
+function buildDonateFlex(leaderboardData, theme) {
+  const colors = getThemeColors(theme);
+  const { donors = [], totalDonate = 0, donorCount = 0 } = leaderboardData || {};
+  const totalStr = Number(totalDonate || 0).toLocaleString('th-TH');
+
+  if (!donors || donors.length === 0) {
+    return {
+      type: 'bubble',
+      size: 'mega',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: colors.bgMain,
+        paddingAll: 'lg',
+        contents: [
+          {
+            type: 'text',
+            text: '💖 ทำเนียบผู้สนับสนุน (Donate)',
+            weight: 'bold',
+            size: 'lg',
+            color: colors.textPrimary
+          },
+          {
+            type: 'text',
+            text: 'ยังไม่มีรายการ Donate ในระบบ',
+            size: 'sm',
+            color: colors.textMuted,
+            margin: 'md'
+          }
+        ]
+      }
+    };
+  }
+
+  const PAGE_SIZE = 15;
+  const totalPages = Math.ceil(donors.length / PAGE_SIZE);
+  const bubbles = [];
+
+  for (let p = 0; p < totalPages; p++) {
+    const slice = donors.slice(p * PAGE_SIZE, (p + 1) * PAGE_SIZE);
+    const startRank = slice[0].rankNum;
+    const endRank = slice[slice.length - 1].rankNum;
+
+    const headerSub = totalPages > 1
+      ? `อันดับ ${startRank}-${endRank} (หน้า ${p + 1}/${totalPages}) • รวม ${totalStr} บาท (${donorCount} คน)`
+      : `รวมทั้งหมด ${totalStr} บาท • ผู้สนับสนุน ${donorCount} คน`;
+
+    const bodyContents = [
+      {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: colors.bgHeader,
+        paddingAll: 'md',
+        cornerRadius: 'md',
+        contents: [
+          {
+            type: 'text',
+            text: '💖 ทำเนียบผู้สนับสนุน (Donate)',
+            weight: 'bold',
+            size: 'md',
+            color: colors.textPrimary,
+            align: 'center'
+          },
+          {
+            type: 'text',
+            text: headerSub,
+            size: 'xs',
+            color: colors.accentSuccess || '#22c55e',
+            weight: 'bold',
+            align: 'center',
+            margin: 'xs',
+            wrap: true
+          }
+        ]
+      },
+      {
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'md',
+        paddingStart: 'xs',
+        paddingEnd: 'xs',
+        contents: [
+          { type: 'text', text: 'อันดับ / สมาชิก', size: 'xxs', color: colors.textMuted, weight: 'bold', flex: 1 },
+          { type: 'text', text: 'ยอดสะสม', size: 'xxs', color: colors.textMuted, weight: 'bold', align: 'end', flex: 0 }
+        ]
+      },
+      { type: 'separator', margin: 'xs', color: colors.separator }
+    ];
+
+    for (const donor of slice) {
+      bodyContents.push(buildDonateRow(donor, colors));
+    }
+
+    if (p === 0) {
+      bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'md',
+        spacing: 'sm',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: colors.btnSecondary || '#334155',
+            cornerRadius: 'md',
+            paddingAll: 'sm',
+            flex: 1,
+            action: { type: 'message', label: 'ประวัติล่าสุด', text: '/donate log' },
+            contents: [
+              { type: 'text', text: '📋 ประวัติล่าสุด', size: 'xs', color: '#FFFFFF', weight: 'bold', align: 'center' }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: colors.btnPrimary || '#2563eb',
+            cornerRadius: 'md',
+            paddingAll: 'sm',
+            flex: 1,
+            action: { type: 'message', label: 'รีเฟรช', text: '/donate' },
+            contents: [
+              { type: 'text', text: '🔄 รีเฟรช', size: 'xs', color: '#FFFFFF', weight: 'bold', align: 'center' }
+            ]
+          }
+        ]
+      });
+    }
+
+    bubbles.push({
+      type: 'bubble',
+      size: 'mega',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: colors.bgMain,
+        paddingAll: 'md',
+        contents: bodyContents
+      }
+    });
+  }
+
+  return bubbles.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles.slice(0, 10) };
+}
+
+/**
+ * Builds a Flex bubble listing recent donation history entries.
+ * @param {Array<Object>} logs
+ * @param {number} totalDonate
+ * @param {string} theme
+ * @returns {Object}
+ */
+function buildDonateLogFlex(logs, totalDonate, theme) {
+  const colors = getThemeColors(theme);
+  const totalStr = Number(totalDonate || 0).toLocaleString('th-TH');
+
+  const bodyContents = [
+    {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgHeader,
+      paddingAll: 'md',
+      cornerRadius: 'md',
+      contents: [
+        {
+          type: 'text',
+          text: '📋 ประวัติ Donate ล่าสุด',
+          weight: 'bold',
+          size: 'md',
+          color: colors.textPrimary,
+          align: 'center'
+        },
+        {
+          type: 'text',
+          text: `ยอดสะสมรวม ${totalStr} บาท`,
+          size: 'xs',
+          color: colors.accentSuccess || '#22c55e',
+          weight: 'bold',
+          align: 'center',
+          margin: 'xs'
+        }
+      ]
+    }
+  ];
+
+  if (!logs || logs.length === 0) {
+    bodyContents.push({
+      type: 'text',
+      text: 'ยังไม่มีประวัติการทำรายการ',
+      size: 'sm',
+      color: colors.textMuted,
+      margin: 'md',
+      align: 'center'
+    });
+  } else {
+    for (const item of logs) {
+      const amt = Number(item.amount || 0);
+      const isAdd = amt >= 0;
+      const amtText = `${isAdd ? '+' : ''}${amt.toLocaleString('th-TH')} ฿`;
+      const amtColor = isAdd ? (colors.accentSuccess || '#22c55e') : '#ef4444';
+      const memberName = (item.member_name || 'ไม่ทราบชื่อ').replace(/^@/, '');
+      const dateStr = item.created_at
+        ? new Date(item.created_at).toLocaleString('th-TH', {
+            timeZone: 'Asia/Bangkok',
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : '';
+      const subParts = [];
+      if (item.note) subParts.push(item.note);
+      if (dateStr) subParts.push(dateStr);
+      if (item.created_by && item.created_by !== 'system') subParts.push(`by ${String(item.created_by).replace(/^@/, '')}`);
+
+      bodyContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        alignItems: 'center',
+        margin: 'sm',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            flex: 1,
+            contents: [
+              { type: 'text', text: memberName, size: 'xs', weight: 'bold', color: colors.textPrimary, wrap: false },
+              { type: 'text', text: subParts.join(' • ') || '-', size: 'xxs', color: colors.textMuted, wrap: true }
+            ]
+          },
+          {
+            type: 'text',
+            text: amtText,
+            size: 'xs',
+            weight: 'bold',
+            color: amtColor,
+            align: 'end',
+            flex: 0,
+            margin: 'sm'
+          }
+        ]
+      });
+    }
+  }
+
+  bodyContents.push({ type: 'separator', margin: 'md', color: colors.separator });
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    margin: 'md',
+    backgroundColor: colors.btnPrimary || '#2563eb',
+    cornerRadius: 'md',
+    paddingAll: 'sm',
+    action: { type: 'message', label: 'ดูตารางอันดับ', text: '/donate' },
+    contents: [
+      { type: 'text', text: '💖 ดูตารางอันดับ Donate', size: 'xs', color: '#FFFFFF', weight: 'bold', align: 'center' }
+    ]
+  });
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'md',
+      contents: bodyContents
+    }
+  };
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -6640,6 +7013,8 @@ module.exports = {
   buildMatchWeekMatchesFlex,
   buildMatchWeekMessages,
   buildPartyFlex,
+  buildDonateFlex,
+  buildDonateLogFlex,
   makeBoxUriButton
 };
 

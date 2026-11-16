@@ -11,9 +11,9 @@ const logger = require('./utils/logger');
 const { getNextSaturday } = require('./utils/date');
 const { getLiveWebUrl } = require('./utils/url');
 
-const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
-const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3', '-guest', '-guests', '-follower', 'delguest', 'remguest', 'cancelguest']);
-const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3', '-guest', '-guests', '-follower', 'delguest', 'remguest', 'cancelguest']);
+const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup', '+donate', '-donate']);
+const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3', '-guest', '-guests', '-follower', 'delguest', 'remguest', 'cancelguest', '+donate', '-donate']);
+const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3', '-guest', '-guests', '-follower', 'delguest', 'remguest', 'cancelguest', '+donate', '-donate']);
 
 function parseCommandString(cmdStr) {
     const pos = cmdStr.indexOf(' ');
@@ -122,6 +122,68 @@ function buildReply({ type, text, quoteToken, substitution, altText, contents })
 // Command registry for incremental refactor: map command -> async handler(context)
 // Handlers should return a reply (array/object) when they want to short-circuit,
 // or `undefined` to allow the legacy switch-based fallback to run.
+function parseDonateParams(rawParam) {
+    const trimmed = String(rawParam || '').trim();
+    if (!trimmed) return { amount: 0, note: null, param: '' };
+
+    if (trimmed.startsWith('@')) {
+        const match = trimmed.match(/^(@.+?)\s+(\d+)(?:\s+(.*))?$/);
+        if (match) {
+            return {
+                amount: parseInt(match[2], 10) || 0,
+                note: match[3] ? match[3].trim() : null,
+                param: match[1].trim()
+            };
+        }
+        return { amount: 0, note: null, param: trimmed };
+    }
+
+    const selfMatch = trimmed.match(/^(\d+)(?:\s+(.*))?$/);
+    if (selfMatch) {
+        return {
+            amount: parseInt(selfMatch[1], 10) || 0,
+            note: selfMatch[2] ? selfMatch[2].trim() : null,
+            param: ''
+        };
+    }
+
+    return { amount: 0, note: null, param: trimmed };
+}
+
+async function handleDonateAdjustment(context, sign) {
+    const { member, member_id, member_name, donate_val, donate_note, quoteToken } = context;
+    const isAdmin = member && (member.admin === 1 || member.admin === 2);
+    if (!isAdmin) {
+        return formatTextReply('ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับผู้ดูแลระบบเท่านั้น)', quoteToken);
+    }
+
+    const prefix = sign > 0 ? '+donate' : '-donate';
+    if (!donate_val || donate_val <= 0 || !member_id) {
+        return formatTextReply(
+            `⚠️ รูปแบบคำสั่งไม่ถูกต้อง\nตัวอย่าง: ${prefix} @ชื่อ จำนวน [หมายเหตุ]\nหรือ: ${prefix} จำนวน [หมายเหตุ]`,
+            quoteToken
+        );
+    }
+
+    const result = await db.adjustMemberDonate(member_id, sign * donate_val, {
+        source: 'manual',
+        note: donate_note || null,
+        createdBy: member ? member.name : null
+    });
+    if (!result) {
+        return formatTextReply(`⚠️ ไม่พบข้อมูลสมาชิก ${member_name || ''}`, quoteToken);
+    }
+
+    const displayName = String(result.name || member_name || '').replace(/^@/, '');
+    const signLabel = result.delta >= 0 ? '+' : '';
+    const actionIcon = result.delta >= 0 ? '💖' : '✏️';
+    let msg = `${actionIcon} บันทึก Donate ของ ${displayName} เรียบร้อย\n`;
+    msg += `• รายการ: ${signLabel}${result.delta.toLocaleString('th-TH')} บาท`;
+    if (donate_note) msg += ` (${donate_note})`;
+    msg += `\n• ยอดสะสม: ${result.previousTotal.toLocaleString('th-TH')} → ${result.newTotal.toLocaleString('th-TH')} บาท`;
+    return formatTextReply(msg, quoteToken);
+}
+
 const COMMAND_REGISTRY = {
     'tasks': async (context) => {
         const { quoteToken } = context;
@@ -1425,6 +1487,57 @@ const COMMAND_REGISTRY = {
             return [{ type: 'text', text: `❌ ตรวจสอบสลิป #${slipId} ไม่สำเร็จ\n\nสาเหตุ: ${errMsg}` }];
         }
     },
+    '+donate': async (context) => handleDonateAdjustment(context, 1),
+    '-donate': async (context) => handleDonateAdjustment(context, -1),
+    'donate': async (context) => {
+        const { param, is_flex, quoteToken } = context;
+        const theme = await db.getTheme();
+        const subCmd = String(param || '').trim().toLowerCase();
+
+        if (subCmd === 'log' || subCmd === 'logs' || subCmd === 'history' || subCmd === 'ประวัติ') {
+            const [logs, leaderboard] = await Promise.all([
+                db.getRecentDonateLogs(15),
+                db.getDonateLeaderboard(1)
+            ]);
+            if (is_flex === false) {
+                if (!logs || logs.length === 0) {
+                    return formatTextReply('📋 ยังไม่มีประวัติ Donate ในระบบ', quoteToken);
+                }
+                const lines = [`📋 ประวัติ Donate ล่าสุด (รวม ${leaderboard.totalDonate.toLocaleString('th-TH')} บาท)`];
+                for (const item of logs) {
+                    const amt = Number(item.amount || 0);
+                    const name = (item.member_name || '-').replace(/^@/, '');
+                    lines.push(`• ${name}: ${amt >= 0 ? '+' : ''}${amt.toLocaleString('th-TH')} บาท${item.note ? ` (${item.note})` : ''}`);
+                }
+                return formatTextReply(lines.join('\n'), quoteToken);
+            }
+            return {
+                type: 'flex',
+                altText: `📋 ประวัติ Donate ล่าสุด (รวม ${leaderboard.totalDonate.toLocaleString('th-TH')} บาท)`,
+                contents: flex.buildDonateLogFlex(logs, leaderboard.totalDonate, theme)
+            };
+        }
+
+        const data = await db.getDonateLeaderboard(100);
+        if (is_flex === false) {
+            if (!data.donors || data.donors.length === 0) {
+                return formatTextReply('💖 ยังไม่มีรายการ Donate ในระบบ', quoteToken);
+            }
+            const lines = [`💖 ทำเนียบผู้สนับสนุน (รวม ${data.totalDonate.toLocaleString('th-TH')} บาท / ${data.donorCount} คน)`];
+            for (const d of data.donors) {
+                lines.push(`${d.rankNum}. ${d.name} — ${d.donate.toLocaleString('th-TH')} บาท`);
+            }
+            return formatTextReply(lines.join('\n'), quoteToken);
+        }
+
+        return {
+            type: 'flex',
+            altText: `💖 ทำเนียบผู้สนับสนุน (Donate) รวม ${data.totalDonate.toLocaleString('th-TH')} บาท (${data.donorCount} คน)`,
+            contents: flex.buildDonateFlex(data, theme)
+        };
+    },
+    'donates': async (context) => COMMAND_REGISTRY['donate'](context),
+    'listdonate': async (context) => COMMAND_REGISTRY['donate'](context)
 };
 
 async function resolveMentionTarget(cmd, param, member, quoteToken) {
@@ -1536,6 +1649,15 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             }
         }
 
+        let donate_val = 0;
+        let donate_note = null;
+        if (cmd === '+donate' || cmd === '-donate') {
+            const parsedDonate = parseDonateParams(param);
+            donate_val = parsedDonate.amount;
+            donate_note = parsedDonate.note;
+            param = parsedDonate.param;
+        }
+
         let ny_guests = null;
         const nyCmds = new Set(['+ny', 'x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5']);
         if (nyCmds.has(cmd) || /^x([1-9]\d*)$/i.test(cmd)) {
@@ -1606,6 +1728,8 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             priority_val,
             debt_val,
             avoid_val,
+            donate_val,
+            donate_note,
             ny_guests,
             member,
             member_id,

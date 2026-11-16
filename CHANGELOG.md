@@ -4,6 +4,21 @@
 
 ---
 
+## [0.7.30] - 2026-11-16
+
+### Feat: Donate History Log (`donate_log_tbl`), `+donate`/`-donate` Commands & Flex Leaderboard (`/donate`)
+- **ตารางประวัติและระบบปรับยอดแบบ Transaction (`migrations/donate_log_tbl.sql`, `query.js`)**:
+  - เพิ่มตาราง `donate_log_tbl` พร้อม `ensureDonateLogTable()` ที่ Auto-seed ยอดเดิมจาก `member_tbl.donate > 0` (`source = 'initial'`) อัตโนมัติเมื่อตารางยังว่าง
+  - เพิ่ม `adjustMemberDonate()` (อัปเดต `donate_log_tbl` + `member_tbl.donate` ใน Transaction เดียว), `getDonateLeaderboard()`, และ `getRecentDonateLogs()`
+- **Flex ตารางอันดับผู้สนับสนุนและประวัติ (`flex.js`)**:
+  - เพิ่ม `buildDonateFlex()` แสดงตารางอันดับ Donate พร้อม Avatar, สีชื่อตาม `donate_color`, ไฮไลต์ Top 3, แบ่งหน้า Carousel อัตโนมัติเมื่อมีผู้บริจาคมากกว่า 15 คน และปุ่มดูประวัติ/รีเฟรช
+  - เพิ่ม `buildDonateLogFlex()` แสดงรายการปรับยอด Donate ล่าสุด
+- **คำสั่ง LINE Bot (`cmd.js`)**:
+  - เพิ่ม `+donate @ชื่อ จำนวน [หมายเหตุ]` และ `-donate @ชื่อ จำนวน [หมายเหตุ]` (ไม่ต้องมี `/`, เฉพาะ Admin) รองรับชื่อที่มีเว้นวรรคและการบวกให้ตัวเอง
+  - เพิ่ม `/donate` (`/donate log`, `/donate text`) สำหรับดูตารางอันดับและประวัติล่าสุด
+
+---
+
 ## [0.7.29] - 2026-11-16
 
 ### Fix: Dynamic Live Viewer URL (`/live`) Using `getBaseUrl()`
