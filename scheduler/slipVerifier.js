@@ -95,7 +95,7 @@ async function pushNotifications(messages) {
  * Verifies a single pending slip against EasySlip, updates slip_log, and returns outcome details.
  * @param {Object} slip
  * @param {number} activeWeekCost
- * @param {Object} cfg - Config loaded from DB template_tpl
+ * @param {Object} cfg - Config loaded from DB app_settings_tbl
  * @returns {Promise<Object>}
  */
 async function verifySingleSlip(slip, activeWeekCost, cfg) {
