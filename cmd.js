@@ -1281,9 +1281,48 @@ const COMMAND_REGISTRY = {
         }
 
         const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime, forceRegen, targetTeamCount);
-        if (schedJson) return { type: 'flex', altText: `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`, contents: flex.buildScheduleFlex(schedJson, theme) };
+        if (schedJson) {
+            const scheduleFlex = { type: 'flex', altText: `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`, contents: flex.buildScheduleFlex(schedJson, theme) };
+            if (schedJson.lockedByPlayedMatches) {
+                return [
+                    { type: 'text', text: '🔒 มีแมตช์ที่เริ่มแข่งหรือจบไปแล้ว ระบบล็อกตารางเดิมเพื่อรักษาผลแข่ง\n💡 หากต้องการเพิ่มแมตช์ต่อท้าย ใช้คำสั่ง /extend แทนครับ (เช่น /extend 30, /extend 21:00)' },
+                    scheduleFlex
+                ];
+            }
+            return scheduleFlex;
+        }
         return [{ type: 'text', text: schedText }];
     },
+    'extend': async (context) => {
+        const { param, is_flex } = context;
+        const theme = await db.getTheme();
+        const trimmed = (param || '').trim();
+        if (!trimmed) {
+            return [{
+                type: 'text',
+                text: '⏱️ วิธีใช้ /extend (เพิ่มแมตช์ต่อท้ายตารางเดิม):\n• /extend 30 หรือ /extend +30m (เพิ่มเวลาเป็นนาที)\n• /extend 21:00 (ต่อเวลาถึง 21:00 น.)\n• /extend 1รอบ หรือ /extend 6นัด (ระบุจำนวนรอบ/นัด)'
+            }];
+        }
+
+        const result = await db.extendSchedule(trimmed);
+        if (!result.success) {
+            return [{ type: 'text', text: result.message || 'ไม่สามารถขยายตารางแข่งขันได้' }];
+        }
+
+        const { sched, addedMatches, extendedEndTime } = result;
+        if (is_flex === false || !sched) {
+            return [{
+                type: 'text',
+                text: `✅ เพิ่มตารางแข่งขัน +${addedMatches.length} แมตช์ (สิ้นสุด ${extendedEndTime} น.)\n\n${db.formatScheduleLines(sched)}`
+            }];
+        }
+
+        return [
+            { type: 'text', text: `✅ เพิ่มอีก ${addedMatches.length} แมตช์ต่อท้ายตารางเดิม (สิ้นสุด ${extendedEndTime} น.)` },
+            { type: 'flex', altText: `⚽ ตารางแข่งขัน (+${addedMatches.length} แมตช์) เสาร์ที่ ${sched.date}`, contents: flex.buildScheduleFlex(sched, theme) }
+        ];
+    },
+    'extendschedule': async (context) => COMMAND_REGISTRY['extend'](context),
     'now': async (context) => {
         const { groupId } = context;
         const theme = await db.getTheme();

@@ -4,6 +4,20 @@
 
 ---
 
+## [0.7.43] - 2026-11-16
+
+### Added
+- **`/extend` Command & Schedule Continuation Solver (`query.js`, `cmd.js`)**:
+  - Added `/extend` (and `/extendschedule`) command to append balanced extra matches onto the end of an existing schedule without altering or removing any previously generated or played fixtures.
+  - Supports minute extensions (`/extend 30`, `/extend +30m`, `/extend 30นาที`, `/extend 1ชม`), target end time (`/extend 21:00`, `/extend 20.30`), explicit round count (`/extend 1รอบ`), or explicit match count (`/extend 6นัด`).
+  - Added `solveExtendedMatchups` in `query.js` continuing consecutive play/rest streaks, round-robin unused pair tracking, and Left/Right team side alignment seamlessly from the last existing match, updating `week_tbl.time_range` and `schedule.json` when extended.
+
+### Fixed
+- **Hard-Lock Played Schedules Against Overwrite (`query.js`, `cmd.js`)**:
+  - Updated `saveScheduleToDb` and `getScheduleText` so once any match in `match_stat_tbl` has started (`in_progress`), finished (`finished`), or recorded scores, even parameterized `/schedule` calls (which set `forceRegen = true`) refuse to overwrite, reset, or delete played/existing matches, prompting the user to use `/extend` instead.
+
+---
+
 ## [0.7.42] - 2026-11-16
 
 ### Docs

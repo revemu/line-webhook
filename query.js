@@ -4406,6 +4406,58 @@ async function getDebtList(type = 0) {
 
 }
 
+function isMatchPlayed(row) {
+  if (!row) return false;
+  if (row.status === 'finished' || row.status === 'in_progress') return true;
+  const hasGoal = (row.team_a_goal !== null && row.team_a_goal !== undefined) ||
+    (row.team_b_goal !== null && row.team_b_goal !== undefined);
+  if (row.status === undefined || row.status === null) return hasGoal;
+  return Number(row.team_a_goal) > 0 || Number(row.team_b_goal) > 0;
+}
+
+function parseTimeToMins(timeStr) {
+  if (!timeStr) return null;
+  const parts = String(timeStr).trim().replace('.', ':').split(':').map(Number);
+  if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+  if (parts[0] < 0 || parts[0] > 23 || parts[1] < 0 || parts[1] > 59) return null;
+  return parts[0] * 60 + parts[1];
+}
+
+function formatMinsToTime(mins) {
+  const total = ((Math.round(mins) % 1440) + 1440) % 1440;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+async function insertScheduleMatchRow(week_id, matchNum, round, startTime, endTime, teamAId, teamBId) {
+  try {
+    await executeQuery(
+      "INSERT INTO match_stat_tbl (week_id, match_num, round, start_time, end_time, team_a_id, team_b_id, team_a_goal, team_b_goal, status) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'scheduled')",
+      [week_id, matchNum, round, startTime, endTime, teamAId, teamBId]
+    );
+  } catch (insertColErr) {
+    try {
+      await executeQuery(
+        "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id, team_a_goal, team_b_goal) VALUES (?, ?, ?, ?, NULL, NULL)",
+        [week_id, matchNum, teamAId, teamBId]
+      );
+    } catch (i2) {
+      try {
+        await executeQuery(
+          "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id) VALUES (?, ?, ?, ?)",
+          [week_id, matchNum, teamAId, teamBId]
+        );
+      } catch (i3) {
+        await executeQuery(
+          "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id, team_a_goal, team_b_goal) VALUES (?, ?, ?, ?, 0, 0)",
+          [week_id, matchNum, teamAId, teamBId]
+        );
+      }
+    }
+  }
+}
+
 async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
   if (!week_id || !Array.isArray(scheduleMatches) || scheduleMatches.length === 0) return false;
 
@@ -4448,15 +4500,17 @@ async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
       let teamBId = m.teamBId || (m.teamB ? colorToIdMap.get(String(m.teamB).trim().toLowerCase()) : null) || null;
 
       if (ex) {
-        const isPlayed = ex.status === 'finished' || ex.status === 'in_progress' || (ex.status === undefined && ex.team_a_goal !== null && ex.team_a_goal !== undefined);
-        if (isPlayed && !forceRegen) {
-          // Preserve played results! Only update time slots if needed
-          try {
-            await executeQuery(
-              "UPDATE match_stat_tbl SET round = ?, start_time = ?, end_time = ? WHERE id = ?",
-              [round, startTime, endTime, ex.id]
-            );
-          } catch (e) { }
+        const isPlayed = isMatchPlayed(ex);
+        if (isPlayed) {
+          // Hard lock: never overwrite or reset a match that has already been played/scored
+          if (!forceRegen) {
+            try {
+              await executeQuery(
+                "UPDATE match_stat_tbl SET round = ?, start_time = ?, end_time = ? WHERE id = ?",
+                [round, startTime, endTime, ex.id]
+              );
+            } catch (e) { }
+          }
         } else {
           // Overwrite/update scheduled fixture
           try {
@@ -4480,31 +4534,7 @@ async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
         }
       } else {
         // Insert new match row
-        try {
-          await executeQuery(
-            "INSERT INTO match_stat_tbl (week_id, match_num, round, start_time, end_time, team_a_id, team_b_id, team_a_goal, team_b_goal, status) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'scheduled')",
-            [week_id, matchNum, round, startTime, endTime, teamAId, teamBId]
-          );
-        } catch (insertColErr) {
-          try {
-            await executeQuery(
-              "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id, team_a_goal, team_b_goal) VALUES (?, ?, ?, ?, NULL, NULL)",
-              [week_id, matchNum, teamAId, teamBId]
-            );
-          } catch (i2) {
-            try {
-              await executeQuery(
-                "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id) VALUES (?, ?, ?, ?)",
-                [week_id, matchNum, teamAId, teamBId]
-              );
-            } catch (i3) {
-              await executeQuery(
-                "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id, team_a_goal, team_b_goal) VALUES (?, ?, ?, ?, 0, 0)",
-                [week_id, matchNum, teamAId, teamBId]
-              );
-            }
-          }
-        }
+        await insertScheduleMatchRow(week_id, matchNum, round, startTime, endTime, teamAId, teamBId);
       }
     }
 
@@ -4512,8 +4542,7 @@ async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
     if (existing && existing.length > scheduleMatches.length) {
       for (const row of existing) {
         if (row.match_num > scheduleMatches.length) {
-          const isPlayed = row.status === 'finished' || row.status === 'in_progress' || (row.team_a_goal !== null && row.team_a_goal !== undefined);
-          if (!isPlayed || forceRegen) {
+          if (!isMatchPlayed(row)) {
             await executeQuery("DELETE FROM match_stat_tbl WHERE id = ?", [row.id]);
           }
         }
@@ -4701,8 +4730,12 @@ function formatScheduleLines(sched) {
   const numTeams = (sched.teams || []).length || 4;
   const cycleLen = (numTeams * (numTeams - 1)) / 2 || 6;
   const totalRounds = sched.totalRounds || Math.ceil(sched.matches.length / cycleLen);
-  const matchesPerTeam = Math.round((sched.matches.length * 2) / numTeams);
-  lines.push(`👥 ${numTeams} ทีม | ${sched.matches.length} แมตช์ (${totalRounds} รอบ • ทีมละ ${matchesPerTeam} แมตช์เท่ากัน) | ${displayHours} ชม.`);
+  const totalTeamSlots = sched.matches.length * 2;
+  const equalMatches = totalTeamSlots % numTeams === 0;
+  const matchesPerTeamText = equalMatches
+    ? `ทีมละ ${totalTeamSlots / numTeams} แมตช์เท่ากัน`
+    : `ทีมละ ~${Math.floor(totalTeamSlots / numTeams)}-${Math.ceil(totalTeamSlots / numTeams)} แมตช์`;
+  lines.push(`👥 ${numTeams} ทีม | ${sched.matches.length} แมตช์ (${totalRounds} รอบ • ${matchesPerTeamText}) | ${displayHours} ชม.`);
   lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
   lines.push('─'.repeat(30));
 
@@ -4762,34 +4795,39 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     }
   }
 
-  // 1. Primary: Load existing schedule directly from MySQL match_stat_tbl (SSOT)
-  if (!forceRegen) {
-    try {
-      const dbSched = await getScheduleFromDb(week_id);
-      if (dbSched && Array.isArray(dbSched.matches) && dbSched.matches.length > 0) {
+  // 1. Primary: Load existing schedule directly from DB match_stat_tbl (SSOT)
+  // Hard lock: if ANY match has already started or finished, never regenerate even when forceRegen=true.
+  try {
+    const dbSched = await getScheduleFromDb(week_id);
+    if (dbSched && Array.isArray(dbSched.matches) && dbSched.matches.length > 0) {
+      const hasPlayedMatches = dbSched.matches.some(isMatchPlayed);
+      if (hasPlayedMatches) {
+        const lines = formatScheduleLines(dbSched);
+        return [lines, { ...dbSched, lockedByPlayedMatches: Boolean(forceRegen) }];
+      }
+
+      if (!forceRegen) {
         const dbPlayingTeamCount = dbSched.playingTeamCount || (dbSched.teams ? dbSched.teams.length : 0);
         const allDesiredTeamsPlay = dbPlayingTeamCount === desiredTeamCount;
         const cycleLen = (desiredTeamCount * (desiredTeamCount - 1)) / 2;
         const isFullCycles = (dbSched.matches.length % cycleLen === 0);
 
-        const hasPlayedMatches = dbSched.matches.some(m => m.status === 'in_progress' || m.status === 'finished' || (m.team_a_goal !== null && m.team_a_goal !== undefined));
-
         let timeRangeMismatch = false;
-        if (!hasPlayedMatches && week[0]?.time_range && dbSched.startTime) {
+        if (week[0]?.time_range && dbSched.startTime) {
           const parts = week[0].time_range.split('-').map(s => s.trim().replace('.', ':'));
           if (parts.length >= 1 && parts[0] && parts[0] !== dbSched.startTime) {
             timeRangeMismatch = true;
           }
         }
 
-        if (hasPlayedMatches || (allDesiredTeamsPlay && isFullCycles && !timeRangeMismatch)) {
+        if (allDesiredTeamsPlay && isFullCycles && !timeRangeMismatch) {
           const lines = formatScheduleLines(dbSched);
           return [lines, dbSched];
         }
       }
-    } catch (err) {
-      logger.error('[schedule] failed to load schedule from DB:', err.message);
     }
+  } catch (err) {
+    logger.error('[schedule] failed to load schedule from DB:', err.message);
   }
 
   // Ensure enough team colors are generated for desiredTeamCount
@@ -5251,6 +5289,467 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
   }
 
   return [lines.join('\n'), scheduleJson];
+}
+
+function parseExtendArgs(param = '') {
+  const tokens = String(param || '').trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return { mode: 'empty' };
+
+  for (const rawToken of tokens) {
+    const token = rawToken.trim();
+
+    // 1. Explicit end time: HH:MM or HH.MM (e.g. 21:00, 20.30)
+    const timeMatch = token.match(/^(\d{1,2})[:.](\d{2})$/);
+    if (timeMatch) {
+      const h = parseInt(timeMatch[1], 10);
+      const m = parseInt(timeMatch[2], 10);
+      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+        return { mode: 'end_time', endTimeStr: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` };
+      }
+    }
+
+    // 2. Explicit rounds: e.g. 1รอบ, 2r, 1round
+    const roundMatch = token.match(/^(\d+)\s*(?:รอบ|r|round|rounds)$/i);
+    if (roundMatch) {
+      const rounds = parseInt(roundMatch[1], 10);
+      if (rounds > 0) return { mode: 'rounds', extraRounds: Math.min(rounds, 6) };
+    }
+
+    // 3. Explicit match count: e.g. 6นัด, 4แมตช์, 6matches
+    const matchCountMatch = token.match(/^(\d+)\s*(?:นัด|แมตช์|match|matches)$/i);
+    if (matchCountMatch) {
+      const count = parseInt(matchCountMatch[1], 10);
+      if (count > 0) return { mode: 'matches', extraMatches: Math.min(count, 36) };
+    }
+
+    // 4. Hours: e.g. 1ชม, +1h, 1.5ชม
+    const hourMatch = token.match(/^\+?(\d+(?:\.\d+)?)\s*(?:ชม\.?|ชั่วโมง|h|hr|hrs|hour|hours)$/i);
+    if (hourMatch) {
+      const hrs = parseFloat(hourMatch[1]);
+      if (hrs > 0) return { mode: 'minutes', addMinutes: Math.min(Math.round(hrs * 60), 360) };
+    }
+
+    // 5. Minutes (default for bare numbers and +Nm / Nนาที): e.g. 30, +30, 30m, +45นาที
+    const minMatch = token.match(/^\+?(\d+)\s*(?:m|min|mins|นาที)?$/i);
+    if (minMatch) {
+      const mins = parseInt(minMatch[1], 10);
+      if (mins > 0) return { mode: 'minutes', addMinutes: Math.min(mins, 360) };
+    }
+  }
+
+  return { mode: 'invalid' };
+}
+
+function solveExtendedMatchups(numTeams, existingPairs, extraMatches) {
+  if (extraMatches <= 0 || numTeams < 2) return [];
+
+  const cycleLen = (numTeams * (numTeams - 1)) / 2;
+  const pairKey = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+
+  const allPairs = [];
+  for (let i = 0; i < numTeams; i++) {
+    for (let j = i + 1; j < numTeams; j++) {
+      allPairs.push([i, j]);
+    }
+  }
+  shuffleArray(allPairs);
+
+  const baseLen = existingPairs.length;
+  const consecPlay = new Array(numTeams).fill(0);
+  const lastPlay = new Array(numTeams).fill(-2);
+  const consecRest = new Array(numTeams).fill(0);
+  const lastRest = new Array(numTeams).fill(-2);
+  const teamMatchCounts = new Array(numTeams).fill(0);
+  const roundUsedPairs = new Map();
+
+  for (let s = 0; s < baseLen; s++) {
+    const [a, b] = existingPairs[s];
+    const rIdx = Math.floor(s / cycleLen);
+    if (!roundUsedPairs.has(rIdx)) roundUsedPairs.set(rIdx, new Set());
+    roundUsedPairs.get(rIdx).add(pairKey(a, b));
+
+    teamMatchCounts[a]++;
+    teamMatchCounts[b]++;
+    for (let t = 0; t < numTeams; t++) {
+      if (t === a || t === b) {
+        consecPlay[t] = lastPlay[t] === s - 1 ? consecPlay[t] + 1 : 1;
+        lastPlay[t] = s;
+        consecRest[t] = 0;
+      } else {
+        consecRest[t] = lastRest[t] === s - 1 ? consecRest[t] + 1 : 1;
+        lastRest[t] = s;
+        consecPlay[t] = 0;
+      }
+    }
+  }
+
+  const totalTargetMatches = baseLen + extraMatches;
+  const optimalMatchSpread = ((totalTargetMatches * 2) % numTeams === 0) ? 0 : 1;
+
+  let bestSchedule = null;
+  let bestMatchSpread = Infinity;
+  let bestStreakSpread = Infinity;
+  let bestMaxStreak = Infinity;
+  let steps = 0;
+  const maxSteps = 200000;
+  const chosen = [];
+
+  function evaluateSolution() {
+    const minCnt = Math.min(...teamMatchCounts);
+    const maxCnt = Math.max(...teamMatchCounts);
+    const matchSpread = maxCnt - minCnt;
+
+    const streaks = new Array(numTeams).fill(0);
+    const tPlay = new Array(numTeams).fill(0);
+    const tLast = new Array(numTeams).fill(-2);
+    for (let s = 0; s < chosen.length; s++) {
+      const [a, b] = chosen[s];
+      for (let t = 0; t < numTeams; t++) {
+        if (t === a || t === b) {
+          tPlay[t] = tLast[t] === s - 1 ? tPlay[t] + 1 : 1;
+          if (tPlay[t] === 2) streaks[t]++;
+          tLast[t] = s;
+        }
+      }
+    }
+    const maxStr = Math.max(...streaks);
+    const streakSpread = maxStr - Math.min(...streaks);
+
+    const isBetter =
+      matchSpread < bestMatchSpread ||
+      (matchSpread === bestMatchSpread && streakSpread < bestStreakSpread) ||
+      (matchSpread === bestMatchSpread && streakSpread === bestStreakSpread && maxStr < bestMaxStreak);
+
+    if (isBetter) {
+      bestMatchSpread = matchSpread;
+      bestStreakSpread = streakSpread;
+      bestMaxStreak = maxStr;
+      bestSchedule = chosen.map(p => [...p]);
+    }
+
+    return matchSpread <= optimalMatchSpread && streakSpread <= 1;
+  }
+
+  function backtrack(offset) {
+    steps++;
+    if (steps > maxSteps) return false;
+    if (offset === extraMatches) {
+      return evaluateSolution();
+    }
+
+    const slot = baseLen + offset;
+    const roundIdx = Math.floor(slot / cycleLen);
+    if (!roundUsedPairs.has(roundIdx)) roundUsedPairs.set(roundIdx, new Set());
+    const usedSet = roundUsedPairs.get(roundIdx);
+
+    const prevPair = offset > 0
+      ? chosen[offset - 1]
+      : (baseLen > 0 ? existingPairs[baseLen - 1] : null);
+
+    // Prioritize pairs whose teams currently have fewer matches to converge immediately on fair totals
+    const candidates = allPairs
+      .filter(([a, b]) => !usedSet.has(pairKey(a, b)))
+      .sort(([a1, b1], [a2, b2]) => (teamMatchCounts[a1] + teamMatchCounts[b1]) - (teamMatchCounts[a2] + teamMatchCounts[b2]));
+
+    for (const [a, b] of candidates) {
+      if ((lastPlay[a] === slot - 1 ? consecPlay[a] : 0) >= 2) continue;
+      if ((lastPlay[b] === slot - 1 ? consecPlay[b] : 0) >= 2) continue;
+
+      if (prevPair && ((a === prevPair[0] && b === prevPair[1]) || (a === prevPair[1] && b === prevPair[0]))) {
+        continue;
+      }
+
+      let restOk = true;
+      for (let t = 0; t < numTeams; t++) {
+        if (t === a || t === b) continue;
+        if ((lastRest[t] === slot - 1 ? consecRest[t] : 0) >= 2) {
+          restOk = false;
+          break;
+        }
+      }
+      if (!restOk) continue;
+
+      const prevPlay = [...consecPlay];
+      const prevLastPlay = [...lastPlay];
+      const prevRest = [...consecRest];
+      const prevLastRest = [...lastRest];
+      const pKey = pairKey(a, b);
+
+      for (let t = 0; t < numTeams; t++) {
+        if (t === a || t === b) {
+          consecPlay[t] = lastPlay[t] === slot - 1 ? consecPlay[t] + 1 : 1;
+          lastPlay[t] = slot;
+          consecRest[t] = 0;
+        } else {
+          consecRest[t] = lastRest[t] === slot - 1 ? consecRest[t] + 1 : 1;
+          lastRest[t] = slot;
+          consecPlay[t] = 0;
+        }
+      }
+      teamMatchCounts[a]++;
+      teamMatchCounts[b]++;
+      usedSet.add(pKey);
+      chosen.push([a, b]);
+
+      if (backtrack(offset + 1)) return true;
+
+      chosen.pop();
+      usedSet.delete(pKey);
+      teamMatchCounts[a]--;
+      teamMatchCounts[b]--;
+      for (let t = 0; t < numTeams; t++) {
+        consecPlay[t] = prevPlay[t];
+        lastPlay[t] = prevLastPlay[t];
+        consecRest[t] = prevRest[t];
+        lastRest[t] = prevLastRest[t];
+      }
+    }
+    return false;
+  }
+
+  backtrack(0);
+
+  let matchups = bestSchedule;
+  if (!matchups) {
+    // Greedy fallback when existing DB history already has manually-created streak constraints
+    logger.warn('[extendSchedule] Strict backtrack found no valid continuation, using greedy balanced fallback.');
+    matchups = [];
+    for (let offset = 0; offset < extraMatches; offset++) {
+      const slot = baseLen + offset;
+      const roundIdx = Math.floor(slot / cycleLen);
+      if (!roundUsedPairs.has(roundIdx)) roundUsedPairs.set(roundIdx, new Set());
+      const usedSet = roundUsedPairs.get(roundIdx);
+      const prevPair = offset > 0
+        ? matchups[offset - 1]
+        : (baseLen > 0 ? existingPairs[baseLen - 1] : null);
+
+      const poolPairs = allPairs.filter(([a, b]) => !usedSet.has(pairKey(a, b)));
+      const searchList = poolPairs.length > 0 ? poolPairs : allPairs;
+
+      let picked = searchList[0];
+      let bestScore = Infinity;
+      for (const [a, b] of searchList) {
+        let penalty = (teamMatchCounts[a] + teamMatchCounts[b]) * 10;
+        if ((lastPlay[a] === slot - 1 ? consecPlay[a] : 0) >= 2) penalty += 1000;
+        if ((lastPlay[b] === slot - 1 ? consecPlay[b] : 0) >= 2) penalty += 1000;
+        for (let t = 0; t < numTeams; t++) {
+          if (t !== a && t !== b && (lastRest[t] === slot - 1 ? consecRest[t] : 0) >= 2) penalty += 500;
+        }
+        if (prevPair && ((a === prevPair[0] && b === prevPair[1]) || (a === prevPair[1] && b === prevPair[0]))) {
+          penalty += 2000;
+        }
+        if (penalty < bestScore) {
+          bestScore = penalty;
+          picked = [a, b];
+        }
+      }
+
+      const [pa, pb] = picked;
+      usedSet.add(pairKey(pa, pb));
+      teamMatchCounts[pa]++;
+      teamMatchCounts[pb]++;
+      for (let t = 0; t < numTeams; t++) {
+        if (t === pa || t === pb) {
+          consecPlay[t] = lastPlay[t] === slot - 1 ? consecPlay[t] + 1 : 1;
+          lastPlay[t] = slot;
+          consecRest[t] = 0;
+        } else {
+          consecRest[t] = lastRest[t] === slot - 1 ? consecRest[t] + 1 : 1;
+          lastRest[t] = slot;
+          consecPlay[t] = 0;
+        }
+      }
+      matchups.push([pa, pb]);
+    }
+  }
+
+  // Keep continuing teams on the same Left/Right side from the last existing match onward
+  for (let i = 0; i < matchups.length; i++) {
+    const prev = i === 0 ? (baseLen > 0 ? existingPairs[baseLen - 1] : null) : matchups[i - 1];
+    if (!prev) continue;
+    const [prevA, prevB] = prev;
+    const [currA, currB] = matchups[i];
+    if (currB === prevA || currA === prevB) {
+      matchups[i] = [currB, currA];
+    }
+  }
+
+  return matchups;
+}
+
+async function extendSchedule(param = '') {
+  const parsed = parseExtendArgs(param);
+  if (parsed.mode === 'empty' || parsed.mode === 'invalid') {
+    return {
+      success: false,
+      message: '⏱️ รูปแบบคำสั่งไม่ถูกต้อง ลองใช้เช่น:\n• /extend 30 หรือ /extend +30m (เพิ่มเวลาเป็นนาที)\n• /extend 21:00 (ต่อเวลาถึง 21:00 น.)\n• /extend 1รอบ หรือ /extend 6นัด'
+    };
+  }
+
+  const week = await queryWeekID(0);
+  if (!week || week.length === 0) {
+    return { success: false, message: 'ยังไม่มีข้อมูลสัปดาห์นี้' };
+  }
+  const week_id = week[0].id;
+
+  const dbSched = await getScheduleFromDb(week_id);
+  if (!dbSched || !Array.isArray(dbSched.matches) || dbSched.matches.length === 0) {
+    return { success: false, message: 'ยังไม่มีตารางแข่งขันเดิม กรุณาใช้คำสั่ง /schedule ก่อนนะครับ' };
+  }
+
+  const teamColors = await getTeamColorWeek(week_id);
+  const playingSet = new Set(dbSched.teams || []);
+  const playingTeamList = (teamColors || []).filter(c => playingSet.size === 0 || playingSet.has(c.color));
+  if (playingTeamList.length < 2) {
+    return { success: false, message: 'ไม่พบข้อมูลทีมในตารางแข่งขันเดิม' };
+  }
+
+  const numTeams = playingTeamList.length;
+  const cycleLen = (numTeams * (numTeams - 1)) / 2;
+  const idToIdx = new Map();
+  playingTeamList.forEach((t, idx) => idToIdx.set(t.id, idx));
+
+  const existingPairs = [];
+  let maxMatchNum = 0;
+  for (const r of dbSched.dbMatches || []) {
+    if (r.match_num > maxMatchNum) maxMatchNum = r.match_num;
+    const ia = idToIdx.get(r.team_a_id);
+    const ib = idToIdx.get(r.team_b_id);
+    if (ia !== undefined && ib !== undefined) {
+      existingPairs.push([ia, ib]);
+    }
+  }
+
+  const matches = dbSched.matches;
+  const firstMatch = matches[0];
+  const lastMatch = matches[matches.length - 1];
+  const firstStartTotal = parseTimeToMins(firstMatch.startTime) ?? (17 * 60 + 30);
+  let lastStartTotal = parseTimeToMins(lastMatch.startTime) ?? firstStartTotal;
+  if (lastStartTotal < firstStartTotal) lastStartTotal += 1440;
+  let lastEndTotal = parseTimeToMins(lastMatch.endTime) ?? (lastStartTotal + (dbSched.matchMinutes || 7));
+  if (lastEndTotal < lastStartTotal) lastEndTotal += 1440;
+
+  const matchMin = dbSched.matchMinutes || 7;
+  const breakMin = (typeof dbSched.breakMinutes === 'number' && dbSched.breakMinutes >= 0) ? dbSched.breakMinutes : 2;
+  const avgStep = (matches.length >= 2 && lastStartTotal > firstStartTotal)
+    ? Math.max(matchMin, (lastStartTotal - firstStartTotal) / (matches.length - 1))
+    : (matchMin + breakMin);
+
+  const nextStartTotal = Math.max(
+    lastEndTotal + (breakMin > 0 ? 1 : 0),
+    Math.round(lastStartTotal + avgStep)
+  );
+
+  // Align base end time with week_tbl.time_range end if it sits within the trailing gap after the last match
+  let baseEndTotal = lastEndTotal;
+  if (week[0].time_range && week[0].time_range.includes('-')) {
+    const parts = week[0].time_range.split('-').map(s => s.trim());
+    let weekEnd = parseTimeToMins(parts[1]);
+    if (weekEnd !== null) {
+      if (weekEnd < firstStartTotal) weekEnd += 1440;
+      if (weekEnd >= lastEndTotal && weekEnd <= lastEndTotal + Math.ceil(avgStep - matchMin) + 2) {
+        baseEndTotal = weekEnd;
+      }
+    }
+  }
+
+  let extraMatches = 0;
+  if (parsed.mode === 'minutes' || parsed.mode === 'end_time') {
+    let targetEndTotal;
+    if (parsed.mode === 'minutes') {
+      targetEndTotal = baseEndTotal + parsed.addMinutes;
+    } else {
+      targetEndTotal = parseTimeToMins(parsed.endTimeStr);
+      if (targetEndTotal <= firstStartTotal && targetEndTotal < 360) targetEndTotal += 1440;
+      if (targetEndTotal <= lastEndTotal) {
+        return {
+          success: false,
+          message: `⚠️ เวลาสิ้นสุดใหม่ (${parsed.endTimeStr} น.) ต้องมากกว่าเวลาจบเดิม (${lastMatch.endTime} น.)`
+        };
+      }
+    }
+
+    let k = 0;
+    while (k < 36) {
+      const slotStart = Math.round(nextStartTotal + k * avgStep);
+      if (slotStart + matchMin <= targetEndTotal) {
+        k++;
+      } else {
+        break;
+      }
+    }
+    if (k === 0) {
+      const minNeeded = (nextStartTotal - baseEndTotal) + matchMin;
+      return {
+        success: false,
+        message: `⚠️ เวลาที่เพิ่มยังไม่พอสำหรับเพิ่ม 1 แมตช์ (ต้องเพิ่มอย่างน้อย ${Math.max(matchMin, minNeeded)} นาที หรือสิ้นสุดตั้งแต่ ${formatMinsToTime(nextStartTotal + matchMin)} น. ขึ้นไป)`
+      };
+    }
+    extraMatches = k;
+  } else if (parsed.mode === 'rounds') {
+    extraMatches = parsed.extraRounds * cycleLen;
+  } else if (parsed.mode === 'matches') {
+    extraMatches = parsed.extraMatches;
+  }
+
+  extraMatches = Math.max(1, Math.min(extraMatches, 36));
+
+  const newMatchups = solveExtendedMatchups(numTeams, existingPairs, extraMatches);
+  await ensureMatchStatScheduleColumns();
+
+  const addedMatches = [];
+  let extendedEndTotal = lastEndTotal;
+  for (let i = 0; i < newMatchups.length; i++) {
+    const [a, b] = newMatchups[i];
+    const slotStart = Math.round(nextStartTotal + i * avgStep);
+    const slotEnd = slotStart + matchMin;
+    extendedEndTotal = slotEnd;
+
+    const matchNum = maxMatchNum + 1 + i;
+    const round = Math.floor((maxMatchNum + i) / cycleLen) + 1;
+    const startTime = formatMinsToTime(slotStart);
+    const endTime = formatMinsToTime(slotEnd);
+    const teamA = playingTeamList[a];
+    const teamB = playingTeamList[b];
+
+    await insertScheduleMatchRow(week_id, matchNum, round, startTime, endTime, teamA.id, teamB.id);
+    addedMatches.push({
+      matchNo: matchNum,
+      round,
+      startTime,
+      endTime,
+      teamA: teamA.color,
+      teamAId: teamA.id,
+      teamB: teamB.color,
+      teamBId: teamB.id
+    });
+  }
+
+  const extendedEndTime = formatMinsToTime(extendedEndTotal);
+  try {
+    await ensureWeekTimeColumn();
+    await executeQuery("UPDATE week_tbl SET time_range = ? WHERE id = ?", [`${dbSched.startTime}-${extendedEndTime}`, week_id]);
+  } catch (err) {
+    logger.warn('[extendSchedule] failed to update week_tbl.time_range:', err.message);
+  }
+
+  const updatedSched = await getScheduleFromDb(week_id);
+  if (updatedSched) {
+    try {
+      const jsonPath = path.join(__dirname, 'schedule.json');
+      fs.writeFileSync(jsonPath, JSON.stringify(updatedSched, null, 2), 'utf8');
+    } catch (err) {
+      logger.warn('[extendSchedule] failed to update schedule.json:', err.message);
+    }
+  }
+
+  logger.info(`[extendSchedule] Appended ${addedMatches.length} matches for week ${week_id} (new end: ${extendedEndTime})`);
+  return {
+    success: true,
+    sched: updatedSched,
+    addedMatches,
+    extendedEndTime
+  };
 }
 
 async function getMatchScorersAndAssists(matchId, assets, groupId) {
@@ -8542,6 +9041,10 @@ module.exports = {
   getScheduleText,
   getScheduleFromDb,
   formatScheduleLines,
+  extendSchedule,
+  parseExtendArgs,
+  solveExtendedMatchups,
+  isMatchPlayed,
   getCurrentMatch,
   saveScheduleToDb,
   ensureMatchStatScheduleColumns,
