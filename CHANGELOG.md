@@ -4,6 +4,19 @@
 
 ---
 
+## [0.7.36] - 2026-11-16
+
+### Changed
+- **Phase 3 Refactoring (Modular Domain Extraction from `query.js`)**:
+  - Extracted database pool configuration and `executeQuery` helper into `db/pool.js`.
+  - Extracted member visual asset loading and badge/color resolution (`resolveMemberDisplayInfo`, `fetchDisplayAssets`) into `services/memberDisplay.js`.
+  - Extracted `app_settings_tbl` & `slip_verify_*` config management into `services/appSettings.js`.
+  - Extracted `donate_log_tbl` transactions and leaderboard queries into `services/donate.js`.
+  - Extracted `slip_log` schema, CRUD, and background verification queue queries into `services/slipLog.js`.
+  - Re-exported all extracted functions from `query.js` so all existing callers remain 100% compatible.
+
+---
+
 ## [0.7.35] - 2026-11-16
 
 ### Changed
