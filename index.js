@@ -19,6 +19,8 @@ const { formatDate, getFormatDate: getFormatDateUtil } = require('./utils/date')
 const { spamProtector } = require('./utils/spamProtection');
 const { initScheduler, notifyBaseUrl } = require('./scheduler');
 const { setBaseUrl } = require('./utils/url');
+const webRouter = require('./routes/web');
+const { initWebSocket } = require('./utils/wsBroadcaster');
 
 const execPromise = util.promisify(exec);
 
@@ -78,11 +80,8 @@ app.use((req, res, next) => {
     next();
 });
 
-// Use LINE SDK middleware for webhook handling
-app.use('/webhook', middleware(config));
-
-// Webhook POST endpoint
-app.post('/webhook', async (req, res) => {
+// LINE Webhook POST endpoint (middleware is scoped strictly to POST /webhook so web dashboard routes under /webhook are not blocked)
+app.post(['/webhook', '/webhook/'], middleware(config), async (req, res) => {
     try {
         const events = req.body.events;
         res.status(200).send('OK');
@@ -123,6 +122,13 @@ async function handleEvent(event) {
 app.use('/img/qr', express.static(path.join(__dirname, 'qr')));
 app.use('/img/team', express.static(path.join(__dirname, 'img', 'team')));
 app.use('/img', express.static(path.join(__dirname, 'img')));
+
+// Mount Soccer Bot API & Web Dashboard routes (Merged from soccerbotapi - mounted before static to enable dynamic auto-versioning)
+app.use(webRouter);
+
+// Serve Soccer Bot Web Dashboard static assets (public folder) under both /webhook and /web
+app.use('/webhook', express.static(path.join(__dirname, 'public')));
+app.use('/web', express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
 // Serve green_dot.png static asset and fallback route aliases
@@ -425,13 +431,15 @@ async function handleTextMessage(event, member) {
 
         const spamCheck = spamProtector.acquire(userId, groupId, cmd_str);
         if (!spamCheck.allowed) {
-            logger.warn(`[SPAM BLOCKED] Duplicate command '${message.text}' from ${member ? member.name : userId} ignored (only 1st is processed)`);
+            const secInfo = spamCheck.remainingSec ? ` (${spamCheck.remainingSec}s remaining)` : '';
+            logger.warn(`[SPAM BLOCKED] Duplicate command '${message.text}' from ${member ? member.name : userId} ignored${secInfo}`);
             if (spamCheck.shouldWarn) {
                 const displayName = member && member.name ? member.name.replace('@', '') : 'คุณ';
+                const waitText = spamCheck.remainingSec ? ` (อีก ${spamCheck.remainingSec} วินาที)` : '';
                 const replyMsg = [
                     {
                         type: 'text',
-                        text: `ขออภัย ${displayName} เพิ่งส่งคำสั่งนี้ไปแล้ว กรุณารอสักครู่ครับ ⏳`
+                        text: `ขออภัย ${displayName} เพิ่งส่งคำสั่งนี้ไปแล้ว กรุณารอสักครู่ครับ${waitText} ⏳`
                     }
                 ];
                 await replyMessage(replyToken, replyMsg);
@@ -518,9 +526,13 @@ app.use((error, req, res, next) => {
 });
 
 // Start server
-app.listen(3001, async () => {
-    //logger.info(`LINE Webhook server running on port ${PORT}`);
-    //logger.info(`Webhook URL: http://localhost:${PORT}/webhook`);
+const PORT = process.env.PORT || 3001;
+
+const server = app.listen(PORT, async () => {
+    initWebSocket(server);
+    logger.info(`✅ Server running on port ${PORT}`);
+    logger.info(`LINE Webhook URL: http://localhost:${PORT}/webhook`);
+    logger.info(`Web Dashboard:   http://localhost:${PORT}/webhook/match`);
 
     // Check if environment variables are set
     if (!config.channelSecret || !config.channelAccessToken) {
@@ -531,7 +543,6 @@ app.listen(3001, async () => {
     }
 
     await db.testConnection();
-    //const res = await db.getMemberWeek() ;
 
     // Check if zbarimg is installed
     const zbarimgInstalled = await checkZbarimgInstalled();

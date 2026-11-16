@@ -84,7 +84,7 @@ function normalizeTime(timeStr) {
 
 /**
  * Checks if targetDays specification matches the current day of the week.
- * Supports '*', 'weekdays', 'weekends', [1,2,3,4,5], '1-5', '1,2,3,4,5', 'mon-fri', 'fri', 'thu', etc.
+ * Supports '*', 'weekdays', 'weekends', [1,2,3,4,5], '1-5', '1,2,3,4,5', 'mon-fri', 'mon-fri,sun', '1-5,0', 'fri', 'thu', etc.
  * @param {Array|string|number} targetDays 
  * @param {number} currentDow - 0 (Sun) .. 6 (Sat)
  * @returns {boolean}
@@ -96,12 +96,7 @@ function matchesDay(targetDays, currentDow) {
 
   // If array e.g. [1, 2, 3, 4, 5] or ['mon', 'fri']
   if (Array.isArray(targetDays)) {
-    return targetDays.some(d => {
-      if (typeof d === 'number') return d === currentDow;
-      const str = String(d).toLowerCase().trim();
-      if (DAY_MAP[str] !== undefined) return DAY_MAP[str] === currentDow;
-      return parseInt(str, 10) === currentDow;
-    });
+    return targetDays.some(d => matchesDay(d, currentDow));
   }
 
   // If number e.g. 1
@@ -113,32 +108,35 @@ function matchesDay(targetDays, currentDow) {
   if (typeof targetDays === 'string') {
     const s = targetDays.toLowerCase().trim();
     if (s === '*' || s === 'all' || s === 'daily' || s === 'everyday') return true;
-    if (s === 'weekdays' || s === 'mon-fri' || s === '1-5') return currentDow >= 1 && currentDow <= 5;
-    if (s === 'weekends' || s === 'sat-sun' || s === '6,0' || s === '0,6') return currentDow === 0 || currentDow === 6;
 
-    // Handle single day name e.g. "fri", "thu"
-    if (DAY_MAP[s] !== undefined) {
-      return DAY_MAP[s] === currentDow;
-    }
+    // Handle comma-separated list e.g. "mon-fri,sun", "1-5,0", "mon,wed,fri"
+    const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+    return parts.some(p => {
+      if (p === '*' || p === 'all' || p === 'daily' || p === 'everyday') return true;
+      if (p === 'weekdays' || p === 'mon-fri' || p === '1-5') return currentDow >= 1 && currentDow <= 5;
+      if (p === 'weekends' || p === 'sat-sun' || p === '6,0' || p === '0,6') return currentDow === 0 || currentDow === 6;
 
-    // Handle range e.g. "1-5" or "mon-fri"
-    const rangeMatch = s.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
-    if (rangeMatch) {
-      const start = DAY_MAP[rangeMatch[1]] !== undefined ? DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
-      const end = DAY_MAP[rangeMatch[2]] !== undefined ? DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
-      if (!isNaN(start) && !isNaN(end)) {
-        if (start <= end) {
-          return currentDow >= start && currentDow <= end;
-        } else {
-          return currentDow >= start || currentDow <= end;
+      // Single day name e.g. "sun", "fri"
+      if (DAY_MAP[p] !== undefined) {
+        return DAY_MAP[p] === currentDow;
+      }
+
+      // Handle range e.g. "mon-fri", "1-5", "fri-sun"
+      const rangeMatch = p.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
+      if (rangeMatch) {
+        const start = DAY_MAP[rangeMatch[1]] !== undefined ? DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
+        const end = DAY_MAP[rangeMatch[2]] !== undefined ? DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
+        if (!isNaN(start) && !isNaN(end)) {
+          if (start <= end) {
+            return currentDow >= start && currentDow <= end;
+          } else {
+            // Wrapping range, e.g. fri-sun (5 to 0) -> 5, 6, 0
+            return currentDow >= start || currentDow <= end;
+          }
         }
       }
-    }
 
-    // Handle comma-separated list e.g. "1,2,3,4,5" or "mon,tue,wed,thu,fri"
-    const parts = s.split(',').map(p => p.trim());
-    return parts.some(p => {
-      if (DAY_MAP[p] !== undefined) return DAY_MAP[p] === currentDow;
+      // Numeric day e.g. "0", "1"
       return parseInt(p, 10) === currentDow;
     });
   }
@@ -146,10 +144,37 @@ function matchesDay(targetDays, currentDow) {
   return false;
 }
 
+/**
+ * Helper to check if a last_run_date matches the target Bangkok date (YYYY-MM-DD).
+ * Accurately handles Date objects, ISO strings, and standard MySQL datetime strings.
+ * @param {Date|string|null} dateOrStr 
+ * @param {string} targetDateStr - 'YYYY-MM-DD'
+ * @returns {boolean}
+ */
+function isSameBangkokDay(dateOrStr, targetDateStr) {
+  if (!dateOrStr || !targetDateStr) return false;
+  if (dateOrStr instanceof Date) {
+    const { todayDateStr } = getBangkokDateTime(dateOrStr);
+    return todayDateStr === targetDateStr;
+  }
+  const s = String(dateOrStr).trim();
+  if (s.startsWith(targetDateStr)) return true;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    return s.substring(0, 10) === targetDateStr;
+  }
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    const { todayDateStr } = getBangkokDateTime(parsed);
+    return todayDateStr === targetDateStr;
+  }
+  return false;
+}
+
 class TaskRegistry {
   constructor() {
     this.tasks = new Map();
     this.lastExecution = new Map(); // taskId -> 'YYYY-MM-DD HH:mm'
+    this.lastEnqueued = new Map(); // taskId -> 'YYYY-MM-DD'
     this.lastTasksHash = null;
     this.isLoaded = false;
   }
@@ -173,12 +198,14 @@ class TaskRegistry {
 
       if (force) {
         this.lastExecution.clear();
+        this.lastEnqueued.clear();
       }
 
       const isInitial = !this.isLoaded;
       this.tasks.clear();
 
       if (rows && rows.length > 0) {
+        const { todayDateStr } = getBangkokDateTime();
         for (const row of rows) {
           const isEnabled = row.enabled === 1 || row.enabled === true;
           if (!isEnabled) continue;
@@ -203,6 +230,9 @@ class TaskRegistry {
           };
 
           this.tasks.set(taskId, taskObj);
+          if (taskObj.last_run_date && isSameBangkokDay(taskObj.last_run_date, todayDateStr)) {
+            this.lastEnqueued.set(taskId, todayDateStr);
+          }
           logger.debug(`[TaskRegistry] Registered task: ${taskId} (${taskObj.name}) | Type: ${taskObj.type} | Schedule: ${taskObj.schedule.days} @ ${taskObj.schedule.time}`);
         }
       }
@@ -225,12 +255,15 @@ class TaskRegistry {
 
   /**
    * Evaluates registered tasks against current date & time (Bangkok timezone).
+   * Supports same-day catch-up if a task was scheduled for today, its time has passed,
+   * and it hasn't run yet today.
    * @param {Date} [now=new Date()]
    * @returns {Array<Object>} List of tasks that should execute now
    */
   getDueTasks(now = new Date()) {
     const dueTasks = [];
-    const { dow, currentTimeStr, todayDateStr, currentMinuteKey, weekdayShort } = getBangkokDateTime(now);
+    const { dow, currentTimeStr, todayDateStr, currentMinuteKey, weekdayShort, h, m } = getBangkokDateTime(now);
+    const nowMs = now.getTime();
 
     for (const [id, task] of this.tasks.entries()) {
       if (task.enabled === false) continue;
@@ -244,25 +277,71 @@ class TaskRegistry {
         continue;
       }
 
-      // 2. Check time condition (HH:mm)
-      if (targetTime && targetTime !== currentTimeStr) {
-        continue;
+      if (!targetTime) continue;
+
+      // 2. Check if schedule time has arrived today
+      const isExactMinute = (targetTime === currentTimeStr);
+      const isPastScheduledTime = (currentTimeStr >= targetTime);
+
+      if (!isPastScheduledTime) {
+        continue; // Scheduled time has not arrived yet today
       }
 
-      // 3. Ensure the task has not already executed during this exact minute
+      // Check if task has already executed today (checked via DB last_run_date)
+      const hasRunToday = isSameBangkokDay(task.last_run_date, todayDateStr);
+      if (hasRunToday) {
+        continue; // Already executed today, do not run again
+      }
+
+      // Check if task has already been enqueued/dispatched today
+      const hasEnqueuedToday = (this.lastEnqueued.get(id) === todayDateStr);
+      if (hasEnqueuedToday) {
+        continue; // Already enqueued today, waiting in pending queue or already processed
+      }
+
+      // Prevent re-evaluating during the exact same minute
       const lastRunMinute = this.lastExecution.get(id);
       if (lastRunMinute === currentMinuteKey) {
         continue;
       }
 
-      // reply_on_chat tasks: log schedule trigger & pending status, then mark minute logged so worker waits for incoming chat
+      // 3. Handle reply_on_chat tasks
       if (task.deliveryMode === 'reply_on_chat') {
-        logger.info(`[SchedulerWorker] Task '${id}' (${task.name}) matched schedule (${weekdayShort} @ ${currentTimeStr}) [mode: reply_on_chat] -> Status: PENDING (Waiting for next chat message in group to reply)`);
+        const [schedH, schedM] = targetTime.split(':').map(n => parseInt(n, 10));
+        const expireMinutes = Number(task.expireMinutes) > 0 ? parseInt(task.expireMinutes, 10) : 60;
+
+        const currentTotalMinutes = parseInt(h, 10) * 60 + parseInt(m, 10);
+        const schedTotalMinutes = schedH * 60 + schedM;
+        const minutesPassed = currentTotalMinutes - schedTotalMinutes;
+
+        if (minutesPassed > expireMinutes) {
+          // Task time window has expired for today
+          continue;
+        }
+
+        const remainingMs = Math.max(0, (expireMinutes - minutesPassed) * 60 * 1000);
+        const calculatedExpiresAt = nowMs + remainingMs;
+
         this.lastExecution.set(id, currentMinuteKey);
+        this.lastEnqueued.set(id, todayDateStr);
+        if (!isExactMinute) {
+          logger.info(`[TaskRegistry] Catch-up pending task '${id}' for today (${weekdayShort} scheduled @ ${targetTime}, current: ${currentTimeStr}, remaining window: ${expireMinutes - minutesPassed}m)`);
+        }
+        dueTasks.push({
+          ...task,
+          calculatedExpiresAt
+        });
         continue;
       }
 
-      logger.info(`[TaskRegistry] Task '${id}' matched schedule (${weekdayShort} @ ${currentTimeStr})!`);
+      // 4. Handle push / log_only tasks
+      this.lastExecution.set(id, currentMinuteKey);
+      this.lastEnqueued.set(id, todayDateStr);
+      if (!isExactMinute) {
+        logger.info(`[TaskRegistry] Catch-up triggered for task '${id}' (${weekdayShort} scheduled @ ${targetTime}, current time: ${currentTimeStr})`);
+      } else {
+        logger.info(`[TaskRegistry] Task '${id}' matched schedule (${weekdayShort} @ ${currentTimeStr})!`);
+      }
       dueTasks.push(task);
     }
 
@@ -276,7 +355,7 @@ class TaskRegistry {
    */
   markMinuteLogged(taskId, date = new Date()) {
     const { currentMinuteKey } = getBangkokDateTime(date);
-    this.lastExecution.set(taskId, currentMinuteKey);
+    this.lastExecution.set(String(taskId), currentMinuteKey);
   }
 
   /**
@@ -286,18 +365,53 @@ class TaskRegistry {
    * @param {Date} [date=new Date()] 
    */
   async markTaskExecuted(taskId, date = new Date()) {
-    const { currentDateTimeStr, currentMinuteKey } = getBangkokDateTime(date);
-    this.lastExecution.set(taskId, currentMinuteKey);
+    const { currentDateTimeStr, currentMinuteKey, todayDateStr } = getBangkokDateTime(date);
+    const key = String(taskId);
+    this.lastExecution.set(key, currentMinuteKey);
+    this.lastEnqueued.set(key, todayDateStr);
 
-    const task = this.tasks.get(taskId);
+    const task = this.tasks.get(key);
     if (task) {
       task.last_run_date = currentDateTimeStr;
+    }
+    for (const t of this.tasks.values()) {
+      if (String(t.dbId) === key || String(t.id) === key) {
+        t.last_run_date = currentDateTimeStr;
+        this.lastExecution.set(t.id, currentMinuteKey);
+        this.lastEnqueued.set(t.id, todayDateStr);
+      }
     }
 
     try {
       await db.setScheduledTaskLastRun(taskId, currentDateTimeStr);
     } catch (err) {
       logger.error(`[TaskRegistry] Failed to persist last_run_date for task '${taskId}':`, err.message);
+    }
+  }
+
+  /**
+   * Marks a task as executed in memory without issuing a DB write (used when main thread already wrote to DB).
+   * @param {string|number} taskId 
+   * @param {string} [dateTimeStr] 
+   */
+  markTaskExecutedLocally(taskId, dateTimeStr = null) {
+    const { currentDateTimeStr, currentMinuteKey, todayDateStr } = getBangkokDateTime();
+    const val = dateTimeStr || currentDateTimeStr;
+    const key = String(taskId);
+
+    this.lastExecution.set(key, currentMinuteKey);
+    this.lastEnqueued.set(key, todayDateStr);
+
+    const task = this.tasks.get(key);
+    if (task) {
+      task.last_run_date = val;
+    }
+    for (const t of this.tasks.values()) {
+      if (String(t.dbId) === key || String(t.id) === key) {
+        t.last_run_date = val;
+        this.lastExecution.set(t.id, currentMinuteKey);
+        this.lastEnqueued.set(t.id, todayDateStr);
+      }
     }
   }
 
@@ -321,3 +435,5 @@ class TaskRegistry {
 
 module.exports = new TaskRegistry();
 module.exports.getBangkokDateTime = getBangkokDateTime;
+module.exports.matchesDay = matchesDay;
+

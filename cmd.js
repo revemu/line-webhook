@@ -6,11 +6,13 @@ const qrGen = require('./qr_gen');
 const teamImg = require('./team_img');
 const axios = require('axios');
 const slipService = require('./slip');
+const slipVerifier = require('./scheduler/slipVerifier');
+const logger = require('./utils/logger');
 const { getNextSaturday } = require('./utils/date');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup']);
-const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my']);
-const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek']);
+const MENTION_COMMANDS = new Set(['+1', '-1', '+pay', '-pay', '+pay2', '+team1', '+team2', '+team3', '+team4', '-team', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', '+ny', '-ny', 'x1', 'x0', '-x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3', '-guest', '-guests', '-follower', 'delguest', 'remguest', 'cancelguest']);
+const WEEK_CHECK_SKIP = new Set(['+1', '-1', 'autoreg', '+autoreg', '-autoreg', 'stat', 'mystat', 'me', 'my', 'setrank', 'setdebt', 'setpriority', 'setpriorityweek', 'setavoid', '+ny', '-ny', 'x1', 'x0', '-x1', 'ny', 'listny', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5', '-x2', '-x3', '-guest', '-guests', '-follower', 'delguest', 'remguest', 'cancelguest']);
 
 function parseCommandString(cmdStr) {
     const pos = cmdStr.indexOf(' ');
@@ -403,21 +405,73 @@ const COMMAND_REGISTRY = {
         }
     },
     'delreserve': async (context) => COMMAND_REGISTRY['removereserve'](context),
-    'x1': async (context) => {
-        const { member_id } = context;
-        await db.registerNY(member_id);
-        const msg = await db.getMemberNY();
+    '+ny': async (context) => {
+        const { member_id, member_name, is_flex, groupId, ny_guests } = context;
+        const guests = typeof ny_guests === 'number' ? Math.max(0, ny_guests) : 0;
+        await db.registerNY(member_id, member_name, null, guests);
+        const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "🎉 ลงชื่อร่วมงานเลี้ยงปีใหม่", contents: msg };
+        }
         return [{ type: 'text', text: msg }];
     },
+    '-ny': async (context) => {
+        const { param, member_id, is_flex, groupId } = context;
+        if (param && (param.includes('guest') || param.includes('ผู้ติดตาม') || param === '0')) {
+            return COMMAND_REGISTRY['-guest'](context);
+        }
+        await db.unregisterNY(member_id);
+        const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId);
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "🎉 ลงชื่อร่วมงานเลี้ยงปีใหม่", contents: msg };
+        }
+        return [{ type: 'text', text: msg }];
+    },
+    '-guest': async (context) => {
+        const { member_id, member_name, is_flex, groupId } = context;
+        await db.unregisterGuestNY(member_id);
+        const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "🎉 ลงชื่อร่วมงานเลี้ยงปีใหม่", contents: msg };
+        }
+        return [{ type: 'text', text: msg }];
+    },
+    '-guests': async (context) => COMMAND_REGISTRY['-guest'](context),
+    '-follower': async (context) => COMMAND_REGISTRY['-guest'](context),
+    'delguest': async (context) => COMMAND_REGISTRY['-guest'](context),
+    'remguest': async (context) => COMMAND_REGISTRY['-guest'](context),
+    'cancelguest': async (context) => COMMAND_REGISTRY['-guest'](context),
+    'x1': async (context) => { context.ny_guests = 0; return COMMAND_REGISTRY['+ny'](context); },
+    'x2': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 1; return COMMAND_REGISTRY['+ny'](context); },
+    'x3': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 2; return COMMAND_REGISTRY['+ny'](context); },
+    'x4': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 3; return COMMAND_REGISTRY['+ny'](context); },
+    'x5': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 4; return COMMAND_REGISTRY['+ny'](context); },
+    '+ny2': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 1; return COMMAND_REGISTRY['+ny'](context); },
+    '+ny3': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 2; return COMMAND_REGISTRY['+ny'](context); },
+    '+ny4': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 3; return COMMAND_REGISTRY['+ny'](context); },
+    '+ny5': async (context) => { if (context.ny_guests === undefined || context.ny_guests === null) context.ny_guests = 4; return COMMAND_REGISTRY['+ny'](context); },
+    'x0': async (context) => COMMAND_REGISTRY['-ny'](context),
+    '-x1': async (context) => COMMAND_REGISTRY['-ny'](context),
+    '-x2': async (context) => COMMAND_REGISTRY['-ny'](context),
+    '-x3': async (context) => COMMAND_REGISTRY['-ny'](context),
+    'ny': async (context) => {
+        const { is_flex, groupId, member_id } = context;
+        const [msg, sub, altText] = await db.getMemberNY(is_flex, groupId, member_id);
+        if (is_flex && typeof msg === 'object') {
+            return { type: 'flex', altText: altText || "🎉 ลงชื่อร่วมงานเลี้ยงปีใหม่", contents: msg };
+        }
+        return [{ type: 'text', text: msg }];
+    },
+    'listny': async (context) => COMMAND_REGISTRY['ny'](context),
     '+2': async (context) => {
         const isScheduledOrBot = !context.member || context.member.id === 0 || context.member.line_user_id === 'SYSTEM_BOT' || context.member_name === 'System';
-        console.log(`[+2 CMD] Debt list command called by ${context.member_name || 'System'} (isScheduled: ${isScheduledOrBot})`);
+        logger.info(`[+2 CMD] Debt list command called by ${context.member_name || 'System'} (isScheduled: ${isScheduledOrBot})`);
         const [msg, sub, debt_count, proceed, debt_val, debt_members] = await db.getDebtList(1);
-        console.log(`[+2 CMD] getDebtList(1) returned: debt_count=${debt_count}, proceed=${proceed}, debt_val=${debt_val}, members=${debt_members ? debt_members.length : 0}, subKeys=${sub ? Object.keys(sub).length : 0}`);
+        logger.info(`[+2 CMD] getDebtList(1) returned: debt_count=${debt_count}, proceed=${proceed}, debt_val=${debt_val}, members=${debt_members ? debt_members.length : 0}, subKeys=${sub ? Object.keys(sub).length : 0}`);
 
         // If run by schedule/bot and there is no debt, skip pushing response text
         if (isScheduledOrBot && (!debt_count || debt_count === 0)) {
-            console.log('[+2 CMD] No debt members found for scheduled task. Skipping push/reply.');
+            logger.info('[+2 CMD] No debt members found for scheduled task. Skipping push/reply.');
             return null;
         }
 
@@ -434,13 +488,13 @@ const COMMAND_REGISTRY = {
                 const uniqueDebts = debts.length > 0 ? [...new Set(debts)] : (debt_val > 0 ? [debt_val] : []);
                 for (const amount of uniqueDebts.slice(0, 4)) {
                     if (!amount || isNaN(amount) || amount <= 0) {
-                        console.warn(`[+2 CMD] Skipping QR generation for invalid/zero debt amount: ${amount}`);
+                        logger.warn(`[+2 CMD] Skipping QR generation for invalid/zero debt amount: ${amount}`);
                         continue;
                     }
-                    console.log(`[+2 CMD] Generating QR for amount: ${amount}...`);
+                    logger.info(`[+2 CMD] Generating QR for amount: ${amount}...`);
                     const filename = await qrGen.generateQrCode(amount, '006660080321320');
                     const localQrUrl = qrGen.getQrImageUrl(filename);
-                    console.log(`[+2 CMD] Generated QR: ${filename} -> ${localQrUrl}`);
+                    logger.info(`[+2 CMD] Generated QR: ${filename} -> ${localQrUrl}`);
                     replyMsgs.push({
                         type: 'image',
                         originalContentUrl: localQrUrl,
@@ -448,10 +502,10 @@ const COMMAND_REGISTRY = {
                     });
                 }
             } catch (qrErr) {
-                console.error('[+2 CMD] Error generating QR code for +2 cmd:', qrErr);
+                logger.error('[+2 CMD] Error generating QR code for +2 cmd:', qrErr);
             }
         } else {
-            console.log(`[+2 CMD] No debt members to generate QR codes for.`);
+            logger.info(`[+2 CMD] No debt members to generate QR codes for.`);
         }
         return replyMsgs;
     },
@@ -598,12 +652,20 @@ const COMMAND_REGISTRY = {
     },
     'resetteam': async () => { await db.resetMemberTeam(); return [{ type: 'text', text: `ปรับให้ทุกคนไม่มีทีมแล้ว` }]; },
     'randomteam1': async (context) => {
+        const { member, quoteToken, groupId } = context;
+        if (!member || (Number(member.admin) !== 2 && member.line_user_id !== 'SYSTEM_BOT')) {
+            return [{
+                type: 'text',
+                quoteToken: quoteToken,
+                text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับบอททำการสุ่มทีม)`
+            }];
+        }
         const dow = (new Date()).getDay();
         if (dow >= 0) {
             const team_res = await db.addTeamMemberWeek();
             if (team_res == 0) {
                 const week = await db.queryWeekID(0);
-                const msg = await db.getTeamWeek(week[0].id, context.groupId);
+                const msg = await db.getTeamWeek(week[0].id, groupId);
                 const dateStr = week && week[0]?.date ? db.getFormatDate(week[0].date, 'short') : (week?.[0]?.date || '');
                 return { type: 'flex', altText: `Team Week - ${dateStr}`, contents: msg };
             } else if (team_res == 1) {
@@ -615,7 +677,14 @@ const COMMAND_REGISTRY = {
         return [{ type: 'text', text: "ยังไม่ได้ถูกจัดกลุ่มเพื่อสุ่ม" }];
     },
     'randomteam': async (context) => {
-        const { param, groupId } = context;
+        const { param, groupId, member, quoteToken } = context;
+        if (!member || (Number(member.admin) !== 2 && member.line_user_id !== 'SYSTEM_BOT')) {
+            return [{
+                type: 'text',
+                quoteToken: quoteToken,
+                text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับบอททำการสุ่มทีม)`
+            }];
+        }
         const week = await db.queryWeekID(param || 0);
         if (!week || week.length === 0) {
             return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];
@@ -655,6 +724,12 @@ const COMMAND_REGISTRY = {
     },
     'teamweek1': async (context) => {
         const { param, groupId } = context;
+        if (db.checkTeamWeekAccess) {
+            const accessCheck = await db.checkTeamWeekAccess(param);
+            if (!accessCheck.allowed) {
+                return [{ type: 'text', text: accessCheck.message || '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ' }];
+            }
+        }
         const week = await db.queryWeekID(param);
         if (week && week.length > 0) {
             const msg = await db.getTeamWeek(week[0].id, groupId);
@@ -668,6 +743,12 @@ const COMMAND_REGISTRY = {
         const { param, groupId } = context;
         let cleanParam = (param || '').trim();
         cleanParam = cleanParam.replace(/^(img|image)\s*/i, '').trim();
+        if (db.checkTeamWeekAccess) {
+            const accessCheck = await db.checkTeamWeekAccess(cleanParam);
+            if (!accessCheck.allowed) {
+                return [{ type: 'text', text: accessCheck.message || '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ' }];
+            }
+        }
         const imageUrls = await teamImg.generateTeamFormationImages(cleanParam, groupId);
         if (imageUrls && imageUrls.length > 0) {
             return imageUrls.map(url => ({
@@ -687,6 +768,12 @@ const COMMAND_REGISTRY = {
         if (trimmed === 'img' || trimmed === 'image' || trimmed.startsWith('img ') || trimmed.startsWith('image ')) {
             context.param = (param || '').trim().replace(/^(img|image)\s*/i, '').trim();
             return COMMAND_REGISTRY['teamimg'](context);
+        }
+        if (db.checkTeamWeekAccess) {
+            const accessCheck = await db.checkTeamWeekAccess(param);
+            if (!accessCheck.allowed) {
+                return [{ type: 'text', text: accessCheck.message || '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ' }];
+            }
         }
         const bubbles = await db.getTeamFormation(param, groupId);
         if (bubbles) {
@@ -743,6 +830,40 @@ const COMMAND_REGISTRY = {
         if (is_mention) { await db.setMemberDebt(member_id, debt_val); return [{ type: 'text', text: `ตั้งยอดค้างของ ${member_name} เป็น ${debt_val} บาท เรียบร้อยครับ` }]; }
         return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setdebt @ชื่อสมาชิก จำนวนเงิน` }];
     },
+    'setavoid': async (context) => {
+        const { is_mention, member_id, avoid_val, member_name } = context;
+        if (is_mention) {
+            let targetIds = [];
+            if (avoid_val) {
+                const tokens = avoid_val.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+                for (const token of tokens) {
+                    if (/^(none|null|-|0|clear|reset)$/i.test(token)) continue;
+                    if (/^\d+$/.test(token)) {
+                        const idNum = Number(token);
+                        if (idNum > 0 && idNum !== member_id && !targetIds.includes(idNum)) {
+                            targetIds.push(idNum);
+                        }
+                    } else if (token.startsWith('@')) {
+                        const found = await db.queryMemberbyName(token);
+                        if (found && found.length > 0) {
+                            const foundId = Number(found[0].id);
+                            if (foundId !== member_id && !targetIds.includes(foundId)) {
+                                targetIds.push(foundId);
+                            }
+                        }
+                    }
+                }
+            }
+            const cleanAvoid = targetIds.join(',');
+            await db.updateMemberAvoidIds(member_id, cleanAvoid);
+            if (cleanAvoid) {
+                return [{ type: 'text', text: `ตั้งค่า avoid_ids (หลีกเลี่ยงทีมเดียวกัน) ของ ${member_name} เป็น [${cleanAvoid}] เรียบร้อยครับ` }];
+            } else {
+                return [{ type: 'text', text: `ล้างค่า avoid_ids ของ ${member_name} เรียบร้อยครับ` }];
+            }
+        }
+        return [{ type: 'text', text: `กรุณาระบุชื่อสมาชิก: /setavoid @ชื่อสมาชิก 12,25 (หรือ @ชื่อ2 หรือ 0 เพื่อล้างค่า)` }];
+    },
     'theme': async (context) => {
         const { param } = context;
         if (param === 'black' || param === 'white') { await db.setTheme(param); return [{ type: 'text', text: `เปลี่ยนธีมเป็น ${param} เรียบร้อยครับ` }]; }
@@ -755,7 +876,12 @@ const COMMAND_REGISTRY = {
         if (isNaN(totalCost) || totalCost <= 0) return [{ type: 'text', text: "กรุณาระบุค่าสนามเป็นตัวเลขที่มากกว่า 0" }];
         const result = await db.setWeekCost(totalCost);
         if (result.success) {
-            return [{ type: 'text', text: `ตั้งค่าค่าสนามสำเร็จ!\nยอดรวม: ${totalCost} บาท\nสมาชิกลงชื่อ: ${result.count} คน\nเฉลี่ยคนละ: ${result.sharedFee} บาท\nบันทึกยอดค้างชำระเรียบร้อยแล้ว` }];
+            let replyText = `ตั้งค่าค่าสนามสำเร็จ!\nยอดรวม: ${totalCost} บาท\nผู้เล่นในสนาม: ${result.count} คน\nเฉลี่ยคนละ: ${result.sharedFee} บาท`;
+            if (result.goalieCount > 0) {
+                replyText += `\nโกล์ (${result.goalieCount} คน): ค่าธรรมเนียมคนละ 40 บาท`;
+            }
+            replyText += `\nบันทึกยอดค้างชำระเรียบร้อยแล้ว`;
+            return [{ type: 'text', text: replyText }];
         }
         return [{ type: 'text', text: `เกิดข้อผิดพลาด: ${result.message}` }];
     },
@@ -1005,30 +1131,92 @@ const COMMAND_REGISTRY = {
         let startTime = null;
         let endTime = null;
         let matchDuration = null;
+        let targetTeamCount = null;
         let forceRegen = false;
 
-        for (const arg of args) {
-            if (arg.includes(':') || arg.includes('.')) {
+        for (const rawArg of args) {
+            const arg = rawArg.trim();
+            const lowerArg = arg.toLowerCase();
+
+            // 1. Force / reset flags
+            if (['reset', 'regen', 'force', 'new', 'rebuild'].includes(lowerArg)) {
+                forceRegen = true;
+                continue;
+            }
+
+            // 2. Time range format (e.g. 17:30-20:00 or 17.30-20.00)
+            if (arg.includes('-') && (arg.includes(':') || arg.includes('.'))) {
+                const parts = arg.split('-').map(s => s.trim());
+                if (parts.length >= 2) {
+                    if (!startTime) startTime = parts[0];
+                    if (!endTime) endTime = parts[1];
+                    continue;
+                }
+            }
+
+            // 3. Single time format (e.g. 17:30 or 17.30)
+            if (arg.includes(':') || (arg.includes('.') && /^\d{1,2}\.\d{2}$/.test(arg))) {
                 if (!startTime) {
                     startTime = arg;
                 } else if (!endTime) {
                     endTime = arg;
                 }
-            } else if (['reset', 'regen', 'force', 'new', 'rebuild'].includes(arg.toLowerCase())) {
-                forceRegen = true;
-            } else {
-                const parsedNum = parseInt(arg, 10);
-                if (!isNaN(parsedNum) && parsedNum > 0) {
+                continue;
+            }
+
+            // 4. Explicit team count formats (e.g. 4ทีม, 3ทีม, 4t, 3t, 4team, 4teams, team:4, teams:4, team=4, teams=4)
+            const teamUnitMatch = arg.match(/^(\d+)\s*(ทีม|t|team|teams)$/i) || arg.match(/^(?:team|teams|t)[:=](\d+)$/i);
+            if (teamUnitMatch) {
+                const tNum = parseInt(teamUnitMatch[1], 10);
+                if (!isNaN(tNum) && tNum >= 2 && tNum <= 6) {
+                    targetTeamCount = tNum;
+                    forceRegen = true;
+                    continue;
+                }
+            }
+
+            // 5. Explicit match duration formats (e.g. 8m, 8min, 8mins, 8นาที, m:8, min:8)
+            const durationUnitMatch = arg.match(/^(\d+)\s*(m|min|mins|นาที)$/i) || arg.match(/^(?:m|min|duration)[:=](\d+)$/i);
+            if (durationUnitMatch) {
+                const dNum = parseInt(durationUnitMatch[1], 10);
+                if (!isNaN(dNum) && dNum > 0) {
+                    matchDuration = dNum;
+                    forceRegen = true;
+                    continue;
+                }
+            }
+
+            // 5.1 Player count / maxweek formats (e.g. 32คน, 24คน, 32p, 32player, max:32, maxweek:32, quota:32)
+            const maxPlayerMatch = arg.match(/^(\d+)\s*(คน|p|player|players)$/i) || arg.match(/^(?:max|maxweek|quota)[:=](\d+)$/i);
+            if (maxPlayerMatch) {
+                const pNum = parseInt(maxPlayerMatch[1], 10);
+                if (!isNaN(pNum) && pNum > 0) {
+                    targetTeamCount = pNum > 24 ? 4 : 3;
+                    forceRegen = true;
+                    continue;
+                }
+            }
+
+            // 6. Generic numbers: 3 or 4 represents team count, 18-40 represents maxweek/players, while other numbers represent match duration
+            const parsedNum = parseInt(arg, 10);
+            if (!isNaN(parsedNum) && parsedNum > 0) {
+                if ((parsedNum === 3 || parsedNum === 4) && targetTeamCount === null) {
+                    targetTeamCount = parsedNum;
+                } else if (parsedNum >= 18 && parsedNum <= 40 && targetTeamCount === null) {
+                    targetTeamCount = parsedNum > 24 ? 4 : 3;
+                } else if (!matchDuration) {
                     matchDuration = parsedNum;
                 }
+                forceRegen = true;
+                continue;
             }
         }
 
-        if (startTime || endTime || matchDuration) {
+        if (startTime || endTime || matchDuration || targetTeamCount) {
             forceRegen = true;
         }
 
-        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime, forceRegen);
+        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime, forceRegen, targetTeamCount);
         if (schedJson) return { type: 'flex', altText: `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`, contents: flex.buildScheduleFlex(schedJson, theme) };
         return [{ type: 'text', text: schedText }];
     },
@@ -1042,12 +1230,26 @@ const COMMAND_REGISTRY = {
         return { type: 'flex', altText: `⚽ แมตช์ปัจจุบัน [${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}`, contents: flex.buildNowFlex(matchInfo, theme) };
     },
     'live': async (context) => {
-        const { groupId } = context;
+        const { groupId, is_flex } = context;
         const theme = await db.getTheme();
         const matchInfo = await db.getCurrentMatch(groupId);
         if (!matchInfo || !matchInfo.sched) return [{ type: 'text', text: 'ยังไม่มีตารางแข่งขัน ใช้คำสั่ง /schedule ก่อนนะครับ' }];
         const cur = matchInfo.currentMatch;
-        return { type: 'flex', altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''}`, contents: flex.buildLiveFlex(matchInfo, theme) };
+        const rawWebLiveUrl = (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
+        const webLiveUrl = rawWebLiveUrl.includes('openExternalBrowser=1') ? rawWebLiveUrl : (rawWebLiveUrl.includes('?') ? `${rawWebLiveUrl}&openExternalBrowser=1` : `${rawWebLiveUrl}?openExternalBrowser=1`);
+        if (matchInfo) { matchInfo.webLiveUrl = webLiveUrl; }
+
+        if (is_flex === false) {
+            let textMsg = `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''}\n`;
+            textMsg += `🌐 เข้าไปดูผลสกอร์จากหน้าเว็บ: ${webLiveUrl}`;
+            return [{ type: 'text', text: textMsg }];
+        }
+
+        return { 
+            type: 'flex', 
+            altText: `⚽ Live! Match ${cur ? `[${cur.matchNo}] ${cur.teamA} vs ${cur.teamB}` : ''} | ดูผลสกอร์จากหน้าเว็บ: ${webLiveUrl}`, 
+            contents: flex.buildLiveFlex(matchInfo, theme) 
+        };
     },
     'maxmvpscore': async (context) => {
         const { param, quoteToken } = context;
@@ -1071,7 +1273,7 @@ const COMMAND_REGISTRY = {
         }
 
         let msg = `🏆 รายละเอียดคะแนน MVP สูงสุดอ้างอิง ${res.year ? `ปี ${res.year}` : 'ทุกสัปดาห์'}\n`;
-        msg += `📌 Reference Benchmark (10.00 คะแนน): ${res.maxRawScore.toFixed(4)}\n`;
+        msg += `📌 Reference Benchmark (P95 = 10.00 คะแนน): ${res.maxRawScore.toFixed(4)}\n`;
         msg += `📊 สรุปการซิงค์: ${res.weeksChecked} สัปดาห์ (ข้ามสัปดาห์เดิม ${res.skipped} | เพิ่มใหม่ ${res.newInserted}${reset ? ' | รีเซ็ตแล้ว' : ''})\n\n`;
         msg += `🔥 รายละเอียด Top 5 ผลงาน MVP สูงสุด:\n\n`;
 
@@ -1144,7 +1346,7 @@ const COMMAND_REGISTRY = {
                 fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
                 fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(replyMessages, null, 2), 'utf8');
             } catch (saveErr) {
-                console.error('Error saving latest_flex.json in mvplist:', saveErr.message);
+                logger.error('Error saving latest_flex.json in mvplist:', saveErr.message);
             }
 
             return replyMessages;
@@ -1154,7 +1356,7 @@ const COMMAND_REGISTRY = {
     'slip': async (context) => {
         const { member, groupId } = context;
         const theme = await db.getTheme();
-        const isAdmin = member && member.admin === 1;
+        const isAdmin = member && (member.admin === 1 || member.admin === 2);
         const senderId = isAdmin ? null : (member ? member.line_user_id : null);
         let noticedSlips = await db.getNoticedSlips(senderId);
         if (!isAdmin && noticedSlips.length === 0 && senderId) {
@@ -1167,18 +1369,44 @@ const COMMAND_REGISTRY = {
     'sliplist': async (context) => COMMAND_REGISTRY['slip'](context),
     'verify': async (context) => {
         const { param, member, quoteToken } = context;
-        if (!param || isNaN(Number(param))) return [{ type: 'text', quoteToken, text: '⚠️ กรุณาระบุหมายเลขสลิป เช่น /verify 123' }];
+        const isAdmin = member && (member.admin === 1 || member.admin === 2);
+
+        if (param && param.trim().toLowerCase() === 'all') {
+            if (!isAdmin) return [{ type: 'text', quoteToken, text: '⚠️ เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถตรวจสอบสลิปทั้งหมดได้' }];
+            const summary = await slipVerifier.runPendingSlipVerification({ force: true, notify: false });
+            if (summary.skipped) {
+                return [{ type: 'text', quoteToken, text: '⏳ ระบบกำลังตรวจสอบสลิปค้างอยู่ กรุณารอสักครู่แล้วลองใหม่' }];
+            }
+            if (summary.checked === 0) {
+                return [{ type: 'text', quoteToken, text: '✅ ไม่มีสลิปสถานะ noticed ที่รอตรวจสอบผ่าน EasySlip แล้ว' }];
+            }
+            const lines = [
+                `🔍 ตรวจสอบสลิปย้อนหลังเสร็จสิ้น`,
+                `• ตรวจทั้งหมด: ${summary.checked} รายการ`,
+                `• สำเร็จ: ${summary.verified} รายการ`,
+                `• ยังไม่สำเร็จ: ${summary.failed} รายการ`
+            ];
+            for (const r of summary.results) {
+                if (r.outcome === 'verified') {
+                    lines.push(`✅ #${r.slipId} (${r.senderName}) → ${r.amount || '-'} บาท (${r.slipToMe ? 'ค่าสนาม' : 'ไม่เกี่ยวกับค่าสนาม'})`);
+                } else {
+                    lines.push(`❌ #${r.slipId} (${r.senderName}) → ${r.error}`);
+                }
+            }
+            return [{ type: 'text', quoteToken, text: lines.join('\n') }];
+        }
+
+        if (!param || isNaN(Number(param))) return [{ type: 'text', quoteToken, text: '⚠️ กรุณาระบุหมายเลขสลิป เช่น /verify 123 หรือ /verify all' }];
         const slipId = Number(param);
         const slip = await db.getSlipById(slipId);
         if (!slip) return [{ type: 'text', quoteToken, text: `⚠️ ไม่พบสลิป #${slipId}` }];
-        const isAdmin = member && member.admin === 1;
         if (!isAdmin && member && String(slip.sender_id) !== String(member.line_user_id)) return [{ type: 'text', quoteToken, text: '⚠️ คุณสามารถตรวจสอบได้เฉพาะสลิปของตัวเองเท่านั้น' }];
         if (!slip.qrcode) return [{ type: 'text', quoteToken, text: `⚠️ สลิป #${slipId} ไม่มี QR Code ไม่สามารถตรวจสอบได้` }];
 
         const verifyResult = await slipService.verifySlipPayload(slip.qrcode, slip.sender_name);
         if (verifyResult.success && verifyResult.slipData) {
             const { details, slipToMe, logStatus } = slipService.processSlipData(verifyResult.slipData, slip.sender_name);
-            await db.updateSlipLog(slipId, logStatus, verifyResult.slipData);
+            await db.markSlipVerified(slipId, logStatus, verifyResult.slipData);
             let msg = `✅ ตรวจสอบสลิป #${slipId} สำเร็จ!\n\n`;
             msg += `💰 ยอดเงิน: ${details.amountStr} บาท\n`;
             msg += `💸 โอนจาก: ${details.senderName} - ${details.senderBank}\n`;
@@ -1233,7 +1461,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
         const { cmd, param: rawParam } = parseCommandString(cmd_str);
         let param = rawParam;
 
-        if (member && member.debt > 0 && member.admin !== 1 && !ADMIN_RESTRICTED_COMMANDS.has(cmd)) {
+        if (member && member.debt > 0 && member.admin !== 1 && member.admin !== 2 && !ADMIN_RESTRICTED_COMMANDS.has(cmd)) {
             const displayName = (member.name || '').replace('@', '');
             return formatTextReply(`ขออภัย ${displayName} ยังมียอดค้างชำระ ${member.debt} บาท ไม่สามารถใช้งานคำสั่งได้`, quoteToken);
         }
@@ -1242,7 +1470,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             const adminCmds = await db.getAdminCommands();
             const adminCmdSet = new Set(adminCmds || []);
             if (adminCmdSet.has(cmd)) {
-                if (!member || member.admin !== 1) {
+                if (!member || (member.admin !== 1 && member.admin !== 2)) {
                     return [{
                         type: 'text',
                         quoteToken: quoteToken,
@@ -1251,7 +1479,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
                 }
             }
         } catch (dbErr) {
-            console.error('⚠️ Failed to verify admin command from database:', dbErr.message);
+            logger.error('⚠️ Failed to verify admin command from database:', dbErr.message);
         }
 
         let is_flex = true;
@@ -1299,6 +1527,64 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             }
         }
 
+        let avoid_val = '';
+        if (cmd === 'setavoid') {
+            const parts = param.split(/\s+/).filter(Boolean);
+            if (parts.length > 1) {
+                param = parts[0];
+                avoid_val = parts.slice(1).join(' ').trim();
+            }
+        }
+
+        let ny_guests = null;
+        const nyCmds = new Set(['+ny', 'x1', 'x2', 'x3', 'x4', 'x5', '+ny2', '+ny3', '+ny4', '+ny5']);
+        if (nyCmds.has(cmd) || /^x([1-9]\d*)$/i.test(cmd)) {
+            const xMatch = /^x([1-9]\d*)$/i.exec(cmd);
+            if (xMatch) {
+                const total = parseInt(xMatch[1], 10);
+                ny_guests = Math.max(0, total - 1);
+            } else if (cmd === '+ny2') {
+                ny_guests = 1;
+            } else if (cmd === '+ny3') {
+                ny_guests = 2;
+            } else if (cmd === '+ny4') {
+                ny_guests = 3;
+            } else if (cmd === '+ny5') {
+                ny_guests = 4;
+            }
+
+            if (param) {
+                const parts = param.split(/\s+/).filter(Boolean);
+                const lastPart = parts[parts.length - 1];
+                if (/^\+\d+$/.test(lastPart)) {
+                    ny_guests = parseInt(lastPart.substring(1), 10);
+                    if (parts.length > 1) {
+                        parts.pop();
+                        param = parts.join(' ').trim();
+                    } else {
+                        param = '';
+                    }
+                } else if (/^\d+$/.test(lastPart)) {
+                    const totalNum = parseInt(lastPart, 10);
+                    ny_guests = Math.max(0, totalNum - 1);
+                    if (parts.length > 1) {
+                        parts.pop();
+                        param = parts.join(' ').trim();
+                    } else {
+                        param = '';
+                    }
+                } else if (lastPart.toLowerCase().includes('ผู้ติดตาม')) {
+                    if (ny_guests === null) ny_guests = 1;
+                    if (parts.length > 1) {
+                        parts.pop();
+                        param = parts.join(' ').trim();
+                    } else {
+                        param = '';
+                    }
+                }
+            }
+        }
+
         const mentionResult = await resolveMentionTarget(cmd, param, member, quoteToken);
         if (mentionResult.reply) {
             return mentionResult.reply;
@@ -1319,6 +1605,8 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             rank_val,
             priority_val,
             debt_val,
+            avoid_val,
+            ny_guests,
             member,
             member_id,
             member_name,
@@ -1334,12 +1622,12 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
             fs.writeFileSync(path.join(tempDir, 'latest_flex.json'), JSON.stringify(result, null, 2), 'utf8');
             fs.writeFileSync(path.join(tempDir, 'latest_cmd_flex.json'), JSON.stringify(result, null, 2), 'utf8');
         } catch (e) {
-            console.error('Error writing latest_flex.json:', e.message);
+            logger.error('Error writing latest_flex.json:', e.message);
         }
 
         return result;
     } catch (err) {
-        console.error('⚠️ Error processing command:', err);
+        logger.error('⚠️ Error processing command:', err);
         const errDetail = err && err.message ? err.message : String(err);
         return [{
             type: 'text',
@@ -1350,7 +1638,7 @@ async function process_cmd(cmd_str, member, quoteToken, groupId = null) {
 }
 
 async function handleCommandSwitch(context) {
-    const { cmd, param, quoteToken, groupId, is_flex, rank_val, debt_val, member, member_id, member_name, target_line_user_id, is_mention } = context;
+    const { cmd, param, quoteToken, groupId, is_flex, rank_val, priority_val, debt_val, avoid_val, ny_guests, member, member_id, member_name, target_line_user_id, is_mention } = context;
     let chat_type = "[cmd] -";
     //console.log(`${chat_type} command: ${cmd} - param: ${param}`);
 
@@ -1365,7 +1653,7 @@ async function handleCommandSwitch(context) {
                 return registryResult;
             }
         } catch (handlerErr) {
-            console.error('⚠️ Error in command registry handler for', cmd, handlerErr.message || handlerErr);
+            logger.error('⚠️ Error in command registry handler for', cmd, handlerErr.message || handlerErr);
             const errDetail = handlerErr && handlerErr.message ? handlerErr.message : String(handlerErr);
             return [{
                 type: 'text',
@@ -1374,6 +1662,24 @@ async function handleCommandSwitch(context) {
             }];
         }
     }
+
+    // Dynamic xN command support for party registration (e.g. x6 -> 6 persons)
+    if (/^x(\d+)$/i.test(cmd)) {
+        const total = parseInt(cmd.slice(1), 10);
+        if (total === 0) {
+            return COMMAND_REGISTRY['-ny'](context);
+        } else if (total > 0 && total <= 20) {
+            if (context.ny_guests === undefined || context.ny_guests === null) {
+                context.ny_guests = total - 1;
+            }
+            return COMMAND_REGISTRY['+ny'](context);
+        }
+    }
+
+    if (/^-x(\d+)$/i.test(cmd)) {
+        return COMMAND_REGISTRY['-ny'](context);
+    }
+
     // No registry handler matched; show default unknown-command menu
     return unknownCommandResponse(context);
 }

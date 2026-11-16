@@ -2,6 +2,7 @@ const { Worker } = require('worker_threads');
 const path = require('path');
 const db = require('../query');
 const logger = require('../utils/logger');
+const pendingManager = require('./pendingManager');
 const { getBaseUrl, setBaseUrl } = require('../utils/url');
 
 let worker = null;
@@ -35,6 +36,8 @@ function initScheduler() {
       logger.info(`[SchedulerSupervisor] Worker notification: Task '${msg.taskId}' completed (success: ${msg.success}) at ${msg.timestamp}`);
     } else if (msg.type === 'TASK_ERROR') {
       logger.error(`[SchedulerSupervisor] Worker notification: Task '${msg.taskId}' failed with error: ${msg.error}`);
+    } else if (msg.type === 'ENQUEUE_PENDING_TASK') {
+      pendingManager.enqueue(msg.task);
     }
   });
 
@@ -110,9 +113,9 @@ function triggerTask(taskId) {
       type: 'TRIGGER_TASK',
       taskId
     });
-    console.log(`[SchedulerSupervisor] Sent trigger request for task '${taskId}' to worker.`);
+    logger.info(`[SchedulerSupervisor] Sent trigger request for task '${taskId}' to worker.`);
   } else {
-    console.warn(`[SchedulerSupervisor] Cannot trigger task '${taskId}': worker thread is not running.`);
+    logger.warn(`[SchedulerSupervisor] Cannot trigger task '${taskId}': worker thread is not running.`);
   }
 }
 
@@ -125,6 +128,22 @@ function reloadTasks() {
   }
 }
 
+/**
+ * Notifies the scheduler worker thread that a task was executed (e.g. via chat reply).
+ * Updates in-memory last_run_date in worker thread immediately to prevent duplicate catch-up loops.
+ * @param {string|number} taskId 
+ * @param {string} [dateTimeStr] 
+ */
+function notifyTaskExecuted(taskId, dateTimeStr) {
+  if (worker) {
+    worker.postMessage({
+      type: 'TASK_EXECUTED',
+      taskId: String(taskId),
+      dateTimeStr: dateTimeStr || null
+    });
+  }
+}
+
 // Cleanup on process shutdown
 process.on('SIGINT', () => { isShuttingDown = true; });
 process.on('SIGTERM', () => { isShuttingDown = true; });
@@ -134,5 +153,7 @@ module.exports = {
   notifyActiveGroup,
   notifyBaseUrl,
   triggerTask,
-  reloadTasks
+  reloadTasks,
+  notifyTaskExecuted,
+  pendingManager
 };

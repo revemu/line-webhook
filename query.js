@@ -6,7 +6,7 @@ const logger = require('./utils/logger');
 require('dotenv').config({ quiet: true });
 const flex = require('./flex');
 const lineClient = require('./lineClient');
-const { getFormatDate, getShortDate, thaiMonthsShort } = require('./utils/date');
+const { getFormatDate, getShortDate, getSlashDate, thaiMonthsShort, parseDateInput } = require('./utils/date');
 
 let lastGroupId = null;
 
@@ -46,9 +46,9 @@ async function ensureMemberPicture(member, groupId = null) {
         (groupErr.message && groupErr.message.includes('404'));
       if (isNotFound) {
         member.inGroup = false;
-        console.log(`[ensureMemberPicture] Member ${member.name} (${member.id}) is no longer in group ${effectiveGroupId}`);
+        logger.info(`[ensureMemberPicture] Member ${member.name} (${member.id}) is no longer in group ${effectiveGroupId}`);
       } else {
-        console.warn(`[ensureMemberPicture] Failed to check group profile for ${member.name}:`, groupErr.message);
+        logger.warn(`[ensureMemberPicture] Failed to check group profile for ${member.name}:`, groupErr.message);
       }
     }
   }
@@ -62,7 +62,7 @@ async function ensureMemberPicture(member, groupId = null) {
       member.pictureUrl = profile.pictureUrl;
     }
   } catch (err) {
-    console.error(`[ensureMemberPicture] failed to fetch direct profile for user ${member.line_user_id}:`, err.message);
+    logger.error(`[ensureMemberPicture] failed to fetch direct profile for user ${member.line_user_id}:`, err.message);
   }
 }
 
@@ -130,7 +130,7 @@ async function ensureLineGroupTable() {
       updateGroupCache(row);
     }
   } catch (err) {
-    console.error('Error ensuring line_group_id_tbl:', err.message);
+    logger.error('Error ensuring line_group_id_tbl:', err.message);
   }
 }
 
@@ -138,12 +138,15 @@ async function ensureLineGroupTable() {
 async function testConnection() {
   try {
     const connection = await pool.getConnection();
-    console.log('✅ Connected to MySQL database successfully');
+    logger.info('✅ Connected to MySQL database successfully');
     connection.release();
     await ensureLineGroupTable();
     await ensureScheduledTaskTable();
+    await ensureMatchStatScheduleColumns();
+    await ensureUserTable();
+    await ensureMemberFeeExemptColumn();
   } catch (error) {
-    console.error('❌ Error connecting to MySQL database:', error.message);
+    logger.error('❌ Error connecting to MySQL database:', error.message);
   }
 }
 
@@ -188,7 +191,81 @@ async function ensureScheduledTaskTable() {
       }
     } catch (colErr2) { }
   } catch (err) {
-    console.error('Error ensuring scheduled_task_tbl:', err.message);
+    logger.error('Error ensuring scheduled_task_tbl:', err.message);
+  }
+}
+
+async function ensureMatchStatScheduleColumns() {
+  try {
+    const colCheck = await executeQuery("SHOW COLUMNS FROM match_stat_tbl LIKE 'status'");
+    if (!colCheck || colCheck.length === 0) {
+      await executeQuery(`
+        ALTER TABLE match_stat_tbl
+          ADD COLUMN round INT NULL DEFAULT 1 COMMENT 'รอบการแข่งขัน' AFTER match_num,
+          ADD COLUMN start_time VARCHAR(10) NULL COMMENT 'เวลาเริ่ม เช่น 18:00' AFTER round,
+          ADD COLUMN end_time VARCHAR(10) NULL COMMENT 'เวลาสิ้นสุด เช่น 18:08' AFTER start_time,
+          ADD COLUMN status ENUM('scheduled', 'in_progress', 'finished') NOT NULL DEFAULT 'finished' COMMENT 'สถานะแมตช์' AFTER team_b_goal,
+          ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      `);
+      logger.info('✅ Auto-migrated match_stat_tbl with schedule and status columns');
+    }
+  } catch (err) {
+    // Graceful: MySQL user may not have ALTER privilege or manual migration will be used
+    logger.warn('Notice: match_stat_tbl schema check (manual migration: migrations/match_stat_schedule.sql):', err.message);
+  }
+
+  try {
+    await executeQuery(`
+      ALTER TABLE match_stat_tbl
+        MODIFY COLUMN team_a_goal INT NULL DEFAULT NULL,
+        MODIFY COLUMN team_b_goal INT NULL DEFAULT NULL
+    `);
+  } catch (modErr) { }
+}
+
+async function ensureUserTable() {
+  try {
+    const sql = `
+      CREATE TABLE IF NOT EXISTS user_tbl (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL COMMENT 'Bcrypt hashed password',
+        role ENUM('admin','root') NOT NULL DEFAULT 'admin',
+        name VARCHAR(100) DEFAULT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_username (username)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `;
+    await executeQuery(sql);
+
+    const users = await executeQuery('SELECT COUNT(*) as cnt FROM user_tbl');
+    if (users && users[0] && users[0].cnt === 0) {
+      await executeQuery(`
+        INSERT INTO user_tbl (username, password, role, name) VALUES
+        ('admin', '$2b$10$DOtGRoaOcG3UGGBjWdxtFutYUcq/FJ47bKeLMf5hSPwSFl6HEr1xG', 'admin', 'Match Admin'),
+        ('root', '$2b$10$NFftupORvl9C7xgWiLdeFujSb8m/W1otZZhXNFc7iOd.RJxv/RrK.', 'root', 'System Root')
+        ON DUPLICATE KEY UPDATE username = VALUES(username)
+      `);
+      logger.info('✅ Initialized default user_tbl accounts (admin, root)');
+    }
+  } catch (err) {
+    logger.warn('Notice: user_tbl schema check:', err.message);
+  }
+}
+
+async function ensureMemberFeeExemptColumn() {
+  try {
+    const colCheck = await executeQuery("SHOW COLUMNS FROM member_tbl LIKE 'fee_exempt'");
+    if (!colCheck || colCheck.length === 0) {
+      await executeQuery(`
+        ALTER TABLE member_tbl
+          ADD COLUMN fee_exempt TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = ยกเว้นไม่ตั้งยอดค้างชำระ/ไม่แสดงในรายการทวงเงิน, 0 = เรียกเก็บเงินปกติ'
+      `);
+      logger.info('✅ Auto-migrated member_tbl with fee_exempt column');
+    }
+  } catch (err) {
+    logger.warn('Notice: member_tbl fee_exempt schema check (manual migration: migrations/member_fee_exempt.sql):', err.message);
   }
 }
 
@@ -199,7 +276,7 @@ async function executeQuery(query, params = []) {
     const [results] = await pool.execute(query, params);
     return results;
   } catch (error) {
-    console.log(error);
+    logger.info(error);
     throw error;
   }
 }
@@ -328,7 +405,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
       badges[r.value] = { url: getFullUrl(r.url), size: r.size };
     });
   } catch (badgeErr) {
-    console.error('Error querying rank badges:', badgeErr.message);
+    logger.error('Error querying rank badges:', badgeErr.message);
   }
 
   const donateColors = [];
@@ -342,7 +419,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
     });
     donateColors.sort((a, b) => a.threshold - b.threshold);
   } catch (colorErr) {
-    console.error('Error querying donate colors:', colorErr.message);
+    logger.error('Error querying donate colors:', colorErr.message);
   }
 
   const hofCounts = {};
@@ -367,7 +444,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
       hofAwards[h.member_id].push(h.type);
     });
   } catch (hofErr) {
-    console.error('Error querying HOF counts:', hofErr.message);
+    logger.error('Error querying HOF counts:', hofErr.message);
   }
 
   const hofBadge = {};
@@ -377,7 +454,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
       hofBadge[r.value] = { id: r.id, url: getFullUrl(r.url), size: r.size || '20px' };
     });
   } catch (hofBadgeErr) {
-    console.error('Error querying HOF badge template:', hofBadgeErr.message);
+    logger.error('Error querying HOF badge template:', hofBadgeErr.message);
   }
 
   const teamColors = {};
@@ -389,7 +466,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
       }
     });
   } catch (colorErr) {
-    console.error('Error querying team color templates:', colorErr.message);
+    logger.error('Error querying team color templates:', colorErr.message);
   }
 
   return { badges, donateColors, hofCounts, hofBadge, hofAwards, teamColors };
@@ -401,7 +478,7 @@ async function updateAlertCall(value = 1) {
   query = `update template_tpl set value=${value} where name='call'`;
 
   const res = await executeQuery(query);
-  //console.log(res) ;
+  //logger.info(res) ;
   return res;
 
 }
@@ -426,6 +503,11 @@ async function updateMemberPriority(member_id, priority) {
   return await executeQuery(query, [priority, member_id]);
 }
 
+async function updateMemberAvoidIds(member_id, avoid_ids) {
+  const query = "update member_tbl set avoid_ids=? where id=?";
+  return await executeQuery(query, [avoid_ids !== null && avoid_ids !== undefined ? String(avoid_ids).trim() : '', member_id]);
+}
+
 async function setMemberWeekPriority(member_id, week_id, priority) {
   const query = "update member_team_week_tbl set priority=? where member_id=? and week_id=?";
   return await executeQuery(query, [priority, member_id, week_id]);
@@ -433,17 +515,17 @@ async function setMemberWeekPriority(member_id, week_id, priority) {
 
 async function resetMemberTeam() {
   const week = await queryWeekID();
-  let query = `update member_team_week_tbl set team_id=0 where week_id=${week[0].id}`;
+  let query = `update member_team_week_tbl set team_id=0, pos_id=0 where week_id=${week[0].id}`;
 
   const res = await executeQuery(query);
-  //console.log(res) ;
+  //logger.info(res) ;
   return res;
 
 }
 
-async function newMember(lineID, name, pictureUrl = null) {
-  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_ids, picture_url) values(?, 0, 0, 0, ?, ?, NULL, ?)";
-  const res = await executeQuery(query, [name, name.replace('@', ''), lineID, pictureUrl]);
+async function newMember(lineID, name, pictureUrl = null, avoid_ids = '') {
+  const query = "insert into member_tbl (name, debt, donate, team_id, alias, line_user_id, avoid_ids, picture_url) values(?, 0, 0, 0, ?, ?, ?, ?)";
+  const res = await executeQuery(query, [name, name.replace('@', ''), lineID, avoid_ids || '', pictureUrl]);
   return res;
 }
 
@@ -467,7 +549,7 @@ function shuffleArray(array) {
 
 async function newTeamColorWeek(color, index, week_id) {
   const query = `insert into team_color_week_tbl values(null, ${index}, ${week_id}, '${color}')`;
-  console.log(query);
+  logger.info(query);
 
   const res = await executeQuery(query);
   return res;
@@ -490,7 +572,13 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
     max_players = week[0].max || 24;
   }
 
-  const targetCount = max_players > 24 ? 4 : count;
+  let registeredCount = 0;
+  try {
+    const regRes = await executeQuery("SELECT COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ?", [week_id]);
+    registeredCount = regRes?.[0]?.cnt || 0;
+  } catch (err) {}
+
+  const targetCount = (max_players > 24 || registeredCount > 24) ? 4 : count;
 
   let query = `select * from team_color_week_tbl where week_id=${week_id}`;
   const res = await executeQuery(query);
@@ -510,7 +598,7 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
       await newTeamColorWeek(shuffledAvailable[i], existingCount + i + 1, week_id);
     }
   } else {
-    //console.log("Team color week already exist!");
+    //logger.info("Team color week already exist!");
   }
 }
 
@@ -520,16 +608,16 @@ async function addTeamMemberWeek() {
   let query = `select * from member_team_week_tbl where week_id=${week[0].id}`;
   let team_colors = await getTeamColorWeek(week[0].id);
   const members = await executeQuery(query);
-  //console.log(res) ;
+  //logger.info(res) ;
   //return res ;
   if (members.length > 0) {
     let num = 0;
     //const test = members.filter(member => member.team_id !=0) ;
     if (members.filter(member => member.team_id != 0).length > 0) {
-      console.log("Team already created!");
+      logger.info("Team already created!");
       return 1;
     } else if (members.filter(member => member.team != 0).length == 0) {
-      console.log("No Team assigned!");
+      logger.info("No Team assigned!");
       return 2;
     }
 
@@ -538,10 +626,10 @@ async function addTeamMemberWeek() {
 
       if (members[i].team > 0) {
         num = members[i].team - 1;
-        console.log(`${members[i].name} => ${team_colors[num].color}`)
+        logger.info(`${members[i].name} => ${team_colors[num].color}`)
         await updateMemberWeek(members[i].member_id, team_colors[num].id, 1);
       } else {
-        console.log(`${members[i].name} no team assigned`)
+        logger.info(`${members[i].name} no team assigned`)
       }
 
     }
@@ -555,12 +643,12 @@ async function ensureWeekTimeColumn() {
     const checkQuery = "SHOW COLUMNS FROM week_tbl LIKE 'time_range'";
     const res = await executeQuery(checkQuery);
     if (res.length === 0) {
-      console.log("[Migration] Adding time_range column to week_tbl...");
+      logger.info("[Migration] Adding time_range column to week_tbl...");
       await executeQuery("ALTER TABLE week_tbl ADD COLUMN time_range VARCHAR(50) NOT NULL DEFAULT '17:30-20:00'");
-      console.log("✅ time_range column added to week_tbl successfully!");
+      logger.info("✅ time_range column added to week_tbl successfully!");
     }
   } catch (err) {
-    console.error("Error ensuring time_range column in week_tbl:", err.message);
+    logger.error("Error ensuring time_range column in week_tbl:", err.message);
   }
 }
 
@@ -574,6 +662,30 @@ async function updateWeekTimeRange(timeRangeStr, targetWeekId = 0) {
   }
   const query = "UPDATE week_tbl SET time_range = ? WHERE id = ?";
   await executeQuery(query, [timeRangeStr, week_id]);
+
+  // If match_stat_tbl has unplayed matches with an outdated start time, clear them so /schedule regenerates with updated time
+  try {
+    const played = await executeQuery(
+      "SELECT 1 FROM match_stat_tbl WHERE week_id = ? AND (status IN ('finished', 'in_progress') OR team_a_goal IS NOT NULL) LIMIT 1",
+      [week_id]
+    );
+    if (!played || played.length === 0) {
+      const existingMatches = await executeQuery(
+        "SELECT start_time FROM match_stat_tbl WHERE week_id = ? ORDER BY match_num ASC LIMIT 1",
+        [week_id]
+      );
+      if (existingMatches && existingMatches.length > 0 && existingMatches[0].start_time) {
+        const parts = timeRangeStr.split('-').map(s => s.trim().replace('.', ':'));
+        if (parts.length >= 1 && parts[0] && parts[0] !== existingMatches[0].start_time) {
+          await executeQuery("DELETE FROM match_stat_tbl WHERE week_id = ?", [week_id]);
+          logger.info(`[updateWeekTimeRange] Cleared unplayed match_stat_tbl for week ${week_id} because start_time changed from ${existingMatches[0].start_time} to ${parts[0]}`);
+        }
+      }
+    }
+  } catch (cleanErr) {
+    logger.error('[updateWeekTimeRange] Error checking/clearing unplayed match_stat_tbl:', cleanErr.message);
+  }
+
   return { success: true, week_id, time_range: timeRangeStr };
 }
 
@@ -612,7 +724,7 @@ async function newWeek(week_date, custom_time_range = null) {
       `);
       for (const member of autoRegMembers) {
         if (member.debt > 0) {
-          console.log(`[Auto-Reg] Skipped ${member.name} (ID: ${member.id}) due to outstanding debt of ${member.debt} baht`);
+          logger.info(`[Auto-Reg] Skipped ${member.name} (ID: ${member.id}) due to outstanding debt of ${member.debt} baht`);
           continue;
         }
         // Check if member is already registered for this week to avoid duplicates
@@ -621,16 +733,16 @@ async function newWeek(week_date, custom_time_range = null) {
         if (existRes.length === 0) {
           const insertQuery = "insert into member_team_week_tbl (member_id, name, team_id, week_id, pay) values(?, ?, 0, ?, 0)";
           await executeQuery(insertQuery, [member.id, member.name, new_week_id]);
-          console.log(`[Auto-Reg] Registered ${member.name} (ID: ${member.id}) for week ID ${new_week_id}`);
+          logger.info(`[Auto-Reg] Registered ${member.name} (ID: ${member.id}) for week ID ${new_week_id}`);
         } else {
-          console.log(`[Auto-Reg] Member ${member.name} (ID: ${member.id}) already registered for week ID ${new_week_id}`);
+          logger.info(`[Auto-Reg] Member ${member.name} (ID: ${member.id}) already registered for week ID ${new_week_id}`);
         }
       }
     } catch (regErr) {
-      console.error('⚠️ Auto-registration failed:', regErr.message);
+      logger.error('⚠️ Auto-registration failed:', regErr.message);
     }
   } else {
-    console.log(date_str + " already exist!");
+    logger.info(date_str + " already exist!");
     if (custom_time_range && week && week.length > 0) {
       await updateWeekTimeRange(custom_time_range, week[0].id);
     }
@@ -661,9 +773,37 @@ async function updateMaxNumberWeek(max_number = 24) {
           const chosenColor = availableColors[0];
           const nextIndex = currentColors.length + 1;
           await newTeamColorWeek(chosenColor, nextIndex, week_id);
-          console.log(`[setmaxweek] Added 4th team color '${chosenColor}' for week ID ${week_id}`);
+          logger.info(`[setmaxweek] Added 4th team color '${chosenColor}' for week ID ${week_id}`);
         }
       }
+    }
+
+    // Auto-clean unplayed scheduled matches if team count configuration changed
+    try {
+      const played = await executeQuery(
+        "SELECT 1 FROM match_stat_tbl WHERE week_id = ? AND (status IN ('finished', 'in_progress') OR team_a_goal IS NOT NULL) LIMIT 1",
+        [week_id]
+      );
+      if (!played || played.length === 0) {
+        const existingMatches = await executeQuery(
+          "SELECT team_a_id, team_b_id FROM match_stat_tbl WHERE week_id = ?",
+          [week_id]
+        );
+        if (existingMatches && existingMatches.length > 0) {
+          const playingIds = new Set();
+          existingMatches.forEach(m => {
+            if (m.team_a_id) playingIds.add(m.team_a_id);
+            if (m.team_b_id) playingIds.add(m.team_b_id);
+          });
+          const desiredTeams = max_number > 24 ? 4 : 3;
+          if (playingIds.size !== desiredTeams) {
+            await executeQuery("DELETE FROM match_stat_tbl WHERE week_id = ?", [week_id]);
+            logger.info(`[updateMaxNumberWeek] Cleared unplayed match_stat_tbl for week ${week_id} because team count changed from ${playingIds.size} to ${desiredTeams}`);
+          }
+        }
+      }
+    } catch (cleanErr) {
+      logger.error('[updateMaxNumberWeek] Error checking/clearing unplayed match_stat_tbl:', cleanErr.message);
     }
 
     return res;
@@ -679,14 +819,33 @@ async function removeReserveMembers() {
   const max_players = week[0].max;
 
   // Fetch all registered members for the week in order of registration
-  const query = "SELECT id, member_id, team_id, name FROM member_team_week_tbl WHERE week_id = ? ORDER BY id ASC";
+  const query = `
+    SELECT mtw.id, mtw.member_id, mtw.team_id, mtw.name, m.team_id as member_team_id 
+    FROM member_team_week_tbl mtw
+    LEFT JOIN member_tbl m ON mtw.member_id = m.id
+    WHERE mtw.week_id = ? 
+    ORDER BY mtw.id ASC
+  `;
   const registrations = await executeQuery(query, [week_id]);
 
+  const teamColors = await getTeamColorWeek(week_id);
+  const teamCount = (teamColors && teamColors.length > 0)
+    ? teamColors.length
+    : ((max_players > 24 || registrations.length > 24) ? 4 : 3);
+  const max_goalies = Math.max(1, teamCount || 3);
+
   let nonGoalieCount = 0;
+  let goalieCount = 0;
   const reservesToRemove = [];
 
   for (const reg of registrations) {
-    if (reg.team_id !== 100) {
+    const isGoalie = (Number(reg.member_team_id) === 100 || Number(reg.team_id) === 100);
+    if (isGoalie) {
+      goalieCount++;
+      if (goalieCount > max_goalies) {
+        reservesToRemove.push(reg);
+      }
+    } else {
       nonGoalieCount++;
       if (nonGoalieCount > max_players) {
         reservesToRemove.push(reg);
@@ -716,7 +875,7 @@ async function updateMemberDebt(member_id) {
   query1 = "update member_tbl set debt=0 where id=?";
   const res1 = await executeQuery(query1, [member_id]);
 
-  //console.log(res) ;
+  //logger.info(res) ;
   return res1;
 }
 
@@ -745,10 +904,20 @@ async function updateMemberWeek(member_id, value, type = 0) {
     }
 
     const res = await executeQuery(query, [finalPayVal, member_id, week_id]);
-    //console.log(res) ;
+    //logger.info(res) ;
     return res;
   }
 }
+
+/**
+ * Returns true if a member is exempt from automatic pitch fee debt assignment.
+ * Decoupled from `admin` so admins without `fee_exempt > 0` are billed normally.
+ */
+function isFeeExemptMember(member) {
+  return Boolean(member && (Number(member.team_id) === 101 || Number(member.fee_exempt) > 0));
+}
+
+const UNPAID_MEMBER_FILTER = " and pay=0 and (member_tbl.fee_exempt IS NULL or member_tbl.fee_exempt <= 0) and (member_tbl.team_id IS NULL or member_tbl.team_id <> 101)";
 
 async function setWeekCost(totalCost) {
   const week = await queryWeekID();
@@ -756,47 +925,79 @@ async function setWeekCost(totalCost) {
     return { success: false, message: 'ไม่พบข้อมูลสัปดาห์ปัจจุบัน' };
   }
   const week_id = week[0].id;
+  const max_players = week[0].max || 24;
 
-  // Query all members registered for this week
+  // Query all members registered for this week in FIFO order
   const membersQuery = `
-    SELECT mtw.member_id, mtw.pay, m.team_id, m.admin 
+    SELECT mtw.member_id, mtw.pay, m.team_id, m.fee_exempt
     FROM member_team_week_tbl mtw
     INNER JOIN member_tbl m ON mtw.member_id = m.id
     WHERE mtw.week_id = ?
+    ORDER BY mtw.id ASC
   `;
   const members = await executeQuery(membersQuery, [week_id]);
   if (members.length === 0) {
     return { success: false, message: 'ไม่มีสมาชิกที่ลงชื่อในสัปดาห์นี้' };
   }
 
-  const payingMembers = members.filter(m => (m.team_id !== 101 && m.admin !== 1));
-  //const count = members.length;
-  const count = (members.length > week[0].max) ? week[0].max : members.length;
+  // Calculate team count for max goalkeepers
+  const teamColors = await getTeamColorWeek(week_id);
+  const teamCount = (teamColors && teamColors.length > 0)
+    ? teamColors.length
+    : ((max_players > 24 || members.length > 24) ? 4 : 3);
+  const max_goalies = Math.max(1, teamCount || 3);
+
+  // Separate field players and goalkeepers
+  const fieldPlayers = members.filter(m => m.team_id !== 100);
+  const goalies = members.filter(m => m.team_id === 100);
+
+  // Field players capped at max_players (main field players)
+  const mainFieldPlayers = fieldPlayers.slice(0, max_players);
+  const count = mainFieldPlayers.length;
+
   if (count === 0) {
     return { success: false, message: 'ไม่มีสมาชิกที่ต้องชำระเงินในสัปดาห์นี้' };
   }
 
+  // Goalkeepers capped at max_goalies (fixed fee 40 baht)
+  const mainGoalies = goalies.slice(0, max_goalies);
+
   const sharedFee = Math.ceil((totalCost + 100) / count) + 35;
-  let costfee = sharedFee;
+
   await executeQuery(
     "UPDATE week_tbl SET cost = ? WHERE id = ?",
-    [costfee, week_id]
+    [sharedFee, week_id]
   );
-  for (const m of payingMembers) {
-    if (m.team_id === 101 || m.admin === 1) {
-      continue;
-    } else if (m.team_id === 100) {
-      costfee = 40;
-    } else {
-      costfee = sharedFee;
+
+  // Update debt for main field players and main goalkeepers:
+  // Non-exempt members get sharedFee (40 baht for goalies); exempt members (fee_exempt > 0 or team_id = 101) get 0
+  const feeGroups = [
+    { membersList: mainFieldPlayers, fee: sharedFee },
+    { membersList: mainGoalies, fee: 40 }
+  ];
+  for (const { membersList, fee } of feeGroups) {
+    for (const m of membersList) {
+      const debtAmount = isFeeExemptMember(m) ? 0 : fee;
+      await executeQuery(
+        "UPDATE member_tbl SET debt = ? WHERE id = ?",
+        [debtAmount, m.member_id]
+      );
     }
+  }
+
+  // Ensure reserves have debt set to 0
+  const reserveMembers = [
+    ...fieldPlayers.slice(max_players),
+    ...goalies.slice(max_goalies)
+  ];
+  for (const m of reserveMembers) {
     await executeQuery(
-      "UPDATE member_tbl SET debt = ? WHERE id = ?",
-      [costfee, m.member_id]
+      "UPDATE member_tbl SET debt = 0 WHERE id = ?",
+      [m.member_id]
     );
   }
 
-  return { success: true, count, sharedFee };
+  return { success: true, count, sharedFee, goalieCount: mainGoalies.length };
 }
 
 async function resetWeekDebt() {
@@ -977,9 +1178,9 @@ async function IsMemberWeek(member_id) {
     const week_id = week[0].id;
     const query = `SELECT * from member_team_week_tbl where week_id=${week_id} and member_id=${member_id}`;
     const res = await executeQuery(query);
-    //console.log(`${res.length}`)
+    //logger.info(`${res.length}`)
     if (res.length > 0) {
-      //console.log(`${week_id}`)
+      //logger.info(`${week_id}`)
       return true;
     } else {
       return false;
@@ -987,15 +1188,258 @@ async function IsMemberWeek(member_id) {
   }
 }
 
-async function registerNY(member_id) {
+async function ensureNYTable() {
+  try {
+    const createSql = `
+      CREATE TABLE IF NOT EXISTS member_ny_week_tbl (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        datetime DATETIME NOT NULL,
+        member_id INT NOT NULL,
+        name VARCHAR(100) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_datetime_member (datetime, member_id),
+        KEY idx_datetime (datetime)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `;
+    await executeQuery(createSql);
 
-  const query = `update member_tbl set avoid_ids='1' where id=${member_id}`;
+    // Auto-migrate if table was previously created with week_id column instead of datetime
+    const checkColSql = "SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'member_ny_week_tbl' AND column_name = 'datetime'";
+    const colExists = await executeQuery(checkColSql);
+    if (colExists && colExists.length > 0 && colExists[0].count === 0) {
+      await executeQuery("ALTER TABLE member_ny_week_tbl ADD COLUMN datetime DATETIME NOT NULL DEFAULT '2026-12-19 19:00:00' AFTER id");
+      try {
+        await executeQuery("ALTER TABLE member_ny_week_tbl DROP INDEX uq_week_member");
+      } catch (e) { }
+      try {
+        await executeQuery("ALTER TABLE member_ny_week_tbl ADD UNIQUE KEY uq_datetime_member (datetime, member_id)");
+      } catch (e) { }
+    }
 
-  //console.log(query) ;
-  const reg_res = await executeQuery(query);
-  //console.log(reg_res) ;
-  return true;
+    // Auto-migrate if guests column does not exist
+    const checkGuestsSql = "SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'member_ny_week_tbl' AND column_name = 'guests'";
+    const guestsColExists = await executeQuery(checkGuestsSql);
+    if (guestsColExists && guestsColExists.length > 0 && guestsColExists[0].count === 0) {
+      await executeQuery("ALTER TABLE member_ny_week_tbl ADD COLUMN guests INT NOT NULL DEFAULT 0 AFTER name");
+    }
+  } catch (err) {
+    logger.error("Error ensuring member_ny_week_tbl table:", err.message);
+  }
+}
 
+async function getNYEventInfo() {
+  let eventDatetime = '2026-12-19 19:00:00';
+  let header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 19 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: Waterside ห้องคาราโอกะ K5 Club Pool นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานพิมพ์ x1 เพื่อลงชื่อ หรือ x2 หากมีผู้ติดตามด้วยนะครับ\n\n";
+  let heroUrl = null;
+  let venue = 'Waterside ห้องคาราโอกะ K5 Club Pool';
+  let note = 'หลังจากเตะบอล 17:00-19:00 น.';
+  let title = '🎉 2026 New Year Party';
+  let dateStr = 'เสาร์ที่ 19 ธ.ค. 2569';
+  let timeStr = '19:00 - 24:00 น.';
+
+  let images = [];
+  let mapUrl = null;
+  let mapLabel = null;
+  let galleryUrl = null;
+  let galleryLabel = null;
+  let description = null;
+
+  try {
+    const tplRows = await executeQuery("SELECT * FROM template_tpl WHERE name IN ('ny_schedule', 'ny_party', 'new_year', 'ny_date', 'ny', 'ny_header', 'ny_party_header', 'party_header', 'ny_image', 'ny_venue', 'ny_location', 'ny_map', 'ny_title', 'ny_note', 'ny_description', 'ny_desc', 'ny_detail', 'ny_details', 'ny_gallery', 'ny_album') OR name LIKE 'ny_image%' OR name LIKE 'ny_img%' OR name LIKE 'ny_gallery%' OR name LIKE 'party_image%' OR name LIKE 'party_img%' ORDER BY id ASC");
+    if (tplRows && tplRows.length > 0) {
+      for (const row of tplRows) {
+        let rowUrl = null;
+        if (row.url && String(row.url).trim() !== '' && String(row.url).toLowerCase() !== 'null' && String(row.url).toLowerCase() !== 'none') {
+          rowUrl = getFullUrl(String(row.url).trim());
+        }
+
+        // Helper to check if a URL is a web map link
+        const isMapUrlOrLabel = (u, l) => {
+          const str = `${u || ''} ${l || ''}`.toLowerCase();
+          return str.includes('map') || str.includes('goo.gl/maps') || str.includes('maps.app') || str.includes('เส้นทาง') || str.includes('แผนที่') || str.includes('waze');
+        };
+
+        const parseFieldLink = (str) => {
+          if (!str) return null;
+          const trimStr = String(str).trim();
+          if (!trimStr) return null;
+
+          // BBCode: [url=URL]LABEL[/url]
+          const bbMatch = /\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/i.exec(trimStr);
+          if (bbMatch) {
+            return { url: getFullUrl(bbMatch[1].trim()), label: bbMatch[2].trim() };
+          }
+
+          // BBCode: [url]URL[/url]
+          const bbSimpleMatch = /\[url\](https?:\/\/[^\]]+)\[\/url\]/i.exec(trimStr);
+          if (bbSimpleMatch) {
+            return { url: getFullUrl(bbSimpleMatch[1].trim()), label: null };
+          }
+
+          // Markdown: [LABEL](URL)
+          const mdMatch = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/i.exec(trimStr);
+          if (mdMatch) {
+            return { url: getFullUrl(mdMatch[2].trim()), label: mdMatch[1].trim() };
+          }
+
+          if (trimStr.startsWith('http://') || trimStr.startsWith('https://')) {
+            return { url: getFullUrl(trimStr), label: null };
+          }
+
+          return { text: trimStr };
+        };
+
+        // Check value and code for links
+        const parsedVal = parseFieldLink(row.value);
+        const parsedCode = parseFieldLink(row.code);
+
+        // 1. Process Map links (ny_map, ny_location)
+        if (row.name === 'ny_map' || row.name === 'ny_location') {
+          if (rowUrl) mapUrl = rowUrl;
+          if (parsedVal && parsedVal.url) {
+            mapUrl = parsedVal.url;
+            if (parsedVal.label) mapLabel = parsedVal.label;
+          } else if (parsedVal && parsedVal.text) {
+            mapLabel = parsedVal.text;
+          }
+          if (parsedCode && parsedCode.url) {
+            if (!mapUrl) mapUrl = parsedCode.url;
+            if (parsedCode.label) mapLabel = parsedCode.label;
+          } else if (parsedCode && parsedCode.text && !mapLabel) {
+            mapLabel = parsedCode.text;
+          }
+        } else if (rowUrl) {
+          // 2. Process Gallery / Image rows (ny_image, ny_gallery, ny_img%, party_image%, etc.)
+          if (!heroUrl) heroUrl = rowUrl;
+          images.push({
+            url: rowUrl,
+            title: row.value ? String(row.value).trim() : null,
+            description: (row.code && !String(row.code).trim().startsWith('http')) ? String(row.code).trim() : null
+          });
+        } else if (row.name === 'ny_gallery' || row.name === 'ny_album') {
+          // If ny_gallery has no image url, treat as external album link
+          if (parsedVal && parsedVal.url) {
+            galleryUrl = parsedVal.url;
+            if (parsedVal.label) galleryLabel = parsedVal.label;
+          }
+          if (parsedCode && parsedCode.url) {
+            if (!galleryUrl) galleryUrl = parsedCode.url;
+            if (parsedCode.label) galleryLabel = parsedCode.label;
+          }
+        }
+
+        if (row.name === 'ny_header' || row.name === 'ny_party_header' || row.name === 'party_header') {
+          if (rowUrl) heroUrl = rowUrl;
+        }
+        if (row.name === 'ny_title' && row.value) {
+          title = String(row.value).trim();
+        }
+        if ((row.name === 'ny_venue' || row.name === 'ny_location') && row.value) {
+          venue = String(row.value).trim();
+        }
+        if (row.name === 'ny_note' && row.value) {
+          note = String(row.value).trim();
+        }
+        if (row.name === 'ny_description' || row.name === 'ny_desc' || row.name === 'ny_detail' || row.name === 'ny_details') {
+          description = (row.value && String(row.value).trim()) || (row.code && String(row.code).trim()) || null;
+        }
+
+        if (row.name === 'ny_schedule' || row.name === 'ny_date' || row.name === 'ny_party' || row.name === 'new_year' || row.name === 'ny') {
+          if (row.value) {
+            const valTrim = String(row.value).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(valTrim) || !isNaN(new Date(valTrim).getTime())) {
+              eventDatetime = valTrim.includes(' ') ? valTrim : `${valTrim} 19:00:00`;
+            } else if (valTrim.includes('ประกาศ') || valTrim.includes('ปีใหม่')) {
+              header = valTrim.endsWith('\n\n') ? valTrim : `${valTrim}\n\n`;
+            }
+          }
+          if (row.code) {
+            const codeTrim = String(row.code).trim();
+            if (codeTrim.includes('ประกาศ') || codeTrim.includes('ปีใหม่')) {
+              header = codeTrim.endsWith('\n\n') ? codeTrim : `${codeTrim}\n\n`;
+            } else if (codeTrim.startsWith('http')) {
+              const codeUrl = getFullUrl(codeTrim);
+              if (!heroUrl) heroUrl = codeUrl;
+              images.push({ url: codeUrl });
+            } else if (codeTrim && !venue) {
+              venue = codeTrim;
+            }
+          }
+        }
+      }
+    }
+
+    if (eventDatetime) {
+      try {
+        const d = new Date(eventDatetime);
+        if (!isNaN(d.getTime())) {
+          dateStr = await getFormatDate(d, 'short');
+          const h = String(d.getHours()).padStart(2, '0');
+          const m = String(d.getMinutes()).padStart(2, '0');
+          timeStr = `${h}:${m} - 24:00 น.`;
+        }
+      } catch (e) { }
+    }
+  } catch (err) {
+    logger.error("Error querying NY template:", err.message);
+  }
+
+  return { eventDatetime, header, heroUrl, venue, note, description, title, dateStr, timeStr, mapUrl, mapLabel, galleryUrl, galleryLabel, images };
+}
+
+async function registerNY(member_id, member_name = null, target_datetime = null, guests = 0) {
+  await ensureNYTable();
+  let eventDatetime = target_datetime;
+  if (!eventDatetime) {
+    const info = await getNYEventInfo();
+    eventDatetime = info.eventDatetime;
+  }
+
+  const safeGuests = Math.max(0, parseInt(guests, 10) || 0);
+
+  const query = `
+    INSERT INTO member_ny_week_tbl (datetime, member_id, name, guests)
+    VALUES (?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE 
+      name = COALESCE(VALUES(name), name), 
+      guests = VALUES(guests),
+      updated_at = CURRENT_TIMESTAMP
+  `;
+  await executeQuery(query, [eventDatetime, member_id, member_name, safeGuests]);
+  return { success: true, datetime: eventDatetime, member_id, guests: safeGuests };
+}
+
+async function unregisterNY(member_id, target_datetime = null) {
+  await ensureNYTable();
+  let eventDatetime = target_datetime;
+  if (!eventDatetime) {
+    const info = await getNYEventInfo();
+    eventDatetime = info.eventDatetime;
+  }
+
+  const query = "DELETE FROM member_ny_week_tbl WHERE (datetime = ? OR DATE(datetime) = DATE(?)) AND member_id = ?";
+  await executeQuery(query, [eventDatetime, eventDatetime, member_id]);
+  return { success: true, datetime: eventDatetime, member_id };
+}
+
+async function unregisterGuestNY(member_id, target_datetime = null) {
+  await ensureNYTable();
+  let eventDatetime = target_datetime;
+  if (!eventDatetime) {
+    const info = await getNYEventInfo();
+    eventDatetime = info.eventDatetime;
+  }
+
+  const checkQuery = "SELECT id, guests FROM member_ny_week_tbl WHERE (datetime = ? OR DATE(datetime) = DATE(?)) AND member_id = ?";
+  const rows = await executeQuery(checkQuery, [eventDatetime, eventDatetime, member_id]);
+  if (!rows || rows.length === 0) {
+    return { success: false, notRegistered: true, datetime: eventDatetime, member_id };
+  }
+
+  const query = "UPDATE member_ny_week_tbl SET guests = 0, updated_at = CURRENT_TIMESTAMP WHERE (datetime = ? OR DATE(datetime) = DATE(?)) AND member_id = ?";
+  await executeQuery(query, [eventDatetime, eventDatetime, member_id]);
+  return { success: true, datetime: eventDatetime, member_id, hadGuests: (rows[0].guests || 0) > 0 };
 }
 
 async function registerMember(member_id, member_name) {
@@ -1008,21 +1452,21 @@ async function registerMember(member_id, member_name) {
     const check_res = await executeQuery(check, [member_id]);
     if (check_res.length > 0) {
       const debt = check_res[0].debt;
-      //console.log(`ยอดค้าง ${debt}`);
+      //logger.info(`ยอดค้าง ${debt}`);
       if (debt > 0) return debt;
     }
-    //console.log(`${res.length}`)
+    //logger.info(`${res.length}`)
     if (res.length > 0) {
       return 1;
     } else {
       const query = "insert into member_team_week_tbl (member_id, name, team_id, week_id, pay) values(?, ?, 0, ?, 0)";
-      //console.log(query) ;
+      //logger.info(query) ;
       const reg_res = await executeQuery(query, [member_id, member_name, week_id]);
-      //console.log(reg_res) ;
+      //logger.info(reg_res) ;
       return 0;
     }
   }
-  //console.log(res) ;
+  //logger.info(res) ;
   return 0;
 }
 
@@ -1072,7 +1516,7 @@ async function getTeamColorWeek(week_id) {
 
   let result = await executeQuery(query);
   if ((!result || result.length === 0) && week_id) {
-    console.log(`[Auto-Fix] Missing team_color_week for week_id=${week_id}. Generating team colors automatically...`);
+    logger.info(`[Auto-Fix] Missing team_color_week for week_id=${week_id}. Generating team colors automatically...`);
     await addTeamColorWeek(3, week_id);
     result = await executeQuery(query);
   }
@@ -1115,7 +1559,7 @@ async function queryMatchWeek(week_id) {
 
 async function queryTableWeek(week_id) {
 
-  let query = `SELECT team_color_week_tbl.color, table_week_tbl.* FROM table_week_tbl , team_color_week_tbl where table_week_tbl.week_id = ${week_id} AND table_week_tbl.team_week_id = team_color_week_tbl.id order by table_week_tbl.pts DESC, (table_week_tbl.g - table_week_tbl.a) DESC`;
+  let query = `SELECT team_color_week_tbl.color, table_week_tbl.*, (table_week_tbl.g - table_week_tbl.a) AS gd FROM table_week_tbl , team_color_week_tbl where table_week_tbl.week_id = ${week_id} AND table_week_tbl.team_week_id = team_color_week_tbl.id order by table_week_tbl.pts DESC, (table_week_tbl.g - table_week_tbl.a) DESC, table_week_tbl.g DESC, table_week_tbl.w DESC`;
 
   const result = await executeQuery(query);
   if (result.length > 0) {
@@ -1148,8 +1592,396 @@ async function getTableWeek(week_id = 0) {
   }
 }
 
-async function getWeekLeaderStats(week_id, groupId = null) {
+// ───────────────────────────── MVP Rating Engine (shared) ─────────────────────────────
+// Fill order used when assigning a team-fit position to players without an explicit position
+// (mirrors the generic fill order of allocateFormationSlots)
+const MVP_POS_FILL_ORDER = ['MF', 'DW', 'DF', 'DM', 'AM', 'CF'];
+// Minimum number of positive player-week samples before the P95 benchmark is trusted (else use MAX)
+const MVP_BENCHMARK_MIN_SAMPLES = 20;
+const MVP_BENCHMARK_PERCENTILE = 0.95;
+
+function mvpPosNum(pos, keys, fallback) {
+  for (const k of keys) {
+    if (pos && pos[k] !== undefined && pos[k] !== null && pos[k] !== '') {
+      const v = parseFloat(pos[k]);
+      if (!isNaN(v)) return v;
+    }
+  }
+  return fallback;
+}
+
+/**
+ * Unified per-player MVP raw score formula (single source of truth).
+ * RawTotal = G·goal + A·assist + CS·cs + W·win + D·draw − GA·conceded + max(0, GF − G)·team_goal − OG·og
+ * Per-match raw = RawTotal / matches
+ */
+function computePlayerRawScore(stats, pos) {
+  const g = Number(stats.g) || 0;
+  const a = Number(stats.a) || 0;
+  const og = Number(stats.og) || 0;
+  const cs = Number(stats.cleanSheets) || 0;
+  const w = Number(stats.wins) || 0;
+  const d = Number(stats.draws) || 0;
+  const gf = Number(stats.goalsScored) || 0;
+  const ga = Number(stats.goalsConceded) || 0;
+  const matches = Number(stats.matches) > 0 ? Number(stats.matches) : 1;
+
+  const pts = {
+    goal: mvpPosNum(pos, ['pts_goal'], 4.0),
+    assist: mvpPosNum(pos, ['pts_assist'], 3.0),
+    cs: mvpPosNum(pos, ['pts_clean_sheet'], 0.0),
+    conceded: mvpPosNum(pos, ['pts_conceded', 'pts_goal_against'], 0.0),
+    teamGoal: mvpPosNum(pos, ['pts_team_goal'], 0.0),
+    og: mvpPosNum(pos, ['pts_og'], 2.0),
+    win: mvpPosNum(pos, ['pts_wins', 'pts_win'], 3.0),
+    draw: mvpPosNum(pos, ['pts_draws', 'pts_draw'], 1.0)
+  };
+
+  const teamGoalsExcl = Math.max(0, gf - g);
+  const total = (g * pts.goal) + (a * pts.assist) + (cs * pts.cs) + (w * pts.win) + (d * pts.draw)
+    - (ga * pts.conceded) + (teamGoalsExcl * pts.teamGoal) - (og * pts.og);
+  const raw = total / matches;
+
+  const breakdown = `(${g}G×${pts.goal}) + (${a}A×${pts.assist}) + (${cs}CS×${pts.cs}) + (${w}W×${pts.win}) + (${d}D×${pts.draw})` +
+    ` − (${ga}GA×${pts.conceded}) + (${teamGoalsExcl}TeamGF×${pts.teamGoal}) − (${og}OG×${pts.og}) = ${total.toFixed(4)}`;
+
+  return { total, raw, matches, pts, teamGoalsExcl, breakdown };
+}
+
+/**
+ * Resolve the position for each player in a week. Explicit week position → member default position →
+ * team-fit position (fills the team's unmet pos_tbl minimums first, then remaining capacity, in MVP_POS_FILL_ORDER).
+ * Returns { [member_id]: { pos, isTeamFit } }
+ */
+function resolveWeekPlayerPositions(players, posMap, allPositions) {
+  const byCode = {};
+  allPositions.forEach(p => { byCode[(p.code || '').toUpperCase()] = p; });
+  const fallbackPos = byCode.MF || byCode.CF || allPositions[0] || { code: 'MF', pts_goal: 5, pts_assist: 3, pts_clean_sheet: 0.5, pts_team_goal: 0.5, pts_og: 2, pts_wins: 3, pts_draws: 1 };
+
+  const result = {};
+  const teams = {};
+  players.forEach(m => {
+    const key = m.member_id || m.id;
+    let pos = null;
+    if (m.week_pos_id > 0 && posMap[m.week_pos_id]) pos = posMap[m.week_pos_id];
+    else if (m.member_pos_id > 0 && posMap[m.member_pos_id]) pos = posMap[m.member_pos_id];
+    const tId = Number(m.team_id) || 0;
+    if (!teams[tId]) teams[tId] = { counts: {}, unassigned: [], size: 0 };
+    teams[tId].size++;
+    if (pos) {
+      const c = (pos.code || '').toUpperCase();
+      teams[tId].counts[c] = (teams[tId].counts[c] || 0) + 1;
+      result[key] = { pos, isTeamFit: false };
+    } else {
+      teams[tId].unassigned.push(key);
+    }
+  });
+
+  Object.values(teams).forEach(team => {
+    if (team.unassigned.length === 0) return;
+    const is8 = team.size >= 8;
+    const lim = (code) => {
+      const p = byCode[code] || {};
+      const min = is8 && p.min_8 !== null && p.min_8 !== undefined ? Number(p.min_8) : Number(p.min || 0);
+      const max = is8 && p.max_8 !== null && p.max_8 !== undefined ? Number(p.max_8) : Number(p.max !== undefined ? p.max : 2);
+      return { min: isNaN(min) ? 0 : min, max: isNaN(max) ? 2 : max };
+    };
+    team.unassigned.sort((x, y) => Number(x) - Number(y));
+    team.unassigned.forEach(key => {
+      let chosen = MVP_POS_FILL_ORDER.find(c => byCode[c] && (team.counts[c] || 0) < lim(c).min);
+      if (!chosen) chosen = MVP_POS_FILL_ORDER.find(c => byCode[c] && (team.counts[c] || 0) < lim(c).max);
+      const pos = chosen ? byCode[chosen] : fallbackPos;
+      const c = (pos.code || '').toUpperCase();
+      team.counts[c] = (team.counts[c] || 0) + 1;
+      result[key] = { pos, isTeamFit: true };
+    });
+  });
+  return result;
+}
+
+function percentileBenchmark(values) {
+  const vals = (values || []).map(Number).filter(v => !isNaN(v) && v > 0).sort((a, b) => a - b);
+  if (vals.length === 0) return 0;
+  if (vals.length < MVP_BENCHMARK_MIN_SAMPLES) return vals[vals.length - 1];
+  const idx = Math.max(0, Math.ceil(MVP_BENCHMARK_PERCENTILE * vals.length) - 1);
+  return vals[idx];
+}
+
+/**
+ * Year benchmark (rating 10.0 reference) = P95 of all positive per-match raw scores of the year.
+ * extraRaws/excludeWeekId allow including the live (unsaved) week without double counting.
+ */
+async function getYearMvpBenchmark(year, extraRaws = [], excludeWeekId = null) {
+  let rows = [];
   try {
+    rows = await executeQuery(`
+      SELECT m.raw_score FROM mvp_week_tbl m
+      JOIN week_tbl w ON m.week_id = w.id
+      WHERE YEAR(w.date) = ? AND m.raw_score > 0 ${excludeWeekId ? 'AND m.week_id <> ?' : ''}
+    `, excludeWeekId ? [year, excludeWeekId] : [year]);
+  } catch (e) { }
+  return percentileBenchmark([...(rows || []).map(r => r.raw_score), ...extraRaws]);
+}
+
+async function saveYearMvpBenchmark(year, bench) {
+  const key = `max_mvp_score_${year}`;
+  const ex = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
+  if (ex && ex.length > 0) {
+    await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [bench.toFixed(4), key]);
+  } else {
+    await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, bench.toFixed(4)]);
+  }
+}
+
+/** Re-normalize stored ratings (mvp_week_tbl + member_team_week_tbl) of a year against its benchmark */
+async function renormalizeYearRatings(year, bench) {
+  if (!bench || bench <= 0) return;
+  await executeQuery(`
+    UPDATE mvp_week_tbl m JOIN week_tbl w ON m.week_id = w.id
+    SET m.rating = IF(m.raw_score > 0, LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2)), 0)
+    WHERE YEAR(w.date) = ?
+  `, [bench, year]);
+  await executeQuery(`
+    UPDATE member_team_week_tbl mtw
+    JOIN mvp_week_tbl m ON m.week_id = mtw.week_id AND m.member_id = mtw.member_id
+    JOIN week_tbl w ON m.week_id = w.id
+    SET mtw.rating = m.rating
+    WHERE YEAR(w.date) = ?
+  `, [year]);
+}
+
+/**
+ * Compute change checksum for a week based on match statuses, scores, goals, assists, and rosters.
+ * Returns null on error.
+ */
+async function computeWeekChangeChecksum(week_id) {
+  try {
+    const [matchStat] = await executeQuery(`
+      SELECT 
+        COUNT(*) as total_matches,
+        COALESCE(SUM(CASE WHEN status = 'finished' THEN 1 ELSE 0 END), 0) as finished_matches,
+        COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as live_matches,
+        COALESCE(SUM(team_a_goal), 0) as goals_a,
+        COALESCE(SUM(team_b_goal), 0) as goals_b,
+        MAX(updated_at) as last_match_update
+      FROM match_stat_tbl
+      WHERE week_id = ?
+    `, [week_id]);
+
+    const [goalStat] = await executeQuery(`
+      SELECT 
+        COUNT(*) as total_goal_events,
+        COALESCE(SUM(CASE WHEN mgt.status <= 1 THEN 1 ELSE 0 END), 0) as raw_goals,
+        COALESCE(SUM(CASE WHEN mgt.status = 3 THEN 1 ELSE 0 END), 0) as raw_assists,
+        COALESCE(SUM(mgt.member_id * 100 + mgt.status), 0) as goal_checksum
+      FROM match_goal_tbl mgt
+      JOIN match_stat_tbl mst ON mgt.match_id = mst.id
+      WHERE mst.week_id = ?
+    `, [week_id]);
+
+    const [rosterStat] = await executeQuery(`
+      SELECT 
+        COUNT(*) as roster_count,
+        COALESCE(SUM(member_id * 1000 + team_id * 10 + pos_id), 0) as roster_checksum
+      FROM member_team_week_tbl
+      WHERE week_id = ?
+    `, [week_id]);
+
+    const lastUpdate = matchStat?.last_match_update ? new Date(matchStat.last_match_update).getTime() : 0;
+    return `${matchStat?.total_matches || 0}_${matchStat?.finished_matches || 0}_${matchStat?.live_matches || 0}_${matchStat?.goals_a || 0}_${matchStat?.goals_b || 0}_${goalStat?.raw_goals || 0}_${goalStat?.raw_assists || 0}_${goalStat?.goal_checksum || 0}_${rosterStat?.roster_checksum || 0}_${lastUpdate}`;
+  } catch (err) {
+    logger.warn(`Error computing week change checksum for week ${week_id}:`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Load finalized leader stats, player ratings, and TOTW directly from DB (mvp_week_tbl)
+ * without re-running raw math or re-updating tables.
+ */
+async function loadSavedWeekLeaderStats(week_id, groupId = null) {
+  try {
+    const assets = await fetchDisplayAssets();
+    await ensurePosTables();
+    const allPositions = await getAllPositions();
+    const posMap = {};
+    allPositions.forEach(p => {
+      posMap[p.id] = p;
+      if (p.code) posMap[p.code.toUpperCase()] = p;
+    });
+    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0];
+
+    const teamColors = await getTeamColorWeek(week_id);
+    const teamColorMap = {};
+    (teamColors || []).forEach(t => { teamColorMap[t.id] = t.color; });
+
+    const rows = await executeQuery(`
+      SELECT 
+        m.week_id,
+        m.member_id,
+        m.member_name,
+        m.goals,
+        m.own_goals,
+        m.assists,
+        m.clean_sheet,
+        m.conceded,
+        m.wins,
+        m.raw_score,
+        m.rating,
+        m.matches,
+        m.pos_code as saved_pos_code,
+        mtw.team_id,
+        mtw.pos_id as week_pos_id,
+        mem.id,
+        mem.name,
+        mem.alias,
+        mem.rank,
+        mem.donate,
+        mem.picture_url,
+        mem.line_user_id,
+        mem.pos_id as member_pos_id
+      FROM mvp_week_tbl m
+      LEFT JOIN member_team_week_tbl mtw ON m.week_id = mtw.week_id AND m.member_id = mtw.member_id
+      LEFT JOIN member_tbl mem ON m.member_id = mem.id
+      WHERE m.week_id = ?
+      ORDER BY m.raw_score DESC, m.rating DESC, m.goals DESC, m.assists DESC, m.id ASC
+    `, [week_id]);
+
+    if (!rows || rows.length === 0) return null;
+
+    await Promise.all(rows.map(member => ensureMemberPicture(member, groupId)));
+
+    // Fallback team matches map if matches column is unpopulated in older rows
+    const matchScoresRaw = await executeQuery("SELECT * FROM match_stat_tbl WHERE week_id = ?", [week_id]);
+    const teamMatchesMap = {};
+    (matchScoresRaw || []).forEach(ms => {
+      if (ms.status === 'finished' || ms.team_a_goal !== null) {
+        if (ms.team_a_id) teamMatchesMap[ms.team_a_id] = (teamMatchesMap[ms.team_a_id] || 0) + 1;
+        if (ms.team_b_id) teamMatchesMap[ms.team_b_id] = (teamMatchesMap[ms.team_b_id] || 0) + 1;
+      }
+    });
+
+    const formattedList = rows.map(r => {
+      const teamId = r.team_id || 0;
+      const teamName = teamColorMap[teamId] || (teamId ? `ID ${teamId}` : '');
+
+      let pos = null;
+      if (r.saved_pos_code && posMap[String(r.saved_pos_code).toUpperCase()]) {
+        pos = posMap[String(r.saved_pos_code).toUpperCase()];
+      } else if (r.week_pos_id && posMap[r.week_pos_id]) {
+        pos = posMap[r.week_pos_id];
+      } else if (r.member_pos_id && posMap[r.member_pos_id]) {
+        pos = posMap[r.member_pos_id];
+      } else {
+        pos = defaultPos;
+      }
+
+      const goals = Number(r.goals) || 0;
+      const own_goals = Number(r.own_goals) || 0;
+      const assists = Number(r.assists) || 0;
+      const cleanSheets = Number(r.clean_sheet) || 0;
+      const goalsConceded = Number(r.conceded) || 0;
+      const wins = Number(r.wins) || 0;
+      const matches = (r.matches && Number(r.matches) > 0) ? Number(r.matches) : (teamMatchesMap[teamId] || 1);
+      const rawScore = Number(r.raw_score) || 0;
+      const score = Number(r.rating) || 0;
+
+      const info = resolveMemberDisplayInfo(r, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+
+      return {
+        ...r,
+        goals,
+        own_goals,
+        assists,
+        cleanSheets,
+        wins,
+        goalsConceded,
+        matches,
+        pos,
+        pos_code: (pos?.code || 'MF').toUpperCase(),
+        pos_icon: pos?.icon || '',
+        teamName,
+        rawScore,
+        score,
+        info
+      };
+    });
+
+    let maxGoals = 0;
+    let maxAssists = 0;
+    let maxRawMvpScore = 0;
+
+    formattedList.forEach(item => {
+      if (item.goals > maxGoals) maxGoals = item.goals;
+      if (item.assists > maxAssists) maxAssists = item.assists;
+      if (item.rawScore > maxRawMvpScore && item.rawScore > 0) maxRawMvpScore = item.rawScore;
+    });
+
+    const topScorers = maxGoals > 0 ? formattedList.filter(item => item.goals === maxGoals) : [];
+    const topAssists = maxAssists > 0 ? formattedList.filter(item => item.assists === maxAssists) : [];
+    const mvps = maxRawMvpScore > 0 ? formattedList.filter(item => item.rawScore === maxRawMvpScore) : [];
+    const maxMvpScore = mvps.length > 0 ? mvps[0].score : 0;
+
+    // Compute Team of the Week (TOTW)
+    let totw = [];
+    try {
+      let is8PlayerWeek = false;
+      const teamCountsRes = await executeQuery(
+        "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
+        [week_id]
+      );
+      if (teamCountsRes && teamCountsRes.length > 0) {
+        const maxCount = Math.max(...teamCountsRes.map(rc => Number(rc.cnt) || 0));
+        if (maxCount >= 8) is8PlayerWeek = true;
+      }
+
+      const posLimitsMap = {};
+      const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+      if (posRows && posRows.length > 0) {
+        posRows.forEach(pr => {
+          posLimitsMap[pr.code] = {
+            min: Number(pr.min) || 0,
+            max: Number(pr.max) || 0,
+            min_8: Number(pr.min_8) || 0,
+            max_8: Number(pr.max_8) || 0
+          };
+        });
+      }
+
+      totw = selectTeamOfTheWeekPlayers(formattedList, is8PlayerWeek, posLimitsMap);
+    } catch (eTotw) {
+      logger.warn('Failed to compute TOTW in loadSavedWeekLeaderStats:', eTotw.message);
+    }
+
+    return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore, allPlayerRatings: formattedList, totw };
+  } catch (err) {
+    logger.error(`Error loading saved leader stats for week ${week_id}:`, err.message);
+    return null;
+  }
+}
+
+async function getWeekLeaderStats(week_id, groupId = null, forceRefresh = false) {
+  try {
+    // 0. Change detection & freshness check: Skip full recalculation if week data is unchanged
+    if (!forceRefresh) {
+      const checksumKey = `mvp_checksum_${week_id}`;
+      const chkRes = await executeQuery("SELECT value FROM template_tpl WHERE name = ?", [checksumKey]);
+      const savedChecksum = (chkRes && chkRes.length > 0) ? chkRes[0].value : null;
+
+      if (savedChecksum) {
+        const currentChecksum = await computeWeekChangeChecksum(week_id);
+        if (currentChecksum && currentChecksum === savedChecksum) {
+          const countRes = await executeQuery("SELECT COUNT(*) as cnt FROM mvp_week_tbl WHERE week_id = ?", [week_id]);
+          if (countRes && countRes[0] && countRes[0].cnt > 0) {
+            const savedStats = await loadSavedWeekLeaderStats(week_id, groupId);
+            if (savedStats && savedStats.allPlayerRatings && savedStats.allPlayerRatings.length > 0) {
+              logger.debug(`[WeekLeaderStats] Week ${week_id} is unchanged (Checksum matched). Served from saved DB records.`);
+              return savedStats;
+            }
+          }
+        }
+      }
+    }
     const goalsQuery = `
       SELECT 
         mtw.member_id, 
@@ -1187,10 +2019,18 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const teamGaMap = {};
     const teamCleanSheetsMap = {};
     const teamWinsMap = {};
-    const matchScores = await executeQuery(
-      "SELECT id, team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
+    const teamDrawsMap = {};
+    const teamGfMap = {};
+    const matchScoresRaw = await executeQuery(
+      "SELECT * FROM match_stat_tbl WHERE week_id = ?",
       [week_id]
     );
+    const matchScores = (matchScoresRaw || []).filter(m => {
+      if (m.status !== undefined && m.status !== null) {
+        return m.status === 'finished' || m.status === 'in_progress';
+      }
+      return m.team_a_goal !== null && m.team_a_goal !== undefined;
+    });
     if (matchScores && matchScores.length > 0) {
       matchScores.forEach(m => {
         const gaA = Number(m.team_b_goal) || 0;
@@ -1200,13 +2040,17 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
         if (m.team_a_id) {
           teamGaMap[m.team_a_id] = (teamGaMap[m.team_a_id] || 0) + gaA;
+          teamGfMap[m.team_a_id] = (teamGfMap[m.team_a_id] || 0) + gA;
           if (gaA === 0) teamCleanSheetsMap[m.team_a_id] = (teamCleanSheetsMap[m.team_a_id] || 0) + 1;
           if (gA > gB) teamWinsMap[m.team_a_id] = (teamWinsMap[m.team_a_id] || 0) + 1;
+          if (gA === gB) teamDrawsMap[m.team_a_id] = (teamDrawsMap[m.team_a_id] || 0) + 1;
         }
         if (m.team_b_id) {
           teamGaMap[m.team_b_id] = (teamGaMap[m.team_b_id] || 0) + gaB;
+          teamGfMap[m.team_b_id] = (teamGfMap[m.team_b_id] || 0) + gB;
           if (gaB === 0) teamCleanSheetsMap[m.team_b_id] = (teamCleanSheetsMap[m.team_b_id] || 0) + 1;
           if (gB > gA) teamWinsMap[m.team_b_id] = (teamWinsMap[m.team_b_id] || 0) + 1;
+          if (gA === gB) teamDrawsMap[m.team_b_id] = (teamDrawsMap[m.team_b_id] || 0) + 1;
         }
       });
     }
@@ -1232,9 +2076,9 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const allPositions = await getAllPositions();
     const posMap = {};
     allPositions.forEach(p => { posMap[p.id] = p; });
-    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0, pts_wins: 1.5 };
+    const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_team_goal: 0.75, pts_og: 2.0, pts_wins: 3.0, pts_draws: 1.0 };
 
-    console.log(`\n=== [MVP Calculation Log] Week ID: ${week_id} ===`);
+    logger.info(`\n=== [MVP Calculation Log] Week ID: ${week_id} (${forceRefresh ? 'Forced Refresh' : 'Data Changed / First Calculation'}) ===`);
     if (tableRows && tableRows.length > 0) {
       tableRows.forEach(row => {
         const teamId = row.team_week_id;
@@ -1255,17 +2099,19 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         teamMvpFactorMap[teamId] = factor;
         teamInfoMap[teamId] = { color: row.color, w, d, l, matches: totalMatches, pts, avgPts, goalsAgainst, divisor, factor };
 
-        console.log(` [Team ${row.color || teamId} (ID: ${teamId})]`);
-        console.log(`   └─ Record: Wins (W): ${w}, Draws (D): ${d}, Losses (L): ${l} => Total Matches Played: ${totalMatches}`);
-        console.log(`   └─ Points (Pts): ${pts}`);
-        console.log(`   └─ Avg Pts Calculation: Points (${pts}) / Total Matches (${totalMatches > 0 ? totalMatches : 1}) = ${avgPts.toFixed(4)}`);
-        console.log(`   └─ Goals Against (A) [from match_stat_tbl]: ${goalsAgainst}`);
-        console.log(`   └─ Team Factor Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${divisor}) = ${factor.toFixed(4)}`);
-        console.log(`   => Team Factor = ${factor.toFixed(4)}`);
+        logger.info(` [Team ${row.color || teamId} (ID: ${teamId})]`);
+        logger.info(`   └─ Record: Wins (W): ${w}, Draws (D): ${d}, Losses (L): ${l} => Total Matches Played: ${totalMatches}`);
+        logger.info(`   └─ Points (Pts): ${pts}`);
+        logger.info(`   └─ Avg Pts Calculation: Points (${pts}) / Total Matches (${totalMatches > 0 ? totalMatches : 1}) = ${avgPts.toFixed(4)}`);
+        logger.info(`   └─ Goals Against (A) [from match_stat_tbl]: ${goalsAgainst}`);
+        logger.info(`   └─ Team Factor Calculation: Avg Pts (${avgPts.toFixed(4)}) / Goals Against (${divisor}) = ${factor.toFixed(4)}`);
+        logger.info(`   => Team Factor = ${factor.toFixed(4)}`);
       });
     }
 
-    // Pass 1: Compute raw MVP scores with position weights from pos_tbl + match wins * pts_wins - own goals * pts_og
+    // Pass 1: Compute raw MVP scores via the shared formula (computePlayerRawScore) with pos_tbl weights.
+    // Players without an explicit position get a team-fit position (resolveWeekPlayerPositions)
+    const resolvedPositions = resolveWeekPlayerPositions(goalRes.filter(m => !isTempReserveMember(m.name)), posMap, allPositions);
     const rawScoresList = goalRes.map(m => {
       if (isTempReserveMember(m.name)) return null;
 
@@ -1276,20 +2122,13 @@ async function getWeekLeaderStats(week_id, groupId = null) {
 
       const cleanSheets = teamCleanSheetsMap[teamId] || 0;
       const wins = teamWinsMap[teamId] || 0;
+      const draws = teamDrawsMap[teamId] || 0;
+      const goalsScored = teamGfMap[teamId] || 0;
 
-      let pos = defaultPos;
-      if (m.week_pos_id > 0 && posMap[m.week_pos_id]) {
-        pos = posMap[m.week_pos_id];
-      } else if (m.member_pos_id > 0 && posMap[m.member_pos_id]) {
-        pos = posMap[m.member_pos_id];
-      }
-
-      const ptsGoal = parseFloat(pos.pts_goal) || 4.0;
-      const ptsAssist = parseFloat(pos.pts_assist) || 3.0;
-      const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
-      const ptsConceded = parseFloat(pos.pts_conceded || pos.pts_goal_against) || 0.0;
-      const ptsOg = parseFloat(pos.pts_og) || 2.0;
-      const ptsWins = parseFloat(pos.pts_wins !== undefined ? pos.pts_wins : (pos.pts_win !== undefined ? pos.pts_win : 1.5)) || 1.5;
+      const memKey = m.member_id || m.id;
+      const resolved = resolvedPositions[memKey];
+      const pos = resolved ? resolved.pos : defaultPos;
+      const isTeamFitPos = resolved ? resolved.isTeamFit : true;
 
       const goalsConceded = teamGaMap[teamId] || 0;
       const teamDetails = teamInfoMap[teamId];
@@ -1299,7 +2138,6 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         ? matchScores.filter(ms => ms.team_a_id === teamId || ms.team_b_id === teamId).map(ms => ms.id)
         : [];
       const allPlayerMatchIds = new Set(primaryMatchIds);
-      const memKey = m.member_id || m.id;
       if (memberPlayedMatchIdsMap[memKey]) {
         memberPlayedMatchIdsMap[memKey].forEach(mId => allPlayerMatchIds.add(mId));
       }
@@ -1307,12 +2145,14 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         ? allPlayerMatchIds.size
         : ((teamDetails && teamDetails.matches > 0) ? teamDetails.matches : 1);
 
-      // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
-      const rawScoreTotal = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
-      // Normalized Per-Match Raw MVP score
-      const rawScore = matches > 0 ? (rawScoreTotal / matches) : rawScoreTotal;
+      const calc = computePlayerRawScore({ g, a, og, cleanSheets, wins, draws, goalsScored, goalsConceded, matches }, pos);
 
-      return { member: m, g, og, a, cleanSheets, wins, goalsConceded, matches, pos, ptsGoal, ptsAssist, ptsCleanSheet, ptsConceded, ptsOg, ptsWins, rawScoreTotal, rawScore };
+      return {
+        member: m, g, og, a, cleanSheets, wins, draws, goalsScored, goalsConceded, matches, pos, isTeamFitPos,
+        ptsGoal: calc.pts.goal, ptsAssist: calc.pts.assist, ptsCleanSheet: calc.pts.cs, ptsConceded: calc.pts.conceded,
+        ptsTeamGoal: calc.pts.teamGoal, ptsOg: calc.pts.og, ptsWins: calc.pts.win, ptsDraws: calc.pts.draw,
+        breakdown: calc.breakdown, rawScoreTotal: calc.total, rawScore: calc.raw
+      };
     }).filter(item => item !== null);
 
     let maxGoals = 0;
@@ -1334,41 +2174,20 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       }
     } catch (e) { }
 
-    // Retrieve benchmark reference max MVP score for current year from template_tpl / mvp_week_tbl
+    // Benchmark (rating 10.0 reference) = P95 of all positive per-match raw scores of this year,
+    // including this (live) week's scores and excluding its previously saved copy
     await ensureMvpWeekTable();
-    let refMaxScore = 0;
+    let prevBenchmark = 0;
     try {
       const tplRes = await executeQuery("SELECT value FROM template_tpl WHERE name = ?", [`max_mvp_score_${weekYear}`]);
       if (tplRes && tplRes.length > 0 && tplRes[0].value) {
-        refMaxScore = parseFloat(tplRes[0].value);
+        prevBenchmark = parseFloat(tplRes[0].value) || 0;
       }
     } catch (e) { }
-
-    if (!refMaxScore || refMaxScore <= 0) {
-      try {
-        const maxDbRes = await executeQuery(`
-          SELECT MAX(m.raw_score) as max_raw 
-          FROM mvp_week_tbl m
-          JOIN week_tbl w ON m.week_id = w.id
-          WHERE YEAR(w.date) = ?
-        `, [weekYear]);
-        if (maxDbRes && maxDbRes[0] && maxDbRes[0].max_raw) {
-          refMaxScore = parseFloat(maxDbRes[0].max_raw);
-        }
-      } catch (e) { }
-    }
-
-    let isNewYearRecord = false;
-    if (maxRawMvpScore > refMaxScore) {
-      isNewYearRecord = true;
-      refMaxScore = maxRawMvpScore;
-    }
-
-    // Fallback if benchmark not set yet for this year: use max raw MVP score of current week
-    if (!refMaxScore || isNaN(refMaxScore) || refMaxScore <= 0) {
-      refMaxScore = maxRawMvpScore;
-      isNewYearRecord = true;
-    }
+    let refMaxScore = await getYearMvpBenchmark(weekYear, rawScoresList.map(r => r.rawScore), week_id);
+    if (!refMaxScore || isNaN(refMaxScore) || refMaxScore <= 0) refMaxScore = maxRawMvpScore;
+    // Benchmark moved noticeably (> 0.5%) → re-normalize the stored ratings of the whole year
+    const benchmarkChanged = refMaxScore > 0 && (!prevBenchmark || Math.abs(refMaxScore - prevBenchmark) / prevBenchmark > 0.005);
 
     // Pass 2: Normalize to 1-10 rating scale against refMaxScore
     const formattedList = rawScoresList.map(item => {
@@ -1394,13 +2213,13 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       const teamDetails = teamInfoMap[m.team_id];
       const teamName = teamDetails ? teamDetails.color : `ID ${m.team_id}`;
 
-      console.log(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
-      console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
-      console.log(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
-      console.log(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches Played (${matches}) = ${rawScore.toFixed(4)}`);
-      console.log(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / Benchmark Ref ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
-      console.log(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
+      logger.debug(` [Player ${m.name}] (Team: ${teamName}) [Position: ${pos.code} ${pos.icon || ''}${item.isTeamFitPos ? ' (team-fit)' : ''}]`);
+      logger.debug(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Match Draw: +${item.ptsDraws}, Team Goal Bonus: +${item.ptsTeamGoal}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
+      logger.debug(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Wins (W): ${wins}, Draws (D): ${item.draws}, Team Goals For (GF): ${item.goalsScored}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
+      logger.debug(`   └─ Raw MVP Score (Total): ${item.breakdown}`);
+      logger.debug(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches Played (${matches}) = ${rawScore.toFixed(4)}`);
+      logger.debug(`   └─ 1-10 Rating Normalization: (${rawScore.toFixed(4)} / P95 Benchmark ${refMaxScore.toFixed(4)}) * 10 = ${normalizedScore.toFixed(1)} / 10`);
+      logger.debug(`   => Final MVP Rating = ${normalizedScore.toFixed(1)} / 10`);
 
       const info = resolveMemberDisplayInfo(m, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
       return {
@@ -1410,16 +2229,21 @@ async function getWeekLeaderStats(week_id, groupId = null) {
         assists: a,
         cleanSheets,
         wins,
+        draws: item.draws,
+        goalsScored: item.goalsScored,
         goalsConceded,
         matches,
         pos,
+        isTeamFitPos: item.isTeamFitPos,
         teamName,
         ptsGoal,
         ptsAssist,
         ptsCleanSheet,
         ptsConceded,
+        ptsTeamGoal: item.ptsTeamGoal,
         ptsOg,
         ptsWins,
+        ptsDraws: item.ptsDraws,
         rawScoreTotal,
         rawScore,
         score: normalizedScore,
@@ -1432,11 +2256,9 @@ async function getWeekLeaderStats(week_id, groupId = null) {
     const mvps = maxRawMvpScore > 0 ? formattedList.filter(item => item.rawScore === maxRawMvpScore) : [];
     const maxMvpScore = mvps.length > 0 ? mvps[0].score : 0;
 
-    // Save/update all player week records into mvp_week_tbl & update yearly cache incrementally
+    // Save/update all player week records into mvp_week_tbl
     if (formattedList && formattedList.length > 0) {
       await saveWeekMvpRecords(week_id, formattedList);
-      const weekMemberIds = formattedList.map(item => item.member_id || item.id).filter(Boolean);
-      await updateYearStatCache(weekYear, weekMemberIds);
     }
 
     // Update player ratings into member_team_week_tbl for this week
@@ -1454,34 +2276,75 @@ async function getWeekLeaderStats(week_id, groupId = null) {
       }
     }
 
-    // If this week sets a new highest MVP score record for this year, update template_tpl & normalize mvp_week_tbl ratings
-    if (isNewYearRecord && refMaxScore > 0) {
-      try {
-        const key = `max_mvp_score_${weekYear}`;
-        const ex = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
-        if (ex && ex.length > 0) {
-          await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [refMaxScore.toFixed(4), key]);
-        } else {
-          await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, refMaxScore.toFixed(4)]);
-        }
-        console.log(`🔥 [New Year Record] Updated ${key} in template_tpl to ${refMaxScore.toFixed(4)}`);
-
-        // Recalculate normalized rating in mvp_week_tbl for this year
-        await executeQuery(`
-          UPDATE mvp_week_tbl m
-          JOIN week_tbl w ON m.week_id = w.id
-          SET m.rating = LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2))
-          WHERE YEAR(w.date) = ? AND m.raw_score > 0
-        `, [refMaxScore, weekYear]);
-      } catch (e) { }
+    // P95 benchmark moved → persist it & re-normalize stored ratings of the whole year, then refresh the full year cache.
+    // Otherwise only refresh the yearly cache of this week's members.
+    try {
+      if (benchmarkChanged) {
+        await saveYearMvpBenchmark(weekYear, refMaxScore);
+        await renormalizeYearRatings(weekYear, refMaxScore);
+        logger.info(`📊 [Benchmark] Year ${weekYear} P95 benchmark ${prevBenchmark.toFixed(4)} → ${refMaxScore.toFixed(4)} (year ratings re-normalized)`);
+        await updateYearStatCache(weekYear);
+      } else if (formattedList && formattedList.length > 0) {
+        const weekMemberIds = formattedList.map(item => item.member_id || item.id).filter(Boolean);
+        await updateYearStatCache(weekYear, weekMemberIds);
+      }
+    } catch (e) {
+      logger.error("Error updating MVP benchmark / year cache:", e.message);
     }
 
-    console.log(` [MVP Winner(s)] Max Raw: ${maxRawMvpScore.toFixed(4)} | Benchmark Ref: ${refMaxScore.toFixed(4)} | Leader Rating: ${maxMvpScore.toFixed(1)}/10 | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
-    console.log(`=============================================\n`);
+    logger.info(` [MVP Winner(s)] Max Raw: ${maxRawMvpScore.toFixed(4)} | Benchmark Ref: ${refMaxScore.toFixed(4)} | Leader Rating: ${maxMvpScore.toFixed(1)}/10 | Winner(s): ${mvps.length > 0 ? mvps.map(p => p.name).join(', ') : 'None'}`);
+    logger.info(`=============================================\n`);
 
-    return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore, allPlayerRatings: formattedList };
+    // Compute Team of the Week (TOTW)
+    let totw = [];
+    try {
+      let is8PlayerWeek = false;
+      const teamCountsRes = await executeQuery(
+        "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
+        [week_id]
+      );
+      if (teamCountsRes && teamCountsRes.length > 0) {
+        const maxCount = Math.max(...teamCountsRes.map(r => Number(r.cnt) || 0));
+        if (maxCount >= 8) is8PlayerWeek = true;
+      }
+
+      const posLimitsMap = {};
+      const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+      if (posRows && posRows.length > 0) {
+        posRows.forEach(r => {
+          posLimitsMap[r.code] = {
+            min: Number(r.min) || 0,
+            max: Number(r.max) || 0,
+            min_8: Number(r.min_8) || 0,
+            max_8: Number(r.max_8) || 0
+          };
+        });
+      }
+
+      totw = selectTeamOfTheWeekPlayers(formattedList, is8PlayerWeek, posLimitsMap);
+    } catch (eTotw) {
+      logger.warn('Failed to compute TOTW in getWeekLeaderStats:', eTotw.message);
+    }
+
+    // Persist current checksum to template_tpl so subsequent reads can skip re-computation
+    try {
+      const finalChecksum = await computeWeekChangeChecksum(week_id);
+      if (finalChecksum) {
+        const checksumKey = `mvp_checksum_${week_id}`;
+        const exChk = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [checksumKey]);
+        if (exChk && exChk.length > 0) {
+          await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [finalChecksum, checksumKey]);
+        } else {
+          await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [checksumKey, finalChecksum]);
+        }
+      }
+    } catch (eChk) {
+      logger.warn(`Failed to save checksum for week ${week_id}:`, eChk.message);
+    }
+
+    return { topScorers, topAssists, mvps, maxGoals, maxAssists, maxMvpScore, allPlayerRatings: formattedList, totw };
   } catch (err) {
-    console.error("Error calculating week leader stats:", err.message);
+    logger.error("Error calculating week leader stats:", err.message);
     return null;
   }
 }
@@ -1526,7 +2389,7 @@ async function ensurePosTables() {
         ('MF', 'Midfielder', '⚙️', 5.00, 3.00, 1.00, 0.00),
         ('CF', 'Center Forward', '⚡', 4.00, 3.00, 0.00, 0.00)
       `);
-      console.log("🌱 [Seed DB] Default positions (GK, DF, DW, MF, CF) with category points inserted into pos_tbl!");
+      logger.info("🌱 [Seed DB] Default positions (GK, DF, DW, MF, CF) with category points inserted into pos_tbl!");
     } else {
       // Set default points if unpopulated
       await executeQuery("UPDATE pos_tbl SET pts_goal = 10.00, pts_assist = 6.00, pts_clean_sheet = 5.00, pts_conceded = 1.00 WHERE UPPER(code) = 'GK' AND pts_goal = 0");
@@ -1558,12 +2421,54 @@ async function ensurePosTables() {
         if (!existingCols.has('max_8')) {
           await executeQuery("ALTER TABLE pos_tbl ADD COLUMN max_8 INT DEFAULT NULL");
         }
+        // MVP rating weight columns
+        if (!existingCols.has('pts_og')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_og DECIMAL(6,2) DEFAULT 2.00");
+        }
+        if (!existingCols.has('pts_wins')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_wins DECIMAL(6,2) DEFAULT 3.00");
+        }
+        if (!existingCols.has('pts_draws')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_draws DECIMAL(6,2) DEFAULT 1.00");
+        }
+        if (!existingCols.has('pts_team_goal')) {
+          await executeQuery("ALTER TABLE pos_tbl ADD COLUMN pts_team_goal DECIMAL(6,2) DEFAULT 0.00");
+        }
       }
     } catch (colErr) {
-      console.error("Error ensuring pos_tbl columns:", colErr.message);
+      logger.error("Error ensuring pos_tbl columns:", colErr.message);
+    }
+
+    // One-time migration to MVP rating weights v2 (flag stored in template_tpl so later admin edits are never overwritten)
+    // conceded = deduction per team goal conceded, team_goal = bonus per team goal scored (excluding the player's own goals)
+    try {
+      const flag = await executeQuery("SELECT id FROM template_tpl WHERE name = 'pos_weights_v2'");
+      if (!flag || flag.length === 0) {
+        const weightsV2 = [
+          // code, goal, assist, clean_sheet, conceded, team_goal, og, wins, draws
+          ['GK', 10, 6, 5, 0.50, 0.00, 2, 3, 1],
+          ['DF', 6, 3, 3, 0.50, 0.00, 2, 3, 1],
+          ['DM', 6, 3, 2, 0.25, 0.25, 2, 3, 1],
+          ['DW', 5, 3, 2, 0.25, 0.25, 2, 3, 1],
+          ['MF', 5, 3, 0.5, 0.00, 0.50, 2, 3, 1],
+          ['AM', 4, 3, 0, 0.00, 0.50, 2, 3, 1],
+          ['CF', 5, 3, 0, 0.00, 0.75, 2, 3, 1]
+        ];
+        for (const [code, goal, assist, cs, conc, tg, og, wins, draws] of weightsV2) {
+          await executeQuery(
+            `UPDATE pos_tbl SET pts_goal = ?, pts_assist = ?, pts_clean_sheet = ?, pts_conceded = ?, pts_team_goal = ?, pts_og = ?, pts_wins = ?, pts_draws = ?
+             WHERE UPPER(code) = ?`,
+            [goal, assist, cs, conc, tg, og, wins, draws, code]
+          );
+        }
+        await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('pos_weights_v2', ?)", [new Date().toISOString()]);
+        logger.info("🌱 [Migration] pos_tbl MVP rating weights updated to v2 (team goal bonus, draws, hybrid DM/DW)");
+      }
+    } catch (migErr) {
+      logger.error("Error migrating pos_tbl weights v2:", migErr.message);
     }
   } catch (err) {
-    console.error("Error creating position tables:", err.message);
+    logger.error("Error creating position tables:", err.message);
   }
 }
 
@@ -1583,7 +2488,7 @@ async function setMemberWeekPosition(member_id, week_id, pos_code) {
 
     return { success: true, member_id, week_id, pos_code: pos_code ? pos_code.toUpperCase() : 'DEFAULT', pos_id: posId };
   } catch (err) {
-    console.error("Error setting member week position:", err.message);
+    logger.error("Error setting member week position:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -1636,23 +2541,37 @@ async function getEffectiveMemberPosition(member_id, week_id = 0) {
     const fallbackRes = await executeQuery("SELECT id, code, name, icon, pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og FROM pos_tbl ORDER BY id ASC LIMIT 1");
     return fallbackRes && fallbackRes.length > 0 ? { ...fallbackRes[0], is_custom_week: false } : null;
   } catch (err) {
-    console.error("Error getting effective position:", err.message);
+    logger.error("Error getting effective position:", err.message);
     return null;
   }
 }
 
-async function updatePositionPoints(pos_code, pts_goal = 0, pts_assist = 0, pts_clean_sheet = 0, pts_conceded = 0, pts_og = 0) {
+async function updatePositionPoints(pos_code, pts_goal = 0, pts_assist = 0, pts_clean_sheet = 0, pts_conceded = 0, pts_og = 0, pts_wins = null, pts_draws = null, pts_team_goal = null) {
   await ensurePosTables();
   try {
-    const sql = `
+    let sql = `
       UPDATE pos_tbl 
-      SET pts_goal = ?, pts_assist = ?, pts_clean_sheet = ?, pts_conceded = ?, pts_og = ? 
-      WHERE UPPER(code) = UPPER(?)
+      SET pts_goal = ?, pts_assist = ?, pts_clean_sheet = ?, pts_conceded = ?, pts_og = ?
     `;
-    await executeQuery(sql, [pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og, pos_code]);
-    return { success: true, pos_code: pos_code.toUpperCase(), pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og };
+    const params = [pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og];
+    if (pts_wins !== null && pts_wins !== undefined) {
+      sql += ", pts_wins = ?";
+      params.push(pts_wins);
+    }
+    if (pts_draws !== null && pts_draws !== undefined) {
+      sql += ", pts_draws = ?";
+      params.push(pts_draws);
+    }
+    if (pts_team_goal !== null && pts_team_goal !== undefined) {
+      sql += ", pts_team_goal = ?";
+      params.push(pts_team_goal);
+    }
+    sql += " WHERE UPPER(code) = UPPER(?)";
+    params.push(pos_code);
+    await executeQuery(sql, params);
+    return { success: true, pos_code: pos_code.toUpperCase(), pts_goal, pts_assist, pts_clean_sheet, pts_conceded, pts_og, pts_wins, pts_draws, pts_team_goal };
   } catch (err) {
-    console.error("Error updating position points:", err.message);
+    logger.error("Error updating position points:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -1662,7 +2581,7 @@ async function getAllPositions() {
   try {
     return await executeQuery("SELECT * FROM pos_tbl ORDER BY id ASC");
   } catch (err) {
-    console.error("Error fetching positions:", err.message);
+    logger.error("Error fetching positions:", err.message);
     return [];
   }
 }
@@ -1679,7 +2598,7 @@ async function getMemberPositions(member_id) {
     `;
     return await executeQuery(sql, [member_id]);
   } catch (err) {
-    console.error("Error fetching member positions:", err.message);
+    logger.error("Error fetching member positions:", err.message);
     return [];
   }
 }
@@ -1703,7 +2622,7 @@ async function setMemberPosition(member_id, pos_code, is_primary = 1) {
 
     return { success: true, member_id, pos_code: pos_code.toUpperCase(), pos_id: posId };
   } catch (err) {
-    console.error("Error setting member position:", err.message);
+    logger.error("Error setting member position:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -1723,9 +2642,13 @@ async function ensureMvpWeekTable() {
         member_id INT DEFAULT 0,
         member_name VARCHAR(255) DEFAULT '',
         goals INT DEFAULT 0,
+        own_goals INT DEFAULT 0,
         assists INT DEFAULT 0,
         clean_sheet INT DEFAULT 0,
         conceded INT DEFAULT 0,
+        wins INT DEFAULT 0,
+        matches INT DEFAULT 0,
+        pos_code VARCHAR(10) DEFAULT '',
         raw_score DECIMAL(10,4) DEFAULT 0.0000,
         rating DECIMAL(4,2) DEFAULT 0.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1734,12 +2657,25 @@ async function ensureMvpWeekTable() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await executeQuery(createSql);
+
+    // Ensure matches and pos_code columns exist if table was already created
+    try {
+      const colRows = await executeQuery("SHOW COLUMNS FROM mvp_week_tbl");
+      const existingCols = new Set((colRows || []).map(c => (c.Field || '').toLowerCase()));
+      if (!existingCols.has('matches')) {
+        await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN matches INT DEFAULT 0 AFTER wins");
+      }
+      if (!existingCols.has('pos_code')) {
+        await executeQuery("ALTER TABLE mvp_week_tbl ADD COLUMN pos_code VARCHAR(10) DEFAULT '' AFTER matches");
+      }
+    } catch (eCol) { }
+
     // Cleanup temporary reserve slot records (@team1+1, @team1+7, +team1+2, etc.)
     try {
       await executeQuery("DELETE FROM mvp_week_tbl WHERE member_name LIKE '@team%' OR member_name LIKE 'team%' OR member_name LIKE '+team%'");
     } catch (e) { }
   } catch (err) {
-    console.error("Error creating mvp_week_tbl table:", err.message);
+    logger.error("Error creating mvp_week_tbl table:", err.message);
   }
 }
 
@@ -1751,24 +2687,32 @@ async function saveWeekMvpRecords(week_id, mvpList) {
     const memId = item.id || item.member_id || 0;
     const name = item.name || '';
     const g = Number(item.goals) || 0;
+    const og = Number(item.own_goals !== undefined ? item.own_goals : (item.og || 0));
     const a = Number(item.assists) || 0;
     const cs = Number(item.cleanSheets !== undefined ? item.cleanSheets : (item.clean_sheet || 0)) || 0;
     const ga = Number(item.goalsConceded !== undefined ? item.goalsConceded : (item.conceded !== undefined ? item.conceded : (item.ga || 0))) || 0;
+    const w = Number(item.wins || 0);
+    const m = Number(item.matches || 0);
+    const posCode = (item.pos?.code || item.pos_code || '').toUpperCase();
     const raw = parseFloat(Number(item.rawScore !== undefined ? item.rawScore : (item.score || 0)).toFixed(4));
     const rat = parseFloat(Number(item.score || 0).toFixed(2));
 
     await executeQuery(`
-      INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, assists, clean_sheet, conceded, raw_score, rating)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO mvp_week_tbl (week_id, member_id, member_name, goals, own_goals, assists, clean_sheet, conceded, wins, matches, pos_code, raw_score, rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         member_name = VALUES(member_name),
         goals = VALUES(goals),
+        own_goals = VALUES(own_goals),
         assists = VALUES(assists),
         clean_sheet = VALUES(clean_sheet),
         conceded = VALUES(conceded),
+        wins = VALUES(wins),
+        matches = VALUES(matches),
+        pos_code = VALUES(pos_code),
         raw_score = VALUES(raw_score),
         rating = VALUES(rating)
-    `, [week_id, memId, name, g, a, cs, ga, raw, rat]);
+    `, [week_id, memId, name, g, og, a, cs, ga, w, m, posCode, raw, rat]);
   }
 }
 
@@ -1795,7 +2739,7 @@ async function ensureMemberYearStatTable() {
       await executeQuery("ALTER TABLE member_year_stat_tbl ADD COLUMN total_rating DECIMAL(8,2) DEFAULT 0.00 AFTER year");
     }
   } catch (err) {
-    console.error("Error creating member_year_stat_tbl table:", err.message);
+    logger.error("Error creating member_year_stat_tbl table:", err.message);
   }
 }
 
@@ -1857,15 +2801,15 @@ async function updateYearStatCache(year = null, memberIds = null) {
         SET mtw.rating = m.rating
         WHERE m.rating > 0${memSyncClause}
       `);
-      console.log(`[Cache] Synchronized ratings from mvp_week_tbl into member_team_week_tbl (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
+      logger.info(`[Cache] Synchronized ratings from mvp_week_tbl into member_team_week_tbl (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
     } catch (e) { }
 
-    console.log(`[Cache] Starting member_year_stat_tbl sync for years: [${yearsToSync.join(', ')}] (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
+    logger.info(`[Cache] Starting member_year_stat_tbl sync for years: [${yearsToSync.join(', ')}] (Incremental: ${cleanMemberIds ? cleanMemberIds.length + ' members' : 'all'})`);
 
     for (const targetYear of yearsToSync) {
-      console.log(`\n======================================================`);
-      console.log(`📊 [Cache Sync] Updating member_year_stat_tbl for Year: ${targetYear} ${cleanMemberIds ? `(Incremental ${cleanMemberIds.length} members)` : ''}`);
-      console.log(`======================================================`);
+      logger.info(`\n======================================================`);
+      logger.info(`📊 [Cache Sync] Updating member_year_stat_tbl for Year: ${targetYear} ${cleanMemberIds ? `(Incremental ${cleanMemberIds.length} members)` : ''}`);
+      logger.info(`======================================================`);
 
       // 1. Query actual weeks played & ratings from member_team_week_tbl (ground truth for participation)
       const weeksRes = await executeQuery(`
@@ -1971,18 +2915,18 @@ async function updateYearStatCache(year = null, memberIds = null) {
             weeksPlayed
           ]);
 
-          console.log(`  👤 [${mName}] (ID: ${mId}) -> Weeks: ${weeksPlayed}, Accu Rating: ${totalRating.toFixed(2)}, Avg: ${avgRating.toFixed(2)}, Max: ${maxRating.toFixed(2)}, Goals: ${gStat.goals}, Assists: ${gStat.assists}`);
+          logger.info(`  👤 [${mName}] (ID: ${mId}) -> Weeks: ${weeksPlayed}, Accu Rating: ${totalRating.toFixed(2)}, Avg: ${avgRating.toFixed(2)}, Max: ${maxRating.toFixed(2)}, Goals: ${gStat.goals}, Assists: ${gStat.assists}`);
         }
-        console.log(`✅ [Year ${targetYear}] Synced ${weeksRes.length} players into member_year_stat_tbl`);
+        logger.info(`✅ [Year ${targetYear}] Synced ${weeksRes.length} players into member_year_stat_tbl`);
       } else {
-        console.log(`ℹ️ [Year ${targetYear}] No player records found in member_team_week_tbl`);
+        logger.info(`ℹ️ [Year ${targetYear}] No player records found in member_team_week_tbl`);
       }
     }
-    console.log(`\n======================================================`);
-    console.log(`🎉 [Cache Sync] Complete sync finished for all target years`);
-    console.log(`======================================================\n`);
+    logger.info(`\n======================================================`);
+    logger.info(`🎉 [Cache Sync] Complete sync finished for all target years`);
+    logger.info(`======================================================\n`);
   } catch (err) {
-    console.error("Error updating member_year_stat_tbl cache:", err.message);
+    logger.error("Error updating member_year_stat_tbl cache:", err.message);
   }
 }
 
@@ -2013,10 +2957,18 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
   const teamGaMap = {};
   const teamCleanSheetsMap = {};
   const teamWinsMap = {};
-  const matchScores = await executeQuery(
-    "SELECT id, team_a_id, team_b_id, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
+  const teamDrawsMap = {};
+  const teamGfMap = {};
+  const matchScoresRaw = await executeQuery(
+    "SELECT * FROM match_stat_tbl WHERE week_id = ?",
     [week_id]
   );
+  const matchScores = (matchScoresRaw || []).filter(m => {
+    if (m.status !== undefined && m.status !== null) {
+      return m.status === 'finished' || m.status === 'in_progress';
+    }
+    return m.team_a_goal !== null && m.team_a_goal !== undefined;
+  });
   if (matchScores && matchScores.length > 0) {
     matchScores.forEach(m => {
       const gaA = Number(m.team_b_goal) || 0;
@@ -2026,13 +2978,17 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
 
       if (m.team_a_id) {
         teamGaMap[m.team_a_id] = (teamGaMap[m.team_a_id] || 0) + gaA;
+        teamGfMap[m.team_a_id] = (teamGfMap[m.team_a_id] || 0) + gA;
         if (gaA === 0) teamCleanSheetsMap[m.team_a_id] = (teamCleanSheetsMap[m.team_a_id] || 0) + 1;
         if (gA > gB) teamWinsMap[m.team_a_id] = (teamWinsMap[m.team_a_id] || 0) + 1;
+        if (gA === gB) teamDrawsMap[m.team_a_id] = (teamDrawsMap[m.team_a_id] || 0) + 1;
       }
       if (m.team_b_id) {
         teamGaMap[m.team_b_id] = (teamGaMap[m.team_b_id] || 0) + gaB;
+        teamGfMap[m.team_b_id] = (teamGfMap[m.team_b_id] || 0) + gB;
         if (gaB === 0) teamCleanSheetsMap[m.team_b_id] = (teamCleanSheetsMap[m.team_b_id] || 0) + 1;
         if (gB > gA) teamWinsMap[m.team_b_id] = (teamWinsMap[m.team_b_id] || 0) + 1;
+        if (gA === gB) teamDrawsMap[m.team_b_id] = (teamDrawsMap[m.team_b_id] || 0) + 1;
       }
     });
   }
@@ -2058,7 +3014,7 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
   const allPositions = await getAllPositions();
   const posMap = {};
   allPositions.forEach(p => { posMap[p.id] = p; });
-  const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_og: 2.0, pts_wins: 1.5 };
+  const defaultPos = allPositions.find(p => p.code === 'CF') || allPositions[0] || { code: 'CF', icon: '⚡', pts_goal: 4, pts_assist: 3, pts_clean_sheet: 0, pts_conceded: 0, pts_team_goal: 0.75, pts_og: 2.0, pts_wins: 3.0, pts_draws: 1.0 };
 
   const teamMvpFactorMap = {};
   const teamDetailsMap = {};
@@ -2091,6 +3047,9 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
     };
   });
 
+  // Players without an explicit position get a team-fit position (same rule as getWeekLeaderStats)
+  const resolvedPositions = resolveWeekPlayerPositions(goalRes.filter(m => !isTempReserveMember(m.name)), posMap, allPositions);
+
   return goalRes.map(m => {
     if (isTempReserveMember(m.name)) return null;
 
@@ -2101,20 +3060,13 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
 
     const cleanSheets = teamCleanSheetsMap[teamId] || 0;
     const wins = teamWinsMap[teamId] || 0;
+    const draws = teamDrawsMap[teamId] || 0;
+    const goalsScored = teamGfMap[teamId] || 0;
 
-    let pos = defaultPos;
-    if (m.week_pos_id > 0 && posMap[m.week_pos_id]) {
-      pos = posMap[m.week_pos_id];
-    } else if (m.member_pos_id > 0 && posMap[m.member_pos_id]) {
-      pos = posMap[m.member_pos_id];
-    }
-
-    const ptsGoal = parseFloat(pos.pts_goal) || 4.0;
-    const ptsAssist = parseFloat(pos.pts_assist) || 3.0;
-    const ptsCleanSheet = parseFloat(pos.pts_clean_sheet) || 0.0;
-    const ptsConceded = parseFloat(pos.pts_conceded || pos.pts_goal_against) || 0.0;
-    const ptsOg = parseFloat(pos.pts_og) || 2.0;
-    const ptsWins = parseFloat(pos.pts_wins !== undefined ? pos.pts_wins : (pos.pts_win !== undefined ? pos.pts_win : 1.5)) || 1.5;
+    const memKey = m.member_id || m.id;
+    const resolved = resolvedPositions[memKey];
+    const pos = resolved ? resolved.pos : defaultPos;
+    const isTeamFitPos = resolved ? resolved.isTeamFit : true;
 
     const goalsConceded = teamGaMap[teamId] || 0;
     const td = teamDetailsMap[teamId] || { teamName: '?', w: 0, d: 0, l: 0, matches: 1, pts: 0, avgPts: 0, goalsAgainst: 0, factor: 1 };
@@ -2124,7 +3076,6 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
       ? matchScores.filter(ms => ms.team_a_id === teamId || ms.team_b_id === teamId).map(ms => ms.id)
       : [];
     const allPlayerMatchIds = new Set(primaryMatchIds);
-    const memKey = m.member_id || m.id;
     if (memberPlayedMatchIdsMap[memKey]) {
       memberPlayedMatchIdsMap[memKey].forEach(mId => allPlayerMatchIds.add(mId));
     }
@@ -2132,17 +3083,15 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
       ? allPlayerMatchIds.size
       : ((td && td.matches > 0) ? td.matches : 1);
 
-    // Raw MVP score (Total) = (Goals * ptsGoal) + (Assists * ptsAssist) + (CleanSheets * ptsCleanSheet) + (Wins * ptsWins) - (GoalsConceded * ptsConceded) - (OwnGoals * ptsOg)
-    const rawScoreTotal = (g * ptsGoal) + (a * ptsAssist) + (cleanSheets * ptsCleanSheet) + (wins * ptsWins) - (goalsConceded * ptsConceded) - (og * ptsOg);
-    // Per-Match Raw MVP score
-    const rawScore = matches > 0 ? (rawScoreTotal / matches) : rawScoreTotal;
+    // Shared formula (single source of truth)
+    const calc = computePlayerRawScore({ g, a, og, cleanSheets, wins, draws, goalsScored, goalsConceded, matches }, pos);
+    const rawScoreTotal = calc.total;
+    const rawScore = calc.raw;
 
     if (verbose) {
-      console.log(` [Player ${m.name}] (Team: ${td.teamName}) [Position: ${pos.code} ${pos.icon || ''}]`);
-      console.log(`   └─ Position Category Points: Goal: +${ptsGoal}, Assist: +${ptsAssist}, Clean Sheet: +${ptsCleanSheet}, Match Win: +${ptsWins}, Goal Conceded Deduct: -${ptsConceded}, Own Goal Deduct: -${ptsOg}`);
-      console.log(`   └─ Player Stats: Goals (G): ${g}, Own Goals (OG): ${og}, Assists (A): ${a}, Clean Sheets (CS): ${cleanSheets}, Match Wins (W): ${wins}, Goals Against (GA): ${goalsConceded}, Matches Played (M): ${matches}`);
-      console.log(`   └─ Raw MVP Score (Total): (${g} * ${ptsGoal}) + (${a} * ${ptsAssist}) + (${cleanSheets} * ${ptsCleanSheet}) + (${wins} * ${ptsWins}) - (${goalsConceded} * ${ptsConceded}) - (${og} * ${ptsOg}) = ${rawScoreTotal.toFixed(4)}`);
-      console.log(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches (${matches}) = ${rawScore.toFixed(4)}`);
+      logger.info(` [Player ${m.name}] (Team: ${td.teamName}) [Position: ${pos.code} ${pos.icon || ''}${isTeamFitPos ? ' (team-fit)' : ''}]`);
+      logger.info(`   └─ Raw MVP Score (Total): ${calc.breakdown}`);
+      logger.info(`   └─ Per-Match Raw MVP Score: Total Raw (${rawScoreTotal.toFixed(4)}) / Matches (${matches}) = ${rawScore.toFixed(4)}`);
     }
 
     return {
@@ -2154,16 +3103,23 @@ async function calculateWeekRawMvp(week_id, verbose = false) {
       assists: a,
       cleanSheets,
       wins,
+      draws,
+      goalsScored,
       goalsConceded,
       matches,
+      teamName: td.teamName,
       posCode: pos.code,
       posIcon: pos.icon || '',
-      ptsGoal,
-      ptsAssist,
-      ptsCleanSheet,
-      ptsConceded,
-      ptsOg,
-      ptsWins,
+      isTeamFitPos,
+      ptsGoal: calc.pts.goal,
+      ptsAssist: calc.pts.assist,
+      ptsCleanSheet: calc.pts.cs,
+      ptsConceded: calc.pts.conceded,
+      ptsTeamGoal: calc.pts.teamGoal,
+      ptsOg: calc.pts.og,
+      ptsWins: calc.pts.win,
+      ptsDraws: calc.pts.draw,
+      breakdown: calc.breakdown,
       rawScoreTotal,
       rawScore,
     };
@@ -2192,10 +3148,10 @@ async function calcAndSaveMaxMvpScore(options = {}) {
           "DELETE m FROM mvp_week_tbl m JOIN week_tbl w ON m.week_id = w.id WHERE YEAR(w.date) = ?",
           [year]
         );
-        console.log(`[MVP Sync] Force reset mvp_week_tbl records for year ${year}`);
+        logger.info(`[MVP Sync] Force reset mvp_week_tbl records for year ${year}`);
       } else {
         await executeQuery("TRUNCATE TABLE mvp_week_tbl");
-        console.log(`[MVP Sync] Force reset all mvp_week_tbl records`);
+        logger.info(`[MVP Sync] Force reset all mvp_week_tbl records`);
       }
     }
 
@@ -2216,9 +3172,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     const weekCountRes = await executeQuery("SELECT week_id, COUNT(*) as cnt FROM mvp_week_tbl GROUP BY week_id");
     const fullySyncedWeekIds = new Set((weekCountRes || []).filter(r => r.cnt >= 4).map(r => r.week_id));
 
-    console.log(`\n======================================================`);
-    console.log(`🚀 [MVP Sync Started] Total Weeks: ${weeks.length} | Year Filter: ${year || 'ALL'} | Reset Mode: ${reset}`);
-    console.log(`======================================================`);
+    logger.info(`\n======================================================`);
+    logger.info(`🚀 [MVP Sync Started] Total Weeks: ${weeks.length} | Year Filter: ${year || 'ALL'} | Reset Mode: ${reset}`);
+    logger.info(`======================================================`);
 
     let skippedCount = 0;
     let newInsertedCount = 0;
@@ -2235,12 +3191,12 @@ async function calcAndSaveMaxMvpScore(options = {}) {
 
       if (!reset && fullySyncedWeekIds.has(w.id)) {
         skippedCount++;
-        console.log(` ⏩ [${currIdx}/${weeks.length}] Week ID ${w.id} (${dateStr}) -> Already fully synced in mvp_week_tbl (Skipped)`);
+        logger.info(` ⏩ [${currIdx}/${weeks.length}] Week ID ${w.id} (${dateStr}) -> Already fully synced in mvp_week_tbl (Skipped)`);
         continue;
       }
 
       affectedYears.add(wYear);
-      console.log(` ⚙️ [${currIdx}/${weeks.length}] Processing Week ID ${w.id} (${dateStr})...`);
+      logger.info(` ⚙️ [${currIdx}/${weeks.length}] Processing Week ID ${w.id} (${dateStr})...`);
       const playerScores = await calculateWeekRawMvp(w.id);
       weekScoresCache[w.id] = playerScores;
       if (playerScores && playerScores.length > 0) {
@@ -2248,54 +3204,53 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         const maxRawForWeek = playerScores[0].rawScore;
         await saveWeekMvpRecords(w.id, playerScores);
         newInsertedCount++;
-        console.log(`    ✅ Synced ${playerScores.length} player(s) for Week ID ${w.id} (Top Per-Match Raw Score: ${maxRawForWeek.toFixed(4)})`);
+        logger.info(`    ✅ Synced ${playerScores.length} player(s) for Week ID ${w.id} (Top Per-Match Raw Score: ${maxRawForWeek.toFixed(4)})`);
       } else {
-        console.log(`    ⚠️ No valid team members (team_id > 0) scored in Week ID ${w.id}`);
+        logger.info(`    ⚠️ No valid team members (team_id > 0) scored in Week ID ${w.id}`);
       }
     }
 
-    // Query max raw score from mvp_week_tbl
-    let maxSql = "SELECT MAX(m.raw_score) as max_raw FROM mvp_week_tbl m";
-    let maxParams = [];
+    // Compute P95 percentile benchmark for each year from mvp_week_tbl (ratings scale: 10.0 at P95)
+    let yearlyScoresSql = `
+      SELECT YEAR(w.date) as yr, m.raw_score
+      FROM mvp_week_tbl m
+      JOIN week_tbl w ON m.week_id = w.id
+      WHERE m.raw_score > 0
+    `;
+    let yearlyScoresParams = [];
     if (year) {
-      maxSql += " JOIN week_tbl w ON m.week_id = w.id WHERE YEAR(w.date) = ?";
-      maxParams.push(year);
+      yearlyScoresSql += " AND YEAR(w.date) = ?";
+      yearlyScoresParams.push(year);
     }
-    const maxDbRes = await executeQuery(maxSql, maxParams);
-    const maxRawScore = (maxDbRes && maxDbRes[0] && maxDbRes[0].max_raw) ? parseFloat(maxDbRes[0].max_raw) : 0;
+    yearlyScoresSql += " ORDER BY YEAR(w.date) ASC, m.raw_score ASC";
 
+    const allYearRawsRes = await executeQuery(yearlyScoresSql, yearlyScoresParams);
+    const yearlyScoresMap = {};
+    if (allYearRawsRes && allYearRawsRes.length > 0) {
+      for (const r of allYearRawsRes) {
+        if (!yearlyScoresMap[r.yr]) yearlyScoresMap[r.yr] = [];
+        yearlyScoresMap[r.yr].push(parseFloat(r.raw_score));
+      }
+    }
+
+    const yearlyBenchMap = {};
+    for (const [yr, scores] of Object.entries(yearlyScoresMap)) {
+      const bench = percentileBenchmark(scores);
+      yearlyBenchMap[yr] = bench;
+      await saveYearMvpBenchmark(yr, bench);
+      await renormalizeYearRatings(yr, bench);
+      logger.info(`📌 [P95 Benchmark] Year ${yr}: ${bench.toFixed(4)} (N=${scores.length} samples, ratings re-normalized)`);
+    }
+
+    // Determine overall reference benchmark
+    const currentCalYear = year || new Date().getFullYear();
+    const maxRawScore = yearlyBenchMap[currentCalYear] || (Object.values(yearlyBenchMap)[0] || 0);
     if (maxRawScore > 0) {
       const existing = await executeQuery("SELECT id FROM template_tpl WHERE name = 'max_mvp_score'");
       if (existing && existing.length > 0) {
         await executeQuery("UPDATE template_tpl SET value = ? WHERE name = 'max_mvp_score'", [maxRawScore.toFixed(4)]);
       } else {
         await executeQuery("INSERT INTO template_tpl (name, value) VALUES ('max_mvp_score', ?)", [maxRawScore.toFixed(4)]);
-      }
-
-      // Update normalized 1-10 rating for each year independently
-      if (year) {
-        await executeQuery(`
-          UPDATE mvp_week_tbl m
-          JOIN week_tbl w ON m.week_id = w.id
-          SET m.rating = LEAST(10.00, ROUND((m.raw_score / ?) * 10, 2))
-          WHERE YEAR(w.date) = ? AND m.raw_score > 0
-        `, [maxRawScore, year]);
-        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all records in year ${year} (Benchmark: ${maxRawScore.toFixed(4)})`);
-      } else {
-        await executeQuery(`
-          UPDATE mvp_week_tbl m
-          JOIN week_tbl w ON m.week_id = w.id
-          JOIN (
-            SELECT YEAR(w2.date) as yr, MAX(m2.raw_score) as yr_max
-            FROM mvp_week_tbl m2
-            JOIN week_tbl w2 ON m2.week_id = w2.id
-            WHERE m2.raw_score > 0
-            GROUP BY YEAR(w2.date)
-          ) yr_stats ON YEAR(w.date) = yr_stats.yr
-          SET m.rating = LEAST(10.00, ROUND((m.raw_score / yr_stats.yr_max) * 10, 2))
-          WHERE m.raw_score > 0 AND yr_stats.yr_max > 0
-        `);
-        console.log(`✅ [MVP Sync] Updated normalized 1-10 rating for all records based on each year's best benchmark`);
       }
     }
 
@@ -2309,54 +3264,6 @@ async function calcAndSaveMaxMvpScore(options = {}) {
     } else {
       await updateYearStatCache();
     }
-
-    // Query yearly max scores and persist each year's benchmark into template_tpl ('max_mvp_score_YYYY')
-    const yearlyMaxRes = await executeQuery(`
-      SELECT YEAR(w.date) as yr, MAX(m.raw_score) as yr_max
-      FROM mvp_week_tbl m
-      JOIN week_tbl w ON m.week_id = w.id
-      WHERE m.raw_score > 0
-      GROUP BY YEAR(w.date)
-    `);
-    const yearlyMaxMap = {};
-    if (yearlyMaxRes && yearlyMaxRes.length > 0) {
-      for (const r of yearlyMaxRes) {
-        const yr = r.yr;
-        const yrMax = parseFloat(r.yr_max);
-        yearlyMaxMap[yr] = yrMax;
-        const key = `max_mvp_score_${yr}`;
-        const ex = await executeQuery("SELECT id FROM template_tpl WHERE name = ?", [key]);
-        if (ex && ex.length > 0) {
-          await executeQuery("UPDATE template_tpl SET value = ? WHERE name = ?", [yrMax.toFixed(4), key]);
-        } else {
-          await executeQuery("INSERT INTO template_tpl (name, value) VALUES (?, ?)", [key, yrMax.toFixed(4)]);
-        }
-      }
-      console.log(`📌 Saved yearly benchmarks to template_tpl: ${Object.entries(yearlyMaxMap).map(([yr, val]) => `${yr}: ${val.toFixed(4)}`).join(' | ')}`);
-    }
-
-    // Update rating in member_team_week_tbl for ALL participants of every week
-    console.log(`\n⚙️ [MVP Sync] Updating rating in member_team_week_tbl for all participants...`);
-    for (const w of weeks) {
-      const pScores = weekScoresCache[w.id] || await calculateWeekRawMvp(w.id);
-      if (!pScores || pScores.length === 0) continue;
-      const wDate = w.date ? new Date(w.date) : new Date();
-      const wYear = wDate.getFullYear();
-      const yrBench = yearlyMaxMap[wYear] || maxRawScore;
-      if (!yrBench || yrBench <= 0) continue;
-
-      for (const p of pScores) {
-        if (!p || !p.member_id) continue;
-        const pRating = p.rawScore > 0 ? Math.min(10.0, (p.rawScore / yrBench) * 10) : 0;
-        try {
-          await executeQuery(
-            "UPDATE member_team_week_tbl SET rating = ? WHERE week_id = ? AND member_id = ?",
-            [pRating.toFixed(2), w.id, p.member_id]
-          );
-        } catch (e) { }
-      }
-    }
-    console.log(`✅ [MVP Sync] Completed updating member_team_week_tbl ratings across ${weeks.length} weeks`);
 
     // ── Sync best MVP winner(s) of each year into hof_tbl (Hall of Fame) ──
     try {
@@ -2385,11 +3292,11 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         for (const [yr, data] of Object.entries(yearlyBestMvpMap)) {
           if (year && Number(yr) !== Number(year)) continue;
           await syncHofRecords('best_mvp', Number(yr), data.memberIds);
-          console.log(`🏆 [HOF Sync] Updated best_mvp in hof_tbl for year ${yr}: Member IDs [${data.memberIds.join(', ')}] (Score: ${data.maxScore.toFixed(4)})`);
+          logger.info(`🏆 [HOF Sync] Updated best_mvp in hof_tbl for year ${yr}: Member IDs [${data.memberIds.join(', ')}] (Score: ${data.maxScore.toFixed(4)})`);
         }
       }
     } catch (hofErr) {
-      console.error('⚠️ [HOF Sync] Error syncing best_mvp to hof_tbl:', hofErr.message);
+      logger.error('⚠️ [HOF Sync] Error syncing best_mvp to hof_tbl:', hofErr.message);
     }
 
     let topSql = `
@@ -2412,7 +3319,7 @@ async function calcAndSaveMaxMvpScore(options = {}) {
         const pDate = p.date ? new Date(p.date) : null;
         const pYear = pDate ? pDate.getFullYear() : (year || new Date().getFullYear());
         const dateStr = pDate ? await getFormatDate(pDate, 'short') : '';
-        const yrBenchmark = yearlyMaxMap[pYear] || maxRawScore;
+        const yrBenchmark = yearlyBenchMap[pYear] || maxRawScore;
         const normalizedRating = yrBenchmark > 0 ? Math.min(10.0, (parseFloat(p.raw_score) / yrBenchmark) * 10) : parseFloat(p.rating || 0);
 
         topPerformances.push({
@@ -2431,9 +3338,9 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       }
     }
 
-    console.log(`\n======================================================`);
-    console.log(`🏆 ALL-TIME TOP 5 RAW MVP SCORES (CHECKED ${weeks.length} WEEKS - NEW: ${newInsertedCount}, SKIPPED: ${skippedCount}, YEAR: ${year || 'ALL'})`);
-    console.log(`======================================================`);
+    logger.info(`\n======================================================`);
+    logger.info(`🏆 ALL-TIME TOP 5 RAW MVP SCORES (CHECKED ${weeks.length} WEEKS - NEW: ${newInsertedCount}, SKIPPED: ${skippedCount}, YEAR: ${year || 'ALL'})`);
+    logger.info(`======================================================`);
     for (let i = 0; i < topPerformances.length; i++) {
       const p = topPerformances[i];
       const rating = p.score > 0 ? p.score.toFixed(1) : '0.0';
@@ -2449,26 +3356,26 @@ async function calcAndSaveMaxMvpScore(options = {}) {
       } catch (e) { }
 
       if (detail) {
-        console.log(`#${i + 1} [Player ${detail.name}] (${p.dateStr}) [Week ID: ${p.week_id}] (Team: ${detail.teamName}) [Position: ${detail.posCode} ${detail.posIcon}]`);
-        console.log(`   └─ Position Category Points: Goal: +${detail.ptsGoal}, Assist: +${detail.ptsAssist}, Clean Sheet: +${detail.ptsCleanSheet}, Match Win: +${detail.ptsWins}, Goal Conceded Deduct: -${detail.ptsConceded}, Own Goal Deduct: -${detail.ptsOg}`);
-        console.log(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Goals Against (GA): ${detail.goalsConceded}, Matches Played (M): ${detail.matches}`);
-        console.log(`   └─ Raw MVP Score (Total): (${detail.goals} * ${detail.ptsGoal}) + (${detail.assists} * ${detail.ptsAssist}) + (${detail.cleanSheets} * ${detail.ptsCleanSheet}) + (${detail.wins} * ${detail.ptsWins}) - (${detail.goalsConceded} * ${detail.ptsConceded}) - (${detail.own_goals} * ${detail.ptsOg}) = ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)}`);
-        console.log(`   └─ Per-Match Raw MVP Score: ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)} / ${detail.matches} = ${detail.rawScore.toFixed(4)}`);
-        console.log(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Year Benchmark Ref ${refBench.toFixed(4)}) * 10 = ${rating} / 10`);
-        console.log(`   => Final MVP Rating = ${rating} / 10\n`);
+        logger.info(`#${i + 1} [Player ${detail.name}] (${p.dateStr}) [Week ID: ${p.week_id}] (Team: ${detail.teamName}) [Position: ${detail.posCode} ${detail.posIcon}]`);
+        logger.info(`   └─ Position Category Points: Goal: +${detail.ptsGoal}, Assist: +${detail.ptsAssist}, Clean Sheet: +${detail.ptsCleanSheet}, Match Win: +${detail.ptsWins}, Match Draw: +${detail.ptsDraws}, Team Goal Bonus: +${detail.ptsTeamGoal}, Goal Conceded Deduct: -${detail.ptsConceded}, Own Goal Deduct: -${detail.ptsOg}`);
+        logger.info(`   └─ Player Stats: Goals (G): ${detail.goals}, Own Goals (OG): ${detail.own_goals}, Assists (A): ${detail.assists}, Clean Sheets (CS): ${detail.cleanSheets}, Match Wins (W): ${detail.wins}, Draws (D): ${detail.draws}, Goals For (GF): ${detail.goalsScored}, Goals Against (GA): ${detail.goalsConceded}, Matches Played (M): ${detail.matches}`);
+        logger.info(`   └─ Raw MVP Score (Total): ${detail.breakdown || (detail.rawScoreTotal ? detail.rawScoreTotal.toFixed(4) : '')}`);
+        logger.info(`   └─ Per-Match Raw MVP Score: ${(detail.rawScoreTotal || (detail.rawScore * detail.matches)).toFixed(4)} / ${detail.matches} = ${detail.rawScore.toFixed(4)}`);
+        logger.info(`   └─ 1-10 Rating Normalization: (${detail.rawScore.toFixed(4)} / Year P95 Benchmark ${refBench.toFixed(4)}) * 10 = ${rating} / 10`);
+        logger.info(`   => Final MVP Rating = ${rating} / 10\n`);
       } else {
-        console.log(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
-        console.log(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets (CS): ${p.cleanSheets}, Conceded (GA): ${p.conceded}`);
-        console.log(`   └─ Per-Match Raw MVP Score: ${p.rawScore.toFixed(4)}`);
-        console.log(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
+        logger.info(`#${i + 1} ${p.name} (${p.dateStr}) [Week ID: ${p.week_id}]`);
+        logger.info(`   └─ Player Stats: Goals (G): ${p.goals}, Assists (A): ${p.assists}, CleanSheets (CS): ${p.cleanSheets}, Conceded (GA): ${p.conceded}`);
+        logger.info(`   └─ Per-Match Raw MVP Score: ${p.rawScore.toFixed(4)}`);
+        logger.info(`   => Normalized 1-10 Rating = ${rating} / 10\n`);
       }
     }
-    console.log(`📌 Benchmark Max Raw Score Saved to DB (10.00 Ref): ${maxRawScore.toFixed(4)}`);
-    console.log(`======================================================\n`);
+    logger.info(`📌 Benchmark P95 Raw Score Saved to DB (10.00 Ref): ${maxRawScore.toFixed(4)}`);
+    logger.info(`======================================================\n`);
 
     return { maxRawScore, topPerformances, weeksChecked: weeks.length, newInserted: newInsertedCount, skipped: skippedCount, year };
   } catch (err) {
-    console.error("Error calculating max MVP score across weeks:", err.message);
+    logger.error("Error calculating max MVP score across weeks:", err.message);
     return { maxRawScore: 0, topPerformances: [], weeksChecked: 0, newInserted: 0, skipped: 0, year: null, error: err.message };
   }
 }
@@ -2589,7 +3496,13 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     const team_colors = await getTeamColorWeek(week_id);
     const tableRows = await queryTableWeek(week_id);
     const leaders = await getWeekLeaderStats(week_id, groupId);
-    const matches = await queryMatchWeek(week_id);
+    const rawMatches = await queryMatchWeek(week_id);
+    const matches = (rawMatches || []).filter(m => {
+      if (m.status !== undefined && m.status !== null) {
+        return m.status === 'finished' || m.status === 'in_progress';
+      }
+      return m.team_a_goal !== null && m.team_a_goal !== undefined;
+    });
 
     // Pre-fetch goal and assist boxes for matches
     const matchDetailsMap = {};
@@ -2673,7 +3586,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             }];
           }
         } catch (eTotw) {
-          console.error('[MatchWeek] TOTW data prep failed:', eTotw);
+          logger.error('[MatchWeek] TOTW data prep failed:', eTotw);
         }
       })(),
       // Team formation data prep
@@ -2681,11 +3594,11 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         try {
           formationData = await getTeamFormationData('', groupId, { weekId: week_id });
         } catch (eFormation) {
-          console.warn('[MatchWeek] getTeamFormationData failed:', eFormation.message);
+          logger.warn('[MatchWeek] getTeamFormationData failed:', eFormation.message);
         }
       })()
     ]);
-    console.log(`  [MatchWeek] Data prep (TOTW + formations)  : ${Date.now() - tPrepStart} ms`);
+    logger.info(`  [MatchWeek] Data prep (TOTW + formations)  : ${Date.now() - tPrepStart} ms`);
 
     // Step 2: generate all images in parallel (TOTW full+pitch + all team full+pitch)
     const teamImgMod = require('./team_img');
@@ -2695,9 +3608,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     let cachedImageCount = 0;
     let totalImageCount = 0;
 
-    console.log(`\n======================================================`);
-    console.log(`⏱️ [/matchweek Image Generation — TOTW + All Teams in Parallel]`);
-    console.log(`======================================================`);
+    logger.info(`\n======================================================`);
+    logger.info(`⏱️ [/matchweek Image Generation — TOTW + All Teams in Parallel]`);
+    logger.info(`======================================================`);
 
     const formatImgStatus = (url, cached) => {
       if (!url) return '❌';
@@ -2721,9 +3634,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           const pitchCached = !!pitchRes?.cached;
           if (fullUrl) { totwFormationData[0].imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
           if (pitchUrl) { totwFormationData[0].pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
-          console.log(`  TOTW                       Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
+          logger.info(`  TOTW                       Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
         } catch (e) {
-          console.warn(`  TOTW ❌ image failed: ${e.message}`);
+          logger.warn(`  TOTW ❌ image failed: ${e.message}`);
         }
       })());
     }
@@ -2745,9 +3658,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
             const pitchCached = !!pitchRes?.cached;
             if (fullUrl) { t.imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
             if (pitchUrl) { t.pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
-            console.log(`  Team ${t.teamId} (${t.teamColor || '-'})   Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
+            logger.info(`  Team ${t.teamId} (${t.teamColor || '-'})   Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
           } catch (e) {
-            console.warn(`  Team ${t.teamId} ❌ image failed: ${e.message}`);
+            logger.warn(`  Team ${t.teamId} ❌ image failed: ${e.message}`);
           }
         })(team));
       }
@@ -2757,13 +3670,13 @@ async function getMatchWeek(week_id = 0, groupId = null) {
 
     const tImgWallClock = Date.now() - tImgStart;
     const tImgSum = Object.values(teamDurations).reduce((a, b) => a + b, 0);
-    console.log(`------------------------------------------------------`);
-    console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
-    console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
+    logger.info(`------------------------------------------------------`);
+    logger.info(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
+    logger.info(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
     if (totalImageCount > 0) {
-      console.log(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
+      logger.info(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
     }
-    console.log(`======================================================\n`);
+    logger.info(`======================================================\n`);
 
     // Step 3: build flex bubbles (CPU only, fast)
     if (totwFormationData) {
@@ -2771,7 +3684,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         const totwBubbles = flex.buildFormationFlex(totwFormationData, theme, date_str, res[0].time_range || '', res[0].date, res[0].id);
         if (totwBubbles && totwBubbles.length > 0) totwBubble = totwBubbles[0];
       } catch (e) {
-        console.warn('[MatchWeek] TOTW flex build failed:', e.message);
+        logger.warn('[MatchWeek] TOTW flex build failed:', e.message);
       }
     }
 
@@ -2783,9 +3696,9 @@ async function getMatchWeek(week_id = 0, groupId = null) {
           formationData.dateStr, formationData.timeRange,
           formationData.weekDate, formationData.weekId
         );
-        console.log(`  Flex JSON Builder                          : ${Date.now() - tFlexStart} ms`);
+        logger.info(`  Flex JSON Builder                          : ${Date.now() - tFlexStart} ms`);
       } catch (e) {
-        console.warn('[MatchWeek] Formation flex build failed:', e.message);
+        logger.warn('[MatchWeek] Formation flex build failed:', e.message);
       }
     }
 
@@ -2877,35 +3790,107 @@ async function getDonateBadge(donate = 0) {
 
 }
 
-async function getMemberNY() {
-  let header = "";
-  let body = "";
-  let query = "";
+async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = null, target_datetime = null) {
+  await ensureNYTable();
+  const info = await getNYEventInfo();
+  const eventDatetime = target_datetime || info.eventDatetime;
+  const headerText = info.header;
 
-  query = `SELECT * from member_tbl where avoid_ids = '1' or avoid_ids = 1`;
-  header = "ประกาศจัดงานเลี้ยงปีใหม่นะครับ \nวันเสาร์ที่ 20 ธันวาคม เวลา 19.00-24.00 น. หลังจากเตะบอล 17.00-19.00 น. นะครับ\nสถานที่: มูนเทอร์เรซ ห้อง M5 นะครับ \nขอเรียนเชิญทุกท่านที่มาร่วมงานลงชื่อด้วยนะครับ\n\n";
+  const query = `
+    SELECT ny.id as reg_id, ny.datetime, ny.member_id, COALESCE(ny.guests, 0) as guests, m.id, m.name, m.alias, m.rank, m.donate, m.picture_url, m.line_user_id, ny.created_at
+    FROM member_ny_week_tbl ny
+    INNER JOIN member_tbl m ON m.id = ny.member_id
+    WHERE ny.datetime = ? OR DATE(ny.datetime) = DATE(?)
+    ORDER BY ny.id ASC
+  `;
 
+  const result = await executeQuery(query, [eventDatetime, eventDatetime]);
 
-  const result = await executeQuery(query);
-  if (result.length > 0) {
-
-    let i = 0;
-    for (const member of result) {
-
-      let donate = await getDonateBadge(member.donate);
-      //console.log((i+1) + ". " + donate + member.name) ;
-      body += (i + 1) + ". " + donate + member.name + "\n";
-      i++;
+  if (isFlex) {
+    const assets = await fetchDisplayAssets();
+    if (result && result.length > 0) {
+      await Promise.all(result.map(member => ensureMemberPicture(member, groupId)));
     }
-    let str = header + `+${i} พิมพ์ x1 เพื่อลงชื่อครับ\n` + body;
-    //header = `+${i} พิมพ์ x1 เพื่อลงชื่อครับ` ;
-    //str = `${header} ${str}` ;
-    //console.log(str) ;
-    return str;
-  } else {
-    return header;
-  }
 
+    const members = (result || []).map(member => {
+      const displayInfo = resolveMemberDisplayInfo(member, assets.badges, assets.donateColors, assets.hofCounts, assets.hofBadge, assets.hofAwards);
+      const isCurrent = highlightMemberId ? (
+        String(member.id) === String(highlightMemberId) ||
+        String(member.member_id) === String(highlightMemberId) ||
+        String(member.line_user_id) === String(highlightMemberId)
+      ) : false;
+
+      const guests = Number(member.guests) || 0;
+      const nameWithGuests = guests > 0 ? `${displayInfo.name} (+${guests})` : displayInfo.name;
+
+      return {
+        ...displayInfo,
+        name: nameWithGuests,
+        guests,
+        donate: '',
+        isCurrent
+      };
+    });
+
+    const totalMembers = members.length;
+    const totalGuests = members.reduce((sum, m) => sum + (Number(m.guests) || 0), 0);
+    const totalAttendees = totalMembers + totalGuests;
+
+    const theme = await getTheme();
+    const heroUrl = info.heroUrl || 'https://bearbit.org/pic/party_header.jpg';
+
+    const partyData = {
+      title: info.title || '🎉 2026 New Year Party',
+      dateStr: info.dateStr || 'เสาร์ที่ 19 ธ.ค. 2569',
+      timeStr: info.timeStr || '19:00 - 24:00 น.',
+      venue: info.venue || 'Waterside ห้องคาราโอกะ K5 Club Pool',
+      note: info.note || '⚽ หลังจากเตะบอล 17:00-19:00 น.',
+      description: info.description,
+      heroUrl: heroUrl,
+      mapUrl: info.mapUrl,
+      mapLabel: info.mapLabel,
+      galleryUrl: info.galleryUrl,
+      galleryLabel: info.galleryLabel,
+      images: info.images || [],
+      members: members,
+      totalAttendees,
+      totalGuests,
+      totalMembers
+    };
+
+    const flexJson = flex.buildPartyFlex(partyData, theme);
+    const altText = totalGuests > 0
+      ? `🎉 งานเลี้ยงปีใหม่ (ร่วมงาน ${totalAttendees} คน: สมาชิก ${totalMembers} + ผู้ติดตาม ${totalGuests})`
+      : `🎉 งานเลี้ยงปีใหม่ (ลงชื่อแล้ว ${totalMembers} คน)`;
+    return [flexJson, null, altText];
+  } else {
+    // Plain text mode
+    if (result && result.length > 0) {
+      let body = "";
+      let i = 0;
+      let totalAttendees = 0;
+      let totalGuests = 0;
+      for (const member of result) {
+        const donate = await getDonateBadge(member.donate);
+        const guests = Number(member.guests) || 0;
+        const guestText = guests > 0 ? ` (+${guests} ผู้ติดตาม)` : "";
+        body += (i + 1) + ". " + donate + member.name + guestText + "\n";
+        totalGuests += guests;
+        totalAttendees += (1 + guests);
+        i++;
+      }
+      const attendeeCountStr = totalGuests > 0 
+        ? `+${totalAttendees} (สมาชิก ${i} คน + ผู้ติดตาม ${totalGuests} คน)` 
+        : `+${i}`;
+      let str = headerText + `${attendeeCountStr} พิมพ์ x1 หรือ x2 เพื่อลงชื่อครับ\n` + body;
+      if (info.galleryUrl) {
+        str += `\n📸 ${info.galleryLabel || 'อัลบั้มรูปภาพ'}: ${info.galleryUrl}\n`;
+      }
+      return [str, null, null];
+    } else {
+      return [headerText, null, null];
+    }
+  }
 }
 
 async function getAutoRegCount(groupId = null) {
@@ -2925,7 +3910,7 @@ async function getAutoRegCount(groupId = null) {
     const autoRegRes = await executeQuery(query, params);
     return autoRegRes.length > 0 ? autoRegRes[0].count : 0;
   } catch (err) {
-    console.error("Error getting autoRegCount:", err.message);
+    logger.error("Error getting autoRegCount:", err.message);
     return 0;
   }
 }
@@ -2954,17 +3939,24 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     const date = new Date(res[0].date);
     const time_range = res[0].time_range || '17:30-20:00';
 
-    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.team_id as member_team_id, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
+      query += UNPAID_MEMBER_FILTER;
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+";
     }
+    query += " ORDER BY member_team_week_tbl.id ASC";
 
     const result = await executeQuery(query);
     if (result.length > 0) {
+      const teamColors = await getTeamColorWeek(week_id);
+      const teamCount = (teamColors && teamColors.length > 0)
+        ? teamColors.length
+        : ((max_players > 24 || result.length > 24) ? 4 : 3);
+      const max_goalies = Math.max(1, teamCount || 3);
+
       if (isFlex) {
         const players = [];
         const reserves = [];
@@ -2992,28 +3984,36 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
             String(member.line_user_id) === String(highlightMemberId)
           ) : false;
 
+          const memberItem = { name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent };
+
           if (type == 1) {
-            if (member.team_id == 100) {
-              goalies.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+            const isGoalie = (Number(member.member_team_id) === 100 || Number(member.team_id) === 100);
+            if (isGoalie) {
+              if (goalies.length < max_goalies) {
+                goalies.push(memberItem);
+              } else {
+                const reserveName = (!name_display.includes('(โกล์)') && !name_display.includes('(GK)')) ? `${name_display} (โกล์)` : name_display;
+                reserves.push({ ...memberItem, name: reserveName });
+              }
             } else {
               if (players.length < max_players) {
-                players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+                players.push(memberItem);
               } else {
-                reserves.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+                reserves.push(memberItem);
               }
             }
           } else {
-            players.push({ name: name_display, donate, badgeUrl, badgeSize, nameColor, hofCount, hofBadgeUrl, hofBadgeSize, hofBadges: info.hofBadges, pictureUrl: info.pictureUrl, isCurrent });
+            players.push(memberItem);
           }
         }
 
         const theme = await getTheme();
         const autoRegCount = await getAutoRegCount(groupId);
 
-        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, theme, autoRegCount, time_range);
+        const flexJson = flex.buildMemberWeekFlex(titleText, dateStr, max_players, players, reserves, goalies, theme, autoRegCount, time_range, max_goalies);
         let altHeader = `+${players.length}`;
-        if (reserves.length > 0) altHeader += `(${reserves.length})`;
         if (goalies.length > 0) altHeader += `(${goalies.length})`;
+        if (reserves.length > 0) altHeader += `(${reserves.length})`;
         const altText = `${altHeader} ${titleText} เสาร์ที่ ${dateStr} @ ${time_range} น.`;
         return [flexJson, sub, altText];
       }
@@ -3032,9 +4032,16 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
         name_display = (name_display || '').replace('@', '');
 
         if (type == 1) {
-          if (member.team_id == 100) {
-            goal++;
-            goal_str += (goal) + ". " + donate + name_display + "\n";
+          const isGoalie = (Number(member.member_team_id) === 100 || Number(member.team_id) === 100);
+          if (isGoalie) {
+            if (goal < max_goalies) {
+              goal++;
+              goal_str += (goal) + ". " + donate + name_display + "\n";
+            } else {
+              reserve++;
+              const reserveName = (!name_display.includes('(โกล์)') && !name_display.includes('(GK)')) ? `${name_display} (โกล์)` : name_display;
+              reserve_str += (reserve) + ". " + donate + reserveName + "\n";
+            }
           } else {
             if (player < max_players) {
               player++;
@@ -3052,10 +4059,10 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
       }
       let str = header + body;
       header = `+${player}`;
-      if (reserve > 0) str += reserve_str;
       if (goal > 0) str += goal_str;
-      if (reserve > 0) header += `(${reserve})`;
+      if (reserve > 0) str += reserve_str;
       if (goal > 0) header += `(${goal})`;
+      if (reserve > 0) header += `(${reserve})`;
 
       str = `${header} ${str}`;
 
@@ -3083,29 +4090,25 @@ async function getMemberWeek(type = 0) {
 
   if (res.length > 0) {
     const week_id = res[0].id;
-    query = `SELECT member_tbl.name, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    const max_players = res[0].max || 24;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.team_id as member_team_id, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
+      query += UNPAID_MEMBER_FILTER;
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+"
     }
-
-    /*const check = `SELECT * from member_tbl where debt > 0`;
-    const check_res = await executeQuery(check);
-    let debt_str = "\n=== สมาชิกที่มียอดค้าง ===\n"
-    let debt_count = 0;
-    if (check_res.length > 0) {
-      for (const member of check_res) {
-        debt_count++;
-        debt_str += `${debt_count}. ${member.name} - ${member.debt}บาท\n`;
-      }
-    }*/
+    query += " ORDER BY member_team_week_tbl.id ASC";
 
     const result = await executeQuery(query);
     if (result.length > 0) {
       const date = new Date(res[0].date);
+      const teamColors = await getTeamColorWeek(week_id);
+      const teamCount = (teamColors && teamColors.length > 0)
+        ? teamColors.length
+        : ((max_players > 24 || result.length > 24) ? 4 : 3);
+      const max_goalies = Math.max(1, teamCount || 3);
 
       header = `${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
       let i = 0;
@@ -3118,36 +4121,42 @@ async function getMemberWeek(type = 0) {
       for (const member of result) {
         //let donate = await getDonateBadge(member.donate);
         let donate = '';
+        let member_name = (member.id == 116 || member.id == 16) ? member.alias : member.name;
+        member_name = (member_name || '').replace('@', '');
 
         if (type == 1) {
-          if (member.team_id == 100) {
-            goal++;
-            goal_str += (goal) + ". " + donate + member.name + "\n";
-          } else {
-
-            //index = player ;
-            if (player < 24) {
-              player++;
-              body += (player) + ". " + donate + member.name + "\n";
+          const isGoalie = (Number(member.member_team_id) === 100 || Number(member.team_id) === 100);
+          if (isGoalie) {
+            if (goal < max_goalies) {
+              goal++;
+              goal_str += (goal) + ". " + donate + member_name + "\n";
             } else {
               reserve++;
-              reserve_str += (reserve) + ". " + donate + member.name + "\n";
+              const reserveName = (!member_name.includes('(โกล์)') && !member_name.includes('(GK)')) ? `${member_name} (โกล์)` : member_name;
+              reserve_str += (reserve) + ". " + donate + reserveName + "\n";
+            }
+          } else {
+            if (player < max_players) {
+              player++;
+              body += (player) + ". " + donate + member_name + "\n";
+            } else {
+              reserve++;
+              reserve_str += (reserve) + ". " + donate + member_name + "\n";
             }
           }
         } else {
-          body += (i + 1) + ". " + donate + member.name + "\n";
+          body += (i + 1) + ". " + donate + member_name + "\n";
           player++;
         }
         i++;
       }
-      //console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`);
+      //logger.info(`player: ${player} reserve: ${reserve} goal: ${goal}`);
       let str = header + body;
       header = `+${player}`;
-      if (reserve > 0) str += reserve_str;
       if (goal > 0) str += goal_str;
-      if (reserve > 0) header += `(${reserve})`;
+      if (reserve > 0) str += reserve_str;
       if (goal > 0) header += `(${goal})`;
-      if (debt_count > 0) str += debt_str;
+      if (reserve > 0) header += `(${reserve})`;
 
       str = `${header} ${str}`;
 
@@ -3180,7 +4189,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
     query = `SELECT member_tbl.name, member_tbl.line_user_id, member_tbl.alias, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.debt, member_tbl.id, member_tbl.donate, member_tbl.avoid_ids FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
-      query += " and pay=0 and (member_tbl.admin IS NULL or member_tbl.admin <> 1)";
+      query += UNPAID_MEMBER_FILTER;
     } else if (type == 1) {
       header = "ลงชื่อเตะบอล";
       start = "+"
@@ -3219,7 +4228,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
             }
           }
         } else {
-          //console.log(`user count: ${i+1}:${result.length}`)
+          //logger.info(`user count: ${i+1}:${result.length}`)
           if (result.length < 21 && useMention) {
             let line_id = member.line_user_id;
             //line_id = "Ud734c89ea67da2ed0a16d8dfa6538ecc"
@@ -3251,9 +4260,9 @@ async function getMemberWeek2(type = 0, useMention = true) {
         //if (i > 1) break ;
       }
       //user_json = "{" + user_json + "}" ;
-      //console.log(user_json.replace(/\s/g, "")) ;
+      //logger.info(user_json.replace(/\s/g, "")) ;
       //sub = JSON.parse(user_json.replace(/\s/g, "")) 
-      //console.log(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
+      //logger.info(`player: ${player} reserve: ${reserve} goal: ${goal}`) ;
       let str = header + body;
       header = `\n+${player}`;
       if (reserve > 0) str += reserve_str;
@@ -3262,7 +4271,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
       if (goal > 0) header += `(${goal})`;
 
       str = `${header} ${str}`;
-      //console.log(sub) ;
+      //logger.info(sub) ;
       return [str, sub, merber_count, (res && res[0] && res[0].cost) ? res[0].cost : 0];
     } else {
       if (type == 0) {
@@ -3271,7 +4280,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
         header = `ลงชื่อเตะบอล เสาร์ที่ ${await getFormatDate(date)} ได้`;
       }
       //return header ;
-      //console.log(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
+      //logger.info(`header: ${header} sub: ${sub} merber_count: ${merber_count}`) ;
       return [header, sub, merber_count, (res && res[0] && res[0].cost) ? res[0].cost : 0];
     }
   }
@@ -3528,19 +4537,8 @@ async function getTopStat(limit = 10, type = 0, groupId = null) {
   }
 }
 
-async function checkDebtCall() {
-  const debt_call = `SELECT value from template_tpl where name = 'call'`;
-  const debt_call_res = await executeQuery(debt_call);
-  if (debt_call_res.length > 0) {
-    if (debt_call_res[0].value == 0) {
-      proceed = true;
-    }
-  }
-  return proceed;
-}
-
 async function getDebtList(type = 0) {
-  console.log(`[getDebtList] Called with type = ${type} (0=daily auto, 1=manual)`);
+  logger.info(`[getDebtList] Called with type = ${type} (0=daily auto, 1=manual)`);
   let debt_str = "=== สมาชิกที่มียอดค้าง ===\n\n";
   let debt_count = 0;
   let sub = {};
@@ -3551,25 +4549,25 @@ async function getDebtList(type = 0) {
   if (type == 0) {
     const debt_call = `SELECT value from template_tpl where name = 'call'`;
     const debt_call_res = await executeQuery(debt_call);
-    console.log(`[getDebtList] template_tpl 'call' query result:`, debt_call_res);
+    logger.info(`[getDebtList] template_tpl 'call' query result:`, debt_call_res);
     if (debt_call_res.length > 0) {
       if (debt_call_res[0].value == 0) {
         proceed = true;
       } else {
-        console.log(`[getDebtList] proceed=false because call value is ${debt_call_res[0].value} (already alerted today)`);
+        logger.info(`[getDebtList] proceed=false because call value is ${debt_call_res[0].value} (already alerted today)`);
       }
     } else {
-      console.warn(`[getDebtList] template_tpl 'call' row not found in DB`);
+      logger.warn(`[getDebtList] template_tpl 'call' row not found in DB`);
     }
   } else {
     proceed = true;
-    console.log(`[getDebtList] proceed=true (type != 0, manual request)`);
+    logger.info(`[getDebtList] proceed=true (type != 0, manual request)`);
   }
 
   if (proceed) {
     const check = `SELECT * from member_tbl where debt > 0`;
     const check_res = await executeQuery(check);
-    console.log(`[getDebtList] Query 'member_tbl where debt > 0' returned ${check_res.length} row(s)`);
+    logger.info(`[getDebtList] Query 'member_tbl where debt > 0' returned ${check_res.length} row(s)`);
 
     if (check_res.length > 0) {
       debt_members = check_res;
@@ -3592,17 +4590,17 @@ async function getDebtList(type = 0) {
         } else {
           debt_str += `${debt_count}. ${name} - ${member.debt} บาท\n`;
         }
-        console.log(`[getDebtList] Member #${debt_count}: id=${member.id}, name=${member.name}, debt=${member.debt}, line_id=${line_id || 'none'}, mentionUsed=${name.startsWith('user')}`);
+        logger.info(`[getDebtList] Member #${debt_count}: id=${member.id}, name=${member.name}, debt=${member.debt}, line_id=${line_id || 'none'}, mentionUsed=${name.startsWith('user')}`);
       }
       if (type == 0) {
-        console.log(`[getDebtList] Updating template_tpl 'call' value to 1 (daily alert flag)`);
+        logger.info(`[getDebtList] Updating template_tpl 'call' value to 1 (daily alert flag)`);
         await updateAlertCall(1);
       }
       const uniqueDebts = [...new Set(check_res.map(m => Number(m.debt)).filter(d => !isNaN(d) && d > 0))];
       debt_val = uniqueDebts.length > 0 ? uniqueDebts[0] : 0;
-      console.log(`[getDebtList] Calculated uniqueDebts:`, uniqueDebts, `debt_val:`, debt_val);
+      logger.info(`[getDebtList] Calculated uniqueDebts:`, uniqueDebts, `debt_val:`, debt_val);
     } else {
-      console.log(`[getDebtList] No members found with debt > 0`);
+      logger.info(`[getDebtList] No members found with debt > 0`);
       if (type != 0) {
         debt_str += "ไม่มีสมาชิกค้างชำระ 🎉\n\n";
       }
@@ -3611,83 +4609,403 @@ async function getDebtList(type = 0) {
 
   debt_str += "** ข้อความแจ้งเตือนวันละครั้ง **\n";
   debt_str += "สมาชิกจะยังลงชื่อไม่ได้ในสัปดาห์นี้ และจะไม่ถูกเพิ่มจากการลงทะเบียนอัตโนมัติ ถ้ามีการเปิดสัปดาห์ใหม่";
-  console.log(`[getDebtList] Finished. Summary: proceed=${proceed}, debt_count=${debt_count}, debt_val=${debt_val}, debt_members=${debt_members.length}, subKeys=${Object.keys(sub).length}`);
+  logger.info(`[getDebtList] Finished. Summary: proceed=${proceed}, debt_count=${debt_count}, debt_val=${debt_val}, debt_members=${debt_members.length}, subKeys=${Object.keys(sub).length}`);
   return [debt_str, sub, debt_count, proceed, debt_val, debt_members];
 
 }
 
+async function saveScheduleToDb(week_id, scheduleMatches, forceRegen = false) {
+  if (!week_id || !Array.isArray(scheduleMatches) || scheduleMatches.length === 0) return false;
 
-async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = null, totalHours = null, endTimeStr = null, forceRegen = false) {
+  try {
+    // Ensure schedule schema columns exist
+    await ensureMatchStatScheduleColumns();
+
+    // 1. Query existing records for this week
+    const existing = await executeQuery(
+      "SELECT * FROM match_stat_tbl WHERE week_id = ? ORDER BY match_num ASC",
+      [week_id]
+    );
+
+    const existingMap = new Map();
+    if (existing && existing.length > 0) {
+      for (const row of existing) {
+        existingMap.set(row.match_num, row);
+      }
+    }
+
+    // Build color to ID mapping as fallback if teamAId / teamBId is missing in fixture
+    const colorToIdMap = new Map();
+    try {
+      const colors = await getTeamColorWeek(week_id);
+      if (colors && colors.length > 0) {
+        for (const c of colors) {
+          if (c.color) colorToIdMap.set(String(c.color).trim().toLowerCase(), c.id);
+        }
+      }
+    } catch (colErr) { }
+
+    // 2. Insert or update fixtures
+    for (const m of scheduleMatches) {
+      const matchNum = m.matchNo;
+      const ex = existingMap.get(matchNum);
+      const round = m.round || 1;
+      const startTime = m.startTime || null;
+      const endTime = m.endTime || null;
+      let teamAId = m.teamAId || (m.teamA ? colorToIdMap.get(String(m.teamA).trim().toLowerCase()) : null) || null;
+      let teamBId = m.teamBId || (m.teamB ? colorToIdMap.get(String(m.teamB).trim().toLowerCase()) : null) || null;
+
+      if (ex) {
+        const isPlayed = ex.status === 'finished' || ex.status === 'in_progress' || (ex.status === undefined && ex.team_a_goal !== null && ex.team_a_goal !== undefined);
+        if (isPlayed && !forceRegen) {
+          // Preserve played results! Only update time slots if needed
+          try {
+            await executeQuery(
+              "UPDATE match_stat_tbl SET round = ?, start_time = ?, end_time = ? WHERE id = ?",
+              [round, startTime, endTime, ex.id]
+            );
+          } catch (e) { }
+        } else {
+          // Overwrite/update scheduled fixture
+          try {
+            await executeQuery(
+              "UPDATE match_stat_tbl SET round = ?, start_time = ?, end_time = ?, team_a_id = ?, team_b_id = ?, team_a_goal = NULL, team_b_goal = NULL, status = 'scheduled' WHERE id = ?",
+              [round, startTime, endTime, teamAId, teamBId, ex.id]
+            );
+          } catch (updateColErr) {
+            try {
+              await executeQuery(
+                "UPDATE match_stat_tbl SET team_a_id = ?, team_b_id = ?, team_a_goal = NULL, team_b_goal = NULL WHERE id = ?",
+                [teamAId, teamBId, ex.id]
+              );
+            } catch (u2) {
+              await executeQuery(
+                "UPDATE match_stat_tbl SET team_a_id = ?, team_b_id = ? WHERE id = ?",
+                [teamAId, teamBId, ex.id]
+              );
+            }
+          }
+        }
+      } else {
+        // Insert new match row
+        try {
+          await executeQuery(
+            "INSERT INTO match_stat_tbl (week_id, match_num, round, start_time, end_time, team_a_id, team_b_id, team_a_goal, team_b_goal, status) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'scheduled')",
+            [week_id, matchNum, round, startTime, endTime, teamAId, teamBId]
+          );
+        } catch (insertColErr) {
+          try {
+            await executeQuery(
+              "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id, team_a_goal, team_b_goal) VALUES (?, ?, ?, ?, NULL, NULL)",
+              [week_id, matchNum, teamAId, teamBId]
+            );
+          } catch (i2) {
+            try {
+              await executeQuery(
+                "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id) VALUES (?, ?, ?, ?)",
+                [week_id, matchNum, teamAId, teamBId]
+              );
+            } catch (i3) {
+              await executeQuery(
+                "INSERT INTO match_stat_tbl (week_id, match_num, team_a_id, team_b_id, team_a_goal, team_b_goal) VALUES (?, ?, ?, ?, 0, 0)",
+                [week_id, matchNum, teamAId, teamBId]
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Clean up extra scheduled matches if team count decreased (e.g. from 18 to 9 matches)
+    if (existing && existing.length > scheduleMatches.length) {
+      for (const row of existing) {
+        if (row.match_num > scheduleMatches.length) {
+          const isPlayed = row.status === 'finished' || row.status === 'in_progress' || (row.team_a_goal !== null && row.team_a_goal !== undefined);
+          if (!isPlayed || forceRegen) {
+            await executeQuery("DELETE FROM match_stat_tbl WHERE id = ?", [row.id]);
+          }
+        }
+      }
+    }
+
+    logger.info(`[schedule] Saved ${scheduleMatches.length} matches into match_stat_tbl for week ${week_id}`);
+    return true;
+  } catch (err) {
+    logger.warn('[schedule] Failed to save schedule into match_stat_tbl (run migrations/match_stat_schedule.sql):', err.message);
+    return false;
+  }
+}
+
+// ── Database Schedule Builder ──
+// Loads the week schedule directly from match_stat_tbl and team_color_week_tbl (SSOT)
+async function getScheduleFromDb(week_id) {
+  if (!week_id) return null;
+
+  try {
+    const weekRows = await queryWeekID(week_id);
+    if (!weekRows || weekRows.length === 0) return null;
+    const weekRow = weekRows[0];
+
+    const dbMatches = await queryMatchWeek(week_id);
+    if (!dbMatches || dbMatches.length === 0) return null;
+
+    const teamColors = await getTeamColorWeek(week_id);
+    const colorMap = new Map();
+    if (teamColors && teamColors.length > 0) {
+      teamColors.forEach(c => colorMap.set(c.id, c.color));
+    }
+    const teams = teamColors && teamColors.length > 0 ? teamColors.map(c => c.color) : [];
+
+    // Find the teams actually playing in dbMatches
+    const playingTeamIdSet = new Set();
+    const playingTeamColorSet = new Set();
+    dbMatches.forEach(r => {
+      if (r.team_a_id) {
+        playingTeamIdSet.add(r.team_a_id);
+        const c = colorMap.get(r.team_a_id);
+        if (c) playingTeamColorSet.add(c);
+      }
+      if (r.team_b_id) {
+        playingTeamIdSet.add(r.team_b_id);
+        const c = colorMap.get(r.team_b_id);
+        if (c) playingTeamColorSet.add(c);
+      }
+    });
+
+    // Use actual playing teams to determine cycles, resting teams, and team count
+    const playingTeams = playingTeamColorSet.size > 0
+      ? teams.filter(t => playingTeamColorSet.has(t))
+      : teams;
+    const numTeams = playingTeams.length || teams.length || 4;
+    const cycleLen = (numTeams * (numTeams - 1)) / 2 || 6;
+
+    const scheduleMatches = dbMatches.map((r, i) => {
+      const teamA = colorMap.get(r.team_a_id) || `ทีม ${r.team_a_id}`;
+      const teamB = colorMap.get(r.team_b_id) || `ทีม ${r.team_b_id}`;
+      return {
+        matchNo: r.match_num,
+        round: r.round || Math.floor(i / cycleLen) + 1,
+        startTime: r.start_time || '',
+        endTime: r.end_time || '',
+        teamA,
+        teamAId: r.team_a_id,
+        teamB,
+        teamBId: r.team_b_id,
+        resting: playingTeams.filter(t => t !== teamA && t !== teamB),
+        status: r.status,
+        team_a_goal: r.team_a_goal,
+        team_b_goal: r.team_b_goal
+      };
+    });
+
+    let currentMatchNo = 1;
+    let nextMatchNo = Math.min(2, scheduleMatches.length);
+    let matchStatus = 'scheduled';
+    const hasStatusCol = dbMatches.some(r => r.status !== undefined && r.status !== null);
+
+    if (hasStatusCol) {
+      const inProg = dbMatches.find(r => r.status === 'in_progress');
+      if (inProg) {
+        currentMatchNo = inProg.match_num;
+        matchStatus = 'in_progress';
+        const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+        nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, scheduleMatches.length);
+      } else {
+        const firstSched = dbMatches.find(r => r.status === 'scheduled');
+        if (firstSched) {
+          currentMatchNo = firstSched.match_num;
+          matchStatus = 'scheduled';
+          const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+          nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, scheduleMatches.length);
+        } else {
+          currentMatchNo = scheduleMatches.length;
+          matchStatus = 'all_finished';
+          nextMatchNo = currentMatchNo;
+        }
+      }
+    } else {
+      const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
+      currentMatchNo = maxDbMatchNum;
+      nextMatchNo = Math.min(maxDbMatchNum + 1, scheduleMatches.length);
+    }
+
+    const currentMatch = scheduleMatches.find(m => m.matchNo === currentMatchNo) || scheduleMatches[0];
+    const nextMatch = scheduleMatches.find(m => m.matchNo === nextMatchNo) || null;
+
+    let dateStr = '';
+    if (weekRow.date) {
+      const dateObj = new Date(weekRow.date);
+      dateStr = `${dateObj.getDate()} ${thaiMonthsShort[dateObj.getMonth()]} ${String(dateObj.getFullYear()).slice(-2)}`;
+    }
+
+    const firstMatch = scheduleMatches[0];
+    const lastMatch = scheduleMatches[scheduleMatches.length - 1];
+    const startTimeStr = firstMatch?.startTime || '17:30';
+    const endTimeStr = lastMatch?.endTime || '20:00';
+
+    let matchMin = 8;
+    if (firstMatch && firstMatch.startTime && firstMatch.endTime) {
+      const [sh, sm] = firstMatch.startTime.replace('.', ':').split(':').map(Number);
+      const [eh, em] = firstMatch.endTime.replace('.', ':').split(':').map(Number);
+      const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+      if (diff > 0) matchMin = diff;
+    }
+
+    let breakMin = 2;
+    if (scheduleMatches.length > 1 && scheduleMatches[0].endTime && scheduleMatches[1].startTime) {
+      const [e1h, e1m] = scheduleMatches[0].endTime.replace('.', ':').split(':').map(Number);
+      const [s2h, s2m] = scheduleMatches[1].startTime.replace('.', ':').split(':').map(Number);
+      const bDiff = (s2h * 60 + (s2m || 0)) - (e1h * 60 + (e1m || 0));
+      if (bDiff >= 0) breakMin = bDiff;
+    }
+
+    const [startH, startM] = startTimeStr.replace('.', ':').split(':').map(Number);
+    const [endH, endM] = endTimeStr.replace('.', ':').split(':').map(Number);
+    let totalMins = (endH * 60 + (endM || 0)) - (startH * 60 + (startM || 0));
+    if (totalMins < 0) totalMins += 1440;
+    const totalHours = Number((totalMins / 60).toFixed(2));
+    const totalRounds = Math.ceil(scheduleMatches.length / cycleLen);
+
+    let imageUrl = null;
+    try {
+      const imgTpl = await getTemplate('schedule', 'header');
+      if (imgTpl && imgTpl.url) imageUrl = imgTpl.url;
+    } catch (err) { }
+
+    return {
+      weekId: week_id,
+      date: dateStr,
+      startTime: startTimeStr,
+      endTime: endTimeStr,
+      matchMinutes: matchMin,
+      breakMinutes: breakMin,
+      totalHours: totalHours,
+      teams: playingTeams,
+      allWeekTeams: teams,
+      playingTeamCount: playingTeamIdSet.size,
+      totalMatches: scheduleMatches.length,
+      totalRounds: totalRounds,
+      currentMatch,
+      nextMatch,
+      imageUrl,
+      dbMatches,
+      matches: scheduleMatches,
+      matchStatus
+    };
+  } catch (err) {
+    logger.error('[schedule] failed to build schedule from DB:', err.message);
+    return null;
+  }
+}
+
+// Formats schedule lines for text display
+function formatScheduleLines(sched) {
+  if (!sched || !Array.isArray(sched.matches)) return '';
+  const lines = [];
+  lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${sched.date}`);
+  const breakInfo = (sched.breakMinutes && sched.breakMinutes > 0) ? ` (พัก ~${Number(sched.breakMinutes).toFixed(1).replace('.0', '')} นาที)` : '';
+  lines.push(`🕐 เริ่ม ${sched.startTime} น. - ${sched.endTime} น. | ${sched.matchMinutes} นาที/แมตช์${breakInfo}`);
+  const displayHours = Number(Number(sched.totalHours || 2.5).toFixed(2));
+  const numTeams = (sched.teams || []).length || 4;
+  const cycleLen = (numTeams * (numTeams - 1)) / 2 || 6;
+  const totalRounds = sched.totalRounds || Math.ceil(sched.matches.length / cycleLen);
+  const matchesPerTeam = Math.round((sched.matches.length * 2) / numTeams);
+  lines.push(`👥 ${numTeams} ทีม | ${sched.matches.length} แมตช์ (${totalRounds} รอบ • ทีมละ ${matchesPerTeam} แมตช์เท่ากัน) | ${displayHours} ชม.`);
+  lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
+  lines.push('─'.repeat(30));
+
+  sched.matches.forEach((m, i) => {
+    if (i % cycleLen === 0) {
+      lines.push(`▶ รอบที่ ${Math.floor(i / cycleLen) + 1}`);
+    }
+    const restingStr = Array.isArray(m.resting) ? m.resting.join(', ') : '';
+    lines.push(`[${m.matchNo || i + 1}] ${m.startTime}-${m.endTime}  ${m.teamA} vs ${m.teamB}${restingStr ? `  (พัก: ${restingStr})` : ''}`);
+  });
+
+  lines.push('─'.repeat(30));
+  lines.push(`สิ้นสุด ${sched.endTime} น.`);
+  return lines.join('\n');
+}
+
+async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = null, totalHours = null, endTimeStr = null, forceRegen = false, targetTeamCount = null) {
   // Fetch current week team colors
   const week = await queryWeekID();
   if (!week || week.length === 0) return ['ยังไม่มีข้อมูลสัปดาห์นี้', null];
 
   const week_id = week[0].id;
 
-  const jsonPath = path.join(__dirname, 'schedule.json');
-  if (!forceRegen && fs.existsSync(jsonPath)) {
-    try {
-      const existing = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-      if (existing && existing.weekId === week_id && Array.isArray(existing.matches) && existing.matches.length > 0) {
-        // Sync with match_stat_tbl to find current & next match
-        let currentMatchNo = 1;
-        let nextMatchNo = 2;
-        let dbMatches = [];
-        try {
-          const rows = await queryMatchWeek(week_id);
-          if (rows && rows.length > 0) {
-            dbMatches = rows;
-            const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
-            currentMatchNo = maxDbMatchNum;
-            nextMatchNo = Math.min(maxDbMatchNum + 1, existing.matches.length);
-          }
-        } catch (err) {
-          console.error('[schedule] failed to query match_stat_tbl:', err.message);
-        }
-
-        existing.currentMatch = existing.matches.find(m => m.matchNo === currentMatchNo) || existing.matches[0];
-        existing.nextMatch = existing.matches.find(m => m.matchNo === nextMatchNo) || null;
-        existing.dbMatches = dbMatches;
-
-        try {
-          const imgTpl = await getTemplate('schedule', 'header');
-          if (imgTpl && imgTpl.url) {
-            existing.imageUrl = imgTpl.url;
-          }
-        } catch (err) {}
-
-        const lines = [];
-        lines.push(`⚽ ตารางแข่งขัน เสาร์ที่ ${existing.date}`);
-        const breakInfo = (existing.breakMinutes && existing.breakMinutes > 0) ? ` (พัก ~${Number(existing.breakMinutes).toFixed(1).replace('.0', '')} นาที)` : '';
-        lines.push(`🕐 เริ่ม ${existing.startTime} น. - ${existing.endTime} น. | ${existing.matchMinutes} นาที/แมตช์${breakInfo}`);
-        const displayHours = Number(Number(existing.totalHours || 2.5).toFixed(2));
-        const numTeams = (existing.teams || []).length || 4;
-        const cycleLen = (numTeams * (numTeams - 1)) / 2;
-        const totalRounds = existing.totalRounds || Math.ceil(existing.matches.length / cycleLen);
-        const matchesPerTeam = Math.round((existing.matches.length * 2) / numTeams);
-        lines.push(`👥 ${numTeams} ทีม | ${existing.matches.length} แมตช์ (${totalRounds} รอบ • ทีมละ ${matchesPerTeam} แมตช์เท่ากัน) | ${displayHours} ชม.`);
-        lines.push(`⚠️ เล่น/พักติดต่อกันได้สูงสุด 2 แมตช์เท่านั้น`);
-        lines.push('─'.repeat(30));
-
-        existing.matches.forEach((m, i) => {
-          if (i % cycleLen === 0) {
-            lines.push(`▶ รอบที่ ${Math.floor(i / cycleLen) + 1}`);
-          }
-          const restingStr = Array.isArray(m.resting) ? m.resting.join(', ') : '';
-          lines.push(`[${m.matchNo || i + 1}] ${m.startTime}-${m.endTime}  ${m.teamA} vs ${m.teamB}${restingStr ? `  (พัก: ${restingStr})` : ''}`);
-        });
-
-        lines.push('─'.repeat(30));
-        lines.push(`สิ้นสุด ${existing.endTime} น.`);
-
-        return [lines.join('\n'), existing];
+  // Determine desired team count:
+  // If targetTeamCount is explicitly provided (e.g. 3 or 4, or player count like 24 or 32), use it.
+  // Otherwise, automatically check the number of registered players for this week:
+  // If registered members > 24 (or week max > 24) -> 4 teams, otherwise -> 3 teams.
+  let desiredTeamCount = null;
+  if (targetTeamCount) {
+    const parsedTarget = parseInt(targetTeamCount, 10);
+    if (!isNaN(parsedTarget)) {
+      if (parsedTarget > 6) {
+        desiredTeamCount = parsedTarget > 24 ? 4 : 3;
+      } else if (parsedTarget >= 2) {
+        desiredTeamCount = parsedTarget;
       }
-    } catch (readErr) {
-      console.error('[schedule] failed to read existing schedule.json:', readErr.message);
     }
   }
 
-  const team_colors = await getTeamColorWeek(week_id);
+  let registeredCount = 0;
+  try {
+    const regRes = await executeQuery(
+      "SELECT COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ?",
+      [week_id]
+    );
+    registeredCount = regRes?.[0]?.cnt || 0;
+  } catch (err) {
+    logger.error('[schedule] failed to query registered members count:', err.message);
+  }
+
+  if (!desiredTeamCount) {
+    const maxQuota = (week[0] && week[0].max) ? Number(week[0].max) : 24;
+    if (registeredCount > 24 || maxQuota > 24) {
+      desiredTeamCount = 4;
+    } else {
+      desiredTeamCount = 3;
+    }
+  }
+
+  // 1. Primary: Load existing schedule directly from MySQL match_stat_tbl (SSOT)
+  if (!forceRegen) {
+    try {
+      const dbSched = await getScheduleFromDb(week_id);
+      if (dbSched && Array.isArray(dbSched.matches) && dbSched.matches.length > 0) {
+        const dbPlayingTeamCount = dbSched.playingTeamCount || (dbSched.teams ? dbSched.teams.length : 0);
+        const allDesiredTeamsPlay = dbPlayingTeamCount === desiredTeamCount;
+        const cycleLen = (desiredTeamCount * (desiredTeamCount - 1)) / 2;
+        const isFullCycles = (dbSched.matches.length % cycleLen === 0);
+
+        const hasPlayedMatches = dbSched.matches.some(m => m.status === 'in_progress' || m.status === 'finished' || (m.team_a_goal !== null && m.team_a_goal !== undefined));
+
+        let timeRangeMismatch = false;
+        if (!hasPlayedMatches && week[0]?.time_range && dbSched.startTime) {
+          const parts = week[0].time_range.split('-').map(s => s.trim().replace('.', ':'));
+          if (parts.length >= 1 && parts[0] && parts[0] !== dbSched.startTime) {
+            timeRangeMismatch = true;
+          }
+        }
+
+        if (hasPlayedMatches || (allDesiredTeamsPlay && isFullCycles && !timeRangeMismatch)) {
+          const lines = formatScheduleLines(dbSched);
+          return [lines, dbSched];
+        }
+      }
+    } catch (err) {
+      logger.error('[schedule] failed to load schedule from DB:', err.message);
+    }
+  }
+
+  // Ensure enough team colors are generated for desiredTeamCount
+  let team_colors = await getTeamColorWeek(week_id);
+  if (!team_colors || team_colors.length < desiredTeamCount) {
+    await addTeamColorWeek(desiredTeamCount, week_id);
+    team_colors = await getTeamColorWeek(week_id);
+  }
 
   if (!team_colors || team_colors.length < 2) {
     return ['ยังไม่มีข้อมูลทีมในสัปดาห์นี้ (ใช้คำสั่ง randomteam ก่อน)', null];
@@ -3706,6 +5024,14 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     }
   }
 
+  if (startTimeStr && startTimeStr.includes('-')) {
+    const parts = startTimeStr.split('-').map(s => s.trim().replace('.', ':'));
+    if (parts.length >= 2) {
+      startTimeStr = parts[0];
+      if (!endTimeStr) endTimeStr = parts[1];
+    }
+  }
+
   if (!startTimeStr) {
     startTimeStr = weekStartTime;
   }
@@ -3713,10 +5039,11 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     endTimeStr = weekEndTime;
   }
 
-  // Shuffle a copy of the team colors to randomize starting team assignments and increase schedule variety
-  const shuffledColors = shuffleArray([...team_colors.slice(0, 4)]);
+  // Pick exactly desiredTeamCount colors
+  const activeColors = team_colors.slice(0, desiredTeamCount);
+  const shuffledColors = shuffleArray([...activeColors]);
 
-  // Build team list (up to 4)
+  // Build team list
   const teams = shuffledColors.map(t => t.color);
   const numTeams = teams.length;
 
@@ -3974,7 +5301,7 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
       matchups = bestSchedule;
     } else {
       // Fallback: original rotating anchor generator
-      console.warn('[schedule] Backtracking solver found no solution, using fallback rotating anchor pool.');
+      logger.warn('[schedule] Backtracking solver found no solution, using fallback rotating anchor pool.');
       const pool = [];
       let poolRound = 0;
       while (pool.length < maxMatches) {
@@ -4061,22 +5388,36 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     };
   });
 
-  // ── Sync with match_stat_tbl to find current & next match ──
+  // ── Save to match_stat_tbl & Sync to find current & next match ──
   let currentMatchNo = 1;
   let nextMatchNo = 2;
   let dbMatches = [];
   try {
+    await saveScheduleToDb(week_id, scheduleMatches, forceRegen);
+
     const rows = await queryMatchWeek(week_id);
     if (rows && rows.length > 0) {
       dbMatches = rows;
-      // Highest match_num recorded in DB = the match currently in progress (or last played)
-      const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
-      currentMatchNo = maxDbMatchNum;
-      nextMatchNo = Math.min(maxDbMatchNum + 1, scheduleMatches.length);
+      const inProg = dbMatches.find(r => r.status === 'in_progress');
+      if (inProg) {
+        currentMatchNo = inProg.match_num;
+        const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+        nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, scheduleMatches.length);
+      } else {
+        const firstSched = dbMatches.find(r => r.status === 'scheduled');
+        if (firstSched) {
+          currentMatchNo = firstSched.match_num;
+          const nextSched = dbMatches.find(r => r.status === 'scheduled' && r.match_num > currentMatchNo);
+          nextMatchNo = nextSched ? nextSched.match_num : Math.min(currentMatchNo + 1, scheduleMatches.length);
+        } else {
+          const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
+          currentMatchNo = maxDbMatchNum;
+          nextMatchNo = Math.min(maxDbMatchNum + 1, scheduleMatches.length);
+        }
+      }
     }
-    // else: no records → start from match 1 / next is match 2
   } catch (err) {
-    console.error('[schedule] failed to query match_stat_tbl:', err.message);
+    logger.error('[schedule] failed to save/sync with match_stat_tbl:', err.message);
   }
 
   const currentMatch = scheduleMatches.find(m => m.matchNo === currentMatchNo) || scheduleMatches[0];
@@ -4087,7 +5428,7 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     const imgTpl = await getTemplate('schedule', 'header');
     imageUrl = imgTpl ? imgTpl.url : null;
   } catch (err) {
-    console.error('[schedule] failed to query template image:', err.message);
+    logger.error('[schedule] failed to query template image:', err.message);
   }
 
   const scheduleJson = {
@@ -4112,9 +5453,9 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
   try {
     const jsonPath = path.join(__dirname, 'schedule.json');
     fs.writeFileSync(jsonPath, JSON.stringify(scheduleJson, null, 2), 'utf8');
-    console.log(`[schedule] saved → current: match ${currentMatchNo}, next: match ${nextMatchNo}`);
+    logger.info(`[schedule] saved → current: match ${currentMatchNo}, next: match ${nextMatchNo}`);
   } catch (err) {
-    console.error('[schedule] failed to save JSON:', err.message);
+    logger.error('[schedule] failed to save JSON:', err.message);
   }
 
   return [lines.join('\n'), scheduleJson];
@@ -4180,34 +5521,25 @@ async function getMatchScorersAndAssists(matchId, assets, groupId) {
 }
 
 // ── Live current/next match lookup ──
-// Reads the schedule list from schedule.json but re-queries match_stat_tbl
-// for the latest match_num so it is always up to date.
+// Reads the schedule directly from MySQL (match_stat_tbl) as SSOT
 async function getCurrentMatch(groupId = null) {
-  const jsonPath = path.join(__dirname, 'schedule.json');
-  if (!require('fs').existsSync(jsonPath)) return null;
-
-  const sched = JSON.parse(require('fs').readFileSync(jsonPath, 'utf8'));
-  const schedMatches = sched.matches;
-  if (!schedMatches || schedMatches.length === 0) return null;
-
-  let currentMatchNo = 1;
-  let nextMatchNo = Math.min(2, schedMatches.length);
-  let currentDbRow = null;
-
-  let dbMatches = [];
   const week = await queryWeekID();
-  if (week && week.length > 0) {
-    dbMatches = await queryMatchWeek(week[0].id);
-    if (dbMatches && dbMatches.length > 0) {
-      const maxDbMatchNum = Math.max(...dbMatches.map(r => r.match_num));
-      currentMatchNo = maxDbMatchNum;
-      nextMatchNo = Math.min(maxDbMatchNum + 1, schedMatches.length);
-      currentDbRow = dbMatches.find(r => r.match_num === maxDbMatchNum);
-    }
-  }
+  if (!week || week.length === 0) return null;
+  const weekId = week[0].id;
 
-  const currentMatch = schedMatches.find(m => m.matchNo === currentMatchNo) || schedMatches[0];
-  const nextMatch = schedMatches.find(m => m.matchNo === nextMatchNo && nextMatchNo !== currentMatchNo) || null;
+  // 1. Primary: Load schedule directly from MySQL (match_stat_tbl)
+  const sched = await getScheduleFromDb(weekId);
+  if (!sched || !sched.matches || sched.matches.length === 0) return null;
+
+  const schedMatches = sched.matches;
+  const dbMatches = sched.dbMatches || [];
+  const currentMatchNo = sched.currentMatch ? sched.currentMatch.matchNo : 1;
+  const nextMatchNo = sched.nextMatch ? sched.nextMatch.matchNo : Math.min(2, schedMatches.length);
+  const currentMatch = sched.currentMatch;
+  const nextMatch = sched.nextMatch;
+  const matchStatus = sched.matchStatus || 'scheduled';
+  const currentDbRow = dbMatches.find(r => r.match_num === currentMatchNo) || null;
+
   const nextMatch2No = Math.min(currentMatchNo + 2, schedMatches.length);
   const nextMatch2 = (nextMatch2No !== currentMatchNo && nextMatch2No !== nextMatchNo)
     ? (schedMatches.find(m => m.matchNo === nextMatch2No) || null)
@@ -4222,15 +5554,25 @@ async function getCurrentMatch(groupId = null) {
   const assets = await fetchDisplayAssets();
 
   if (currentDbRow) {
-    score = {
-      teamA: currentDbRow.team_a_goal ?? 0,
-      teamB: currentDbRow.team_b_goal ?? 0
-    };
+    if (matchStatus === 'in_progress' || matchStatus === 'all_finished' || currentDbRow.status === 'finished') {
+      score = {
+        teamA: currentDbRow.team_a_goal ?? 0,
+        teamB: currentDbRow.team_b_goal ?? 0
+      };
+    } else if (matchStatus === 'scheduled') {
+      score = null;
+    } else if (currentDbRow.team_a_goal !== null && currentDbRow.team_a_goal !== undefined) {
+      score = {
+        teamA: currentDbRow.team_a_goal ?? 0,
+        teamB: currentDbRow.team_b_goal ?? 0
+      };
+    }
   }
 
   if (dbMatches && dbMatches.length > 0) {
     // Sort descending by match_num to pick the latest 3 played matches
-    const sortedDbMatches = [...dbMatches].sort((a, b) => b.match_num - a.match_num);
+    const playedDbMatches = dbMatches.filter(r => r.status === 'finished' || r.status === 'in_progress' || (r.status === undefined && r.team_a_goal !== null && r.team_a_goal !== undefined));
+    const sortedDbMatches = [...playedDbMatches].sort((a, b) => b.match_num - a.match_num);
     const recentDbMatches = sortedDbMatches.slice(0, 3);
 
     for (const matchRow of recentDbMatches) {
@@ -4262,7 +5604,9 @@ async function getCurrentMatch(groupId = null) {
   const imgTpl = await getTemplate('live', 'header');
   const imageUrl = imgTpl ? imgTpl.url : null;
 
-  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, recentMatchDetails, weekId: sched.weekId, date: sched.date, imageUrl, teamColors: assets.teamColors };
+  const rawWebLiveUrl = process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
+  const webLiveUrl = rawWebLiveUrl.includes('openExternalBrowser=1') ? rawWebLiveUrl : (rawWebLiveUrl.includes('?') ? `${rawWebLiveUrl}&openExternalBrowser=1` : `${rawWebLiveUrl}?openExternalBrowser=1`);
+  return { sched, currentMatch, nextMatch, nextMatch2, score, scorers, assists, table, dbMatches, recentMatchDetails, weekId: sched.weekId, date: sched.date, imageUrl, teamColors: assets.teamColors, webLiveUrl, matchStatus };
 }
 
 async function getTheme() {
@@ -4273,7 +5617,7 @@ async function getTheme() {
       return result[0].value;
     }
   } catch (err) {
-    console.error('Failed to get theme, defaulting to black:', err.message);
+    logger.error('Failed to get theme, defaulting to black:', err.message);
   }
   return 'black';
 }
@@ -4442,9 +5786,9 @@ async function updateHof() {
     //await syncHofRecords('bottom', currentYear, topBottom);
     await syncHofRecords('best_mvp', currentYear, topBestMvp);
 
-    console.log(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top Avg Pts: ${topAvgPts.join(', ')}, Top MVP Count: ${topMvpCounts.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
+    logger.info(`[HOF] Updated HOF for year ${currentYear}. Top Scorers: ${topScorers.join(', ')}, Top Assists: ${topAssists.join(', ')}, Top Own Goals: ${topOwnGoals.join(', ')}, Top Players (Most Pts): ${topPlayers.join(', ')}, Top Avg Pts: ${topAvgPts.join(', ')}, Top MVP Count: ${topMvpCounts.join(', ')}, Top Bottom: ${topBottom.join(', ')}, Best MVP: ${topBestMvp.join(', ')}`);
   } catch (err) {
-    console.error('Error updating HOF records:', err.message);
+    logger.error('Error updating HOF records:', err.message);
   }
 }
 
@@ -4468,7 +5812,7 @@ async function ensureAutoRegTable() {
     // Normalize any legacy NULL group_id to empty string
     await executeQuery("UPDATE autoreg_tbl SET group_id = '' WHERE group_id IS NULL");
   } catch (err) {
-    console.error("Error ensuring autoreg_tbl table:", err.message);
+    logger.error("Error ensuring autoreg_tbl table:", err.message);
   }
 }
 
@@ -4764,32 +6108,58 @@ async function getMemberStats(memberId, groupId = null) {
   };
 }
 
+let slipLogSchemaEnsured = false;
+
+async function ensureSlipLogSchema() {
+  if (slipLogSchemaEnsured) return;
+
+  const createSql = `CREATE TABLE IF NOT EXISTS slip_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id VARCHAR(255),
+    sender_name VARCHAR(255),
+    image_path VARCHAR(255),
+    status VARCHAR(50),
+    qrcode TEXT,
+    response_json TEXT,
+    verify_attempts INT DEFAULT 0,
+    last_verify_at DATETIME NULL,
+    last_verify_error VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+  await executeQuery(createSql, []);
+
+  const requiredCols = [
+    { name: 'qrcode', ddl: 'ALTER TABLE slip_log ADD COLUMN qrcode TEXT' },
+    { name: 'response_json', ddl: 'ALTER TABLE slip_log ADD COLUMN response_json TEXT' },
+    { name: 'verify_attempts', ddl: 'ALTER TABLE slip_log ADD COLUMN verify_attempts INT DEFAULT 0' },
+    { name: 'last_verify_at', ddl: 'ALTER TABLE slip_log ADD COLUMN last_verify_at DATETIME NULL' },
+    { name: 'last_verify_error', ddl: 'ALTER TABLE slip_log ADD COLUMN last_verify_error VARCHAR(255) NULL' }
+  ];
+
+  const colRows = await executeQuery(
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'slip_log'`,
+    []
+  );
+  const existingCols = new Set((colRows || []).map(r => String(r.column_name || r.COLUMN_NAME || '').toLowerCase()));
+
+  for (const col of requiredCols) {
+    if (!existingCols.has(col.name)) {
+      await executeQuery(col.ddl, []);
+    }
+  }
+
+  slipLogSchemaEnsured = true;
+}
+
 async function logSlip(senderId, senderName, imagePath, status, qrcode = null, responseJson = null) {
   try {
-    const createSql = `CREATE TABLE IF NOT EXISTS slip_log (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      sender_id VARCHAR(255),
-      sender_name VARCHAR(255),
-      image_path VARCHAR(255),
-      status VARCHAR(50),
-      qrcode TEXT,
-      response_json TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`;
-    await executeQuery(createSql, []);
-
-    const checkColSql = `SELECT count(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'slip_log' AND column_name = 'qrcode'`;
-    const colExists = await executeQuery(checkColSql, []);
-    if (colExists && colExists.length > 0 && colExists[0].count === 0) {
-      await executeQuery("ALTER TABLE slip_log ADD COLUMN qrcode TEXT", []);
-      await executeQuery("ALTER TABLE slip_log ADD COLUMN response_json TEXT", []);
-    }
+    await ensureSlipLogSchema();
 
     const sql = `INSERT INTO slip_log (sender_id, sender_name, image_path, status, qrcode, response_json) VALUES (?, ?, ?, ?, ?, ?)`;
     const jsonStr = responseJson ? JSON.stringify(responseJson) : null;
     await executeQuery(sql, [senderId, senderName, imagePath, status, qrcode, jsonStr]);
   } catch (err) {
-    console.error("Error logging slip:", err);
+    logger.error("Error logging slip:", err);
   }
 }
 
@@ -4805,7 +6175,7 @@ async function getSlipByQRCode(qrcode) {
     }
   } catch (err) {
     if (err.code !== 'ER_BAD_FIELD_ERROR') {
-      console.error("Error getting slip by qrcode:", err);
+      logger.error("Error getting slip by qrcode:", err);
     }
   }
   return null;
@@ -4817,8 +6187,263 @@ async function updateSlipLog(id, status, responseJson = null) {
     const sql = `UPDATE slip_log SET status = ?, response_json = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?`;
     await executeQuery(sql, [status, jsonStr, id]);
   } catch (err) {
-    console.error("Error updating slip log:", err);
+    logger.error("Error updating slip log:", err);
   }
+}
+
+async function markSlipVerified(id, status, responseJson = null) {
+  try {
+    await ensureSlipLogSchema();
+    const jsonStr = responseJson ? JSON.stringify(responseJson) : null;
+    const sql = `UPDATE slip_log SET status = ?, response_json = ?, last_verify_at = CURRENT_TIMESTAMP, last_verify_error = NULL WHERE id = ?`;
+    await executeQuery(sql, [status, jsonStr, id]);
+  } catch (err) {
+    logger.error("Error marking slip verified:", err);
+  }
+}
+
+async function recordSlipVerifyAttempt(id, errorMessage = null) {
+  try {
+    await ensureSlipLogSchema();
+    const trimmedError = errorMessage ? String(errorMessage).substring(0, 250) : null;
+    const sql = `UPDATE slip_log SET verify_attempts = COALESCE(verify_attempts, 0) + 1, last_verify_at = CURRENT_TIMESTAMP, last_verify_error = ? WHERE id = ?`;
+    await executeQuery(sql, [trimmedError, id]);
+  } catch (err) {
+    logger.error("Error recording slip verify attempt:", err);
+  }
+}
+
+async function getPendingSlipsForVerify({ maxAttempts = 8, maxAgeHours = 168, limit = 10 } = {}) {
+  try {
+    await ensureSlipLogSchema();
+    const safeLimit = Math.max(1, Math.min(100, Number(limit) || 10));
+    const safeMaxAttempts = Math.max(1, Number(maxAttempts) || 8);
+    const safeMaxAgeHours = Math.max(1, Number(maxAgeHours) || 168);
+    const sql = `
+      SELECT id, sender_id, sender_name, image_path, status, qrcode, response_json, created_at,
+             COALESCE(verify_attempts, 0) AS verify_attempts, last_verify_at, last_verify_error
+      FROM slip_log
+      WHERE status = 'noticed'
+        AND qrcode IS NOT NULL
+        AND TRIM(qrcode) != ''
+        AND COALESCE(verify_attempts, 0) < ?
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+      ORDER BY created_at ASC
+      LIMIT ?
+    `;
+    return await executeQuery(sql, [safeMaxAttempts, safeMaxAgeHours, safeLimit]);
+  } catch (err) {
+    logger.error("Error getting pending slips for verify:", err);
+    return [];
+  }
+}
+
+const DEFAULT_SLIP_VERIFY_CONFIG = {
+  slip_verify_enabled: { value: '1', description: 'Enable background EasySlip verification for noticed slips (1=on, 0=off)' },
+  slip_verify_poll_seconds: { value: '60', description: 'Polling interval in seconds for checking due noticed slips (min 15)' },
+  slip_verify_max_attempts: { value: '8', description: 'Maximum EasySlip verification retry attempts per slip' },
+  slip_verify_max_age_hours: { value: '168', description: 'Maximum slip age in hours to keep retrying verification (168 = 1 week)' },
+  slip_verify_batch_limit: { value: '10', description: 'Maximum number of slips checked per scheduler sweep' },
+  slip_verify_notify_success: { value: '1', description: 'Push LINE notification when delayed slip verifies cleanly (1=on, 0=off)' },
+  slip_verify_retry_delays: { value: '120,300,600,900,1800,3600,7200,14400', description: 'Comma-separated retry backoff delays in seconds per attempt' }
+};
+
+let appSettingsTableEnsured = false;
+
+/**
+ * Ensures app_settings_tbl exists for storing operational settings separately from template_tpl.
+ */
+async function ensureAppSettingsTable() {
+  if (appSettingsTableEnsured) return;
+  const sql = `
+    CREATE TABLE IF NOT EXISTS app_settings_tbl (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      setting_key VARCHAR(100) NOT NULL UNIQUE,
+      setting_value TEXT NULL,
+      category VARCHAR(50) NOT NULL DEFAULT 'general',
+      description VARCHAR(255) NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+  `;
+  await executeQuery(sql, []);
+  appSettingsTableEnsured = true;
+}
+
+/**
+ * Reads a single setting value from app_settings_tbl.
+ * @param {string} key
+ * @param {string|null} [defaultValue=null]
+ * @returns {Promise<string|null>}
+ */
+async function getSetting(key, defaultValue = null) {
+  try {
+    await ensureAppSettingsTable();
+    const rows = await executeQuery(
+      "SELECT setting_value FROM app_settings_tbl WHERE setting_key = ? LIMIT 1",
+      [key]
+    );
+    if (rows && rows.length > 0 && rows[0].setting_value !== null && rows[0].setting_value !== undefined) {
+      return String(rows[0].setting_value);
+    }
+  } catch (err) {
+    logger.error(`Error reading setting '${key}' from app_settings_tbl:`, err.message);
+  }
+  return defaultValue;
+}
+
+/**
+ * Inserts or updates a setting in app_settings_tbl.
+ * @param {string} key
+ * @param {string|number|boolean} value
+ * @param {Object} [options={}]
+ * @param {string} [options.category='general']
+ * @param {string|null} [options.description=null]
+ */
+async function setSetting(key, value, { category = 'general', description = null } = {}) {
+  await ensureAppSettingsTable();
+  const strVal = (value === null || value === undefined) ? null : String(value);
+  await executeQuery(
+    `INSERT INTO app_settings_tbl (setting_key, setting_value, category, description)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       setting_value = VALUES(setting_value),
+       category = COALESCE(NULLIF(VALUES(category), 'general'), category),
+       description = COALESCE(VALUES(description), description)`,
+    [key, strVal, category, description]
+  );
+}
+
+/**
+ * Fetches all settings in a category as a key-value map.
+ * @param {string} category
+ * @returns {Promise<Object>}
+ */
+async function getSettingsByCategory(category) {
+  const result = {};
+  try {
+    await ensureAppSettingsTable();
+    const rows = await executeQuery(
+      "SELECT setting_key, setting_value FROM app_settings_tbl WHERE category = ?",
+      [category]
+    );
+    for (const r of rows || []) {
+      if (r.setting_key) {
+        result[r.setting_key] = r.setting_value;
+      }
+    }
+  } catch (err) {
+    logger.error(`Error reading settings category '${category}' from app_settings_tbl:`, err.message);
+  }
+  return result;
+}
+
+/**
+ * Parses comma-separated retry delay seconds string into a non-empty array of positive integers.
+ * @param {string} raw
+ * @returns {number[]}
+ */
+function parseRetryDelaysSeconds(raw) {
+  const parsed = String(raw || '')
+    .split(',')
+    .map(v => parseInt(v.trim(), 10))
+    .filter(n => Number.isFinite(n) && n > 0);
+  return parsed.length > 0 ? parsed : [120, 300, 600, 900, 1800, 3600, 7200, 14400];
+}
+
+/**
+ * Loads slip verification scheduler settings from app_settings_tbl, seeding defaults if missing.
+ * Also migrates any legacy slip_verify_* rows out of template_tpl if present.
+ * @returns {Promise<Object>}
+ */
+async function getSlipVerifyConfig() {
+  const map = {};
+  for (const [k, meta] of Object.entries(DEFAULT_SLIP_VERIFY_CONFIG)) {
+    map[k] = meta.value;
+  }
+
+  try {
+    await ensureAppSettingsTable();
+    const keys = Object.keys(DEFAULT_SLIP_VERIFY_CONFIG);
+    const placeholders = keys.map(() => '?').join(', ');
+    const rows = await executeQuery(
+      `SELECT setting_key, setting_value FROM app_settings_tbl WHERE setting_key IN (${placeholders})`,
+      keys
+    );
+
+    const found = new Set();
+    for (const r of rows || []) {
+      if (r.setting_key && r.setting_value !== undefined && r.setting_value !== null && String(r.setting_value).trim() !== '') {
+        map[r.setting_key] = String(r.setting_value).trim();
+        found.add(r.setting_key);
+      }
+    }
+
+    if (found.size < keys.length) {
+      // Check if any slip_verify_* values were previously placed in template_tpl and migrate them cleanly
+      let legacyMap = {};
+      try {
+        const legacyRows = await executeQuery(
+          `SELECT name, value FROM template_tpl WHERE name IN (${placeholders})`,
+          keys
+        );
+        for (const lr of legacyRows || []) {
+          if (lr.name && lr.value !== null && lr.value !== undefined && String(lr.value).trim() !== '') {
+            legacyMap[lr.name] = String(lr.value).trim();
+          }
+        }
+        if (legacyRows && legacyRows.length > 0) {
+          await executeQuery(`DELETE FROM template_tpl WHERE name IN (${placeholders})`, keys);
+        }
+      } catch (legacyErr) {
+        logger.debug('Skipped legacy template_tpl slip_verify migration:', legacyErr.message);
+      }
+
+      for (const key of keys) {
+        if (!found.has(key)) {
+          const valToSeed = legacyMap[key] || DEFAULT_SLIP_VERIFY_CONFIG[key].value;
+          map[key] = valToSeed;
+          try {
+            await executeQuery(
+              `INSERT IGNORE INTO app_settings_tbl (setting_key, setting_value, category, description)
+               VALUES (?, ?, 'slip_verify', ?)`,
+              [key, valToSeed, DEFAULT_SLIP_VERIFY_CONFIG[key].description]
+            );
+          } catch (insertErr) {
+            logger.debug(`Could not seed app_settings_tbl setting '${key}':`, insertErr.message);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.error("Error loading slip verify config from app_settings_tbl:", err.message);
+  }
+
+  return {
+    enabled: map.slip_verify_enabled !== '0' && map.slip_verify_enabled.toLowerCase() !== 'false',
+    pollSeconds: Math.max(15, parseInt(map.slip_verify_poll_seconds, 10) || 60),
+    maxAttempts: Math.max(1, parseInt(map.slip_verify_max_attempts, 10) || 8),
+    maxAgeHours: Math.max(1, parseInt(map.slip_verify_max_age_hours, 10) || 168),
+    batchLimit: Math.max(1, Math.min(100, parseInt(map.slip_verify_batch_limit, 10) || 10)),
+    notifySuccess: map.slip_verify_notify_success !== '0' && map.slip_verify_notify_success.toLowerCase() !== 'false',
+    retryDelaysSeconds: parseRetryDelaysSeconds(map.slip_verify_retry_delays)
+  };
+}
+
+/**
+ * Updates a slip verification setting in app_settings_tbl.
+ * @param {string} name
+ * @param {string|number|boolean} value
+ */
+async function setSlipVerifyConfig(name, value) {
+  const key = String(name || '').trim();
+  if (!Object.prototype.hasOwnProperty.call(DEFAULT_SLIP_VERIFY_CONFIG, key)) {
+    throw new Error(`Unknown slip verify config key: ${key}`);
+  }
+  await setSetting(key, value, {
+    category: 'slip_verify',
+    description: DEFAULT_SLIP_VERIFY_CONFIG[key].description
+  });
 }
 
 async function getNoticedSlips(senderId = null) {
@@ -4832,7 +6457,7 @@ async function getNoticedSlips(senderId = null) {
     sql += ` ORDER BY created_at DESC LIMIT 10`;
     return await executeQuery(sql, params);
   } catch (err) {
-    console.error("Error getting noticed slips:", err);
+    logger.error("Error getting noticed slips:", err);
     return [];
   }
 }
@@ -4845,7 +6470,7 @@ async function getSlipById(id) {
       return rows[0];
     }
   } catch (err) {
-    console.error("Error getting slip by id:", err);
+    logger.error("Error getting slip by id:", err);
   }
   return null;
 }
@@ -5505,22 +7130,12 @@ function isLikelyDateStr(str) {
   return false;
 }
 
-async function getTeamFormationData(param = '', groupId = null, options = {}) {
-  const tTotalStart = Date.now();
-
-  // 1. DDL Checks
-  const tDdlStart = Date.now();
-  await ensurePosTables();
-  const ddlDuration = Date.now() - tDdlStart;
-
-  // 2. Metadata (Theme, Week, Colors)
-  const tMetaStart = Date.now();
-  const theme = await getTheme();
+function parseTeamAndWeekArgs(param = '', defaultWeekId = 0) {
   const trimmed = String(param !== null && param !== undefined ? param : '').trim();
   let teamArg = null;
-  let weekArg = options.weekId || 0; // allow caller to bypass param parser with a pre-resolved week ID
+  let weekArg = defaultWeekId || 0;
 
-  if (!options.weekId && trimmed) {
+  if (trimmed) {
     if (isLikelyDateStr(trimmed)) {
       weekArg = trimmed;
     } else {
@@ -5561,6 +7176,95 @@ async function getTeamFormationData(param = '', groupId = null, options = {}) {
       }
     }
   }
+
+  return { teamArg, weekArg };
+}
+
+/**
+ * Checks if the /teamweek command is allowed to run for the specified week parameter.
+ * For the current/latest week, access is only permitted after 20:00 (8:00 PM) on Friday.
+ * Past weeks are always accessible.
+ * @param {string} param 
+ * @returns {Promise<{ allowed: boolean, message?: string }>}
+ */
+async function checkTeamWeekAccess(param = '') {
+  try {
+    const { weekArg } = parseTeamAndWeekArgs(param);
+    const targetWeek = await queryWeekID(weekArg || 0);
+    if (!targetWeek || targetWeek.length === 0) {
+      return { allowed: true };
+    }
+
+    const latestWeek = await queryWeekID(0);
+    if (!latestWeek || latestWeek.length === 0) {
+      return { allowed: true };
+    }
+
+    // If target week is NOT the current week (i.e. past week), allow viewing anytime
+    if (targetWeek[0].id !== latestWeek[0].id) {
+      return { allowed: true };
+    }
+
+    // It is the current week. Check if current time in Bangkok is after Friday 20:00
+    const bkk = getBangkokCurrent();
+    const matchDateObj = parseDateInput(latestWeek[0].date);
+
+    if (matchDateObj && !isNaN(matchDateObj.getTime())) {
+      const matchDow = matchDateObj.getDay();
+      const diffToFriday = (matchDow >= 5) ? (matchDow - 5) : (matchDow + 2);
+      const fridayDate = new Date(matchDateObj.getTime());
+      fridayDate.setDate(fridayDate.getDate() - diffToFriday);
+
+      const fridayYear = fridayDate.getFullYear();
+      const fridayMonth = String(fridayDate.getMonth() + 1).padStart(2, '0');
+      const fridayDay = String(fridayDate.getDate()).padStart(2, '0');
+      const cutoffDateTimeStr = `${fridayYear}-${fridayMonth}-${fridayDay} 20:01:00`;
+
+      if (bkk.currentDateTimeStr < cutoffDateTimeStr) {
+        return {
+          allowed: false,
+          message: '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ'
+        };
+      }
+      return { allowed: true };
+    }
+
+    // Fallback if match date cannot be parsed: check Bangkok current day of week and time
+    // dow: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    if (bkk.dow === 5) {
+      if (bkk.currentTimeStr < '20:00') {
+        return {
+          allowed: false,
+          message: '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ'
+        };
+      }
+      return { allowed: true };
+    } else if (bkk.dow === 6 || bkk.dow === 0) {
+      return { allowed: true };
+    } else {
+      return {
+        allowed: false,
+        message: '⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ'
+      };
+    }
+  } catch (err) {
+    logger.error('[checkTeamWeekAccess] Error checking access:', err.message || err);
+    return { allowed: true };
+  }
+}
+
+async function getTeamFormationData(param = '', groupId = null, options = {}) {
+  const tTotalStart = Date.now();
+
+  // 1. DDL Checks
+  const tDdlStart = Date.now();
+  await ensurePosTables();
+  const ddlDuration = Date.now() - tDdlStart;
+
+  // 2. Metadata (Theme, Week, Colors)
+  const tMetaStart = Date.now();
+  const theme = await getTheme();
+  const { teamArg, weekArg } = parseTeamAndWeekArgs(param, options.weekId);
 
   const week = await queryWeekID(weekArg || 0);
   if (!week || week.length === 0) return null;
@@ -5789,19 +7493,19 @@ async function getTeamFormationData(param = '', groupId = null, options = {}) {
 
   const totalDuration = Date.now() - tTotalStart;
 
-  console.log(`\n======================================================`);
-  console.log(`⏱️ [/formation Data Performance Breakdown]`);
-  console.log(`======================================================`);
-  console.log(`  1. Schema / DDL Check (ensurePosTables)      : ${ddlDuration} ms`);
-  console.log(`  2. Week & Theme Metadata Queries            : ${metaDuration} ms`);
-  console.log(`  3. Current Week Stats (mvp_week_tbl)         : ${weekStatsDuration} ms`);
-  console.log(`  4. Yearly Cumulative Stats (member_year_stat): ${yearStatsDuration} ms`);
-  console.log(`  5. Team Members SQL (${teamsToRender.length} teams)           : ${totalMembersQueryDuration} ms`);
-  console.log(`  6. LINE API Profile Avatars (if missing)    : ${totalLineAvatarDuration} ms`);
-  console.log(`  7. Tactical Slot Allocation (In-Memory)     : ${totalTacticsDuration} ms`);
-  console.log(`------------------------------------------------------`);
-  console.log(`  🚀 Total Data Server Time                   : ${totalDuration} ms`);
-  console.log(`======================================================\n`);
+  logger.info(`\n======================================================`);
+  logger.info(`⏱️ [/formation Data Performance Breakdown]`);
+  logger.info(`======================================================`);
+  logger.info(`  1. Schema / DDL Check (ensurePosTables)      : ${ddlDuration} ms`);
+  logger.info(`  2. Week & Theme Metadata Queries            : ${metaDuration} ms`);
+  logger.info(`  3. Current Week Stats (mvp_week_tbl)         : ${weekStatsDuration} ms`);
+  logger.info(`  4. Yearly Cumulative Stats (member_year_stat): ${yearStatsDuration} ms`);
+  logger.info(`  5. Team Members SQL (${teamsToRender.length} teams)           : ${totalMembersQueryDuration} ms`);
+  logger.info(`  6. LINE API Profile Avatars (if missing)    : ${totalLineAvatarDuration} ms`);
+  logger.info(`  7. Tactical Slot Allocation (In-Memory)     : ${totalTacticsDuration} ms`);
+  logger.info(`------------------------------------------------------`);
+  logger.info(`  🚀 Total Data Server Time                   : ${totalDuration} ms`);
+  logger.info(`======================================================\n`);
 
   return {
     formationsData,
@@ -5822,9 +7526,9 @@ async function getTeamFormation(param = '', groupId = null) {
   const teamDurations = [];
   let cachedImageCount = 0;
   let totalImageCount = 0;
-  console.log(`\n======================================================`);
-  console.log(`⏱️ [/formation Image Generation Performance]`);
-  console.log(`======================================================`);
+  logger.info(`\n======================================================`);
+  logger.info(`⏱️ [/formation Image Generation Performance]`);
+  logger.info(`======================================================`);
   try {
     const teamImg = require('./team_img');
     const formatImgStatus = (url, cached) => {
@@ -5846,28 +7550,28 @@ async function getTeamFormation(param = '', groupId = null) {
         const pitchCached = !!pitchRes?.cached;
         if (fullUrl) { team.imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
         if (pitchUrl) { team.pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
-        console.log(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
+        logger.info(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
       } catch (eImg) {
-        console.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
+        logger.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
       }
     }));
   } catch (err) {
-    console.warn('[getTeamFormation] team_img module error:', err.message);
+    logger.warn('[getTeamFormation] team_img module error:', err.message);
   }
   const tImgWallClock = Date.now() - tImgStart;
   const tImgSum = teamDurations.reduce((a, b) => a + b, 0);
-  console.log(`------------------------------------------------------`);
-  console.log(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
-  console.log(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
+  logger.info(`------------------------------------------------------`);
+  logger.info(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
+  logger.info(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
   if (totalImageCount > 0) {
-    console.log(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
+    logger.info(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
   }
 
   const tFlexStart = Date.now();
   const flexMsg = flex.buildFormationFlex(data.formationsData, data.theme, data.dateStr, data.timeRange, data.weekDate, data.weekId);
   const flexDuration = Date.now() - tFlexStart;
-  console.log(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
-  console.log(`======================================================\n`);
+  logger.info(`  8. LINE Flex JSON Builder                   : ${flexDuration} ms`);
+  logger.info(`======================================================\n`);
 
   return flexMsg;
 }
@@ -5928,12 +7632,29 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     return { status: 'NO_PLAYERS', message: 'ยังไม่มีผู้เล่นลงทะเบียนในสัปดาห์นี้' };
   }
 
-  // Limit randomization to members registered within maxweek quota (FIFO by mtw.id ASC)
-  const maxPlayers = (weekInfo && weekInfo[0] && weekInfo[0].max) ? Number(weekInfo[0].max) : 24;
-  const registeredMembers = allRegistered.slice(0, maxPlayers);
-  const reserveMembers = allRegistered.slice(maxPlayers);
+  // Separate goalkeepers (team_id = 100 in member_tbl) and outfield players.
+  // Goalkeepers must NOT be assigned to any team in /randomteam.
+  const isGoalie = (m) => Number(m.member_team_id) === 100;
+  const goalieMembers = allRegistered.filter(isGoalie);
+  const outfieldRegistered = allRegistered.filter(m => !isGoalie(m));
 
-  // Ensure any excess reserve members beyond maxweek have no team assigned (team_id = 0)
+  // Ensure all goalkeepers have team_id = 0 (unassigned)
+  if (goalieMembers.length > 0) {
+    const goalieMtwIds = goalieMembers.map(r => r.mtw_id).filter(Boolean);
+    if (goalieMtwIds.length > 0) {
+      await executeQuery(
+        `UPDATE member_team_week_tbl SET team_id = 0 WHERE id IN (${goalieMtwIds.join(',')})`
+      );
+    }
+    logger.info(`[randomteam] Excluded ${goalieMembers.length} goalkeeper(s) (team_id=100) from team assignment: ${goalieMembers.map(r => r.name).join(', ')}`);
+  }
+
+  // Limit randomization strictly to outfield players within maxweek quota (FIFO by mtw.id ASC)
+  const maxPlayers = (weekInfo && weekInfo[0] && weekInfo[0].max) ? Number(weekInfo[0].max) : 24;
+  const registeredMembers = outfieldRegistered.slice(0, maxPlayers);
+  const reserveMembers = outfieldRegistered.slice(maxPlayers);
+
+  // Ensure any excess outfield reserve members beyond quota have no team assigned (team_id = 0)
   if (reserveMembers.length > 0) {
     const reserveMtwIds = reserveMembers.map(r => r.mtw_id).filter(Boolean);
     if (reserveMtwIds.length > 0) {
@@ -5941,17 +7662,17 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
         `UPDATE member_team_week_tbl SET team_id = 0 WHERE id IN (${reserveMtwIds.join(',')})`
       );
     }
-    console.log(`[randomteam] Capped at max ${maxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
+    logger.info(`[randomteam] Capped strictly at max ${maxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
   }
 
   const N = registeredMembers.length;
-  // Rule: <= 24 -> 3 teams, > 24 -> 4 teams
-  const K = N <= 24 ? 3 : 4;
+  // Rule: maxweek > 24 or registered outfield > 24 -> 4 teams, otherwise 3 teams
+  const K = (maxPlayers > 24 || N > 24) ? 4 : 3;
 
   // Check if all players within maxweek quota already have teams assigned
   const allHadTeam = registeredMembers.length > 0 && registeredMembers.every(m => Number(m.team_id) > 0);
   if (allHadTeam) {
-    console.log(`[randomteam] All ${registeredMembers.length} players (<= max ${maxPlayers}) already have teams. Skipping re-randomization.`);
+    logger.info(`[randomteam] All ${registeredMembers.length} players (<= max ${maxPlayers}) already have teams. Skipping re-randomization.`);
     return {
       status: 'ALREADY_ASSIGNED',
       alreadyAssigned: true,
@@ -6034,13 +7755,18 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     }
   } catch (e) { }
 
-  // 3.5 Position Min/Max Limits from pos_tbl (for 7-player: min/max, for 8-player: min_8/max_8)
+  // 3.5 Position Min/Max Limits & ID mapping from pos_tbl (for 7-player: min/max, for 8-player: min_8/max_8)
+  await ensurePosTables();
   const posLimitsMap = {};
+  const posCodeToIdMap = {};
+  const posCodeToNameMap = {};
   try {
-    const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+    const posRows = await executeQuery("SELECT id, code, name, min, max, min_8, max_8 FROM pos_tbl");
     if (posRows && posRows.length > 0) {
       posRows.forEach(r => {
         const code = (r.code || '').toUpperCase();
+        if (r.id) posCodeToIdMap[code] = Number(r.id);
+        if (r.name) posCodeToNameMap[code] = r.name;
         posLimitsMap[code] = {
           min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
           max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
@@ -6055,6 +7781,8 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       if (posRows && posRows.length > 0) {
         posRows.forEach(r => {
           const code = (r.code || '').toUpperCase();
+          if (r.id) posCodeToIdMap[code] = Number(r.id);
+          if (r.name) posCodeToNameMap[code] = r.name;
           posLimitsMap[code] = {
             min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
             max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
@@ -6064,6 +7792,17 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
         });
       }
     } catch (e2) { }
+  }
+
+  // Ensure goalkeepers have GK pos_id in member_team_week_tbl if available
+  if (goalieMembers.length > 0 && posCodeToIdMap['GK']) {
+    const goalieMtwIds = goalieMembers.map(r => r.mtw_id).filter(Boolean);
+    if (goalieMtwIds.length > 0) {
+      await executeQuery(
+        `UPDATE member_team_week_tbl SET pos_id = ? WHERE id IN (${goalieMtwIds.join(',')}) AND (pos_id IS NULL OR pos_id = 0)`,
+        [posCodeToIdMap['GK']]
+      );
+    }
   }
 
   const defaultLimits = {
@@ -6097,6 +7836,10 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     const yAvg = yearStatsMap[m.member_id] || 0;
     const rankVal = parseFloat(m.rank || 0) || 0;
     m.rating = yAvg > 0 ? yAvg : (rankVal > 0 ? rankVal : 0);
+    m.yearStats = {
+      avgRating: yAvg > 0 ? yAvg.toFixed(1) : (m.rating > 0 ? m.rating.toFixed(1) : '-'),
+      rating: m.rating > 0 ? m.rating.toFixed(1) : '-'
+    };
     m.posCode = (m.pos_code || 'MF').toUpperCase();
   }
 
@@ -6156,8 +7899,8 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     return candidateTeams;
   };
 
-  // Standard position order for distribution
-  const posOrder = ['GK', 'DF', 'DW', 'DM', 'MF', 'AM', 'CF'];
+  // Standard position order for distribution (Outfield positions only, no GK selection)
+  const posOrder = ['DF', 'DW', 'DM', 'MF', 'AM', 'CF'];
 
   // Helper to pick the best candidate team with balanced capacity, position room, zero avoid conflicts, and randomized tie-breaking
   const pickBestTeam = (candidatePool, group, playerPos, isPriority1 = false) => {
@@ -6211,6 +7954,34 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   };
 
   // =========================================================================
+  // Phase 0: Lock in Pre-assigned Members (players who already have a team)
+  // Rule: ถ้ามีทีมอยู่แล้ว เวลา /randomteam ไม่ต้องเปลี่ยนทีม
+  // =========================================================================
+  const preassignedMembers = registeredMembers.filter(m => Number(m.team_id) > 0 && Number(m.team_id) !== 100);
+  for (const m of preassignedMembers) {
+    const tId = Number(m.team_id);
+    const existingTeam = teams.find(t => t.teamId === tId) || teams.find(t => t.teamIndex === tId);
+    if (existingTeam) {
+      addPlayerToTeam(m, existingTeam);
+      logger.info(`[randomteam] Preserved pre-assigned team ${existingTeam.color} for player ${m.name || m.alias} (id: ${m.member_id})`);
+    }
+  }
+
+  // Ensure team capacities accommodate pre-assigned players and remaining unassigned players
+  for (const t of teams) {
+    if (t.members.length > t.maxCapacity) {
+      t.maxCapacity = t.members.length;
+    }
+  }
+  const unassignedCount = registeredMembers.filter(m => !assignedMemberIds.has(m.member_id)).length;
+  let remainingCapacity = teams.reduce((sum, t) => sum + Math.max(0, t.maxCapacity - t.members.length), 0);
+  while (remainingCapacity < unassignedCount) {
+    const candidateTeam = [...teams].sort((a, b) => a.members.length - b.members.length)[0];
+    candidateTeam.maxCapacity++;
+    remainingCapacity++;
+  }
+
+  // =========================================================================
   // Phase 1: Place Bound Groups First (member_team_week_tbl.team > 0)
   // Members sharing the same team number must be placed on the same team
   // =========================================================================
@@ -6231,10 +8002,21 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     const group = boundGroupsMap[gNum].filter(m => !assignedMemberIds.has(m.member_id));
     if (group.length === 0) continue;
 
-    const candidateTeams = findCandidateTeamsForGroup(group.length);
-    const bestTeam = pickBestTeam(candidateTeams, group, group[0]?.posCode, false);
-    if (bestTeam) {
-      placeGroupIntoTeam(group, bestTeam);
+    // If any member of this bound group was already pre-assigned to a team, place the remaining members in that same team
+    const alreadyAssignedMember = boundGroupsMap[gNum].find(m => assignedMemberIds.has(m.member_id));
+    let preassignedGroupTeam = null;
+    if (alreadyAssignedMember) {
+      preassignedGroupTeam = teams.find(t => t.members.some(tm => tm.member_id === alreadyAssignedMember.member_id));
+    }
+
+    if (preassignedGroupTeam) {
+      placeGroupIntoTeam(group, preassignedGroupTeam);
+    } else {
+      const candidateTeams = findCandidateTeamsForGroup(group.length);
+      const bestTeam = pickBestTeam(candidateTeams, group, group[0]?.posCode, false);
+      if (bestTeam) {
+        placeGroupIntoTeam(group, bestTeam);
+      }
     }
   }
 
@@ -6329,12 +8111,30 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     }
   }
 
-  // 9. Persist Team Assignments into Database (member_team_week_tbl)
+  // 9. Allocate Tactical Formation Positions & Persist Team + Position Assignments into Database (member_team_week_tbl)
+  const is8PlayerWeek = teams.some(t => t.members.length >= 8);
   for (const team of teams) {
+    const isTeam8Player = (team.members.length >= 8) || is8PlayerWeek;
+    allocateFormationSlots(team.members, isTeam8Player, posLimitsMap);
+
+    team.positionCounts = { GK: 0, DF: 0, DW: 0, DM: 0, MF: 0, AM: 0, CF: 0, OTHER: 0 };
     for (const member of team.members) {
+      const assignedPosCode = (member.effectivePos || member.posCode || member.pos_code || 'MF').toUpperCase();
+      const assignedPosId = posCodeToIdMap[assignedPosCode] || Number(member.week_pos_id) || Number(member.member_pos_id) || 0;
+
+      member.posCode = assignedPosCode;
+      member.pos_code = assignedPosCode;
+      member.week_pos_id = assignedPosId;
+      if (posCodeToNameMap[assignedPosCode]) {
+        member.pos_name = posCodeToNameMap[assignedPosCode];
+      }
+
+      const countKey = team.positionCounts[assignedPosCode] !== undefined ? assignedPosCode : 'OTHER';
+      team.positionCounts[countKey]++;
+
       await executeQuery(
-        "UPDATE member_team_week_tbl SET team_id = ? WHERE member_id = ? AND week_id = ?",
-        [team.teamId, member.member_id, weekId]
+        "UPDATE member_team_week_tbl SET team_id = ?, pos_id = ? WHERE member_id = ? AND week_id = ?",
+        [team.teamId, assignedPosId, member.member_id, weekId]
       );
     }
   }
@@ -6367,7 +8167,7 @@ async function saveActiveGroupId(groupId) {
       await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, 'active_group_id', ?)", [groupId]);
     }
   } catch (err) {
-    console.error('Error saving active_group_id in template_tpl:', err.message);
+    logger.error('Error saving active_group_id in template_tpl:', err.message);
   }
 }
 
@@ -6385,7 +8185,7 @@ async function getActiveGroupId() {
       return res[0].value;
     }
   } catch (err) {
-    console.error('Error querying active_group_id from template_tpl:', err.message);
+    logger.error('Error querying active_group_id from template_tpl:', err.message);
   }
   return null;
 }
@@ -6409,7 +8209,7 @@ async function saveBaseUrl(baseUrl) {
       await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, 'base_webhook_url', ?)", [clean]);
     }
   } catch (err) {
-    console.error('Error saving base_webhook_url in template_tpl:', err.message);
+    logger.error('Error saving base_webhook_url in template_tpl:', err.message);
   }
 }
 
@@ -6430,7 +8230,7 @@ async function getBaseUrlFromDb() {
       return res[0].value;
     }
   } catch (err) {
-    console.error('Error querying base_webhook_url from template_tpl:', err.message);
+    logger.error('Error querying base_webhook_url from template_tpl:', err.message);
   }
   return null;
 }
@@ -6457,7 +8257,7 @@ async function getTaskGroupId(taskId) {
       return await resolveLineGroupId(res[0].value);
     }
   } catch (err) {
-    console.error(`Error querying task group_id for '${taskId}' from template_tpl:`, err.message);
+    logger.error(`Error querying task group_id for '${taskId}' from template_tpl:`, err.message);
   }
   return null;
 }
@@ -6473,7 +8273,7 @@ async function saveTaskGroupId(taskId, groupId) {
       await executeQuery("INSERT INTO template_tpl (id, name, value) VALUES (null, ?, ?)", [key, groupId]);
     }
   } catch (err) {
-    console.error(`Error saving ${key} in template_tpl:`, err.message);
+    logger.error(`Error saving ${key} in template_tpl:`, err.message);
   }
 }
 
@@ -6522,7 +8322,7 @@ async function saveGroupProfile(lineGroupId, groupName = null, memberCount = nul
       return record;
     }
   } catch (err) {
-    console.error(`Error saving group profile for ${cleanId}:`, err.message);
+    logger.error(`Error saving group profile for ${cleanId}:`, err.message);
   }
   return null;
 }
@@ -6553,7 +8353,7 @@ async function getGroupProfile(groupIdOrId) {
       return rows[0];
     }
   } catch (err) {
-    console.error(`Error fetching group profile for ${groupIdOrId}:`, err.message);
+    logger.error(`Error fetching group profile for ${groupIdOrId}:`, err.message);
   }
   return null;
 }
@@ -6583,7 +8383,7 @@ async function resolveLineGroupId(groupIdOrId) {
       return rows[0].line_group_id;
     }
   } catch (err) {
-    console.error(`Error resolving line_group_id for ${groupIdOrId}:`, err.message);
+    logger.error(`Error resolving line_group_id for ${groupIdOrId}:`, err.message);
   }
   return key;
 }
@@ -6639,7 +8439,7 @@ async function syncGroupProfile(lineGroupId, lineClient, force = false) {
       await saveGroupProfile(cleanId, profile.groupName, profile.memberCount, profile.pictureUrl);
     }
   } catch (err) {
-    console.error(`Error syncing group profile for ${cleanId}:`, err.message);
+    logger.error(`Error syncing group profile for ${cleanId}:`, err.message);
   }
 }
 
@@ -6657,6 +8457,7 @@ async function getScheduledTasks(onlyEnabled = false) {
     const tasks = await executeQuery(sql);
     for (const t of tasks) {
       if (t.group_id) {
+        t.raw_group_id = t.group_id;
         t.group_id = await resolveLineGroupId(t.group_id);
       }
     }
@@ -6781,13 +8582,20 @@ async function deleteScheduledTask(keyOrId) {
  * Updates last_run_date for a scheduled task with full datetime (YYYY-MM-DD HH:mm:ss).
  * @param {string|number} keyOrId 
  * @param {string|null} [dateOrDateTimeStr=null] - Optional datetime string, defaults to Bangkok current datetime
+/**
+ * Sets last_run_date for a scheduled task by task_key or database id.
+ * @param {string|number} keyOrId 
+ * @param {string|null} [dateOrDateTimeStr=null] 
+ * @param {number|null} [fallbackId=null]
  * @returns {Promise<boolean>}
  */
-async function setScheduledTaskLastRun(keyOrId, dateOrDateTimeStr = null) {
-  if (!keyOrId) return false;
+async function setScheduledTaskLastRun(keyOrId, dateOrDateTimeStr = null, fallbackId = null) {
+  if (!keyOrId && !fallbackId) return false;
   const val = dateOrDateTimeStr || getBangkokCurrent().currentDateTimeStr;
-  const sql = "UPDATE scheduled_task_tbl SET last_run_date = ? WHERE task_key = ? OR id = ?";
-  await executeQuery(sql, [val, String(keyOrId), isNaN(Number(keyOrId)) ? -1 : Number(keyOrId)]);
+  const sql = "UPDATE scheduled_task_tbl SET last_run_date = ? WHERE task_key = ? OR id = ? OR id = ?";
+  const numKey = !isNaN(Number(keyOrId)) ? Number(keyOrId) : -1;
+  const numFallback = fallbackId && !isNaN(Number(fallbackId)) ? Number(fallbackId) : -1;
+  await executeQuery(sql, [val, String(keyOrId || ''), numKey, numFallback]);
   return true;
 }
 
@@ -6821,30 +8629,50 @@ const SCHEDULE_DAY_MAP = {
 };
 
 function matchesScheduleDay(scheduleDays, currentDow) {
-  if (!scheduleDays || scheduleDays === '*' || scheduleDays === 'all' || scheduleDays === 'daily') {
+  if (scheduleDays === '*' || scheduleDays == null || scheduleDays === 'all' || scheduleDays === 'daily' || scheduleDays === 'everyday') {
     return true;
   }
-  const spec = String(scheduleDays).trim().toLowerCase();
-  if (spec === 'mon-fri' || spec === '1-5' || spec === 'weekday' || spec === 'weekdays') {
-    return currentDow >= 1 && currentDow <= 5;
+
+  if (Array.isArray(scheduleDays)) {
+    return scheduleDays.some(d => matchesScheduleDay(d, currentDow));
   }
-  if (spec === 'sat-sun' || spec === 'weekend' || spec === 'weekends' || spec === '6-0' || spec === '0,6') {
-    return currentDow === 0 || currentDow === 6;
+
+  if (typeof scheduleDays === 'number') {
+    return scheduleDays === currentDow;
   }
-  const rangeMatch = spec.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
-  if (rangeMatch) {
-    const start = SCHEDULE_DAY_MAP[rangeMatch[1]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
-    const end = SCHEDULE_DAY_MAP[rangeMatch[2]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
-    if (!isNaN(start) && !isNaN(end)) {
-      if (start <= end) return currentDow >= start && currentDow <= end;
-      else return currentDow >= start || currentDow <= end;
-    }
+
+  if (typeof scheduleDays === 'string') {
+    const s = scheduleDays.toLowerCase().trim();
+    if (s === '*' || s === 'all' || s === 'daily' || s === 'everyday') return true;
+
+    const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+    return parts.some(p => {
+      if (p === '*' || p === 'all' || p === 'daily' || p === 'everyday') return true;
+      if (p === 'weekdays' || p === 'mon-fri' || p === '1-5') return currentDow >= 1 && currentDow <= 5;
+      if (p === 'weekends' || p === 'sat-sun' || p === '6,0' || p === '0,6') return currentDow === 0 || currentDow === 6;
+
+      if (SCHEDULE_DAY_MAP[p] !== undefined) {
+        return SCHEDULE_DAY_MAP[p] === currentDow;
+      }
+
+      const rangeMatch = p.match(/^([a-z0-9]+)\s*-\s*([a-z0-9]+)$/);
+      if (rangeMatch) {
+        const start = SCHEDULE_DAY_MAP[rangeMatch[1]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[1]] : parseInt(rangeMatch[1], 10);
+        const end = SCHEDULE_DAY_MAP[rangeMatch[2]] !== undefined ? SCHEDULE_DAY_MAP[rangeMatch[2]] : parseInt(rangeMatch[2], 10);
+        if (!isNaN(start) && !isNaN(end)) {
+          if (start <= end) {
+            return currentDow >= start && currentDow <= end;
+          } else {
+            return currentDow >= start || currentDow <= end;
+          }
+        }
+      }
+
+      return parseInt(p, 10) === currentDow;
+    });
   }
-  const parts = spec.split(',').map(p => p.trim());
-  return parts.some(p => {
-    if (SCHEDULE_DAY_MAP[p] !== undefined) return SCHEDULE_DAY_MAP[p] === currentDow;
-    return parseInt(p, 10) === currentDow;
-  });
+
+  return false;
 }
 
 function getBangkokCurrent() {
@@ -6889,77 +8717,36 @@ function getBangkokCurrent() {
 }
 
 /**
- * Retrieves scheduled tasks whose delivery_mode = 'reply_on_chat' that are due today
- * and waiting to be sent using the next chat replyToken in the group.
- * Checks expire_minutes to skip and mark stale tasks as completed.
+ * Retrieves scheduled tasks whose delivery_mode = 'reply_on_chat' currently queued in memory
+ * waiting to be sent using the next chat replyToken in the group.
  * @param {string} groupId 
  * @returns {Promise<Array<Object>>}
  */
 async function getPendingReplyTasks(groupId) {
   if (!groupId) return [];
   try {
-    const { dow, currentTimeStr, todayDateStr, currentDateTimeStr } = getBangkokCurrent();
-    const tasks = await getScheduledTasks(true);
-
-    const pending = [];
-    for (const t of tasks) {
-      if (t.delivery_mode !== 'reply_on_chat') continue;
-      const schedTime = (t.schedule_time || '20:00').substring(0, 5);
-      // Check if already executed at or after today's scheduled time
-      if (t.last_run_date && String(t.last_run_date).startsWith(todayDateStr)) {
-        const lastRunTime = String(t.last_run_date).substring(11, 16);
-        if (lastRunTime >= schedTime) {
-          continue; // Already executed for this scheduled time today
-        }
-      }
-
-      // Check day matching
-      if (!matchesScheduleDay(t.schedule_days, dow)) continue;
-
-      // Check if scheduled time has arrived (schedMinutes <= currentMinutes)
-      const [sH, sM] = schedTime.split(':').map(Number);
-      const [cH, cM] = currentTimeStr.split(':').map(Number);
-      const schedMinutes = (sH || 0) * 60 + (sM || 0);
-      const currentMinutes = (cH || 0) * 60 + (cM || 0);
-
-      if (schedMinutes > currentMinutes) continue; // Not due yet
-
-      // Check if task has expired (validity window: default 10 minutes if not specified)
-      const expireMinutes = (t.expire_minutes !== null && t.expire_minutes !== undefined && Number(t.expire_minutes) > 0)
-        ? parseInt(t.expire_minutes, 10)
-        : 10;
-
-      const expireAtMinutes = schedMinutes + expireMinutes;
-      if (currentMinutes > expireAtMinutes) {
-        continue; // Scheduled time window has passed, do not trigger
-      }
-
-      // Check group matching (if task specified a group, must match; if empty, matches active group)
-      const targetGid = t.group_id ? await resolveLineGroupId(t.group_id) : null;
-      if (targetGid && targetGid !== groupId) continue;
-
-      pending.push(t);
-    }
-    return pending;
+    const pendingManager = require('./scheduler/pendingManager');
+    return await pendingManager.getPendingForGroup(groupId);
   } catch (err) {
-    console.error('Error fetching pending reply tasks:', err.message);
+    logger.error('[PendingManager] Error fetching pending reply tasks:', err.message);
     return [];
   }
 }
 
 /**
- * Resolves and formats all pending reply_on_chat scheduled tasks for a group.
+ * Resolves and formats all pending reply_on_chat scheduled tasks for a group from the in-memory queue.
  * Each task generates its own separate message object (up to LINE's 5-message limit per reply request),
  * sent together in a single API call with zero push quota consumed.
- * Marks the tasks as executed for today with full datetime.
+ * Marks the tasks as executed in MySQL with full datetime and removes from memory queue.
  * @param {string} groupId 
  * @param {Object} [triggeringMember] 
  * @returns {Promise<Array<Object>>} Array of message objects to send via replyMessage
  */
 async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
   if (!groupId) return [];
-  const pendingTasks = await getPendingReplyTasks(groupId);
-  if (pendingTasks.length === 0) return [];
+  const pendingManager = require('./scheduler/pendingManager');
+  const pendingTasks = await pendingManager.getPendingForGroup(groupId);
+  if (!pendingTasks || pendingTasks.length === 0) return [];
 
   const { currentDateTimeStr } = getBangkokCurrent();
   const finalMessages = [];
@@ -6967,25 +8754,42 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
     id: 0,
     line_user_id: 'SYSTEM_BOT',
     name: 'System',
-    admin: 1,
+    admin: 2,
     debt: 0
   };
 
   const executedTaskIds = [];
 
+  logger.info(`[Scheduler] Consuming ${pendingTasks.length} pending reply_on_chat task(s) from memory queue for group ${groupId}: [${pendingTasks.map(t => t.id).join(', ')}]`);
+
   for (const task of pendingTasks) {
+    const taskIdKey = task.id;
     try {
-      if (task.task_type === 'command') {
+      let taskMsgCount = 0;
+
+      // 1. If messages were pre-resolved at schedule time (Standard Approach 1), deliver directly!
+      if (task.preparedMessages && Array.isArray(task.preparedMessages) && task.preparedMessages.length > 0) {
+        logger.info(`[Scheduler] Delivering ${task.preparedMessages.length} pre-resolved message(s) for pending task '${taskIdKey}' via chat reply (instant delivery, zero re-run)...`);
+        for (const item of task.preparedMessages) {
+          if (finalMessages.length < 5) {
+            finalMessages.push(item);
+            taskMsgCount++;
+          }
+        }
+        executedTaskIds.push(taskIdKey);
+      } else if (task.type === 'command') {
         const cmdModule = require('./cmd');
         const rawCmd = (task.command || '').trim();
         const cleanCmd = rawCmd.startsWith('/') ? rawCmd.substring(1) : rawCmd;
         if (cleanCmd) {
+          logger.info(`[Scheduler] Executing pending task '${taskIdKey}' (command: '${cleanCmd}') via chat reply...`);
           const textMsg = (task.text_message || '').trim();
           if (textMsg) {
             const resolvedObj = await resolveScheduleTemplateText(textMsg, groupId);
             if (resolvedObj && (resolvedObj.text || resolvedObj.contents)) {
               if (finalMessages.length < 5) {
                 finalMessages.push(resolvedObj);
+                taskMsgCount++;
               }
             }
           }
@@ -6996,33 +8800,51 @@ async function dispatchPendingReplyTasks(groupId, triggeringMember = null) {
             for (const item of list) {
               if (finalMessages.length < 5) {
                 finalMessages.push(item);
+                taskMsgCount++;
               }
             }
           }
-          executedTaskIds.push(task.id);
+          executedTaskIds.push(taskIdKey);
         }
-      } else if (task.task_type === 'text') {
+      } else if (task.type === 'text') {
         const textMsg = (task.text_message || '').trim();
         if (textMsg) {
+          logger.info(`[Scheduler] Executing pending task '${taskIdKey}' (template text) via chat reply...`);
           const resolvedObj = await resolveScheduleTemplateText(textMsg, groupId);
           if (resolvedObj && (resolvedObj.text || resolvedObj.contents)) {
             if (finalMessages.length < 5) {
               finalMessages.push(resolvedObj);
+              taskMsgCount++;
             }
           }
-          executedTaskIds.push(task.id);
+          executedTaskIds.push(taskIdKey);
         }
       }
 
-      // Mark executed in DB with datetime
-      await setScheduledTaskLastRun(task.id, currentDateTimeStr);
+      // Mark executed in DB with datetime (using task.id and task.dbId fallback)
+      await setScheduledTaskLastRun(task.id, currentDateTimeStr, task.dbId);
+      // Remove from in-memory pending queue
+      pendingManager.remove(task.id);
+      // Notify scheduler supervisor & worker thread so in-memory registry updates immediately
+      try {
+        const scheduler = require('./scheduler');
+        if (scheduler && typeof scheduler.notifyTaskExecuted === 'function') {
+          scheduler.notifyTaskExecuted(task.id, currentDateTimeStr);
+          if (task.dbId && String(task.dbId) !== String(task.id)) {
+            scheduler.notifyTaskExecuted(task.dbId, currentDateTimeStr);
+          }
+        }
+      } catch (notifyErr) {
+        logger.debug('[Scheduler] Could not notify worker of task execution:', notifyErr.message);
+      }
+      logger.info(`[Scheduler] Task '${taskIdKey}' executed (${taskMsgCount} message(s) generated), marked completed in DB and dequeued from memory.`);
     } catch (taskErr) {
-      console.error(`Error resolving pending scheduled task '${task.id}':`, taskErr.message);
+      logger.error(`[Scheduler] Error resolving pending scheduled task '${taskIdKey}':`, taskErr.message);
     }
   }
 
   if (executedTaskIds.length > 0) {
-    console.log(`[Scheduler] Prepared ${executedTaskIds.length} pending reply_on_chat task(s) [${executedTaskIds.join(', ')}] as ${finalMessages.length} separate message(s) in a single reply request for group ${groupId} (0 push quota used)`);
+    logger.info(`[Scheduler] Prepared ${executedTaskIds.length} pending reply_on_chat task(s) [${executedTaskIds.join(', ')}] as ${finalMessages.length} separate message(s) in a single reply request for group ${groupId} (0 push quota used)`);
   }
 
   return finalMessages;
@@ -7039,29 +8861,59 @@ function evaluateCondition(exprStr, ctx) {
   if (!exprStr) return false;
   const expr = exprStr.trim();
 
-  // Try binary operators: >=, <=, ==, !=, =, >, <
-  const opMatch = expr.match(/^([a-zA-Z0-9_]+)\s*(>=|<=|==|!=|=|>|<)\s*([a-zA-Z0-9_]+)$/);
+  // 1. Try binary operators: >=, <=, ==, !=, =, >, <
+  const opMatch = expr.match(/^([a-zA-Z0-9_]+)\s*(>=|<=|==|!=|=|>|<)\s*(.+)$/);
   if (opMatch) {
-    const leftKey = opMatch[1].toLowerCase();
+    const leftRaw = opMatch[1].trim();
+    const leftKey = leftRaw.toLowerCase();
     const op = opMatch[2];
-    const rightKey = opMatch[3].toLowerCase();
+    const rightRaw = opMatch[3].trim().replace(/^['"]|['"]$/g, '');
+    const rightKey = rightRaw.toLowerCase();
 
-    const leftVal = ctx.hasOwnProperty(leftKey) ? ctx[leftKey] : (!isNaN(Number(opMatch[1])) ? Number(opMatch[1]) : opMatch[1]);
-    const rightVal = ctx.hasOwnProperty(rightKey) ? ctx[rightKey] : (!isNaN(Number(opMatch[3])) ? Number(opMatch[3]) : opMatch[3]);
+    // Check if comparing day of week (e.g. dow == fri, day == 5)
+    const isDowLeft = leftKey === 'dow' || leftKey === 'day' || leftKey === 'weekday';
+    const isDowRight = rightKey === 'dow' || rightKey === 'day' || rightKey === 'weekday';
+
+    if (isDowLeft && SCHEDULE_DAY_MAP[rightKey] !== undefined) {
+      const curDow = ctx.dow !== undefined ? Number(ctx.dow) : -1;
+      const targetDow = SCHEDULE_DAY_MAP[rightKey];
+      switch (op) {
+        case '==':
+        case '=': return curDow === targetDow;
+        case '!=': return curDow !== targetDow;
+      }
+    } else if (isDowRight && SCHEDULE_DAY_MAP[leftKey] !== undefined) {
+      const curDow = ctx.dow !== undefined ? Number(ctx.dow) : -1;
+      const targetDow = SCHEDULE_DAY_MAP[leftKey];
+      switch (op) {
+        case '==':
+        case '=': return curDow === targetDow;
+        case '!=': return curDow !== targetDow;
+      }
+    }
+
+    const leftVal = ctx.hasOwnProperty(leftKey) ? ctx[leftKey] : (!isNaN(Number(leftRaw)) ? Number(leftRaw) : leftRaw);
+    const rightVal = ctx.hasOwnProperty(rightKey) ? ctx[rightKey] : (!isNaN(Number(rightRaw)) ? Number(rightRaw) : rightRaw);
 
     switch (op) {
       case '>=': return leftVal >= rightVal;
       case '<=': return leftVal <= rightVal;
       case '==':
-      case '=': return leftVal == rightVal;
-      case '!=': return leftVal != rightVal;
+      case '=': return String(leftVal).toLowerCase() == String(rightVal).toLowerCase();
+      case '!=': return String(leftVal).toLowerCase() != String(rightVal).toLowerCase();
       case '>': return leftVal > rightVal;
       case '<': return leftVal < rightVal;
     }
   }
 
-  // Single truthy check (e.g. {{#if remaining}})
+  // 2. Direct day-of-week condition check (e.g. {{#if fri}}, {{#if friday}}, {{#if sat}})
   const singleKey = expr.toLowerCase();
+  if (SCHEDULE_DAY_MAP[singleKey] !== undefined) {
+    const curDow = ctx.dow !== undefined ? Number(ctx.dow) : -1;
+    return curDow === SCHEDULE_DAY_MAP[singleKey];
+  }
+
+  // 3. Single truthy check (e.g. {{#if remaining}})
   if (ctx.hasOwnProperty(singleKey)) {
     const val = ctx[singleKey];
     if (typeof val === 'number') return val > 0;
@@ -7130,17 +8982,25 @@ async function resolveScheduleTemplateText(templateText, groupId = null) {
       maxPlayers = parseInt(week.max, 10) || 0;
 
       const members = await executeQuery(
-        "SELECT member_id, team_id FROM member_team_week_tbl WHERE week_id = ?",
+        `SELECT mtw.member_id, mtw.team_id, m.team_id as member_team_id 
+         FROM member_team_week_tbl mtw
+         LEFT JOIN member_tbl m ON mtw.member_id = m.id 
+         WHERE mtw.week_id = ?`,
         [week.id]
       );
-      registeredFieldPlayers = (members || []).filter(m => m.team_id != 100).length;
+      registeredFieldPlayers = (members || []).filter(m => Number(m.member_team_id) !== 100 && Number(m.team_id) !== 100).length;
       remaining = Math.max(0, maxPlayers - registeredFieldPlayers);
     }
   } catch (err) {
-    console.error('Error resolving template variables for schedule text:', err.message);
+    logger.error('Error resolving template variables for schedule text:', err.message);
   }
 
   // 2. Build template context for conditionals and replacement
+  const bkkCurrent = getBangkokCurrent();
+  const currentDow = bkkCurrent.dow;
+  const dayNameShort = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][currentDow] || 'sun';
+  const dayNameFull = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][currentDow] || 'sunday';
+
   const ctx = {
     remaining,
     remains: remaining,
@@ -7156,7 +9016,14 @@ async function resolveScheduleTemplateText(templateText, groupId = null) {
     week_date: dateStr,
     timerange: timeRange,
     time_range: timeRange,
-    time: timeRange
+    time: timeRange,
+    dow: currentDow,
+    day: currentDow,
+    weekday: currentDow,
+    day_name: dayNameShort,
+    dayname: dayNameShort,
+    [dayNameShort]: true,
+    [dayNameFull]: true
   };
 
   // 3. Process conditional blocks ({{#if ...}} ... {{/if}})
@@ -7217,6 +9084,7 @@ module.exports = {
   updateMemberInfo,
   updateMemberRank,
   updateMemberPriority,
+  updateMemberAvoidIds,
   setMemberWeekPriority,
   updateMemberDebt,
   updateMemberWeek,
@@ -7239,9 +9107,17 @@ module.exports = {
   getMemberWeek2,
   getMemberWeek0,
   registerNY,
+  unregisterNY,
+  unregisterGuestNY,
+  getNYEventInfo,
+  ensureNYTable,
   getDebtList,
   getScheduleText,
+  getScheduleFromDb,
+  formatScheduleLines,
   getCurrentMatch,
+  saveScheduleToDb,
+  ensureMatchStatScheduleColumns,
   getTheme,
   setTheme,
   updateMemberAutoReg,
@@ -7253,12 +9129,29 @@ module.exports = {
   getMvpList,
   getAdminCommands,
   logSlip,
+  ensureSlipLogSchema,
   getSlipByQRCode,
   updateSlipLog,
+  markSlipVerified,
+  recordSlipVerifyAttempt,
+  getPendingSlipsForVerify,
+  ensureAppSettingsTable,
+  getSetting,
+  setSetting,
+  getSettingsByCategory,
+  getSlipVerifyConfig,
+  setSlipVerifyConfig,
   getNoticedSlips,
   getSlipById,
   setMemberDebt,
   updateWeekTimeRange,
+  getWeekLeaderStats,
+  loadSavedWeekLeaderStats,
+  computeWeekChangeChecksum,
+  selectTeamOfTheWeekPlayers,
+  calculateWeekRawMvp,
+  computePlayerRawScore,
+  resolveWeekPlayerPositions,
   calcAndSaveMaxMvpScore,
   ensureMvpWeekTable,
   saveWeekMvpRecords,
@@ -7299,5 +9192,11 @@ module.exports = {
   getPendingReplyTasks,
   dispatchPendingReplyTasks,
   matchesScheduleDay,
-  getBangkokCurrent
+  getBangkokCurrent,
+  parseTeamAndWeekArgs,
+  checkTeamWeekAccess,
+  pool,
+  executeQuery,
+  ensureUserTable,
+  ensureMemberFeeExemptColumn
 };

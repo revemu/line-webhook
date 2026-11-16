@@ -6,10 +6,10 @@
 
 class CommandSpamProtector {
     /**
-     * @param {number} [cooldownMs=3500] Cooldown window in milliseconds after command finishes
+     * @param {number} [cooldownMs=15000] Cooldown window in milliseconds after command finishes (minimum 15s)
      */
-    constructor(cooldownMs = 3500) {
-        this.cooldownMs = cooldownMs;
+    constructor(cooldownMs = 15000) {
+        this.cooldownMs = Math.max(cooldownMs || 0, 15000);
         // Key: `${chatId}:${userId}:${normalizedCmd}` -> { inFlight: boolean, lastStarted: number, lastFinished: number }
         this.records = new Map();
 
@@ -43,7 +43,7 @@ class CommandSpamProtector {
      * @param {string} userId - User's LINE user ID or member ID
      * @param {string|null} groupId - Group ID (or null for 1-on-1)
      * @param {string} cmdStr - Command string
-     * @returns {{ allowed: boolean, shouldWarn: boolean, reason?: string }} Result object
+     * @returns {{ allowed: boolean, shouldWarn: boolean, reason?: string, remainingSec?: number }} Result object
      */
     acquire(userId, groupId, cmdStr) {
         const key = this.getKey(userId, groupId, cmdStr);
@@ -53,15 +53,16 @@ class CommandSpamProtector {
         if (record) {
             // If the exact same command is currently executing
             if (record.inFlight) {
-                const shouldWarn = !record.lastWarned || (now - record.lastWarned > 2000);
+                const shouldWarn = !record.lastWarned || (now - record.lastWarned > 3000);
                 if (shouldWarn) record.lastWarned = now;
                 return { allowed: false, shouldWarn, reason: 'in_flight' };
             }
             // If the exact same command completed within the cooldown window
             if (record.lastFinished > 0 && (now - record.lastFinished < this.cooldownMs)) {
-                const shouldWarn = !record.lastWarned || (now - record.lastWarned > 2000);
+                const shouldWarn = !record.lastWarned || (now - record.lastWarned > 5000);
                 if (shouldWarn) record.lastWarned = now;
-                return { allowed: false, shouldWarn, reason: 'cooldown' };
+                const remainingSec = Math.ceil((this.cooldownMs - (now - record.lastFinished)) / 1000);
+                return { allowed: false, shouldWarn, reason: 'cooldown', remainingSec };
             }
         }
 
@@ -95,7 +96,7 @@ class CommandSpamProtector {
      */
     cleanup() {
         const now = Date.now();
-        const maxAge = Math.max(this.cooldownMs * 2, 30000);
+        const maxAge = Math.max(this.cooldownMs * 2, 60000);
         for (const [key, record] of this.records.entries()) {
             if (!record.inFlight && record.lastFinished > 0 && (now - record.lastFinished > maxAge)) {
                 this.records.delete(key);
@@ -111,7 +112,7 @@ class CommandSpamProtector {
     }
 }
 
-const defaultCooldown = parseInt(process.env.CMD_SPAM_COOLDOWN_MS, 10) || 3500;
+const defaultCooldown = Math.max(parseInt(process.env.CMD_SPAM_COOLDOWN_MS, 10) || 15000, 15000);
 const defaultSpamProtector = new CommandSpamProtector(defaultCooldown);
 
 module.exports = {

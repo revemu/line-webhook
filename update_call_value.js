@@ -1,4 +1,5 @@
 const mysql = require('mysql2/promise');
+const logger = require('./utils/logger');
 require('dotenv').config({ quiet: true });
 
 const dbConfig = {
@@ -15,20 +16,20 @@ async function executeUpdate() {
     let connection;
     try {
         connection = await mysql.createConnection(dbConfig);
-        console.log('Connected to database.');
+        logger.info('Connected to database.');
 
         // Correcting the typo from 'va;ue' to 'value'
         const query = "update template_tpl set value=0 where name='call'";
-        console.log(`Executing query: ${query}`);
+        logger.info(`Executing query: ${query}`);
 
         const [result] = await connection.execute(query);
-        console.log('Update success. Result:', result);
+        logger.info('Update success. Result:', result);
     } catch (error) {
-        console.error('Update failed:', error);
+        logger.error('Update failed:', error);
     } finally {
         if (connection) {
             await connection.end();
-            console.log('Connection closed.');
+            logger.info('Connection closed.');
         }
     }
 }

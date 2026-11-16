@@ -11,9 +11,9 @@ flowchart TD
     D --> E[ดึงรายชื่อผู้เล่นที่ลงทะเบียน\nmember_team_week_tbl]
     E --> F{มีผู้เล่น?}
     F -- ❌ ไม่มี --> ERR2([💬 ยังไม่มีผู้เล่นลงทะเบียน])
-    F -- ✅ มี --> G[จำกัดผู้เล่นตาม maxPlayers\nFIFO ตามลำดับการลงทะเบียน]
-
-    G --> H[ผู้เล่นเกิน maxPlayers\n→ Reserve: team_id = 0]
+    F -- ✅ มี --> G1[คัดแยกผู้รักษาประตู member_tbl.team_id = 100\n→ โกล์ทั้งหมด team_id = 0 ไม่ลงทีม]
+    G1 --> G2[จำกัดผู้เล่นในสนามตาม maxweek\nFIFO ตามลำดับการลงทะเบียน]
+    G2 --> H[ผู้เล่นในสนามที่เกิน maxweek\n→ Reserve: team_id = 0]
 
     H --> I{ผู้เล่นทุกคนมีทีมแล้ว?}
     I -- ✅ ใช่ --> SKIP([💬 ผู้เล่นทุกคนมีทีมแล้ว\nข้ามการสุ่ม])
@@ -33,7 +33,19 @@ flowchart TD
 
     P --> Q[คำนวณ Capacity ของแต่ละทีม\nbaseCap = N div K\nextraCount = N mod K\nทีมแรก extraCount ทีม จะได้ baseCap+1]
 
-    Q --> PH1
+    Q --> PH0
+
+    subgraph PH0["🟢 Phase 0: Lock in Pre-assigned Members (team_id > 0)"]
+        direction TB
+        P0A[ดึงผู้เล่นที่มีทีมอยู่แล้ว
+member_team_week_tbl.team_id > 0]
+        P0A --> P0B[ล็อกผู้เล่นเข้าทีมเดิมทันที
+ไม่เปลี่ยนทีมเด็ดขาด]
+        P0B --> P0C[ปรับคำนวณ Capacity ที่เหลือ
+เพื่อให้ผู้เล่นที่ยังไม่มีทีมกระจายตัวสมดุล]
+    end
+
+    PH0 --> PH1
 
     subgraph PH1["🔵 Phase 1: Bound Groups (mtw.team > 0)"]
         direction TB
@@ -48,7 +60,7 @@ flowchart TD
     subgraph PH2["🟡 Phase 2: Priority 1 (ผู้เล่นสำคัญ)"]
         direction TB
         P2A[ดึงผู้เล่นที่มี Priority = 1\nแต่ยังไม่มีทีม]
-        P2A --> P2B[วนตามตำแหน่ง GK, DF, DW, DM, MF, AM, CF\nสุ่มลำดับตำแหน่ง]
+        P2A --> P2B[วนตามตำแหน่ง DF, DW, DM, MF, AM, CF (ไม่เลือกตำแหน่งโกล์)\nสุ่มลำดับตำแหน่ง]
         P2B --> P2C[สำหรับ Priority 1: หาทีมที่ยังไม่มี\nPriority 1 ในตำแหน่งเดียวกัน]
         P2C --> P2D[วางผู้เล่นเข้าทีมที่ดีที่สุด\nBalance: Conflict → Position → Size → Rating]
     end
@@ -97,6 +109,7 @@ flowchart TD
 |--------|----------|
 | **เตรียมข้อมูล** | ดึงรายชื่อผู้เล่น, จำกัด maxPlayers, สร้าง avoidMap, ดึง rating ประจำปี |
 | **จำนวนทีม** | ≤24 คน → 3 ทีม, >24 คน → 4 ทีม |
+| **Phase 0** | ล็อกผู้เล่นที่มีทีมอยู่แล้ว (team_id > 0) ให้อยู่ทีมเดิม ไม่เปลี่ยนทีม |
 | **Phase 1** | วางกลุ่มที่ถูกล็อกไว้ (week_team > 0) ให้อยู่ทีมเดียวกันก่อน |
 | **Phase 2** | วาง Priority 1 (ผู้เล่นสำคัญ) โดยกระจายตำแหน่งให้สมดุล |
 | **Phase 3** | วางผู้เล่นที่มี avoid_ids โดยหลีกเลี่ยง conflict |

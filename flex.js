@@ -300,14 +300,19 @@ function buildScheduleFlex(sched, theme) {
       // Check if match was played
       const dbMatch = sched.dbMatches && sched.dbMatches.find(dm => dm.match_num === m.matchNo);
       let vsText = 'vs';
+      let isPlayed = false;
       if (dbMatch) {
-        let scoreA = dbMatch.team_a_goal;
-        let scoreB = dbMatch.team_b_goal;
-        if (dbMatch.team_a_id === m.teamBId) {
-          scoreA = dbMatch.team_b_goal;
-          scoreB = dbMatch.team_a_goal;
+        const isPlayedOrLive = dbMatch.status === 'in_progress' || dbMatch.status === 'finished' || (dbMatch.status === undefined && dbMatch.team_a_goal !== null && dbMatch.team_a_goal !== undefined);
+        if (isPlayedOrLive) {
+          isPlayed = true;
+          let scoreA = dbMatch.team_a_goal ?? 0;
+          let scoreB = dbMatch.team_b_goal ?? 0;
+          if (dbMatch.team_a_id === m.teamBId) {
+            scoreA = dbMatch.team_b_goal ?? 0;
+            scoreB = dbMatch.team_a_goal ?? 0;
+          }
+          vsText = `${scoreA} - ${scoreB}`;
         }
-        vsText = `${scoreA} - ${scoreB}`;
       }
 
       bodyContents.push({
@@ -329,7 +334,7 @@ function buildScheduleFlex(sched, theme) {
             alignItems: 'center',
             contents: [
               { type: 'text', text: m.teamA || '?', size: 'sm', color: colors.tdc(m.teamA), weight: 'bold', align: 'end', flex: 2 },
-              { type: 'text', text: vsText, size: 'sm', color: colors.textMuted, align: 'center', flex: 1, weight: dbMatch ? 'bold' : 'regular' },
+              { type: 'text', text: vsText, size: 'sm', color: colors.textMuted, align: 'center', flex: 1, weight: isPlayed ? 'bold' : 'regular' },
               { type: 'text', text: m.teamB || '?', size: 'sm', color: colors.tdc(m.teamB), weight: 'bold', align: 'start', flex: 2 }
             ]
           }
@@ -387,7 +392,7 @@ function buildScheduleFlex(sched, theme) {
  * @param {object} matchInfo - result from getCurrentMatch()
  */
 function buildNowFlex(matchInfo, theme) {
-  const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table } = matchInfo;
+  const { currentMatch: cur, nextMatch: nxt, nextMatch2: nxt2, score, scorers, assists, table, matchStatus } = matchInfo;
   const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
 
   const makeHeaderContents = (iconType, iconText, titleText, matchNo, startTime, useLightColor, iconWidth, iconHeight) => {
@@ -495,7 +500,14 @@ function buildNowFlex(matchInfo, theme) {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
-        contents: makeHeaderContents('image', `${getBaseUrl()}/img/green_pulse_true.png`, 'แมตช์ปัจจุบัน', cur.matchNo, cur.startTime, true)
+        contents: makeHeaderContents(
+          'image',
+          `${getBaseUrl()}/img/green_pulse_true.png`,
+          matchStatus === 'in_progress' ? 'กำลังแข่ง (LIVE)' : (matchStatus === 'all_finished' ? 'จบการแข่งขัน' : (matchStatus === 'scheduled' ? 'แมตช์ถัดไป (รอเริ่ม)' : 'แมตช์ปัจจุบัน')),
+          cur.matchNo,
+          cur.startTime,
+          true
+        )
       },
       // Score row: TeamA  score  TeamB
       {
@@ -871,14 +883,16 @@ function buildNowFlex(matchInfo, theme) {
  * @param {object} matchInfo - result from getCurrentMatch() containing sched, dbMatches, currentMatch, scorers, assists, table
  */
 function buildLiveFlex(matchInfo, theme) {
-  const { sched, currentMatch, scorers, assists, table, dbMatches, recentMatchDetails, imageUrl } = matchInfo;
+  const { sched, currentMatch, scorers, assists, table, dbMatches, recentMatchDetails, imageUrl, webLiveUrl } = matchInfo;
   const { date, startTime, matchMinutes, totalHours, teams, totalMatches, totalRounds, endTime, matches } = sched;
   const colors = getThemeColors(theme, matchInfo ? matchInfo.teamColors : null);
+  const rawWebUrl = webLiveUrl || (matchInfo && matchInfo.webLiveUrl) || process.env.LIVE_WEB_URL || 'https://boxch2.kdnstream.com/webhook/view';
+  const targetWebUrl = rawWebUrl.includes('openExternalBrowser=1') ? rawWebUrl : (rawWebUrl.includes('?') ? `${rawWebUrl}&openExternalBrowser=1` : `${rawWebUrl}?openExternalBrowser=1`);
 
-  // Filter to show 5 matches max: 2 previous matches, 1 current match, 2 next matches
+  // Filter to show matches: 2 previous matches, 1 current match, 4 next matches (e.g. 3, 4, live, 6, 7, 8, 9 ... 18)
   const curMatchNo = currentMatch ? currentMatch.matchNo : 1;
   const minMatchNo = Math.max(1, curMatchNo - 2);
-  const maxMatchNo = curMatchNo + 2;
+  const maxMatchNo = curMatchNo + 4;
   const displayMatches = matches.filter(m => m.matchNo >= minMatchNo && m.matchNo <= maxMatchNo);
 
   // Group display matches by round
@@ -917,6 +931,52 @@ function buildLiveFlex(matchInfo, theme) {
     ]
   });
 
+  // ── Web Live Link Banner ──
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'xs',
+    paddingStart: 'sm',
+    paddingEnd: 'sm',
+    paddingTop: 'xs',
+    paddingBottom: 'xs',
+    backgroundColor: colors.name === 'white' ? '#eff6ff' : '#0c2340',
+    borderColor: colors.name === 'white' ? '#bfdbfe' : '#1d4ed8',
+    borderWidth: '1px',
+    cornerRadius: 'sm',
+    alignItems: 'center',
+    action: {
+      type: 'uri',
+      label: 'ดูผลสกอร์จากหน้าเว็บ',
+      uri: targetWebUrl
+    },
+    contents: [
+      {
+        type: 'text',
+        text: '🌐',
+        size: 'xs',
+        flex: 0
+      },
+      {
+        type: 'text',
+        text: 'ดูผลสกอร์จากหน้าเว็บ',
+        size: 'xs',
+        color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
+        weight: 'bold',
+        margin: 'xs',
+        flex: 1
+      },
+      {
+        type: 'text',
+        text: '↗',
+        size: 'xs',
+        color: colors.name === 'white' ? '#0284c7' : '#38bdf8',
+        weight: 'bold',
+        flex: 0
+      }
+    ]
+  });
+
   bodyContents.push({ type: 'separator', margin: 'xs', color: colors.separator });
 
   // ── Column header ──
@@ -941,13 +1001,16 @@ function buildLiveFlex(matchInfo, theme) {
     const dbMatch = dbMatches && dbMatches.find(dm => dm.match_num === m.matchNo);
     let vsText = 'vs';
     if (dbMatch) {
-      let scoreA = dbMatch.team_a_goal;
-      let scoreB = dbMatch.team_b_goal;
-      if (dbMatch.team_a_id === m.teamBId) {
-        scoreA = dbMatch.team_b_goal;
-        scoreB = dbMatch.team_a_goal;
+      const isPlayedOrLive = dbMatch.status === 'in_progress' || dbMatch.status === 'finished' || (dbMatch.status === undefined && dbMatch.team_a_goal !== null && dbMatch.team_a_goal !== undefined);
+      if (isPlayedOrLive) {
+        let scoreA = dbMatch.team_a_goal ?? 0;
+        let scoreB = dbMatch.team_b_goal ?? 0;
+        if (dbMatch.team_a_id === m.teamBId) {
+          scoreA = dbMatch.team_b_goal ?? 0;
+          scoreB = dbMatch.team_a_goal ?? 0;
+        }
+        vsText = `${scoreA} - ${scoreB}`;
       }
-      vsText = `${scoreA} - ${scoreB}`;
     }
 
     const matchNumContents = [];
@@ -1055,6 +1118,11 @@ function buildLiveFlex(matchInfo, theme) {
       margin: 'xs',
       alignItems: 'center',
       cornerRadius: 'sm',
+      action: {
+        type: 'uri',
+        label: `ดูผลสกอร์ Match ${m.matchNo}`,
+        uri: targetWebUrl
+      },
       contents: matchBoxContents
     };
 
@@ -1279,6 +1347,19 @@ function buildLiveFlex(matchInfo, theme) {
       backgroundColor: colors.bgMain,
       paddingAll: 'sm',
       contents: bodyContents
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingStart: 'sm',
+      paddingEnd: 'sm',
+      paddingBottom: 'sm',
+      paddingTop: 'none',
+      spacing: 'xs',
+      contents: [
+        makeBoxUriButton('🌐 ดูผลสกอร์จากหน้าเว็บ', targetWebUrl, '#0284c7')
+      ]
     }
   };
 
@@ -1295,7 +1376,12 @@ function buildLiveFlex(matchInfo, theme) {
           url: headerUrl,
           size: 'full',
           aspectRatio: '20:7',
-          aspectMode: 'cover'
+          aspectMode: 'cover',
+          action: {
+            type: 'uri',
+            label: 'Web View',
+            uri: targetWebUrl
+          }
         }
       ]
     };
@@ -1342,6 +1428,36 @@ function makeDisabledBoxButton(label, color = '#9ca3af', flexVal = 1, size = 'sm
     cornerRadius: 'md',
     paddingTop: 'sm',
     paddingBottom: 'sm',
+    contents: [
+      {
+        type: 'text',
+        text: label,
+        color: '#ffffff',
+        align: 'center',
+        weight: 'bold',
+        size: size,
+        wrap: wrap
+      }
+    ],
+    flex: flexVal
+  };
+}
+
+function makeBoxUriButton(label, uri, color, flexVal = 1, size = 'sm', wrap = false) {
+  const safeColor = color && typeof color === 'string' && /^[0-9a-fA-F]{3,8}$/.test(color) ? `#${color}` : color;
+  const actionLabel = typeof label === 'string' ? label.slice(0, 40) : label;
+  return {
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: safeColor,
+    cornerRadius: 'md',
+    paddingTop: 'sm',
+    paddingBottom: 'sm',
+    action: {
+      type: 'uri',
+      label: actionLabel,
+      uri: uri
+    },
     contents: [
       {
         type: 'text',
@@ -1498,7 +1614,7 @@ function makeMemberColumn(p, index, colors, isCurrent = false) {
     });
   }*/
 
-  let displayName = `${p.donate || ''}${p.name}`;
+  let displayName = `${p.donate || ''}${p.name}${p.guests && !String(p.name).includes('(+') ? ` (+${p.guests})` : ''}`;
   let textColor = p.nameColor || colors.memberNameSpecial;
   /*if (isCurrent) {
     displayName += ' 👈';
@@ -1567,15 +1683,17 @@ function makeTwoColumnMemberRows(list, colors) {
   return rows;
 }
 
-function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, theme, autoRegCount = 0, timeRange = '17:30-20:00') {
+function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goalies, theme, autoRegCount = 0, timeRange = '17:30-20:00', maxGoalies = null) {
   const bodyContents = [];
   let actualTheme = theme;
   let actualAutoRegCount = autoRegCount;
   let actualTimeRange = timeRange;
+  let actualMaxGoalies = maxGoalies;
   if (typeof theme === 'string' && (theme.startsWith('http') || theme.toLowerCase() === 'none')) {
     actualTheme = autoRegCount;
     actualAutoRegCount = timeRange || 0;
     actualTimeRange = arguments[9] || '17:30-20:00';
+    actualMaxGoalies = arguments[10] || null;
   }
   const colors = getThemeColors(actualTheme);
 
@@ -1583,13 +1701,17 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
   const headerSubContents = [];
   headerSubContents.push({
     type: 'text',
-    text: `เสาร์ที่ ${dateStr}  ⏰ ${timeRange || '17:30-20:00'} น.`,
+    text: `เสาร์ที่ ${dateStr}  ⏰ ${actualTimeRange || '17:30-20:00'} น.`,
     size: 'xs',
     color: colors.textMuted
   });
 
   const extraCounts = [];
-  if (goalies.length > 0) extraCounts.push(`🧤 ${goalies.length}`);
+  if (actualMaxGoalies) {
+    extraCounts.push(`🧤 ${goalies.length}/${actualMaxGoalies}`);
+  } else if (goalies.length > 0) {
+    extraCounts.push(`🧤 ${goalies.length}`);
+  }
   if (reserves.length > 0) extraCounts.push(`⏳ ${reserves.length}`);
   if (extraCounts.length > 0) {
     headerSubContents.push({
@@ -1717,25 +1839,6 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
     });
   }
 
-  // Reserves section
-  if (reserves.length > 0) {
-    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
-    bodyContents.push({
-      type: 'text',
-      text: '⏳ รายชื่อสำรอง',
-      size: 'sm',
-      weight: 'bold',
-      color: colors.name === 'white' ? '#ea580c' : '#ffaa66',
-      margin: 'sm'
-    });
-
-    bodyContents.push({
-      type: 'box',
-      layout: 'vertical',
-      contents: makeTwoColumnMemberRows(reserves, colors)
-    });
-  }
-
   // Goalies section
   if (goalies.length > 0) {
     bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
@@ -1752,6 +1855,25 @@ function buildMemberWeekFlex(title, dateStr, maxPlayers, players, reserves, goal
       type: 'box',
       layout: 'vertical',
       contents: makeTwoColumnMemberRows(goalies, colors)
+    });
+  }
+
+  // Reserves section
+  if (reserves.length > 0) {
+    bodyContents.push({ type: 'separator', margin: 'sm', color: colors.separator });
+    bodyContents.push({
+      type: 'text',
+      text: '⏳ รายชื่อสำรอง',
+      size: 'sm',
+      weight: 'bold',
+      color: colors.name === 'white' ? '#ea580c' : '#ffaa66',
+      margin: 'sm'
+    });
+
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      contents: makeTwoColumnMemberRows(reserves, colors)
     });
   }
 
@@ -4306,8 +4428,7 @@ function buildTableWeekFlex(dateStr, weekTables, teamColors) {
         { type: "text", text: "W", wrap: true, weight: "bold", size: "sm", align: "center", flex: 1 },
         { type: "text", text: "D", weight: "bold", size: "sm", align: "center", flex: 1 },
         { type: "text", text: "L", weight: "bold", size: "sm", align: "center", flex: 1 },
-        { type: "text", text: "G", weight: "bold", size: "sm", align: "center", flex: 1 },
-        { type: "text", text: "A", weight: "bold", size: "sm", align: "center", flex: 1 },
+        { type: "text", text: "GD", weight: "bold", size: "sm", align: "center", flex: 1 },
         { type: "text", text: "PTS", weight: "bold", size: "sm", align: "center", flex: 1 }
       ]
     }
@@ -4331,8 +4452,7 @@ function buildTableWeekFlex(dateStr, weekTables, teamColors) {
         { type: "text", text: `${table.w}`, align: "center", size: "sm", flex: 1 },
         { type: "text", text: `${table.d}`, size: "sm", align: "center", flex: 1 },
         { type: "text", text: `${table.l}`, size: "sm", align: "center", flex: 1 },
-        { type: "text", text: `${table.G}`, size: "sm", align: "center", flex: 1 },
-        { type: "text", text: `${table.A}`, size: "sm", align: "center", flex: 1 },
+        { type: "text", text: `${(table.G - table.A) > 0 ? '+' + (table.G - table.A) : (table.G - table.A)}`, size: "sm", align: "center", flex: 1 },
         { type: "text", text: `${table.pts}`, size: "sm", align: "center", flex: 1 }
       ]
     });
@@ -5918,6 +6038,576 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
   return bubbles;
 }
 
+function parseTextAndLinks(text) {
+  if (!text || typeof text !== 'string') return null;
+  const str = text.trim();
+  if (!str) return null;
+
+  const bbcodeRegex = /\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/gi;
+  const bbcodeSimpleRegex = /\[url\](https?:\/\/[^\]]+)\[\/url\]/gi;
+  const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/gi;
+  const rawUrlRegex = /^(https?:\/\/[^\s]+)$/i;
+
+  if (rawUrlRegex.test(str)) {
+    return {
+      text: null,
+      links: [{ url: str, label: 'เปิดดูเส้นทาง / แผนที่' }]
+    };
+  }
+
+  const links = [];
+  let cleanText = str;
+
+  // Extract BBCode with label: [url=...]...[/url]
+  let bbMatch;
+  while ((bbMatch = bbcodeRegex.exec(str)) !== null) {
+    links.push({ url: bbMatch[1].trim(), label: bbMatch[2].trim() || 'เส้นทาง' });
+    cleanText = cleanText.replace(bbMatch[0], '').trim();
+  }
+
+  // Extract BBCode simple: [url]...[/url]
+  let bbSimpleMatch;
+  while ((bbSimpleMatch = bbcodeSimpleRegex.exec(str)) !== null) {
+    links.push({ url: bbSimpleMatch[1].trim(), label: 'เปิดดูเส้นทาง / แผนที่' });
+    cleanText = cleanText.replace(bbSimpleMatch[0], '').trim();
+  }
+
+  // Extract Markdown: [...](...)
+  let mdMatch;
+  while ((mdMatch = mdRegex.exec(str)) !== null) {
+    links.push({ url: mdMatch[2].trim(), label: mdMatch[1].trim() || 'เส้นทาง' });
+    cleanText = cleanText.replace(mdMatch[0], '').trim();
+  }
+
+  return {
+    text: cleanText || null,
+    links
+  };
+}
+
+function makeParsedTextComponents(rawText, colors, isWhite, defaultSize = 'xxs', isTitle = false) {
+  const parsed = parseTextAndLinks(rawText);
+  if (!parsed) return [];
+
+  const items = [];
+
+  if (parsed.text) {
+    items.push({
+      type: 'text',
+      text: parsed.text,
+      weight: isTitle ? 'bold' : 'normal',
+      size: isTitle ? 'xs' : defaultSize,
+      color: isTitle ? colors.textPrimary : colors.textMuted,
+      wrap: true,
+      margin: 'xs'
+    });
+  }
+
+  if (parsed.links && parsed.links.length > 0) {
+    parsed.links.forEach(link => {
+      const isMap = link.url.includes('map') || link.url.includes('goo.gl') || link.label.includes('ทาง') || link.label.includes('แผนที่');
+      const icon = isMap ? '📍' : '🔗';
+      items.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'xs',
+        margin: 'xs',
+        action: {
+          type: 'uri',
+          label: link.label.slice(0, 40),
+          uri: link.url
+        },
+        contents: [
+          { type: 'text', text: icon, size: 'xxs', flex: 0 },
+          {
+            type: 'text',
+            text: `${link.label} ↗`,
+            size: 'xxs',
+            color: isWhite ? '#0284c7' : '#38bdf8',
+            decoration: 'underline',
+            weight: 'bold',
+            flex: 1,
+            wrap: true
+          }
+        ]
+      });
+    });
+  }
+
+  return items;
+}
+
+function buildPartyFlex(partyData = {}, theme = 'black') {
+  const colors = getThemeColors(theme);
+  const isWhite = colors.name === 'white';
+
+  const {
+    title = '🎉 2026 New Year Party',
+    dateStr = 'เสาร์ที่ 19 ธ.ค. 2569',
+    timeStr = '19:00 - 24:00 น.',
+    venue = 'Waterside ห้องคาราโอกะ K5 Club Pool',
+    note = '⚽ หลังจากเตะบอล 17:00-19:00 น.',
+    description = null,
+    heroUrl = 'https://bearbit.org/pic/party_header.jpg',
+    mapUrl = null,
+    mapLabel = 'เส้นทาง Google Maps',
+    galleryUrl = null,
+    galleryLabel = 'ดูอัลบั้มรูปภาพเพิ่มเติม',
+    members = []
+  } = partyData;
+
+  const bodyContents = [];
+
+  // 1. Party Announcement / Event Info Card
+  const infoDetails = [
+    {
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      contents: [
+        { type: 'text', text: '📅', size: 'xs', flex: 0 },
+        { type: 'text', text: `เสาร์ที่ ${dateStr}  ⏰ ${timeStr}`, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+      ]
+    }
+  ];
+
+  // Venue with link parsing support
+  const venueParsed = parseTextAndLinks(venue);
+  if (venueParsed && venueParsed.links && venueParsed.links.length > 0) {
+    infoDetails.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      contents: [
+        { type: 'text', text: '📍', size: 'xs', flex: 0 },
+        { type: 'text', text: venueParsed.text || 'สถานที่จัดงาน', size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+      ]
+    });
+    venueParsed.links.forEach(link => {
+      const isMap = link.url.includes('map') || link.url.includes('goo.gl') || link.label.includes('ทาง') || link.label.includes('แผนที่');
+      infoDetails.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        action: {
+          type: 'uri',
+          label: (link.label ? String(link.label) : 'ดูเส้นทาง').slice(0, 40),
+          uri: link.url
+        },
+        contents: [
+          { type: 'text', text: isMap ? '🗺️' : '🔗', size: 'xs', flex: 0 },
+          {
+            type: 'text',
+            text: `${link.label} ↗`,
+            size: 'xs',
+            color: isWhite ? '#0284c7' : '#38bdf8',
+            decoration: 'underline',
+            flex: 1,
+            wrap: true
+          }
+        ]
+      });
+    });
+  } else {
+    infoDetails.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      contents: [
+        { type: 'text', text: '📍', size: 'xs', flex: 0 },
+        { type: 'text', text: venue, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+      ]
+    });
+  }
+
+  // Standalone Map Link (if not already parsed from venue)
+  if (mapUrl && typeof mapUrl === 'string' && mapUrl.startsWith('http') && (!venueParsed || !venueParsed.links.some(l => l.url === mapUrl))) {
+    const displayLabel = mapLabel || 'เส้นทาง';
+    const actionLabel = displayLabel.slice(0, 40);
+    infoDetails.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      action: {
+        type: 'uri',
+        label: actionLabel,
+        uri: mapUrl
+      },
+      contents: [
+        { type: 'text', text: '🗺️', size: 'xs', flex: 0 },
+        {
+          type: 'text',
+          text: `${displayLabel} ↗`,
+          size: 'xs',
+          color: isWhite ? '#0284c7' : '#38bdf8',
+          decoration: 'underline',
+          flex: 1,
+          wrap: true
+        }
+      ]
+    });
+  }
+
+  infoDetails.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    contents: [
+      { type: 'text', text: '⚽', size: 'xs', flex: 0 },
+      { type: 'text', text: note, size: 'xs', color: colors.textMuted, flex: 1, wrap: true }
+    ]
+  });
+
+  // Additional Description / Alternate Text with URL tag support (ny_description)
+  if (description && typeof description === 'string' && description.trim()) {
+    const descParsed = parseTextAndLinks(description);
+    if (descParsed && descParsed.links && descParsed.links.length > 0) {
+      if (descParsed.text) {
+        infoDetails.push({
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            { type: 'text', text: '📝', size: 'xs', flex: 0 },
+            { type: 'text', text: descParsed.text, size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+          ]
+        });
+      }
+      descParsed.links.forEach(link => {
+        const isMap = link.url.includes('map') || link.url.includes('goo.gl') || link.label.includes('ทาง') || link.label.includes('แผนที่');
+        infoDetails.push({
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          action: {
+            type: 'uri',
+            label: (link.label ? String(link.label) : 'ดูรายละเอียด').slice(0, 40),
+            uri: link.url
+          },
+          contents: [
+            { type: 'text', text: isMap ? '🗺️' : '🔗', size: 'xs', flex: 0 },
+            {
+              type: 'text',
+              text: `${link.label} ↗`,
+              size: 'xs',
+              color: isWhite ? '#0284c7' : '#38bdf8',
+              decoration: 'underline',
+              flex: 1,
+              wrap: true
+            }
+          ]
+        });
+      });
+    } else {
+      infoDetails.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        contents: [
+          { type: 'text', text: '📝', size: 'xs', flex: 0 },
+          { type: 'text', text: description.trim(), size: 'xs', color: colors.textPrimary, flex: 1, wrap: true }
+        ]
+      });
+    }
+  }
+
+  if (galleryUrl && typeof galleryUrl === 'string' && galleryUrl.startsWith('http')) {
+    const displayLabel = galleryLabel || 'ดูรูปภาพเพิ่มเติม';
+    const actionLabel = displayLabel.slice(0, 40);
+    infoDetails.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      action: {
+        type: 'uri',
+        label: actionLabel,
+        uri: galleryUrl
+      },
+      contents: [
+        { type: 'text', text: '📸', size: 'xs', flex: 0 },
+        {
+          type: 'text',
+          text: `${displayLabel} ↗`,
+          size: 'xs',
+          color: isWhite ? '#0284c7' : '#38bdf8',
+          decoration: 'underline',
+          flex: 1,
+          wrap: true
+        }
+      ]
+    });
+  }
+
+  const infoContents = [
+    {
+      type: 'text',
+      text: title,
+      weight: 'bold',
+      size: 'md',
+      color: isWhite ? '#b45309' : '#f59e0b'
+    },
+    {
+      type: 'box',
+      layout: 'vertical',
+      margin: 'sm',
+      spacing: 'xs',
+      contents: infoDetails
+    }
+  ];
+
+  bodyContents.push({
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: colors.bgHeader,
+    paddingAll: 'md',
+    cornerRadius: 'md',
+    contents: infoContents
+  });
+
+  // 2. Attendee Count Section Header
+  const totalMembers = members ? members.length : 0;
+  const totalGuests = typeof partyData.totalGuests === 'number'
+    ? partyData.totalGuests
+    : (members || []).reduce((sum, m) => sum + (Number(m.guests) || 0), 0);
+  const totalAttendees = typeof partyData.totalAttendees === 'number'
+    ? partyData.totalAttendees
+    : (totalMembers + totalGuests);
+
+  const countHeaderContents = [
+    {
+      type: 'text',
+      text: totalGuests > 0
+        ? `👥 ผู้ร่วมงานทั้งหมด (${totalAttendees} คน)`
+        : `👥 รายชื่อผู้ร่วมงาน (${totalMembers} คน)`,
+      weight: 'bold',
+      size: 'sm',
+      color: colors.textPrimary,
+      flex: 1
+    }
+  ];
+
+  if (totalGuests > 0) {
+    countHeaderContents.push({
+      type: 'text',
+      text: `(สมาชิก ${totalMembers} + ผู้ติดตาม ${totalGuests})`,
+      size: 'xs',
+      color: isWhite ? '#ea580c' : '#f59e0b',
+      align: 'end',
+      flex: 0
+    });
+  }
+
+  bodyContents.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'lg',
+    alignItems: 'center',
+    contents: countHeaderContents
+  });
+
+  bodyContents.push({
+    type: 'separator',
+    margin: 'sm',
+    color: colors.separator
+  });
+
+  // 3. Attendee List (2-column layout)
+  if (members && members.length > 0) {
+    const memberRows = makeTwoColumnMemberRows(members, colors);
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      margin: 'sm',
+      contents: memberRows
+    });
+  } else {
+    bodyContents.push({
+      type: 'box',
+      layout: 'vertical',
+      margin: 'lg',
+      paddingAll: 'md',
+      backgroundColor: colors.bgRound,
+      cornerRadius: 'md',
+      contents: [
+        {
+          type: 'text',
+          text: 'ยังไม่มีผู้ลงชื่อ',
+          size: 'sm',
+          color: colors.textMuted,
+          align: 'center',
+          weight: 'bold'
+        },
+        {
+          type: 'text',
+          text: 'พิมพ์ x1 หรือ x2 เพื่อลงชื่อคนแรก!',
+          size: 'xs',
+          color: isWhite ? '#16a34a' : '#22c55e',
+          align: 'center',
+          margin: 'xs'
+        }
+      ]
+    });
+  }
+
+  // 4. Main Party Bubble Definition
+  const partyBubble = {
+    type: 'bubble',
+    size: 'giga',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'md',
+      contents: bodyContents
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: colors.bgMain,
+      paddingAll: 'md',
+      spacing: 'sm',
+      contents: [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            makeBoxButton('➕ ลงชื่อ (คนเดียว)', '+ny', '#16a34a', 1, 'sm', true),
+            makeBoxButton('👥 มีผู้ติดตาม', 'x2', '#0284c7', 1, 'sm', true)
+          ]
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            makeBoxButton('➖ ยกเลิกผู้ติดตาม', '-guest', '#d97706', 1, 'sm', true),
+            makeBoxButton('❌ ยกเลิกทั้งหมด', '-ny', '#dc2626', 1, 'sm', true)
+          ]
+        }
+      ]
+    }
+  };
+
+  // Add Hero Image to main bubble if available
+  if (heroUrl && typeof heroUrl === 'string' && heroUrl.startsWith('http')) {
+    partyBubble.hero = {
+      type: 'image',
+      url: heroUrl,
+      size: 'full',
+      aspectRatio: '20:10',
+      aspectMode: 'cover'
+    };
+  }
+
+  // 5. If extra images / gallery provided, build a Flex Carousel (2 images per bubble, no buttons)
+  const extraImages = (partyData.images || []).filter(item => {
+    const u = typeof item === 'string' ? item : (item && item.url);
+    return u && typeof u === 'string' && u.startsWith('http') && u !== heroUrl;
+  });
+
+  if (extraImages.length > 0) {
+    const pairs = [];
+    for (let i = 0; i < extraImages.length; i += 2) {
+      pairs.push(extraImages.slice(i, i + 2));
+    }
+
+    const imageBubbles = pairs.map((pair, pairIdx) => {
+      const bubbleContents = [];
+
+      bubbleContents.push({
+        type: 'text',
+        text: `📸 บรรยากาศงาน & สถานที่`,
+        weight: 'bold',
+        size: 'sm',
+        color: isWhite ? '#b45309' : '#f59e0b'
+      });
+
+      pair.forEach((imgItem, idx) => {
+        const u = typeof imgItem === 'string' ? imgItem : imgItem.url;
+        const imgTitle = (typeof imgItem === 'object' && imgItem.title) ? imgItem.title : null;
+        const imgDesc = (typeof imgItem === 'object' && imgItem.description) ? imgItem.description : null;
+
+        const imgBoxContents = [
+          {
+            type: 'image',
+            url: u,
+            size: 'full',
+            aspectRatio: '20:11',
+            aspectMode: 'cover',
+            action: {
+              type: 'uri',
+              label: 'View Image',
+              uri: u
+            }
+          }
+        ];
+
+        if (imgTitle) {
+          const titleItems = makeParsedTextComponents(imgTitle, colors, isWhite, 'xs', true);
+          imgBoxContents.push(...titleItems);
+        }
+        if (imgDesc) {
+          const descItems = makeParsedTextComponents(imgDesc, colors, isWhite, 'xxs', false);
+          imgBoxContents.push(...descItems);
+        }
+
+        bubbleContents.push({
+          type: 'box',
+          layout: 'vertical',
+          cornerRadius: 'md',
+          margin: idx === 0 ? 'sm' : 'md',
+          contents: imgBoxContents
+        });
+      });
+
+      if (galleryUrl && typeof galleryUrl === 'string' && galleryUrl.startsWith('http')) {
+        const actionLabel = (galleryLabel ? String(galleryLabel) : 'เปิดดูอัลบั้มเต็ม').slice(0, 40);
+        bubbleContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'md',
+          action: {
+            type: 'uri',
+            label: actionLabel,
+            uri: galleryUrl
+          },
+          contents: [
+            {
+              type: 'text',
+              text: `🔗 ${galleryLabel || 'เปิดดูอัลบั้มรูปภาพเพิ่มเติม'} ↗`,
+              size: 'xs',
+              color: isWhite ? '#0284c7' : '#38bdf8',
+              align: 'center',
+              decoration: 'underline',
+              flex: 1
+            }
+          ]
+        });
+      }
+
+      return {
+        type: 'bubble',
+        size: 'giga',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: colors.bgMain,
+          paddingAll: 'md',
+          contents: bubbleContents
+        }
+      };
+    });
+
+    return {
+      type: 'carousel',
+      contents: [partyBubble, ...imageBubbles]
+    };
+  }
+
+  return partyBubble;
+}
+
 module.exports = {
   report_template,
   tpl_bubble,
@@ -5949,6 +6639,8 @@ module.exports = {
   buildMatchWeekStandingsTop5Flex,
   buildMatchWeekRestMvpFlex,
   buildMatchWeekMatchesFlex,
-  buildMatchWeekMessages
+  buildMatchWeekMessages,
+  buildPartyFlex,
+  makeBoxUriButton
 };
 
