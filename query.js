@@ -1291,13 +1291,13 @@ async function queryMatchGoal(match_id, goal_status = 0, groupId = null) {
     icon = "👟";
   }
 
-  query = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal 
+  query = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, goal_status_tbl.status, match_goal_tbl.status as statusid, count(*) as goal 
     FROM match_goal_tbl, member_tbl, goal_status_tbl 
     WHERE match_goal_tbl.match_id=${match_id} 
       AND match_goal_tbl.member_id = member_tbl.id 
       AND match_goal_tbl.status ${status} 
       AND match_goal_tbl.status=goal_status_tbl.id 
-    GROUP BY member_tbl.id, goal_status_tbl.status, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
+    GROUP BY member_tbl.id, goal_status_tbl.status, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
 
   const match_goals = await executeQuery(query);
   if (match_goals.length === 0) {
@@ -1640,6 +1640,7 @@ async function loadSavedWeekLeaderStats(week_id, groupId = null) {
         mem.name,
         mem.alias,
         mem.rank,
+        mem.admin,
         mem.donate,
         mem.picture_url,
         mem.line_user_id,
@@ -1793,6 +1794,7 @@ async function getWeekLeaderStats(week_id, groupId = null, forceRefresh = false)
         m.name, 
         m.alias,
         m.rank,
+        m.admin,
         m.donate,
         m.picture_url,
         m.line_user_id,
@@ -1807,7 +1809,7 @@ async function getWeekLeaderStats(week_id, groupId = null, forceRefresh = false)
       LEFT JOIN match_stat_tbl mst ON mtw.week_id = mst.week_id
       LEFT JOIN match_goal_tbl mgt ON mgt.match_id = mst.id AND mgt.member_id = mtw.member_id
       WHERE mtw.week_id = ? AND mtw.team_id > 0
-      GROUP BY mtw.member_id, m.id, m.name, m.alias, m.rank, m.donate, m.picture_url, m.line_user_id, m.pos_id, mtw.team_id, mtw.pos_id
+      GROUP BY mtw.member_id, m.id, m.name, m.alias, m.rank, m.admin, m.donate, m.picture_url, m.line_user_id, m.pos_id, mtw.team_id, mtw.pos_id
     `;
     const goalRes = await executeQuery(goalsQuery, [week_id]);
     if (!goalRes || goalRes.length === 0) return null;
@@ -3542,7 +3544,7 @@ async function getTeamWeek(week_id = 0, groupId = null) {
 
       for (const team of team_colors) {
         team.teamColor = await getTeamColor(team.color);
-        query = `select member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
+        query = `select member_team_week_tbl.*, member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id from member_team_week_tbl left join member_tbl on member_team_week_tbl.member_id = member_tbl.id where member_team_week_tbl.week_id=${week_id} and member_team_week_tbl.team_id=${team.id}`;
         const team_members = await executeQuery(query);
         if (team_members && team_members.length > 0) {
           await Promise.all(team_members.map(member => ensureMemberPicture(member, groupId)));
@@ -3581,7 +3583,7 @@ async function getMemberNY(isFlex = true, groupId = null, highlightMemberId = nu
   const headerText = info.header;
 
   const query = `
-    SELECT ny.id as reg_id, ny.datetime, ny.member_id, COALESCE(ny.guests, 0) as guests, m.id, m.name, m.alias, m.rank, m.donate, m.picture_url, m.line_user_id, ny.created_at
+    SELECT ny.id as reg_id, ny.datetime, ny.member_id, COALESCE(ny.guests, 0) as guests, m.id, m.name, m.alias, m.rank, m.admin, m.donate, m.picture_url, m.line_user_id, ny.created_at
     FROM member_ny_week_tbl ny
     INNER JOIN member_tbl m ON m.id = ny.member_id
     WHERE ny.datetime = ? OR DATE(ny.datetime) = DATE(?)
@@ -3723,7 +3725,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
     const date = new Date(res[0].date);
     const time_range = res[0].time_range || '17:30-20:00';
 
-    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.team_id as member_team_id, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
+    query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.team_id as member_team_id, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
       query += UNPAID_MEMBER_FILTER;
@@ -4074,7 +4076,7 @@ async function getMemberWeek2(type = 0, useMention = true) {
 // ── Shared query builders (used by both getTopStat and updateHof) ──
 
 function buildGoalQuery(statusCondition, year, limit = null) {
-  let sql = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id,
+  let sql = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id,
     goal_status_tbl.status, match_goal_tbl.status as statusid, COUNT(*) as goal
     FROM match_goal_tbl
     JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
@@ -4085,7 +4087,7 @@ function buildGoalQuery(statusCondition, year, limit = null) {
       AND EXTRACT(YEAR FROM week_tbl.date)::int = ${year}
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
-    GROUP BY member_tbl.id, goal_status_tbl.status, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, goal_status_tbl.status, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
     ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
@@ -4098,6 +4100,7 @@ function buildAvgMvpPtsQuery(year, limit = null) {
       member_tbl.name, 
       member_tbl.alias, 
       member_tbl.rank,
+      member_tbl.admin,
       member_tbl.donate,
       member_tbl.picture_url,
       member_tbl.line_user_id,
@@ -4115,7 +4118,7 @@ function buildAvgMvpPtsQuery(year, limit = null) {
     WHERE (w.year::text = '${year}' OR EXTRACT(YEAR FROM w.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
   ) sub
   WHERE matches > 0 AND goal > 0
   ORDER BY goal DESC`;
@@ -4130,6 +4133,7 @@ function buildMvpCountQuery(year, limit = null) {
       member_tbl.name, 
       member_tbl.alias, 
       member_tbl.rank,
+      member_tbl.admin,
       member_tbl.donate,
       member_tbl.picture_url,
       member_tbl.line_user_id,
@@ -4150,7 +4154,7 @@ function buildMvpCountQuery(year, limit = null) {
           AND m2.member_name NOT LIKE '+team%'
           AND m2.member_name NOT LIKE 'team%'
       )
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
   ) sub
   WHERE goal > 0
   ORDER BY goal DESC`;
@@ -4165,6 +4169,7 @@ function buildMostPtsQuery(year, limit = null) {
       member_tbl.name, 
       member_tbl.alias, 
       member_tbl.rank,
+      member_tbl.admin,
       member_tbl.donate,
       member_tbl.picture_url,
       member_tbl.line_user_id,
@@ -4176,7 +4181,7 @@ function buildMostPtsQuery(year, limit = null) {
     WHERE (week_tbl.year::text = '${year}' OR EXTRACT(YEAR FROM week_tbl.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
   ) sub
   WHERE goal > 0
   ORDER BY goal DESC`;
@@ -4191,6 +4196,7 @@ function buildAvgPtsQuery(year, limit = null) {
       member_tbl.name, 
       member_tbl.alias, 
       member_tbl.rank,
+      member_tbl.admin,
       member_tbl.donate,
       member_tbl.picture_url,
       member_tbl.line_user_id,
@@ -4210,7 +4216,7 @@ function buildAvgPtsQuery(year, limit = null) {
     WHERE (w.year::text = '${year}' OR EXTRACT(YEAR FROM w.date)::int = ${year})
       AND member_tbl.id <> 121 AND member_tbl.id <> 169
       AND member_tbl.team_id <> 101
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
   ) sub
   WHERE weeks > (
       SELECT COUNT(*) * 0.5
@@ -4230,6 +4236,7 @@ function buildBottomQuery(year, limit = null) {
       member_tbl.name, 
       member_tbl.alias, 
       member_tbl.rank,
+      member_tbl.admin,
       member_tbl.donate,
       member_tbl.picture_url,
       member_tbl.line_user_id,
@@ -4247,7 +4254,7 @@ function buildBottomQuery(year, limit = null) {
         ORDER BY t2.pts ASC, (t2.g - t2.a) ASC
         LIMIT 1
       )
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id
     ORDER BY goal DESC`;
   if (limit) sql += ` LIMIT ${limit}`;
   return sql;
@@ -5766,17 +5773,17 @@ async function extendSchedule(param = '', options = {}) {
 }
 
 async function getMatchScorersAndAssists(matchId, assets, groupId) {
-  const scorerQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, match_goal_tbl.status as statusid, count(*) as goal
+  const scorerQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, match_goal_tbl.status as statusid, count(*) as goal
     FROM match_goal_tbl
     JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
     WHERE match_goal_tbl.match_id = ${matchId} AND match_goal_tbl.status <= 2
-    GROUP BY member_tbl.id, goal_status_tbl.status, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
+    GROUP BY member_tbl.id, goal_status_tbl.status, match_goal_tbl.status, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
 
-  const assistQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, count(*) as assist
+  const assistQ = `SELECT member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id, count(*) as assist
     FROM match_goal_tbl
     JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
     WHERE match_goal_tbl.match_id = ${matchId} AND match_goal_tbl.status = 3
-    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
+    GROUP BY member_tbl.id, member_tbl.name, member_tbl.alias, member_tbl.rank, member_tbl.admin, member_tbl.donate, member_tbl.picture_url, member_tbl.line_user_id`;
 
   const [scorerRows, assistRows] = await Promise.all([
     executeQuery(scorerQ),
@@ -6463,6 +6470,7 @@ async function getMvpList(targetYear = null, groupId = null) {
       mem.name,
       mem.alias,
       mem.rank,
+      mem.admin,
       mem.donate,
       mem.picture_url,
       mem.line_user_id

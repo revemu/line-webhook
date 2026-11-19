@@ -114,7 +114,7 @@ async function getDonateLeaderboard(limit = 100) {
   const [sumRows, donorRows] = await Promise.all([
     executeQuery("SELECT COUNT(*) AS donor_count, COALESCE(SUM(donate), 0) AS total_donate FROM member_tbl WHERE donate > 0", []),
     executeQuery(
-      `SELECT id, name, alias, "rank", donate, picture_url, line_user_id
+      `SELECT id, name, alias, "rank", admin, donate, picture_url, line_user_id
        FROM member_tbl
        WHERE donate > 0
        ORDER BY donate DESC, id ASC

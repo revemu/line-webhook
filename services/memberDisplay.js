@@ -12,11 +12,22 @@ const logger = require('../utils/logger');
  * @param {Object} [hofAwards={}]
  * @returns {Object}
  */
-function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge, hofAwards = {}) {
+function resolveMemberDisplayInfo(member, badges, donateColors, hofCounts, hofBadge, hofAwards = {}, adminBadges = null) {
   let name_display = (member.id == 116 || member.id == 16) ? member.alias : member.name;
   name_display = (name_display || '').replace('@', '');
 
-  const badgeInfo = badges[String(member.rank || 0)] || null;
+  const resolvedAdminBadges = adminBadges || (badges && badges.__adminBadges) || {};
+  const adminLevel = Number(member.admin || 0);
+  let badgeInfo = null;
+  if (adminLevel > 0) {
+    badgeInfo = resolvedAdminBadges[String(adminLevel)]
+      || resolvedAdminBadges['default']
+      || resolvedAdminBadges['1']
+      || { url: adminLevel === 2 ? '/img/admin2.png' : '/img/admin.png', size: '20px' };
+  } else {
+    badgeInfo = (badges && badges[String(member.rank || 0)]) || null;
+  }
+
   let badgeUrl = badgeInfo ? badgeInfo.url : null;
   const badgeSize = badgeInfo ? (badgeInfo.size || '20px') : '20px';
   if (badgeUrl) {
@@ -134,6 +145,18 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
     logger.error('Error querying rank badges:', badgeErr.message);
   }
 
+  const adminBadges = {};
+  try {
+    const adminBadgeResults = await executeQuery("SELECT value, url, size FROM template_tpl WHERE name = 'admin_badge'");
+    adminBadgeResults.forEach(r => {
+      const valKey = String(r.value ?? '').trim() || 'default';
+      adminBadges[valKey] = { url: getFullUrl(r.url), size: r.size || '20px' };
+    });
+  } catch (adminBadgeErr) {
+    logger.error('Error querying admin badges:', adminBadgeErr.message);
+  }
+  Object.defineProperty(badges, '__adminBadges', { value: adminBadges, enumerable: false });
+
   const donateColors = [];
   try {
     const colorResults = await executeQuery("SELECT value, code FROM template_tpl WHERE name = 'donate_color'");
@@ -195,7 +218,7 @@ async function fetchDisplayAssets(targetYear = new Date().getFullYear()) {
     logger.error('Error querying team color templates:', colorErr.message);
   }
 
-  return { badges, donateColors, hofCounts, hofBadge, hofAwards, teamColors };
+  return { badges, adminBadges, donateColors, hofCounts, hofBadge, hofAwards, teamColors };
 }
 
 module.exports = {

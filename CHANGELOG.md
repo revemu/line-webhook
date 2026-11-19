@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.47] - 2026-11-19
+
+### Changed
+- **Admin Badge Support (`services/memberDisplay.js`, `services/donate.js`, `query.js`)**:
+  - Updated `fetchDisplayAssets` and `resolveMemberDisplayInfo` in `services/memberDisplay.js` to resolve badges for members with `member.admin > 0` from `template_tpl` (`name = 'admin_badge'`, with fallback to `/img/admin.png` for `admin = 1` and `/img/admin2.png` for `admin = 2`), while keeping `rank_badge` (`member.rank`) intact for regular members.
+  - Added `admin` column selection in member display queries across `query.js` and `services/donate.js`.
+
+---
+
 ## [0.7.46] - 2026-11-17
 
 ### Changed
