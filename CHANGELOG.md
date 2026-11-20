@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.53] - 2026-11-20
+
+### Changed
+- **Full-Screen Swipeable `/webhook/teamview` & Long-Press PNG Save (`routes/web.js`)**:
+  - Redesigned `GET /webhook/teamview` into a full-viewport (`100dvh`) horizontal scroll-snap carousel across all teams of the week (replacing the top tab bar and bottom download button so cards fill the screen with subtle pagination dots).
+  - Kept instant inline `<svg>` rendering on first paint while overlaying an inline `<img src="/webhook/teamimg/png?...">` served by new `GET /webhook/teamimg/png` so users on iOS/Android can long-press anywhere on the card to save the `1.5x` PNG directly to Photos.
+
+---
+
 ## [0.7.52] - 2026-11-20
 
 ### Added & Changed

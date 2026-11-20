@@ -1850,7 +1850,7 @@ async function resolveTeamForView(weekParam, teamParam) {
     };
 }
 
-// Mobile-friendly HTML/SVG team formation viewer (zero PNG CPU on server)
+// Full-screen swipeable HTML/SVG + long-press-saveable PNG team formation viewer
 router.get('/webhook/teamview', async (req, res) => {
     try {
         const weekParam = req.query.week || '0';
@@ -1865,36 +1865,49 @@ router.get('/webhook/teamview', async (req, res) => {
         }
 
         const teamImg = require('../team_img');
-        const rawSvg = await teamImg.buildTeamFormationSvg(resolved.team, resolved.dateStr, resolved.timeRange, { pitchOnly: false });
-        const responsiveSvg = rawSvg.replace(
-            /<svg\b([^>]*)>/i,
-            (match, attrs) => {
-                const cleaned = attrs
-                    .replace(/\swidth="[^"]*"/gi, '')
-                    .replace(/\sheight="[^"]*"/gi, '')
-                    .replace(/\sstyle="[^"]*"/gi, '');
-                return `<svg${cleaned} style="width:100%;height:auto;display:block;border-radius:16px;">`;
-            }
+        const teamsList = (resolved.allTeams && resolved.allTeams.length > 0) ? resolved.allTeams : [resolved.team];
+        const activeId = String(resolved.team.teamId);
+        let activeIndex = teamsList.findIndex(t => String(t.teamId) === activeId);
+        if (activeIndex < 0) activeIndex = 0;
+
+        // Build all team SVGs concurrently (~2-5ms total when avatars are cached)
+        const svgs = await Promise.all(
+            teamsList.map(t => teamImg.buildTeamFormationSvg(t, resolved.dateStr, resolved.timeRange, { pitchOnly: false }))
         );
 
-        const activeId = String(resolved.team.teamId);
-        const cleanTeamName = teamImg.stripEmojis(resolved.team.teamColor || `Team ${activeId}`)
-            .replace(/^ทีม(สี)?\s*/i, '')
-            .trim() || `Team ${activeId}`;
-        const pageTitle = `${cleanTeamName}${resolved.dateStr ? ` • ${resolved.dateStr}` : ''}`;
+        const slidesHtml = teamsList.map((t, idx) => {
+            const tid = String(t.teamId);
+            const cleanName = teamImg.stripEmojis(t.teamColor || `Team ${tid}`).replace(/^ทีม(สี)?\s*/i, '').trim() || `Team ${tid}`;
+            const responsiveSvg = svgs[idx].replace(
+                /<svg\b([^>]*)>/i,
+                (match, attrs) => {
+                    const cleaned = attrs
+                        .replace(/\swidth="[^"]*"/gi, '')
+                        .replace(/\sheight="[^"]*"/gi, '')
+                        .replace(/\sstyle="[^"]*"/gi, '');
+                    return `<svg${cleaned} style="width:100%;height:100%;display:block;">`;
+                }
+            );
+            const pngSrc = `/webhook/teamimg/png?week=${encodeURIComponent(resolved.weekId)}&team=${encodeURIComponent(tid)}`;
+            return `<section class="slide" data-team-id="${escapeHtmlText(tid)}" data-team-name="${escapeHtmlText(cleanName)}">
+  <div class="card-frame">
+    ${responsiveSvg}
+    <img class="saveable-img" src="${pngSrc}" alt="${escapeHtmlText(cleanName)}" loading="eager" decoding="async" onload="this.classList.add('ready')">
+  </div>
+</section>`;
+        }).join('');
 
-        const tabsHtml = (resolved.allTeams && resolved.allTeams.length > 1)
-            ? `<nav class="team-tabs" aria-label="เลือกทีม">${resolved.allTeams.map(t => {
+        const dotsHtml = teamsList.length > 1
+            ? `<div class="dots" role="tablist" aria-label="ทีม">${teamsList.map((t, idx) => {
                 const tid = String(t.teamId);
-                const isActive = tid === activeId;
-                const label = teamImg.stripEmojis(t.teamColor || `Team ${tid}`).replace(/^ทีม(สี)?\s*/i, '').trim();
-                const pct = (t.colorUsagePct !== null && t.colorUsagePct !== undefined) ? ` (${t.colorUsagePct}%)` : '';
-                const href = `/webhook/teamview?week=${encodeURIComponent(resolved.weekId)}&team=${encodeURIComponent(tid)}`;
-                return `<a class="tab${isActive ? ' active' : ''}" href="${href}">${escapeHtmlText(label + pct)}</a>`;
-            }).join('')}</nav>`
+                return `<button type="button" class="dot${idx === activeIndex ? ' active' : ''}" data-index="${idx}" aria-label="Team ${escapeHtmlText(tid)}"></button>`;
+            }).join('')}</div>`
             : '';
 
-        const downloadHref = `/webhook/teamimg/download?week=${encodeURIComponent(resolved.weekId)}&team=${encodeURIComponent(activeId)}`;
+        const cleanActiveName = teamImg.stripEmojis(resolved.team.teamColor || `Team ${activeId}`)
+            .replace(/^ทีม(สี)?\s*/i, '')
+            .trim() || `Team ${activeId}`;
+        const pageTitle = `${cleanActiveName}${resolved.dateStr ? ` • ${resolved.dateStr}` : ''}`;
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache');
@@ -1924,86 +1937,151 @@ router.get('/webhook/teamview', async (req, res) => {
     html, body {
       margin: 0;
       padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       background: #05070D;
       color: #F8FAFC;
       font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
       -webkit-font-smoothing: antialiased;
     }
-    .wrap {
-      width: 100%;
-      max-width: 540px;
-      margin: 0 auto;
-      padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 18px);
-    }
-    .team-tabs {
+    .carousel {
       display: flex;
-      gap: 8px;
+      width: 100vw;
+      height: 100dvh;
       overflow-x: auto;
-      padding: 2px 2px 10px;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
+      touch-action: pan-x pinch-zoom;
     }
-    .team-tabs::-webkit-scrollbar { display: none; }
-    .tab {
-      flex: 0 0 auto;
-      display: inline-flex;
-      align-items: center;
-      min-height: 38px;
-      padding: 6px 14px;
-      border-radius: 999px;
-      background: #111827;
-      border: 1px solid #1E293B;
-      color: #CBD5E1;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 700;
-      white-space: nowrap;
-      touch-action: manipulation;
-    }
-    .tab.active {
-      background: #0284C7;
-      border-color: #38BDF8;
-      color: #FFFFFF;
-    }
-    .svg-card {
+    .carousel::-webkit-scrollbar { display: none; }
+    .slide {
+      flex: 0 0 100%;
       width: 100%;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
-      background: #0B0F19;
-    }
-    .actions {
+      height: 100dvh;
+      scroll-snap-align: center;
+      scroll-snap-stop: always;
       display: flex;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .btn-download {
-      flex: 1;
-      display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      min-height: 46px;
-      padding: 10px 16px;
-      border-radius: 12px;
-      background: #059669;
-      color: #FFFFFF;
-      text-decoration: none;
-      font-size: 15px;
-      font-weight: 700;
-      touch-action: manipulation;
+      padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 22px);
     }
-    .btn-download:active { opacity: 0.88; }
+    .card-frame {
+      position: relative;
+      width: min(calc(100vw - 12px), calc((100dvh - 28px - env(safe-area-inset-bottom, 0px)) * 1080 / 1642));
+      height: min(calc(100dvh - 28px - env(safe-area-inset-bottom, 0px)), calc((100vw - 12px) * 1642 / 1080));
+      border-radius: 14px;
+      overflow: hidden;
+      background: #0B0F19;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+    }
+    .saveable-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      -webkit-touch-callout: default;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: pan-x pinch-zoom;
+    }
+    .saveable-img.ready { opacity: 1; }
+    .dots {
+      position: fixed;
+      left: 50%;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+      transform: translateX(-50%);
+      display: flex;
+      gap: 7px;
+      z-index: 10;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.55);
+    }
+    .dot {
+      width: 7px;
+      height: 7px;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: rgba(203, 213, 225, 0.35);
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    .dot.active {
+      background: #38BDF8;
+      transform: scale(1.25);
+    }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    ${tabsHtml}
-    <div class="svg-card">${responsiveSvg}</div>
-    <div class="actions">
-      <a class="btn-download" href="${downloadHref}">💾 ดาวน์โหลดรูป PNG</a>
-    </div>
-  </main>
+  <div class="carousel" id="carousel">${slidesHtml}</div>
+  ${dotsHtml}
+  <script>
+    (function () {
+      var carousel = document.getElementById('carousel');
+      var slides = carousel ? carousel.querySelectorAll('.slide') : [];
+      var dots = document.querySelectorAll('.dot');
+      var initialIndex = ${activeIndex};
+
+      function jumpTo(index, smooth) {
+        if (!carousel || !slides.length) return;
+        var w = carousel.clientWidth || window.innerWidth;
+        carousel.scrollTo({ left: index * w, behavior: smooth ? 'smooth' : 'auto' });
+      }
+
+      if (initialIndex > 0) {
+        jumpTo(initialIndex, false);
+      }
+
+      var scrollTimer = null;
+      if (carousel) {
+        carousel.addEventListener('scroll', function () {
+          if (scrollTimer) clearTimeout(scrollTimer);
+          scrollTimer = setTimeout(function () {
+            var w = carousel.clientWidth || window.innerWidth;
+            if (!w) return;
+            var idx = Math.max(0, Math.min(slides.length - 1, Math.round(carousel.scrollLeft / w)));
+            for (var i = 0; i < dots.length; i++) {
+              dots[i].classList.toggle('active', i === idx);
+            }
+            var slide = slides[idx];
+            if (slide) {
+              var tid = slide.getAttribute('data-team-id');
+              var tname = slide.getAttribute('data-team-name');
+              if (tname) {
+                document.title = tname + ${JSON.stringify(resolved.dateStr ? ` • ${resolved.dateStr}` : '')};
+              }
+              if (tid && window.history && window.history.replaceState) {
+                var nextUrl = '/webhook/teamview?week=${encodeURIComponent(resolved.weekId)}&team=' + encodeURIComponent(tid);
+                window.history.replaceState(null, '', nextUrl);
+              }
+            }
+          }, 60);
+        }, { passive: true });
+      }
+
+      for (var d = 0; d < dots.length; d++) {
+        (function (dot) {
+          dot.addEventListener('click', function () {
+            var idx = parseInt(dot.getAttribute('data-index'), 10) || 0;
+            jumpTo(idx, true);
+          });
+        })(dots[d]);
+      }
+
+      window.addEventListener('resize', function () {
+        var activeDot = document.querySelector('.dot.active');
+        var idx = activeDot ? (parseInt(activeDot.getAttribute('data-index'), 10) || 0) : initialIndex;
+        jumpTo(idx, false);
+      });
+    })();
+  </script>
 </body>
 </html>`);
     } catch (err) {
@@ -2012,8 +2090,7 @@ router.get('/webhook/teamview', async (req, res) => {
     }
 });
 
-// On-demand full PNG download endpoint (renders via renderAsync only when explicitly requested)
-router.get('/webhook/teamimg/download', async (req, res) => {
+async function serveTeamPng(req, res, asAttachment) {
     try {
         const weekParam = req.query.week || '0';
         const teamParam = req.query.team || '';
@@ -2043,14 +2120,22 @@ router.get('/webhook/teamimg/download', async (req, res) => {
         const safeWeek = String(resolved.weekId || 'week').replace(/[^a-zA-Z0-9_-]/g, '_');
 
         res.setHeader('Content-Type', 'image/png');
-        res.setHeader('Content-Disposition', `attachment; filename="formation_${safeTeam}_w${safeWeek}.png"`);
+        if (asAttachment) {
+            res.setHeader('Content-Disposition', `attachment; filename="formation_${safeTeam}_w${safeWeek}.png"`);
+        }
         res.setHeader('Cache-Control', 'public, max-age=3600');
         return res.send(pngBuffer);
     } catch (err) {
-        logger.error('[GET /webhook/teamimg/download] Error:', err.message);
-        return res.status(500).send('เกิดข้อผิดพลาดในการดาวน์โหลดรูป PNG');
+        logger.error(`[GET ${req.path}] Error:`, err.message);
+        return res.status(500).send('เกิดข้อผิดพลาดในการโหลดรูป PNG');
     }
-});
+}
+
+// Inline PNG endpoint for mobile long-press "Save Image" inside /webhook/teamview
+router.get('/webhook/teamimg/png', (req, res) => serveTeamPng(req, res, false));
+
+// On-demand full PNG download endpoint
+router.get('/webhook/teamimg/download', (req, res) => serveTeamPng(req, res, true));
 
 // Attach functions to router for external access
 router.getLastMatchWeek = getLastMatchWeek;
