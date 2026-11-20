@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.48] - 2026-11-20
+
+### Changed
+- **Least-Used-First Team Color Randomization (`query.js`)**:
+  - Added `selectLeastUsedColors` helper and updated `addTeamColorWeek` to count yearly team color usage from `team_color_week_tbl` (for the target week's year), prioritizing colors with the lowest usage count first, breaking ties uniformly at random, and shuffling final team slot order.
+  - Unified 4th-team color addition in `updateMaxNumberWeek` (`/setmaxweek > 24`) to delegate to `addTeamColorWeek(4, week_id)` instead of picking the first unused pool color.
+
+---
+
 ## [0.7.47] - 2026-11-19
 
 ### Changed

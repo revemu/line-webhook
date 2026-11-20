@@ -368,6 +368,62 @@ function shuffleArray(array) {
   return array;
 }
 
+/**
+ * Selects up to `count` colors from `availableColors`, prioritizing colors with
+ * the lowest usage count in `usageCounts` (case-insensitive keys).
+ * Ties at the same usage count are broken uniformly at random, and the final
+ * selected list is shuffled so team slot order (index 1, 2, 3...) is unbiased.
+ *
+ * @param {string[]} availableColors
+ * @param {number} count
+ * @param {Map<string, number>|Object<string, number>} [usageCounts={}]
+ * @param {Function} [shuffleFn=shuffleArray]
+ * @returns {string[]}
+ */
+function selectLeastUsedColors(availableColors, count, usageCounts = {}, shuffleFn = shuffleArray) {
+  if (!Array.isArray(availableColors) || availableColors.length === 0 || count <= 0) {
+    return [];
+  }
+
+  const seen = new Set();
+  const uniqueColors = [];
+  for (const raw of availableColors) {
+    if (!raw || typeof raw !== 'string') continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniqueColors.push(trimmed);
+  }
+
+  const getCount = (color) => {
+    const key = color.toLowerCase();
+    if (usageCounts instanceof Map) {
+      return Number(usageCounts.get(key) || 0);
+    }
+    return Number(usageCounts[key] || 0);
+  };
+
+  const buckets = new Map();
+  for (const color of uniqueColors) {
+    const cnt = getCount(color);
+    if (!buckets.has(cnt)) buckets.set(cnt, []);
+    buckets.get(cnt).push(color);
+  }
+
+  const sortedCounts = Array.from(buckets.keys()).sort((a, b) => a - b);
+  const selected = [];
+  for (const cnt of sortedCounts) {
+    if (selected.length >= count) break;
+    const tier = shuffleFn([...buckets.get(cnt)]);
+    const needed = count - selected.length;
+    selected.push(...tier.slice(0, needed));
+  }
+
+  return shuffleFn(selected);
+}
+
 async function newTeamColorWeek(color, index, week_id) {
   const query = "INSERT INTO team_color_week_tbl VALUES (DEFAULT, ?, ?, ?)";
   logger.info(`${query} [${index}, ${week_id}, ${color}]`);
@@ -379,18 +435,33 @@ async function newTeamColorWeek(color, index, week_id) {
 async function addTeamColorWeek(count = 3, targetWeekId = null) {
   let week_id;
   let max_players = 24;
+  let targetYear = new Date().getFullYear();
 
   if (targetWeekId) {
-    week_id = targetWeekId;
-    const weekRes = await queryWeekID(targetWeekId);
-    if (weekRes && weekRes.length > 0) {
-      max_players = weekRes[0].max || 24;
+    const numericTargetId = Number(targetWeekId);
+    const weekRows = await executeQuery(
+      "SELECT id, max, year, EXTRACT(YEAR FROM date)::int AS date_year FROM week_tbl WHERE id = ? LIMIT 1",
+      [numericTargetId]
+    );
+    if (weekRows && weekRows.length > 0) {
+      week_id = weekRows[0].id;
+      max_players = weekRows[0].max || 24;
+      targetYear = Number(weekRows[0].year) || Number(weekRows[0].date_year) || new Date().getFullYear();
+    } else {
+      week_id = numericTargetId;
     }
   } else {
-    const week = await queryWeekID();
-    if (!week || week.length === 0) return;
-    week_id = week[0].id;
-    max_players = week[0].max || 24;
+    const weekRows = await executeQuery(
+      "SELECT id, max, year, EXTRACT(YEAR FROM date)::int AS date_year FROM week_tbl ORDER BY id DESC LIMIT 1"
+    );
+    if (!weekRows || weekRows.length === 0) return;
+    week_id = weekRows[0].id;
+    max_players = weekRows[0].max || 24;
+    targetYear = Number(weekRows[0].year) || Number(weekRows[0].date_year) || new Date().getFullYear();
+  }
+
+  if (targetYear > 2400) {
+    targetYear -= 543;
   }
 
   let registeredCount = 0;
@@ -401,22 +472,46 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
 
   const targetCount = (max_players > 24 || registeredCount > 24) ? 4 : count;
 
-  let query = `select * from team_color_week_tbl where week_id=${week_id}`;
-  const res = await executeQuery(query);
+  const res = await executeQuery("SELECT * FROM team_color_week_tbl WHERE week_id = ?", [week_id]);
 
   if (!res || res.length < targetCount) {
     const poolRes = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color_pools'");
-    let colors = poolRes && poolRes.length > 0 ? poolRes.map(r => r.value) : [];
+    const colors = poolRes && poolRes.length > 0 ? poolRes.map(r => r.value) : [];
 
-    const existingColors = res ? res.map(r => (r.color || '').toLowerCase()) : [];
-    const availableColors = colors.filter(c => !existingColors.includes((c || '').toLowerCase()));
+    const existingColors = new Set(
+      (res || []).map(r => (r.color || '').trim().toLowerCase()).filter(Boolean)
+    );
+    const availableColors = colors.filter(c => c && !existingColors.has(c.trim().toLowerCase()));
 
-    const shuffledAvailable = shuffleArray([...availableColors]);
-    const numToInsert = targetCount - (res ? res.length : 0);
+    const usageRows = await executeQuery(
+      `SELECT LOWER(TRIM(tcw.color)) AS color_key, COUNT(*) AS usage_count
+       FROM team_color_week_tbl tcw
+       JOIN week_tbl w ON tcw.week_id = w.id
+       WHERE (w.year::text = ?::text OR EXTRACT(YEAR FROM w.date)::int = ?)
+         AND tcw.week_id <> ?
+         AND tcw.color IS NOT NULL
+         AND TRIM(tcw.color) <> ''
+       GROUP BY LOWER(TRIM(tcw.color))`,
+      [String(targetYear), targetYear, week_id]
+    );
+    const usageCounts = {};
+    for (const row of usageRows || []) {
+      if (row.color_key) {
+        usageCounts[row.color_key] = Number(row.usage_count || 0);
+      }
+    }
+
     const existingCount = res ? res.length : 0;
+    const numToInsert = targetCount - existingCount;
+    const selectedColors = selectLeastUsedColors(availableColors, numToInsert, usageCounts);
 
-    for (let i = 0; i < numToInsert && i < shuffledAvailable.length; i++) {
-      await newTeamColorWeek(shuffledAvailable[i], existingCount + i + 1, week_id);
+    logger.info(
+      `[addTeamColorWeek] week_id=${week_id} year=${targetYear} selected=[${selectedColors.join(', ')}] ` +
+      `(yearly usage: ${availableColors.map(c => `${c}=${usageCounts[c.trim().toLowerCase()] || 0}`).join(', ')})`
+    );
+
+    for (let i = 0; i < selectedColors.length; i++) {
+      await newTeamColorWeek(selectedColors[i], existingCount + i + 1, week_id);
     }
   } else {
     //logger.info("Team color week already exist!");
@@ -576,21 +671,7 @@ async function updateMaxNumberWeek(max_number = 24) {
     const res = await executeQuery(query, [max_number, week_id]);
 
     if (max_number > 24) {
-      const currentColors = await getTeamColorWeek(week_id);
-      if (currentColors && currentColors.length < 4) {
-        const poolRes = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color_pools'");
-        const candidatePool = poolRes && poolRes.length > 0 ? poolRes.map(r => r.value) : [];
-
-        const usedColors = currentColors.map(c => (c.color || '').toLowerCase());
-        const availableColors = candidatePool.filter(c => c && !usedColors.includes(c.toLowerCase()));
-
-        if (availableColors.length > 0) {
-          const chosenColor = availableColors[0];
-          const nextIndex = currentColors.length + 1;
-          await newTeamColorWeek(chosenColor, nextIndex, week_id);
-          logger.info(`[setmaxweek] Added 4th team color '${chosenColor}' for week ID ${week_id}`);
-        }
-      }
+      await addTeamColorWeek(4, week_id);
     }
 
     // Auto-clean unplayed scheduled matches if team count configuration changed
@@ -9050,6 +9131,7 @@ module.exports = {
   newWeek,
   getFormatDate,
   addTeamColorWeek,
+  selectLeastUsedColors,
   addTeamMemberWeek,
   getMemberWeek2,
   getMemberWeek0,
