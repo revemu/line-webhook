@@ -1950,7 +1950,7 @@ router.get('/webhook/teamview', async (req, res) => {
         if (access.locked) {
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-            return res.status(403).send(renderTeamViewLockedHtml());
+            return res.status(200).send(renderTeamViewLockedHtml());
         }
         const resolved = access.resolved;
         if (access.notFound || !resolved || !resolved.team) {

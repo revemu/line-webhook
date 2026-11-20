@@ -4,6 +4,14 @@
 
 ---
 
+## [0.7.59] - 2026-11-20
+
+### Changed
+- **Return `200 OK` on Pre-Draw `/webhook/teamview` Status Page (`routes/web.js`)**:
+  - Switched `GET /webhook/teamview` from HTTP `403` to `200 OK` (retaining `Cache-Control: no-store`) when displaying the pre-Friday-20:00 "ยังไม่ได้สุ่มทีมสัปดาห์นี้" screen so browsers/DevTools do not flag a red HTTP error, while keeping direct PNG endpoints (`/webhook/teamimg/png`, `/webhook/teamimg/download`) guarded at `403`.
+
+---
+
 ## [0.7.58] - 2026-11-20
 
 ### Changed
