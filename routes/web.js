@@ -1948,8 +1948,8 @@ router.get('/webhook/teamview', async (req, res) => {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: min(calc(100vw - 12px), calc((100dvh - 28px - env(safe-area-inset-bottom, 0px)) * 1080 / 1642));
-      height: min(calc(100dvh - 28px - env(safe-area-inset-bottom, 0px)), calc((100vw - 12px) * 1642 / 1080));
+      width: min(calc(100vw - 12px), calc((100dvh - 28px - env(safe-area-inset-bottom, 0px)) * 1080 / 1606));
+      height: min(calc(100dvh - 28px - env(safe-area-inset-bottom, 0px)), calc((100vw - 12px) * 1606 / 1080));
       border-radius: 14px;
       overflow: hidden;
       background: #0B0F19;
