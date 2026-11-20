@@ -3696,83 +3696,28 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     ]);
     logger.info(`  [MatchWeek] Data prep (TOTW + formations)  : ${Date.now() - tPrepStart} ms`);
 
-    // Step 2: generate all images in parallel (TOTW full+pitch + all team full+pitch)
+    // Step 2: generate all 1.5x full images in parallel (TOTW + all teams, 1 image per card)
     const teamImgMod = require('./team_img');
-    const tImgStart = Date.now();
-    const imgTasks = [];
-    const teamDurations = {};
-    let cachedImageCount = 0;
-    let totalImageCount = 0;
-
-    logger.info(`\n======================================================`);
-    logger.info(`⏱️ [/matchweek Image Generation — TOTW + All Teams in Parallel]`);
-    logger.info(`======================================================`);
-
-    const formatImgStatus = (url, cached) => {
-      if (!url) return '❌';
-      return cached ? '✅ (used cached image)' : '✅ (generated)';
-    };
-
+    const imageEntries = [];
     if (totwFormationData) {
-      imgTasks.push((async () => {
-        const t0 = Date.now();
-        try {
-          const totwTimeRange = res[0].time_range || '';
-          const [fullRes, pitchRes] = await Promise.all([
-            teamImgMod.generateTeamImage(totwFormationData[0], date_str, totwTimeRange, { pitchOnly: false, returnMeta: true }),
-            teamImgMod.generateTeamImage(totwFormationData[0], date_str, totwTimeRange, { pitchOnly: true, returnMeta: true })
-          ]);
-          const dur = Date.now() - t0;
-          teamDurations['totw'] = dur;
-          const fullUrl = fullRes?.url || fullRes;
-          const pitchUrl = pitchRes?.url || pitchRes;
-          const fullCached = !!fullRes?.cached;
-          const pitchCached = !!pitchRes?.cached;
-          if (fullUrl) { totwFormationData[0].imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
-          if (pitchUrl) { totwFormationData[0].pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
-          logger.info(`  TOTW                       Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
-        } catch (e) {
-          logger.warn(`  TOTW ❌ image failed: ${e.message}`);
-        }
-      })());
+      imageEntries.push({
+        team: totwFormationData[0],
+        dateStr: date_str,
+        timeRange: res[0].time_range || '',
+        label: 'TOTW                      '
+      });
     }
-
     if (formationData && formationData.formationsData && formationData.formationsData.length > 0) {
       for (const team of formationData.formationsData) {
-        imgTasks.push((async (t) => {
-          const t0 = Date.now();
-          try {
-            const [fullRes, pitchRes] = await Promise.all([
-              teamImgMod.generateTeamImage(t, formationData.dateStr, formationData.timeRange, { pitchOnly: false, returnMeta: true }),
-              teamImgMod.generateTeamImage(t, formationData.dateStr, formationData.timeRange, { pitchOnly: true, returnMeta: true })
-            ]);
-            const dur = Date.now() - t0;
-            teamDurations[t.teamId] = dur;
-            const fullUrl = fullRes?.url || fullRes;
-            const pitchUrl = pitchRes?.url || pitchRes;
-            const fullCached = !!fullRes?.cached;
-            const pitchCached = !!pitchRes?.cached;
-            if (fullUrl) { t.imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
-            if (pitchUrl) { t.pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
-            logger.info(`  Team ${t.teamId} (${t.teamColor || '-'})   Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
-          } catch (e) {
-            logger.warn(`  Team ${t.teamId} ❌ image failed: ${e.message}`);
-          }
-        })(team));
+        imageEntries.push({
+          team,
+          dateStr: formationData.dateStr,
+          timeRange: formationData.timeRange,
+          label: `Team ${team.teamId} (${team.teamColor || '-'})  `
+        });
       }
     }
-
-    await Promise.all(imgTasks);
-
-    const tImgWallClock = Date.now() - tImgStart;
-    const tImgSum = Object.values(teamDurations).reduce((a, b) => a + b, 0);
-    logger.info(`------------------------------------------------------`);
-    logger.info(`  🖼️  Wall-clock (parallel)   : ${tImgWallClock} ms  ← actual wait time`);
-    logger.info(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
-    if (totalImageCount > 0) {
-      logger.info(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
-    }
-    logger.info(`======================================================\n`);
+    await populateFullFormationImages(imageEntries, teamImgMod, '[/matchweek Image Generation — TOTW + All Teams in Parallel]');
 
     // Step 3: build flex bubbles (CPU only, fast)
     if (totwFormationData) {
@@ -7787,47 +7732,39 @@ async function getTeamFormationData(param = '', groupId = null, options = {}) {
   };
 }
 
-async function getTeamFormation(param = '', groupId = null) {
-  const data = await getTeamFormationData(param, groupId);
-  if (!data || !data.formationsData || data.formationsData.length === 0) return null;
-
-  // Pre-generate high-res tactical formation images in parallel (Full for zoom/export, Pitch-Only for Flex body)
+async function populateFullFormationImages(entries, teamImgMod, headerLabel = '[/formation Image Generation Performance]') {
   const tImgStart = Date.now();
   const teamDurations = [];
   let cachedImageCount = 0;
   let totalImageCount = 0;
   logger.info(`\n======================================================`);
-  logger.info(`⏱️ [/formation Image Generation Performance]`);
+  logger.info(`⏱️ ${headerLabel}`);
   logger.info(`======================================================`);
-  try {
-    const teamImg = require('./team_img');
-    const formatImgStatus = (url, cached) => {
-      if (!url) return '❌';
-      return cached ? '✅ (used cached image)' : '✅ (generated)';
-    };
-    await Promise.all(data.formationsData.map(async (team) => {
-      const tTeamStart = Date.now();
-      try {
-        const [fullRes, pitchRes] = await Promise.all([
-          teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: false, returnMeta: true }),
-          teamImg.generateTeamImage(team, data.dateStr, data.timeRange, { pitchOnly: true, returnMeta: true })
-        ]);
-        const dur = Date.now() - tTeamStart;
-        teamDurations.push(dur);
-        const fullUrl = fullRes?.url || fullRes;
-        const pitchUrl = pitchRes?.url || pitchRes;
-        const fullCached = !!fullRes?.cached;
-        const pitchCached = !!pitchRes?.cached;
-        if (fullUrl) { team.imageUrl = fullUrl; totalImageCount++; if (fullCached) cachedImageCount++; }
-        if (pitchUrl) { team.pitchImageUrl = pitchUrl; totalImageCount++; if (pitchCached) cachedImageCount++; }
-        logger.info(`  Team ${team.teamId} (${team.teamColor || '-'})  Full+Pitch: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
-      } catch (eImg) {
-        logger.warn(`  Team ${team.teamId} ❌ image failed: ${eImg.message}`);
+
+  const formatImgStatus = (url, cached) => {
+    if (!url) return '❌';
+    return cached ? '✅ (used cached image)' : '✅ (generated)';
+  };
+
+  await Promise.all((entries || []).map(async ({ team, dateStr, timeRange, label }) => {
+    const tTeamStart = Date.now();
+    try {
+      const fullRes = await teamImgMod.generateTeamImage(team, dateStr, timeRange, { pitchOnly: false, returnMeta: true });
+      const dur = Date.now() - tTeamStart;
+      teamDurations.push(dur);
+      const fullUrl = fullRes?.url || fullRes;
+      const fullCached = !!fullRes?.cached;
+      if (fullUrl) {
+        team.imageUrl = fullUrl;
+        totalImageCount++;
+        if (fullCached) cachedImageCount++;
       }
-    }));
-  } catch (err) {
-    logger.warn('[getTeamFormation] team_img module error:', err.message);
-  }
+      logger.info(`  ${label} Full: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}`);
+    } catch (eImg) {
+      logger.warn(`  ${label.trim()} ❌ image failed: ${eImg.message}`);
+    }
+  }));
+
   const tImgWallClock = Date.now() - tImgStart;
   const tImgSum = teamDurations.reduce((a, b) => a + b, 0);
   logger.info(`------------------------------------------------------`);
@@ -7835,6 +7772,26 @@ async function getTeamFormation(param = '', groupId = null) {
   logger.info(`  ∑   Sum (sequential equiv.) : ${tImgSum} ms  ← saved ${tImgSum - tImgWallClock} ms by running in parallel`);
   if (totalImageCount > 0) {
     logger.info(`  ⚡  Image Cache Status      : ${cachedImageCount}/${totalImageCount} images used cached (${totalImageCount - cachedImageCount} freshly generated)`);
+  }
+  logger.info(`======================================================\n`);
+}
+
+async function getTeamFormation(param = '', groupId = null) {
+  const data = await getTeamFormationData(param, groupId);
+  if (!data || !data.formationsData || data.formationsData.length === 0) return null;
+
+  // Pre-generate high-res (1.5x) full tactical formation images in parallel (1 image per team)
+  try {
+    const teamImg = require('./team_img');
+    const entries = data.formationsData.map(team => ({
+      team,
+      dateStr: data.dateStr,
+      timeRange: data.timeRange,
+      label: `Team ${team.teamId} (${team.teamColor || '-'}) `
+    }));
+    await populateFullFormationImages(entries, teamImg, '[/formation Image Generation Performance]');
+  } catch (err) {
+    logger.warn('[getTeamFormation] team_img module error:', err.message);
   }
 
   const tFlexStart = Date.now();

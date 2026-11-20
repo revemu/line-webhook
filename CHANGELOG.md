@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.51] - 2026-11-20
+
+### Added & Changed
+- **1.5x Sharp Full-Only Team Formation Images (`fonts/Sarabun-Bold.ttf`, `team_img.js`, `query.js`, `flex.js`)**:
+  - Bundled `fonts/Sarabun-Bold.ttf` and registered it alongside `Sarabun-Regular.ttf` in `team_img.js` (`loadSystemFonts: false`), rendering formation PNGs at `1.5x` (`1620×2463`) via `resvg.fitTo` for crisp Retina-grade typography.
+  - Updated `team_img.js` header and MVP bar to match `flex.js` (`getTeamHeaderColors` solid theme backgrounds, solid dot, yearly `%` badge, right-aligned date/time, and `TEAM MVP` / `WEEK MVP` spacing), fixed player name pill sizing/offset so long names next to `DM`/`DW` badges never collide, and bumped `LAYOUT_VERSION` to `'v2'` (including `colorUsagePct` in metadata hash).
+  - Updated `getTeamFormation` and `getMatchWeek` in `query.js` (via shared `populateFullFormationImages`) to generate only 1 `full` image per team (halving image generation work from 6 to 3 for 3-team weeks), and updated `buildFormationFlex` in `flex.js` to render full-image bubbles cleanly without duplicating Flex Header/MVP.
+
+---
+
 ## [0.7.50] - 2026-11-20
 
 ### Added & Changed

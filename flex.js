@@ -5877,6 +5877,34 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
         : `/teamimg ${team.teamId || team.teamColor || ''} ${exportDateArg}`.trim()
     };
 
+    // Full-image-only mode: render the crisp full image directly without duplicating Flex Header/MVP
+    if (!pitchImgUrl && mainImgUrl) {
+      return {
+        type: 'bubble',
+        size: 'giga',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: 'none',
+          backgroundColor: '#0B0F19',
+          contents: [
+            {
+              type: 'image',
+              url: mainImgUrl,
+              size: 'full',
+              aspectRatio: '1080:1642',
+              aspectMode: 'cover',
+              action: mainImgUrl.startsWith('http') ? {
+                type: 'uri',
+                label: 'ดูรูปเต็ม',
+                uri: mainImgUrl
+              } : undefined
+            }
+          ]
+        }
+      };
+    }
+
     return {
       type: 'bubble',
       size: 'giga',
@@ -6032,7 +6060,7 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
             type: 'image',
             url: mainImgUrl,
             size: 'full',
-            aspectRatio: '1080:1630',
+            aspectRatio: '1080:1642',
             aspectMode: 'cover',
             action: (mainImgUrl && mainImgUrl.startsWith('http')) ? {
               type: 'uri',
