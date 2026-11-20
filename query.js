@@ -432,32 +432,42 @@ async function newTeamColorWeek(color, index, week_id) {
   return res;
 }
 
-async function addTeamColorWeek(count = 3, targetWeekId = null) {
+const YEARLY_COLOR_USAGE_ALIASES = {
+  // In 2026, Green was retired and replaced by Yellow; count historical 2026 Green weeks under Yellow.
+  2026: {
+    green: 'yellow'
+  }
+};
+
+async function resolveTargetWeekForColors(targetWeekId = null) {
   let week_id;
   let max_players = 24;
   let targetYear = new Date().getFullYear();
+  let dateStr = '';
 
   if (targetWeekId) {
     const numericTargetId = Number(targetWeekId);
     const weekRows = await executeQuery(
-      "SELECT id, max, year, EXTRACT(YEAR FROM date)::int AS date_year FROM week_tbl WHERE id = ? LIMIT 1",
+      "SELECT id, max, year, EXTRACT(YEAR FROM date)::int AS date_year, TO_CHAR(date, 'FMDD Mon YYYY') AS date_str FROM week_tbl WHERE id = ? LIMIT 1",
       [numericTargetId]
     );
     if (weekRows && weekRows.length > 0) {
       week_id = weekRows[0].id;
       max_players = weekRows[0].max || 24;
       targetYear = Number(weekRows[0].year) || Number(weekRows[0].date_year) || new Date().getFullYear();
+      dateStr = weekRows[0].date_str || '';
     } else {
       week_id = numericTargetId;
     }
   } else {
     const weekRows = await executeQuery(
-      "SELECT id, max, year, EXTRACT(YEAR FROM date)::int AS date_year FROM week_tbl ORDER BY id DESC LIMIT 1"
+      "SELECT id, max, year, EXTRACT(YEAR FROM date)::int AS date_year, TO_CHAR(date, 'FMDD Mon YYYY') AS date_str FROM week_tbl ORDER BY id DESC LIMIT 1"
     );
-    if (!weekRows || weekRows.length === 0) return;
+    if (!weekRows || weekRows.length === 0) return null;
     week_id = weekRows[0].id;
     max_players = weekRows[0].max || 24;
     targetYear = Number(weekRows[0].year) || Number(weekRows[0].date_year) || new Date().getFullYear();
+    dateStr = weekRows[0].date_str || '';
   }
 
   if (targetYear > 2400) {
@@ -470,37 +480,60 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
     registeredCount = regRes?.[0]?.cnt || 0;
   } catch (err) {}
 
+  return { week_id, max_players, targetYear, registeredCount, dateStr };
+}
+
+async function getTeamColorPool() {
+  const poolRes = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color_pools'");
+  return poolRes && poolRes.length > 0 ? poolRes.map(r => r.value) : [];
+}
+
+async function getYearlyColorUsageCounts(targetYear, excludeWeekId = null) {
+  const params = [String(targetYear), targetYear];
+  let excludeClause = '';
+  if (excludeWeekId !== null && excludeWeekId !== undefined) {
+    excludeClause = ' AND tcw.week_id <> ?';
+    params.push(excludeWeekId);
+  }
+
+  const usageRows = await executeQuery(
+    `SELECT LOWER(TRIM(tcw.color)) AS color_key, COUNT(*) AS usage_count
+     FROM team_color_week_tbl tcw
+     JOIN week_tbl w ON tcw.week_id = w.id
+     WHERE (w.year::text = ?::text OR EXTRACT(YEAR FROM w.date)::int = ?)${excludeClause}
+       AND tcw.color IS NOT NULL
+       AND TRIM(tcw.color) <> ''
+     GROUP BY LOWER(TRIM(tcw.color))`,
+    params
+  );
+
+  const aliasMap = YEARLY_COLOR_USAGE_ALIASES[Number(targetYear)] || {};
+  const usageCounts = {};
+  for (const row of usageRows || []) {
+    if (!row.color_key) continue;
+    const canonicalKey = aliasMap[row.color_key] || row.color_key;
+    usageCounts[canonicalKey] = (usageCounts[canonicalKey] || 0) + Number(row.usage_count || 0);
+  }
+  return usageCounts;
+}
+
+async function addTeamColorWeek(count = 3, targetWeekId = null) {
+  const weekCtx = await resolveTargetWeekForColors(targetWeekId);
+  if (!weekCtx) return;
+
+  const { week_id, max_players, targetYear, registeredCount } = weekCtx;
   const targetCount = (max_players > 24 || registeredCount > 24) ? 4 : count;
 
   const res = await executeQuery("SELECT * FROM team_color_week_tbl WHERE week_id = ?", [week_id]);
 
   if (!res || res.length < targetCount) {
-    const poolRes = await executeQuery("SELECT value FROM template_tpl WHERE name = 'team_color_pools'");
-    const colors = poolRes && poolRes.length > 0 ? poolRes.map(r => r.value) : [];
-
+    const colors = await getTeamColorPool();
     const existingColors = new Set(
       (res || []).map(r => (r.color || '').trim().toLowerCase()).filter(Boolean)
     );
     const availableColors = colors.filter(c => c && !existingColors.has(c.trim().toLowerCase()));
 
-    const usageRows = await executeQuery(
-      `SELECT LOWER(TRIM(tcw.color)) AS color_key, COUNT(*) AS usage_count
-       FROM team_color_week_tbl tcw
-       JOIN week_tbl w ON tcw.week_id = w.id
-       WHERE (w.year::text = ?::text OR EXTRACT(YEAR FROM w.date)::int = ?)
-         AND tcw.week_id <> ?
-         AND tcw.color IS NOT NULL
-         AND TRIM(tcw.color) <> ''
-       GROUP BY LOWER(TRIM(tcw.color))`,
-      [String(targetYear), targetYear, week_id]
-    );
-    const usageCounts = {};
-    for (const row of usageRows || []) {
-      if (row.color_key) {
-        usageCounts[row.color_key] = Number(row.usage_count || 0);
-      }
-    }
-
+    const usageCounts = await getYearlyColorUsageCounts(targetYear, week_id);
     const existingCount = res ? res.length : 0;
     const numToInsert = targetCount - existingCount;
     const selectedColors = selectLeastUsedColors(availableColors, numToInsert, usageCounts);
@@ -516,6 +549,119 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
   } else {
     //logger.info("Team color week already exist!");
   }
+}
+
+/**
+ * Re-rolls team colors for the target (or latest) week using least-used-first
+ * yearly color counts, preserving existing team_color_week_tbl IDs in place so
+ * assigned players and scheduled unplayed matches stay linked cleanly.
+ * Blocked if any match in the week has already been played/scored.
+ */
+async function rerollTeamColors(targetWeekId = null) {
+  const weekCtx = await resolveTargetWeekForColors(targetWeekId);
+  if (!weekCtx) {
+    return { success: false, message: 'ไม่พบข้อมูลสัปดาห์ในระบบ' };
+  }
+
+  const { week_id, max_players, targetYear, registeredCount, dateStr } = weekCtx;
+
+  const matches = await executeQuery(
+    "SELECT id, status, team_a_goal, team_b_goal FROM match_stat_tbl WHERE week_id = ?",
+    [week_id]
+  );
+  if (matches && matches.some(isMatchPlayed)) {
+    return { success: false, message: 'ไม่สามารถสุ่มสีใหม่ได้ เนื่องจากสัปดาห์นี้มีการเริ่มแข่งหรือบันทึกผลไปแล้ว' };
+  }
+
+  const scoredTableRows = await executeQuery(
+    "SELECT 1 FROM table_week_tbl WHERE week_id = ? AND (w > 0 OR d > 0 OR l > 0 OR pts > 0 OR g > 0 OR a > 0) LIMIT 1",
+    [week_id]
+  );
+  if (scoredTableRows && scoredTableRows.length > 0) {
+    return { success: false, message: 'ไม่สามารถสุ่มสีใหม่ได้ เนื่องจากสัปดาห์นี้มีตารางคะแนนแล้ว' };
+  }
+
+  const poolColors = await getTeamColorPool();
+  if (!poolColors || poolColors.length === 0) {
+    return { success: false, message: 'ไม่พบข้อมูลสีทีมใน template_tpl (team_color_pools)' };
+  }
+
+  let existingRows = await executeQuery(
+    "SELECT id, color FROM team_color_week_tbl WHERE week_id = ? ORDER BY id ASC",
+    [week_id]
+  );
+  existingRows = existingRows || [];
+  const oldColors = existingRows.map(r => r.color).filter(Boolean);
+
+  let targetCount = (max_players > 24 || registeredCount > 24) ? 4 : 3;
+
+  if (existingRows.length > targetCount) {
+    const excessIds = existingRows.slice(targetCount).map(r => r.id);
+    const inClause = excessIds.map(() => '?').join(',');
+    const inUseMtw = await executeQuery(
+      `SELECT 1 FROM member_team_week_tbl WHERE week_id = ? AND team_id IN (${inClause}) LIMIT 1`,
+      [week_id, ...excessIds]
+    );
+    const inUseMatch = await executeQuery(
+      `SELECT 1 FROM match_stat_tbl WHERE week_id = ? AND (team_a_id IN (${inClause}) OR team_b_id IN (${inClause})) LIMIT 1`,
+      [week_id, ...excessIds, ...excessIds]
+    );
+    const inUseTable = await executeQuery(
+      `SELECT 1 FROM table_week_tbl WHERE week_id = ? AND team_week_id IN (${inClause}) LIMIT 1`,
+      [week_id, ...excessIds]
+    );
+
+    const hasRefs = (inUseMtw && inUseMtw.length > 0) ||
+      (inUseMatch && inUseMatch.length > 0) ||
+      (inUseTable && inUseTable.length > 0);
+
+    if (hasRefs) {
+      targetCount = existingRows.length;
+    } else {
+      await executeQuery(`DELETE FROM team_color_week_tbl WHERE id IN (${inClause})`, excessIds);
+      existingRows = existingRows.slice(0, targetCount);
+    }
+  }
+
+  const usageCounts = await getYearlyColorUsageCounts(targetYear, week_id);
+  const selectedColors = selectLeastUsedColors(poolColors, targetCount, usageCounts);
+
+  if (selectedColors.length === 0) {
+    return { success: false, message: 'ไม่สามารถเลือกสีทีมจาก pool ได้' };
+  }
+
+  for (let i = 0; i < selectedColors.length; i++) {
+    if (i < existingRows.length) {
+      await executeQuery(
+        "UPDATE team_color_week_tbl SET color = ? WHERE id = ?",
+        [selectedColors[i], existingRows[i].id]
+      );
+    } else {
+      await newTeamColorWeek(selectedColors[i], i + 1, week_id);
+    }
+  }
+
+  const afterCounts = { ...usageCounts };
+  for (const c of selectedColors) {
+    const key = c.trim().toLowerCase();
+    afterCounts[key] = (afterCounts[key] || 0) + 1;
+  }
+
+  const poolUsageSummary = poolColors.map(c => `${c}=${afterCounts[c.trim().toLowerCase()] || 0}`);
+
+  logger.info(
+    `[rerollTeamColors] week_id=${week_id} year=${targetYear} old=[${oldColors.join(', ')}] new=[${selectedColors.join(', ')}] (${poolUsageSummary.join(', ')})`
+  );
+
+  return {
+    success: true,
+    weekId: week_id,
+    year: targetYear,
+    dateStr,
+    oldColors,
+    newColors: selectedColors,
+    poolUsageSummary
+  };
 }
 
 async function addTeamMemberWeek() {
@@ -9131,6 +9277,8 @@ module.exports = {
   newWeek,
   getFormatDate,
   addTeamColorWeek,
+  rerollTeamColors,
+  getYearlyColorUsageCounts,
   selectLeastUsedColors,
   addTeamMemberWeek,
   getMemberWeek2,

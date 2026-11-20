@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.49] - 2026-11-20
+
+### Added & Changed
+- **2026 `Green` → `Yellow` Color Usage Aggregation & `/rerollcolor` Command (`query.js`, `cmd.js`)**:
+  - Extracted `resolveTargetWeekForColors`, `getTeamColorPool`, and `getYearlyColorUsageCounts` in `query.js`, adding `YEARLY_COLOR_USAGE_ALIASES[2026]` (`green` → `yellow`) so historical 2026 `Green` weeks count toward `Yellow` when selecting least-used team colors without altering past week records.
+  - Added `rerollTeamColors` in `query.js` to re-roll team colors for the current (or specified) week using least-used-first weighting while preserving `team_color_week_tbl.id` rows in place so assigned players and unplayed scheduled matches remain linked, and blocking re-rolls if any match is already played/in-progress or scored in `table_week_tbl`.
+  - Added admin LINE commands `/rerollcolor` (with `/resetcolor` and `/randomcolor` aliases) in `cmd.js`.
+
+---
+
 ## [0.7.48] - 2026-11-20
 
 ### Changed

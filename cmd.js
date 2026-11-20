@@ -714,6 +714,41 @@ const COMMAND_REGISTRY = {
         }
     },
     'resetteam': async () => { await db.resetMemberTeam(); return [{ type: 'text', text: `ปรับให้ทุกคนไม่มีทีมแล้ว` }]; },
+    'rerollcolor': async (context) => {
+        const { param, member, quoteToken } = context;
+        if (!member || (Number(member.admin) !== 1 && Number(member.admin) !== 2 && member.line_user_id !== 'SYSTEM_BOT')) {
+            return formatTextReply('ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับผู้ดูแลระบบเท่านั้น)', quoteToken);
+        }
+
+        let targetWeekId = null;
+        const trimmedParam = (param || '').trim();
+        if (trimmedParam) {
+            const weekRes = await db.queryWeekID(trimmedParam);
+            if (!weekRes || weekRes.length === 0) {
+                return formatTextReply(`ไม่พบข้อมูลสัปดาห์ "${trimmedParam}"`, quoteToken);
+            }
+            targetWeekId = weekRes[0].id;
+        }
+
+        const res = await db.rerollTeamColors(targetWeekId);
+        if (!res.success) {
+            return formatTextReply(`⚠️ ${res.message || 'ไม่สามารถสุ่มสีทีมใหม่ได้'}`, quoteToken);
+        }
+
+        const oldText = res.oldColors.length > 0 ? res.oldColors.join(', ') : '-';
+        const newText = res.newColors.join(', ');
+        const usageSummary = res.poolUsageSummary && res.poolUsageSummary.length > 0
+            ? `\n📊 สถิติสีปี ${res.year} (รวมสัปดาห์นี้): ${res.poolUsageSummary.join(' | ')}`
+            : '';
+        const dateSuffix = res.dateStr ? ` (${res.dateStr})` : '';
+
+        return formatTextReply(
+            `🎨 สุ่มสีทีมสัปดาห์นี้ใหม่เรียบร้อยแล้ว${dateSuffix}\n• เดิม: ${oldText}\n• ใหม่: ${newText}${usageSummary}`,
+            quoteToken
+        );
+    },
+    'resetcolor': async (context) => COMMAND_REGISTRY['rerollcolor'](context),
+    'randomcolor': async (context) => COMMAND_REGISTRY['rerollcolor'](context),
     'randomteam1': async (context) => {
         const { member, quoteToken, groupId } = context;
         if (!member || (Number(member.admin) !== 2 && member.line_user_id !== 'SYSTEM_BOT')) {
