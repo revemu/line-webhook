@@ -5864,11 +5864,18 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
     const fullImgUrl = rawFullImgUrl ? getFullUrl(rawFullImgUrl) : null;
     const pitchImgUrl = team.pitchImageUrl ? getFullUrl(team.pitchImageUrl) : null;
     const mainImgUrl = team.imageUrl ? getFullUrl(team.imageUrl) : null;
+    const viewerPath = (weekId && team.teamId)
+      ? `/webhook/teamview?week=${encodeURIComponent(weekId)}&team=${encodeURIComponent(team.teamId)}`
+      : null;
+    const svgViewerUrl = viewerPath ? getFullUrl(viewerPath) : null;
+    const tapUrl = (svgViewerUrl && svgViewerUrl.startsWith('http'))
+      ? svgViewerUrl
+      : ((fullImgUrl && fullImgUrl.startsWith('http')) ? fullImgUrl : null);
 
-    const actionObj = (fullImgUrl && fullImgUrl.startsWith('http')) ? {
+    const actionObj = tapUrl ? {
       type: 'uri',
       label: 'ดูรูปเต็ม',
-      uri: fullImgUrl
+      uri: tapUrl
     } : {
       type: 'message',
       label: 'รูปภาพ',
@@ -6035,10 +6042,10 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
             size: 'full',
             aspectRatio: '1080:1310',
             aspectMode: 'cover',
-            action: (fullImgUrl && fullImgUrl.startsWith('http')) ? {
+            action: tapUrl ? {
               type: 'uri',
               label: 'ดูรูปเต็ม',
-              uri: fullImgUrl
+              uri: tapUrl
             } : undefined
           },
           ...(mvpCard ? [{

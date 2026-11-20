@@ -1,4 +1,4 @@
-const svg2img = require('svg2img');
+const { renderAsync } = require('@resvg/resvg-js');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -888,32 +888,28 @@ async function convertSvgToPng(svgString, width = 1080, height = 1642, customFil
     .replace(new RegExp(`width="${width}"`), `width="${scaledWidth}"`)
     .replace(new RegExp(`height="${height}"`), `height="${scaledHeight}"`);
 
-  const imgOptions = { format: 'png', width: scaledWidth, height: scaledHeight };
+  const resvgOptions = {
+    fitTo: { mode: 'width', value: scaledWidth }
+  };
   const fontFiles = [];
   if (fs.existsSync(fontPathSarabun)) fontFiles.push(fontPathSarabun);
   if (fs.existsSync(fontPathSarabunBold)) fontFiles.push(fontPathSarabunBold);
   if (fs.existsSync(fontPathKaohom)) fontFiles.push(fontPathKaohom);
 
   if (fontFiles.length > 0) {
-    imgOptions.resvg = {
-      fitTo: { mode: 'width', value: scaledWidth },
-      font: {
-        fontFiles: fontFiles,
-        loadSystemFonts: false,
-        defaultFontFamily: 'Sarabun',
-        sansSerifFamily: 'Sarabun'
-      }
+    resvgOptions.font = {
+      fontFiles,
+      loadSystemFonts: false,
+      defaultFontFamily: 'Sarabun',
+      sansSerifFamily: 'Sarabun'
     };
   }
 
-  return new Promise((resolve, reject) => {
-    svg2img(scaledSvg, imgOptions, (error, buffer) => {
-      if (error) return reject(error);
-      // Cache in RAM immediately for first LINE fetch, then persist to disk asynchronously
-      cacheAndPersistAsync('team', filename, buffer, filePath, 'image/png');
-      resolve(filename);
-    });
-  });
+  const rendered = await renderAsync(scaledSvg, resvgOptions);
+  const buffer = rendered.asPng();
+  // Cache in RAM immediately for first LINE fetch, then persist to disk asynchronously
+  cacheAndPersistAsync('team', filename, buffer, filePath, 'image/png');
+  return filename;
 }
 
 /**

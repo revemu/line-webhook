@@ -1796,6 +1796,262 @@ async function updateTableWeek(weekid) {
     return { success: true };
 }
 
+function escapeHtmlText(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+async function resolveTeamForView(weekParam, teamParam) {
+    const cleanWeek = String(weekParam || '0').trim() || '0';
+    const cleanTeam = String(teamParam || '').trim();
+    const isTotw = cleanTeam.toLowerCase() === 'totw';
+
+    if (isTotw) {
+        const weekRows = await db.queryWeekID(cleanWeek);
+        if (!weekRows || weekRows.length === 0) return null;
+        const w = weekRows[0];
+        const totwArr = await db.getTotwFormationData(w.id);
+        if (!totwArr || totwArr.length === 0) return null;
+        const dateStr = w.date ? await db.getFormatDate(w.date, 'short') : '';
+        return {
+            weekId: w.id,
+            dateStr,
+            timeRange: w.time_range || '',
+            team: totwArr[0],
+            allTeams: totwArr
+        };
+    }
+
+    const data = await db.getTeamFormationData('', null, { weekId: cleanWeek });
+    if (!data || !data.formationsData || data.formationsData.length === 0) {
+        return null;
+    }
+
+    let targetTeam = data.formationsData[0];
+    if (cleanTeam) {
+        const lower = cleanTeam.toLowerCase();
+        const found = data.formationsData.find(t =>
+            String(t.teamId) === cleanTeam ||
+            String(t.teamColor || '').trim().toLowerCase() === lower
+        );
+        if (found) targetTeam = found;
+    }
+
+    return {
+        weekId: data.weekId,
+        dateStr: data.dateStr || '',
+        timeRange: data.timeRange || '',
+        team: targetTeam,
+        allTeams: data.formationsData
+    };
+}
+
+// Mobile-friendly HTML/SVG team formation viewer (zero PNG CPU on server)
+router.get('/webhook/teamview', async (req, res) => {
+    try {
+        const weekParam = req.query.week || '0';
+        const teamParam = req.query.team || '';
+        const resolved = await resolveTeamForView(weekParam, teamParam);
+        if (!resolved || !resolved.team) {
+            return res.status(404).send(`<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg"><title>ไม่พบผังทีม</title></head>
+<body style="background:#05070D;color:#E2E8F0;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;text-align:center;">
+<div><h2 style="margin:0 0 8px;">ไม่พบข้อมูลผังทีม</h2><p style="color:#94A3B8;margin:0;">สัปดาห์นี้ยังไม่มีการจัดผังการเล่น</p></div></body></html>`);
+        }
+
+        const teamImg = require('../team_img');
+        const rawSvg = await teamImg.buildTeamFormationSvg(resolved.team, resolved.dateStr, resolved.timeRange, { pitchOnly: false });
+        const responsiveSvg = rawSvg.replace(
+            /<svg\b([^>]*)>/i,
+            (match, attrs) => {
+                const cleaned = attrs
+                    .replace(/\swidth="[^"]*"/gi, '')
+                    .replace(/\sheight="[^"]*"/gi, '')
+                    .replace(/\sstyle="[^"]*"/gi, '');
+                return `<svg${cleaned} style="width:100%;height:auto;display:block;border-radius:16px;">`;
+            }
+        );
+
+        const activeId = String(resolved.team.teamId);
+        const cleanTeamName = teamImg.stripEmojis(resolved.team.teamColor || `Team ${activeId}`)
+            .replace(/^ทีม(สี)?\s*/i, '')
+            .trim() || `Team ${activeId}`;
+        const pageTitle = `${cleanTeamName}${resolved.dateStr ? ` • ${resolved.dateStr}` : ''}`;
+
+        const tabsHtml = (resolved.allTeams && resolved.allTeams.length > 1)
+            ? `<nav class="team-tabs" aria-label="เลือกทีม">${resolved.allTeams.map(t => {
+                const tid = String(t.teamId);
+                const isActive = tid === activeId;
+                const label = teamImg.stripEmojis(t.teamColor || `Team ${tid}`).replace(/^ทีม(สี)?\s*/i, '').trim();
+                const pct = (t.colorUsagePct !== null && t.colorUsagePct !== undefined) ? ` (${t.colorUsagePct}%)` : '';
+                const href = `/webhook/teamview?week=${encodeURIComponent(resolved.weekId)}&team=${encodeURIComponent(tid)}`;
+                return `<a class="tab${isActive ? ' active' : ''}" href="${href}">${escapeHtmlText(label + pct)}</a>`;
+            }).join('')}</nav>`
+            : '';
+
+        const downloadHref = `/webhook/teamimg/download?week=${encodeURIComponent(resolved.weekId)}&team=${encodeURIComponent(activeId)}`;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.send(`<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg">
+  <title>${escapeHtmlText(pageTitle)}</title>
+  <style>
+    @font-face {
+      font-family: 'Sarabun';
+      src: url('/webhook/fonts/Sarabun-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Sarabun';
+      src: url('/webhook/fonts/Sarabun-Bold.ttf') format('truetype');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #05070D;
+      color: #F8FAFC;
+      font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 18px);
+    }
+    .team-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 2px 2px 10px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .team-tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: #111827;
+      border: 1px solid #1E293B;
+      color: #CBD5E1;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      touch-action: manipulation;
+    }
+    .tab.active {
+      background: #0284C7;
+      border-color: #38BDF8;
+      color: #FFFFFF;
+    }
+    .svg-card {
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+      background: #0B0F19;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .btn-download {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 46px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: #059669;
+      color: #FFFFFF;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 700;
+      touch-action: manipulation;
+    }
+    .btn-download:active { opacity: 0.88; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    ${tabsHtml}
+    <div class="svg-card">${responsiveSvg}</div>
+    <div class="actions">
+      <a class="btn-download" href="${downloadHref}">💾 ดาวน์โหลดรูป PNG</a>
+    </div>
+  </main>
+</body>
+</html>`);
+    } catch (err) {
+        logger.error('[GET /webhook/teamview] Error:', err.message);
+        return res.status(500).send('เกิดข้อผิดพลาดในการสร้างหน้าผังทีม');
+    }
+});
+
+// On-demand full PNG download endpoint (renders via renderAsync only when explicitly requested)
+router.get('/webhook/teamimg/download', async (req, res) => {
+    try {
+        const weekParam = req.query.week || '0';
+        const teamParam = req.query.team || '';
+        const resolved = await resolveTeamForView(weekParam, teamParam);
+        if (!resolved || !resolved.team) {
+            return res.status(404).send('ไม่พบข้อมูลผังทีม');
+        }
+
+        const teamImg = require('../team_img');
+        const ramImageCache = require('../utils/ramImageCache');
+        const fs = require('fs');
+        const meta = await teamImg.generateTeamImage(resolved.team, resolved.dateStr, resolved.timeRange, {
+            pitchOnly: false,
+            returnMeta: true
+        });
+        const filename = meta?.filename;
+        if (!filename) {
+            return res.status(500).send('ไม่สามารถสร้างไฟล์รูป PNG ได้');
+        }
+
+        const ramEntry = ramImageCache.getRamImage('team', filename);
+        const pngBuffer = ramEntry
+            ? ramEntry.buffer
+            : await fs.promises.readFile(path.join(__dirname, '..', 'img', 'team', filename));
+
+        const safeTeam = String(resolved.team.teamId || 'team').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeWeek = String(resolved.weekId || 'week').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Disposition', `attachment; filename="formation_${safeTeam}_w${safeWeek}.png"`);
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.send(pngBuffer);
+    } catch (err) {
+        logger.error('[GET /webhook/teamimg/download] Error:', err.message);
+        return res.status(500).send('เกิดข้อผิดพลาดในการดาวน์โหลดรูป PNG');
+    }
+});
+
 // Attach functions to router for external access
 router.getLastMatchWeek = getLastMatchWeek;
 router.updateMatchScore = updateMatchScore;

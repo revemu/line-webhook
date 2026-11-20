@@ -3576,6 +3576,74 @@ function selectTeamOfTheWeekPlayers(allPlayers, is8PlayerWeek, posLimitsMap) {
   return selectedMembers;
 }
 
+async function getTotwFormationData(week_id, groupId = null, precomputedLeaders = null) {
+  const leaders = precomputedLeaders || await getWeekLeaderStats(week_id, groupId);
+  if (!(leaders && leaders.allPlayerRatings && leaders.allPlayerRatings.length > 0)) {
+    return null;
+  }
+
+  let is8PlayerWeek = false;
+  const teamCountsRes = await executeQuery(
+    "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
+    [week_id]
+  );
+  if (teamCountsRes && teamCountsRes.length > 0) {
+    const maxCount = Math.max(...teamCountsRes.map(r => Number(r.cnt) || 0));
+    if (maxCount >= 8) is8PlayerWeek = true;
+  }
+
+  const posLimitsMap = {};
+  try {
+    const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
+    if (posRows && posRows.length > 0) {
+      posRows.forEach(r => {
+        const code = (r.code || '').toUpperCase();
+        posLimitsMap[code] = {
+          min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
+          max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
+          min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
+          max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
+        };
+      });
+    }
+  } catch (ePos) { }
+
+  const totwRawMembers = selectTeamOfTheWeekPlayers(leaders.allPlayerRatings, is8PlayerWeek, posLimitsMap);
+  if (!totwRawMembers || totwRawMembers.length === 0) {
+    return null;
+  }
+
+  const formattedTotwMembers = totwRawMembers.map(m => {
+    const wRating = m.score ? parseFloat(m.score).toFixed(1) : '-';
+    return {
+      id: m.member_id || m.id,
+      member_id: m.member_id || m.id,
+      name: m.name,
+      alias: m.alias,
+      rank: m.rank,
+      picture_url: m.picture_url,
+      line_user_id: m.line_user_id,
+      pos_code: (m.pos?.code || m.pos_code || 'MF').toUpperCase(),
+      pos_name: m.pos?.name || m.pos_name || '',
+      pos_icon: m.pos?.icon || m.pos_icon || '',
+      weekStats: { rating: wRating, goals: m.goals || 0, assists: m.assists || 0 },
+      yearStats: { rating: wRating, goals: m.goals || 0, assists: m.assists || 0 }
+    };
+  });
+
+  const allocation = allocateFormationSlots(formattedTotwMembers, is8PlayerWeek, posLimitsMap);
+  return [{
+    teamId: 'totw',
+    teamColor: '🌟 Team of the Week 🌟',
+    colorCode: '#EAB308',
+    url: null,
+    formationName: allocation.formationName,
+    slots: allocation.slots,
+    totalPlayers: allocation.totalPlayers,
+    members: formattedTotwMembers
+  }];
+}
+
 async function getMatchWeek(week_id = 0, groupId = null) {
   const res = await queryWeekID(week_id);
   if (res && res.length > 0) {
@@ -3622,65 +3690,8 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     await Promise.all([
       // TOTW data prep
       (async () => {
-        if (!(leaders && leaders.allPlayerRatings && leaders.allPlayerRatings.length > 0)) return;
         try {
-          let is8PlayerWeek = false;
-          const teamCountsRes = await executeQuery(
-            "SELECT team_id, COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ? GROUP BY team_id",
-            [week_id]
-          );
-          if (teamCountsRes && teamCountsRes.length > 0) {
-            const maxCount = Math.max(...teamCountsRes.map(r => Number(r.cnt) || 0));
-            if (maxCount >= 8) is8PlayerWeek = true;
-          }
-
-          const posLimitsMap = {};
-          try {
-            const posRows = await executeQuery("SELECT code, min, max, min_8, max_8 FROM pos_tbl");
-            if (posRows && posRows.length > 0) {
-              posRows.forEach(r => {
-                const code = (r.code || '').toUpperCase();
-                posLimitsMap[code] = {
-                  min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
-                  max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
-                  min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
-                  max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
-                };
-              });
-            }
-          } catch (ePos) { }
-
-          const totwRawMembers = selectTeamOfTheWeekPlayers(leaders.allPlayerRatings, is8PlayerWeek, posLimitsMap);
-          if (totwRawMembers && totwRawMembers.length > 0) {
-            const formattedTotwMembers = totwRawMembers.map(m => {
-              const wRating = m.score ? parseFloat(m.score).toFixed(1) : '-';
-              return {
-                id: m.member_id || m.id,
-                member_id: m.member_id || m.id,
-                name: m.name,
-                alias: m.alias,
-                rank: m.rank,
-                picture_url: m.picture_url,
-                line_user_id: m.line_user_id,
-                pos_code: (m.pos?.code || m.pos_code || 'MF').toUpperCase(),
-                pos_name: m.pos?.name || m.pos_name || '',
-                pos_icon: m.pos?.icon || m.pos_icon || '',
-                weekStats: { rating: wRating, goals: m.goals || 0, assists: m.assists || 0 },
-                yearStats: { rating: wRating, goals: m.goals || 0, assists: m.assists || 0 }
-              };
-            });
-            const allocation = allocateFormationSlots(formattedTotwMembers, is8PlayerWeek, posLimitsMap);
-            totwFormationData = [{
-              teamId: 'totw',
-              teamColor: '🌟 Team of the Week 🌟',
-              colorCode: '#EAB308',
-              url: null,
-              formationName: allocation.formationName,
-              slots: allocation.slots,
-              totalPlayers: allocation.totalPlayers,
-              members: formattedTotwMembers
-            }];
-          }
+          totwFormationData = await getTotwFormationData(week_id, groupId, leaders);
         } catch (eTotw) {
           logger.error('[MatchWeek] TOTW data prep failed:', eTotw);
         }
@@ -3696,7 +3707,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     ]);
     logger.info(`  [MatchWeek] Data prep (TOTW + formations)  : ${Date.now() - tPrepStart} ms`);
 
-    // Step 2: generate all 1.5x full images in parallel (TOTW + all teams, 1 image per card)
+    // Step 2: generate all 1.5x pitch-only images in parallel via renderAsync (TOTW + all teams, 1 image per card)
     const teamImgMod = require('./team_img');
     const imageEntries = [];
     if (totwFormationData) {
@@ -3717,7 +3728,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
         });
       }
     }
-    await populateFullFormationImages(imageEntries, teamImgMod, '[/matchweek Image Generation — TOTW + All Teams in Parallel]');
+    await populatePitchFormationImages(imageEntries, teamImgMod, '[/matchweek Image Generation — TOTW + All Teams in Parallel]');
 
     // Step 3: build flex bubbles (CPU only, fast)
     if (totwFormationData) {
@@ -7732,7 +7743,7 @@ async function getTeamFormationData(param = '', groupId = null, options = {}) {
   };
 }
 
-async function populateFullFormationImages(entries, teamImgMod, headerLabel = '[/formation Image Generation Performance]') {
+async function populatePitchFormationImages(entries, teamImgMod, headerLabel = '[/formation Image Generation Performance]') {
   const tImgStart = Date.now();
   const teamDurations = [];
   let cachedImageCount = 0;
@@ -7749,17 +7760,17 @@ async function populateFullFormationImages(entries, teamImgMod, headerLabel = '[
   await Promise.all((entries || []).map(async ({ team, dateStr, timeRange, label }) => {
     const tTeamStart = Date.now();
     try {
-      const fullRes = await teamImgMod.generateTeamImage(team, dateStr, timeRange, { pitchOnly: false, returnMeta: true });
+      const pitchRes = await teamImgMod.generateTeamImage(team, dateStr, timeRange, { pitchOnly: true, returnMeta: true });
       const dur = Date.now() - tTeamStart;
       teamDurations.push(dur);
-      const fullUrl = fullRes?.url || fullRes;
-      const fullCached = !!fullRes?.cached;
-      if (fullUrl) {
-        team.imageUrl = fullUrl;
+      const pitchUrl = pitchRes?.url || pitchRes;
+      const pitchCached = !!pitchRes?.cached;
+      if (pitchUrl) {
+        team.pitchImageUrl = pitchUrl;
         totalImageCount++;
-        if (fullCached) cachedImageCount++;
+        if (pitchCached) cachedImageCount++;
       }
-      logger.info(`  ${label} Full: ${dur} ms  full=${formatImgStatus(fullUrl, fullCached)}`);
+      logger.info(`  ${label} Pitch: ${dur} ms  pitch=${formatImgStatus(pitchUrl, pitchCached)}`);
     } catch (eImg) {
       logger.warn(`  ${label.trim()} ❌ image failed: ${eImg.message}`);
     }
@@ -7780,7 +7791,7 @@ async function getTeamFormation(param = '', groupId = null) {
   const data = await getTeamFormationData(param, groupId);
   if (!data || !data.formationsData || data.formationsData.length === 0) return null;
 
-  // Pre-generate high-res (1.5x) full tactical formation images in parallel (1 image per team)
+  // Pre-generate high-res (1.5x) pitch-only tactical formation images in parallel (1 image per team via renderAsync)
   try {
     const teamImg = require('./team_img');
     const entries = data.formationsData.map(team => ({
@@ -7789,7 +7800,7 @@ async function getTeamFormation(param = '', groupId = null) {
       timeRange: data.timeRange,
       label: `Team ${team.teamId} (${team.teamColor || '-'}) `
     }));
-    await populateFullFormationImages(entries, teamImg, '[/formation Image Generation Performance]');
+    await populatePitchFormationImages(entries, teamImg, '[/formation Image Generation Performance]');
   } catch (err) {
     logger.warn('[getTeamFormation] team_img module error:', err.message);
   }
@@ -9410,6 +9421,7 @@ module.exports = {
   allocateFormationSlots,
   getTeamFormationData,
   getTeamFormation,
+  getTotwFormationData,
   randomTeamByPosition,
   saveActiveGroupId,
   getActiveGroupId,

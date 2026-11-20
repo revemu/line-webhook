@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.52] - 2026-11-20
+
+### Added & Changed
+- **Parallel `@resvg/resvg-js` `renderAsync` Pitch Images & Mobile HTML/SVG Viewer (`team_img.js`, `query.js`, `flex.js`, `routes/web.js`, `index.js`)**:
+  - Switched `convertSvgToPng` in `team_img.js` from synchronous `svg2img` to `@resvg/resvg-js` `renderAsync` so multi-team PNG generation runs concurrently on the libuv worker threadpool without blocking the Node.js event loop.
+  - Updated `getTeamFormation` and `getMatchWeek` in `query.js` (`populatePitchFormationImages`) to generate only 1 `1.5x` `pitch` image (`1620×1965`) per team (`~489 ms` wall-clock for 3 teams) while keeping crisp native LINE Flex Headers (with yearly color `%` badge) and MVP cards (staying well under LINE's `50 KB` Flex carousel limit even for 4 teams / TOTW).
+  - Added mobile-friendly `GET /webhook/teamview` HTML/SVG viewer and on-demand `GET /webhook/teamimg/download` PNG export in `routes/web.js` (plus `/webhook/fonts` static mount in `index.js`), and pointed `buildFormationFlex` (`📸 รูป` and pitch tap actions) to `/webhook/teamview`.
+  - Extracted shared `getTotwFormationData` helper in `query.js` for both `/matchweek` and `/webhook/teamview?team=totw`.
+
+---
+
 ## [0.7.51] - 2026-11-20
 
 ### Added & Changed

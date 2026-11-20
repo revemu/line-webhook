@@ -121,6 +121,7 @@ async function handleEvent(event) {
 app.use(['/webhook/img/qr', '/img/qr'], serveRamImageMiddleware('qr'), express.static(path.join(__dirname, 'qr')));
 app.use(['/webhook/img/team', '/img/team'], serveRamImageMiddleware('team'), express.static(path.join(__dirname, 'img', 'team')));
 app.use(['/webhook/img', '/img'], express.static(path.join(__dirname, 'img')));
+app.use(['/webhook/fonts', '/fonts'], express.static(path.join(__dirname, 'fonts')));
 
 // Mount Soccer Bot API & Web Dashboard routes (Merged from soccerbotapi - mounted before static to enable dynamic auto-versioning)
 app.use(webRouter);
