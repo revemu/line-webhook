@@ -62,6 +62,19 @@ function getAvatarDiskCachePath(url) {
   return path.join(avatarCacheDir, `${hash}.jpg`);
 }
 
+function resolveBrowserAvatarUrl(url) {
+  if (!url || typeof url !== 'string' || !url.trim().startsWith('http')) return null;
+  const secureUrl = url.trim().replace(/^http:\/\//i, 'https://');
+  const hash = crypto.createHash('md5').update(secureUrl).digest('hex');
+  const diskPath = path.join(avatarCacheDir, `${hash}.jpg`);
+  try {
+    if (fs.existsSync(diskPath) && fs.statSync(diskPath).size > 50) {
+      return `/webhook/img/avatars/${hash}.jpg`;
+    }
+  } catch (_) { }
+  return secureUrl;
+}
+
 /**
  * Fetches an image URL and converts it into a base64 Data URI with local disk caching.
  * resvg (used by svg2img) only supports data: URIs in <image> tags — not file:// URIs.
@@ -200,6 +213,10 @@ function getTeamHeaderColors(teamColorName) {
  */
 async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options = {}) {
   const isTotw = String(team.teamId || '').toLowerCase() === 'totw';
+  const embedAssets = options.embedAvatars !== false;
+  const svgUid = String(options.svgUid || team.teamId || 't').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const resolvedGoalIconHref = embedAssets ? goalIconDataUri : '/webhook/assets/icon_goal2.png';
+  const resolvedAssistIconHref = embedAssets ? assistIconDataUri : '/webhook/assets/icon_assist2.png';
 
   // Format team name: remove 'ทีม' / 'ทีม ' prefix as requested (e.g. 'Red', 'Yellow', 'Green')
   let rawTeamColor = team.teamColor || `Team ${team.teamId}`;
@@ -231,14 +248,15 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     }
   });
 
-  // Pre-fetch all player avatars in parallel
-  // fetchImageAsBase64 now returns file:// URI when cached on disk (no base64 overhead)
-  await Promise.all(Array.from(playersToLoad).map(async (m) => {
-    const rawPic = m.picture_url || m.pictureUrl;
-    if (rawPic && !m.avatarDataUri) {
-      m.avatarDataUri = await fetchImageAsBase64(rawPic);
-    }
-  }));
+  // Pre-fetch all player avatars in parallel when embedding base64 (for resvg PNG generation)
+  if (embedAssets) {
+    await Promise.all(Array.from(playersToLoad).map(async (m) => {
+      const rawPic = m.picture_url || m.pictureUrl;
+      if (rawPic && !m.avatarDataUri) {
+        m.avatarDataUri = await fetchImageAsBase64(rawPic);
+      }
+    }));
+  }
 
   // Identify Team / Week MVP (Highest rating player with goals/assists tiebreaker)
   let momPlayer = null;
@@ -357,15 +375,17 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     const borderWidth = isMom ? '5' : (isAlternate ? '4' : '3.2');
     const avatarR = 52;
 
-    const clipId = `clip-avatar-${pId}-${isAlternate ? 'alt' : 'prim'}`;
+    const clipId = `clip-avatar-${svgUid}-${pId}-${isAlternate ? 'alt' : 'prim'}`;
     defsSvg += `<clipPath id="${clipId}"><circle cx="0" cy="0" r="${avatarR}"/></clipPath>\n`;
 
     const rawPic = player.picture_url || player.pictureUrl;
     const playerPicUrl = rawPic ? rawPic.trim().replace(/^http:\/\//i, 'https://') : null;
-    const dataUri = player.avatarDataUri || (playerPicUrl ? avatarCache.get(playerPicUrl) : null);
+    const avatarHref = embedAssets
+      ? (player.avatarDataUri || (playerPicUrl ? avatarCache.get(playerPicUrl) : null))
+      : resolveBrowserAvatarUrl(rawPic);
 
-    const avatarSvg = dataUri ? `
-      <image href="${dataUri}" xlink:href="${dataUri}" x="-${avatarR}" y="-${avatarR}" width="${avatarR * 2}" height="${avatarR * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>
+    const avatarSvg = avatarHref ? `
+      <image href="${escapeXml(avatarHref)}" xlink:href="${escapeXml(avatarHref)}" x="-${avatarR}" y="-${avatarR}" width="${avatarR * 2}" height="${avatarR * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>
     ` : `
       <circle cx="0" cy="0" r="${avatarR}" fill="${isAlternate ? '#0C2A44' : '#1E293B'}"/>
       <text x="0" y="11" font-size="24" font-family="Sarabun, sans-serif" font-weight="bold" fill="${isMom ? '#FDE047' : (isAlternate ? '#38BDF8' : '#FFFFFF')}" text-anchor="middle">${escapeXml(posCode)}</text>
@@ -402,8 +422,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     const goalBadgeSvg = goals > 0 ? `
       <g transform="translate(42, 32)">
         <circle cx="0" cy="0" r="26.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
-        ${goalIconDataUri ? `
-          <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="-21" y="-21" width="42" height="42" preserveAspectRatio="xMidYMid meet"/>
+        ${resolvedGoalIconHref ? `
+          <image href="${resolvedGoalIconHref}" xlink:href="${resolvedGoalIconHref}" x="-21" y="-21" width="42" height="42" preserveAspectRatio="xMidYMid meet"/>
         ` : `
           <polygon points="0,-5.5 5.5,-2 3.5,5 -3.5,5 -5.5,-2" fill="#111827"/>
           <line x1="0" y1="-5.5" x2="0" y2="-13.5" stroke="#111827" stroke-width="1.8"/>
@@ -425,8 +445,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     const assistBadgeSvg = assists > 0 ? `
       <g transform="translate(-40, 32)">
         <circle cx="0" cy="0" r="26.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.2"/>
-        ${assistIconDataUri ? `
-          <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="-20" y="-18" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+        ${resolvedAssistIconHref ? `
+          <image href="${resolvedAssistIconHref}" xlink:href="${resolvedAssistIconHref}" x="-20" y="-18" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
         ` : `
           <g transform="translate(-11, -8) scale(1.2)">
             <path d="M1,9 C3,7 5,5 9,5 C11,5 13,7 15,7 C17,7 18,9 18,10 C18,11 16,12 13,12 C8,12 3,11 1,9 Z" fill="#38BDF8"/>
@@ -613,8 +633,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           momStatsSvg += `
             <g transform="translate(${sx}, 88)">
               <circle cx="17" cy="17" r="17" fill="#FFFFFF" stroke="#0F172A" stroke-width="2"/>
-              ${goalIconDataUri ? `
-                <image href="${goalIconDataUri}" xlink:href="${goalIconDataUri}" x="3" y="3" width="28" height="28" preserveAspectRatio="xMidYMid meet"/>
+              ${resolvedGoalIconHref ? `
+                <image href="${resolvedGoalIconHref}" xlink:href="${resolvedGoalIconHref}" x="3" y="3" width="28" height="28" preserveAspectRatio="xMidYMid meet"/>
               ` : `
                 <polygon points="17,10 22.5,14 20.5,21 13.5,21 11.5,14" fill="#111827"/>
               `}
@@ -631,8 +651,8 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
           momStatsSvg += `
             <g transform="translate(${sx}, 88)">
               <circle cx="17" cy="17" r="17" fill="#FFFFFF" stroke="#0F172A" stroke-width="2"/>
-              ${assistIconDataUri ? `
-                <image href="${assistIconDataUri}" xlink:href="${assistIconDataUri}" x="4" y="4" width="26" height="26" preserveAspectRatio="xMidYMid meet"/>
+              ${resolvedAssistIconHref ? `
+                <image href="${resolvedAssistIconHref}" xlink:href="${resolvedAssistIconHref}" x="4" y="4" width="26" height="26" preserveAspectRatio="xMidYMid meet"/>
               ` : `
                 <g transform="translate(5, 5) scale(0.65)">
                   <path d="M1,9 C3,7 5,5 9,5 C11,5 13,7 15,7 C17,7 18,9 18,10 C18,11 16,12 13,12 C8,12 3,11 1,9 Z" fill="#38BDF8"/>
@@ -645,14 +665,16 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
         }
       }
 
-      const momClipId = `clip-mom-${momPlayer.id}`;
+      const momClipId = `clip-mom-${svgUid}-${momPlayer.id}`;
       defsSvg += `<clipPath id="${momClipId}"><circle cx="80" cy="81" r="44"/></clipPath>\n`;
 
       const rawMomPic = momPlayer.picture_url || momPlayer.pictureUrl;
       const momPicUrl = rawMomPic ? rawMomPic.trim().replace(/^http:\/\//i, 'https://') : null;
-      const momDataUri = momPlayer.avatarDataUri || (momPicUrl ? avatarCache.get(momPicUrl) : null);
-      const momAvatarSvg = momDataUri ? `
-        <image href="${momDataUri}" xlink:href="${momDataUri}" x="36" y="37" width="88" height="88" preserveAspectRatio="xMidYMid slice" clip-path="url(#${momClipId})"/>
+      const momAvatarHref = embedAssets
+        ? (momPlayer.avatarDataUri || (momPicUrl ? avatarCache.get(momPicUrl) : null))
+        : resolveBrowserAvatarUrl(rawMomPic);
+      const momAvatarSvg = momAvatarHref ? `
+        <image href="${escapeXml(momAvatarHref)}" xlink:href="${escapeXml(momAvatarHref)}" x="36" y="37" width="88" height="88" preserveAspectRatio="xMidYMid slice" clip-path="url(#${momClipId})"/>
       ` : `
         <circle cx="80" cy="81" r="44" fill="#2A1802"/>
         <polygon points="69,89 74,74 80,82 86,74 91,89" fill="#F59E0B"/>
@@ -738,23 +760,23 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
   const svg = `
 <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <defs>
-    <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="bg-grad-${svgUid}" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#0B0F19"/>
       <stop offset="100%" stop-color="#05070D"/>
     </linearGradient>
-    <clipPath id="pitch-clip">
+    <clipPath id="pitch-clip-${svgUid}">
       <rect x="${pitchX}" y="${pitchY}" width="${pitchWidth}" height="${pitchHeight}" rx="18"/>
     </clipPath>
     ${defsSvg}
   </defs>
 
   <!-- Background Base -->
-  <rect width="${svgWidth}" height="${svgHeight}" fill="url(#bg-grad)"/>
+  <rect width="${svgWidth}" height="${svgHeight}" fill="url(#bg-grad-${svgUid})"/>
 
   ${headerBarSvg}
 
   <!-- Football Pitch (Lawn Stripes & Markings) -->
-  <g clip-path="url(#pitch-clip)">
+  <g clip-path="url(#pitch-clip-${svgUid})">
     <!-- Alternating Lawn Stripes -->
     ${pitchStripesSvg}
 

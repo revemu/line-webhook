@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.54] - 2026-11-20
+
+### Changed
+- **Eliminate 7.3 MB Base64 Bloat in `/webhook/teamview` (`team_img.js`, `routes/web.js`, `index.js`)**:
+  - Added `embedAvatars` (default `true` for `resvg` PNG rendering, `false` for browser HTML) and per-team `svgUid` ID scoping in `buildTeamFormationSvg`, resolving player avatars via cached `/webhook/img/avatars/<md5>.jpg` (or LINE CDN URL) and goal/assist badges via `/webhook/assets/` instead of embedding 7+ MB of repeated Base64 strings inside `/webhook/teamview` HTML.
+  - Mounted `/webhook/assets` static route in `index.js`.
+  - Updated `/webhook/teamview` in `routes/web.js` to load the inline saveable PNG overlay only for the active slide initially and lazy-load inactive slides on swipe, shrinking `/webhook/teamview` HTML from `7.38 MB` to `~36 KB`.
+
+---
+
 ## [0.7.53] - 2026-11-20
 
 ### Changed

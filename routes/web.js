@@ -1870,9 +1870,13 @@ router.get('/webhook/teamview', async (req, res) => {
         let activeIndex = teamsList.findIndex(t => String(t.teamId) === activeId);
         if (activeIndex < 0) activeIndex = 0;
 
-        // Build all team SVGs concurrently (~2-5ms total when avatars are cached)
+        // Build all team SVGs concurrently using lightweight URLs for avatars/icons (zero base64 bloat)
         const svgs = await Promise.all(
-            teamsList.map(t => teamImg.buildTeamFormationSvg(t, resolved.dateStr, resolved.timeRange, { pitchOnly: false }))
+            teamsList.map(t => teamImg.buildTeamFormationSvg(t, resolved.dateStr, resolved.timeRange, {
+                pitchOnly: false,
+                embedAvatars: false,
+                svgUid: String(t.teamId)
+            }))
         );
 
         const slidesHtml = teamsList.map((t, idx) => {
@@ -1889,10 +1893,14 @@ router.get('/webhook/teamview', async (req, res) => {
                 }
             );
             const pngSrc = `/webhook/teamimg/png?week=${encodeURIComponent(resolved.weekId)}&team=${encodeURIComponent(tid)}`;
+            const isActiveSlide = idx === activeIndex;
+            const imgAttrs = isActiveSlide
+                ? `src="${pngSrc}" data-src="${pngSrc}"`
+                : `data-src="${pngSrc}"`;
             return `<section class="slide" data-team-id="${escapeHtmlText(tid)}" data-team-name="${escapeHtmlText(cleanName)}">
   <div class="card-frame">
     ${responsiveSvg}
-    <img class="saveable-img" src="${pngSrc}" alt="${escapeHtmlText(cleanName)}" loading="eager" decoding="async" onload="this.classList.add('ready')">
+    <img class="saveable-img" ${imgAttrs} alt="${escapeHtmlText(cleanName)}" decoding="async" onload="this.classList.add('ready')">
   </div>
 </section>`;
         }).join('');
@@ -2035,8 +2043,20 @@ router.get('/webhook/teamview', async (req, res) => {
         carousel.scrollTo({ left: index * w, behavior: smooth ? 'smooth' : 'auto' });
       }
 
+      function ensureSlideImgLoaded(slide) {
+        if (!slide) return;
+        var img = slide.querySelector('.saveable-img');
+        if (img && !img.getAttribute('src')) {
+          var ds = img.getAttribute('data-src');
+          if (ds) img.setAttribute('src', ds);
+        }
+      }
+
       if (initialIndex > 0) {
         jumpTo(initialIndex, false);
+      }
+      if (slides[initialIndex]) {
+        ensureSlideImgLoaded(slides[initialIndex]);
       }
 
       var scrollTimer = null;
@@ -2052,6 +2072,7 @@ router.get('/webhook/teamview', async (req, res) => {
             }
             var slide = slides[idx];
             if (slide) {
+              ensureSlideImgLoaded(slide);
               var tid = slide.getAttribute('data-team-id');
               var tname = slide.getAttribute('data-team-name');
               if (tname) {
