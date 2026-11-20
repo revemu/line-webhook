@@ -1850,13 +1850,116 @@ async function resolveTeamForView(weekParam, teamParam) {
     };
 }
 
-// Full-screen swipeable PNG-only team formation viewer (long-press saveable)
+function getTeamTabDotStyle(teamColorName, teamImg) {
+    const colors = teamImg.getTeamHeaderColors(teamColorName);
+    if (colors.bg === '#F1F5F9') return 'background:#F8FAFC;';
+    if (colors.bg === '#EAB308') return 'background:#FACC15;';
+    if (colors.bg === '#18181B') return 'background:#18181B;border:1.5px solid #94A3B8;';
+    return `background:${colors.dot};`;
+}
+
+function renderTeamViewLockedHtml() {
+    return `<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg">
+  <title>ยังไม่เปิดให้เข้าชมผังทีม</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100dvh;
+      background: #05070D;
+      color: #F8FAFC;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .lock-card {
+      width: 100%;
+      max-width: 380px;
+      background: #0B0F19;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 20px;
+      padding: 28px 22px;
+      text-align: center;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+    }
+    .lock-icon {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      background: rgba(245, 158, 11, 0.14);
+      border: 1px solid rgba(245, 158, 11, 0.45);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #FDE68A;
+    }
+    p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.55;
+      color: #CBD5E1;
+    }
+    .sub {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #64748B;
+    }
+  </style>
+</head>
+<body>
+  <div class="lock-card">
+    <div class="lock-icon">🔒</div>
+    <h1>ยังไม่เปิดให้เข้าชมผังทีม</h1>
+    <p>⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ</p>
+    <p class="sub">กลับมาเปิดลิงก์นี้อีกครั้งหลังเวลา 20:00 น. วันศุกร์</p>
+  </div>
+</body>
+</html>`;
+}
+
+async function resolveAndCheckTeamAccess(req, weekParam, teamParam) {
+    if (await isWeekRosterLocked(weekParam, req.user)) {
+        return { locked: true };
+    }
+    const resolved = await resolveTeamForView(weekParam, teamParam);
+    if (!resolved || !resolved.team) {
+        return { notFound: true };
+    }
+    if (await isWeekRosterLocked(resolved.weekId, req.user)) {
+        return { locked: true };
+    }
+    return { resolved };
+}
+
+// Mobile-first full-screen swipeable PNG-only team formation viewer (locked before Fri 20:00 for non-root)
 router.get('/webhook/teamview', async (req, res) => {
     try {
         const weekParam = req.query.week || '0';
         const teamParam = req.query.team || '';
-        const resolved = await resolveTeamForView(weekParam, teamParam);
-        if (!resolved || !resolved.team) {
+        const access = await resolveAndCheckTeamAccess(req, weekParam, teamParam);
+        if (access.locked) {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            return res.status(403).send(renderTeamViewLockedHtml());
+        }
+        const resolved = access.resolved;
+        if (access.notFound || !resolved || !resolved.team) {
             return res.status(404).send(`<!DOCTYPE html>
 <html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg"><title>ไม่พบผังทีม</title></head>
@@ -1869,6 +1972,23 @@ router.get('/webhook/teamview', async (req, res) => {
         const activeId = String(resolved.team.teamId);
         let activeIndex = teamsList.findIndex(t => String(t.teamId) === activeId);
         if (activeIndex < 0) activeIndex = 0;
+
+        const cleanActiveName = teamImg.stripEmojis(resolved.team.teamColor || `Team ${activeId}`)
+            .replace(/^ทีม(สี)?\s*/i, '')
+            .trim() || `Team ${activeId}`;
+
+        const tabsHtml = teamsList.length > 1
+            ? `<nav class="topbar" aria-label="เลือกทีม"><div class="team-tabs" role="tablist">${teamsList.map((t, idx) => {
+                const tid = String(t.teamId);
+                const label = teamImg.stripEmojis(t.teamColor || `Team ${tid}`).replace(/^ทีม(สี)?\s*/i, '').trim() || `Team ${tid}`;
+                const dotStyle = getTeamTabDotStyle(t.teamColor, teamImg);
+                const pctHtml = (t.colorUsagePct !== null && t.colorUsagePct !== undefined)
+                    ? `<span class="tab-pct">${escapeHtmlText(t.colorUsagePct)}%</span>`
+                    : '';
+                const isActive = idx === activeIndex;
+                return `<button type="button" role="tab" aria-selected="${isActive ? 'true' : 'false'}" class="team-tab${isActive ? ' active' : ''}" data-index="${idx}" data-team-id="${escapeHtmlText(tid)}"><span class="tab-dot" style="${dotStyle}"></span><span>${escapeHtmlText(label)}</span>${pctHtml}</button>`;
+            }).join('')}</div></nav>`
+            : `<div class="topbar topbar-single"><span class="single-badge"><span class="tab-dot" style="${getTeamTabDotStyle(resolved.team.teamColor, teamImg)}"></span>${escapeHtmlText(cleanActiveName)}${resolved.dateStr ? ` • ${escapeHtmlText(resolved.dateStr)}` : ''}</span></div>`;
 
         const slidesHtml = teamsList.map((t, idx) => {
             const tid = String(t.teamId);
@@ -1893,9 +2013,8 @@ router.get('/webhook/teamview', async (req, res) => {
             }).join('')}</div>`
             : '';
 
-        const cleanActiveName = teamImg.stripEmojis(resolved.team.teamColor || `Team ${activeId}`)
-            .replace(/^ทีม(สี)?\s*/i, '')
-            .trim() || `Team ${activeId}`;
+        const activeDownloadUrl = `/webhook/teamimg/download?week=${encodeURIComponent(resolved.weekId)}&team=${encodeURIComponent(String(teamsList[activeIndex].teamId))}`;
+        const swipeHint = teamsList.length > 1 ? 'ปัดเปลี่ยนทีม • กดค้างรูปเพื่อเซฟ' : 'กดค้างที่รูป หรือแตะปุ่มเพื่อเซฟ';
         const pageTitle = `${cleanActiveName}${resolved.dateStr ? ` • ${resolved.dateStr}` : ''}`;
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -1908,22 +2027,90 @@ router.get('/webhook/teamview', async (req, res) => {
   <link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg">
   <title>${escapeHtmlText(pageTitle)}</title>
   <style>
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100%;
+      height: 100dvh;
       overflow: hidden;
       background: #05070D;
       color: #F8FAFC;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       -webkit-font-smoothing: antialiased;
     }
-    .carousel {
+    .app-shell {
       display: flex;
-      width: 100vw;
+      flex-direction: column;
+      width: 100%;
       height: 100dvh;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .topbar {
+      flex-shrink: 0;
+      padding: 8px 12px 4px;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+    .team-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 2px;
+    }
+    .team-tabs::-webkit-scrollbar { display: none; }
+    .team-tab, .single-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #0F172A;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      color: #CBD5E1;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.2;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .team-tab {
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    .team-tab.active {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: #38BDF8;
+      color: #FFFFFF;
+    }
+    .tab-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .tab-pct {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94A3B8;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 1px 6px;
+      border-radius: 999px;
+    }
+    .team-tab.active .tab-pct {
+      color: #BAE6FD;
+      background: rgba(2, 132, 199, 0.3);
+    }
+    .carousel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      width: 100%;
       overflow-x: auto;
       overflow-y: hidden;
       scroll-snap-type: x mandatory;
@@ -1935,25 +2122,34 @@ router.get('/webhook/teamview', async (req, res) => {
     .slide {
       flex: 0 0 100%;
       width: 100%;
-      height: 100dvh;
+      height: 100%;
       scroll-snap-align: center;
       scroll-snap-stop: always;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 22px);
+      padding: 4px 10px;
     }
     .card-frame {
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: min(calc(100vw - 12px), calc((100dvh - 28px - env(safe-area-inset-bottom, 0px)) * 1080 / 1606));
-      height: min(calc(100dvh - 28px - env(safe-area-inset-bottom, 0px)), calc((100vw - 12px) * 1606 / 1080));
-      border-radius: 14px;
+      aspect-ratio: 1080 / 1606;
+      width: min(calc(100vw - 20px), calc((100dvh - 116px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * 1080 / 1606));
+      height: min(calc(100dvh - 116px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), calc((100vw - 20px) * 1606 / 1080));
+      border-radius: 16px;
       overflow: hidden;
       background: #0B0F19;
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+    }
+    @supports (container-type: size) {
+      .slide { container-type: size; }
+      .card-frame {
+        width: min(calc(100cqw - 12px), calc((100cqh - 6px) * 1080 / 1606));
+        height: min(calc(100cqh - 6px), calc((100cqw - 12px) * 1606 / 1080));
+      }
     }
     .loader {
       display: flex;
@@ -1991,17 +2187,31 @@ router.get('/webhook/teamview', async (req, res) => {
       touch-action: pan-x pinch-zoom;
     }
     .saveable-img.ready { opacity: 1; }
-    .dots {
-      position: fixed;
-      left: 50%;
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
-      transform: translateX(-50%);
+    .bottom-bar {
+      flex-shrink: 0;
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 6px 12px 10px;
       display: flex;
-      gap: 7px;
-      z-index: 10;
-      padding: 3px 8px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .meta-col {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .dots {
+      display: flex;
+      gap: 6px;
+      padding: 4px 8px;
       border-radius: 999px;
-      background: rgba(15, 23, 42, 0.55);
+      background: #0F172A;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      flex-shrink: 0;
     }
     .dot {
       width: 7px;
@@ -2017,16 +2227,50 @@ router.get('/webhook/teamview', async (req, res) => {
       background: #38BDF8;
       transform: scale(1.25);
     }
+    .hint {
+      font-size: 11px;
+      color: #94A3B8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: #10B981;
+      color: #052E16;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.28);
+    }
+    .dl-btn:active { transform: scale(0.97); }
   </style>
 </head>
 <body>
-  <div class="carousel" id="carousel">${slidesHtml}</div>
-  ${dotsHtml}
+  <div class="app-shell">
+    ${tabsHtml}
+    <div class="carousel" id="carousel">${slidesHtml}</div>
+    <footer class="bottom-bar">
+      <div class="meta-col">
+        ${dotsHtml}
+        <span class="hint">${swipeHint}</span>
+      </div>
+      <a id="downloadBtn" class="dl-btn" href="${activeDownloadUrl}" download>⬇ บันทึกรูป</a>
+    </footer>
+  </div>
   <script>
     (function () {
       var carousel = document.getElementById('carousel');
       var slides = carousel ? carousel.querySelectorAll('.slide') : [];
       var dots = document.querySelectorAll('.dot');
+      var tabs = document.querySelectorAll('.team-tab');
+      var downloadBtn = document.getElementById('downloadBtn');
       var initialIndex = ${activeIndex};
 
       function jumpTo(index, smooth) {
@@ -2044,11 +2288,59 @@ router.get('/webhook/teamview', async (req, res) => {
         }
       }
 
+      function syncActiveState(idx) {
+        for (var i = 0; i < dots.length; i++) {
+          dots[i].classList.toggle('active', i === idx);
+        }
+        for (var j = 0; j < tabs.length; j++) {
+          var isSel = j === idx;
+          tabs[j].classList.toggle('active', isSel);
+          tabs[j].setAttribute('aria-selected', isSel ? 'true' : 'false');
+          if (isSel && tabs[j].scrollIntoView) {
+            try { tabs[j].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch (_) {}
+          }
+        }
+        var slide = slides[idx];
+        if (slide) {
+          ensureSlideImgLoaded(slide);
+          var tid = slide.getAttribute('data-team-id');
+          var tname = slide.getAttribute('data-team-name');
+          if (tname) {
+            document.title = tname + ${JSON.stringify(resolved.dateStr ? ` • ${resolved.dateStr}` : '')};
+          }
+          if (tid) {
+            if (downloadBtn) {
+              downloadBtn.setAttribute('href', '/webhook/teamimg/download?week=${encodeURIComponent(resolved.weekId)}&team=' + encodeURIComponent(tid));
+            }
+            if (window.history && window.history.replaceState) {
+              var nextUrl = '/webhook/teamview?week=${encodeURIComponent(resolved.weekId)}&team=' + encodeURIComponent(tid);
+              window.history.replaceState(null, '', nextUrl);
+            }
+          }
+        }
+      }
+
       if (initialIndex > 0) {
         jumpTo(initialIndex, false);
       }
       if (slides[initialIndex]) {
         ensureSlideImgLoaded(slides[initialIndex]);
+        var activeImg = slides[initialIndex].querySelector('.saveable-img');
+        var preloadTriggered = false;
+        var preloadRest = function () {
+          if (preloadTriggered) return;
+          preloadTriggered = true;
+          for (var s = 0; s < slides.length; s++) {
+            ensureSlideImgLoaded(slides[s]);
+          }
+        };
+        if (activeImg) {
+          if (activeImg.complete) {
+            setTimeout(preloadRest, 150);
+          } else {
+            activeImg.addEventListener('load', function () { setTimeout(preloadRest, 150); }, { once: true });
+          }
+        }
       }
 
       var scrollTimer = null;
@@ -2059,34 +2351,24 @@ router.get('/webhook/teamview', async (req, res) => {
             var w = carousel.clientWidth || window.innerWidth;
             if (!w) return;
             var idx = Math.max(0, Math.min(slides.length - 1, Math.round(carousel.scrollLeft / w)));
-            for (var i = 0; i < dots.length; i++) {
-              dots[i].classList.toggle('active', i === idx);
-            }
-            var slide = slides[idx];
-            if (slide) {
-              ensureSlideImgLoaded(slide);
-              var tid = slide.getAttribute('data-team-id');
-              var tname = slide.getAttribute('data-team-name');
-              if (tname) {
-                document.title = tname + ${JSON.stringify(resolved.dateStr ? ` • ${resolved.dateStr}` : '')};
-              }
-              if (tid && window.history && window.history.replaceState) {
-                var nextUrl = '/webhook/teamview?week=${encodeURIComponent(resolved.weekId)}&team=' + encodeURIComponent(tid);
-                window.history.replaceState(null, '', nextUrl);
-              }
-            }
-          }, 60);
+            syncActiveState(idx);
+          }, 50);
         }, { passive: true });
       }
 
-      for (var d = 0; d < dots.length; d++) {
-        (function (dot) {
-          dot.addEventListener('click', function () {
-            var idx = parseInt(dot.getAttribute('data-index'), 10) || 0;
-            jumpTo(idx, true);
-          });
-        })(dots[d]);
+      function bindJumpControls(list) {
+        for (var k = 0; k < list.length; k++) {
+          (function (el) {
+            el.addEventListener('click', function () {
+              var idx = parseInt(el.getAttribute('data-index'), 10) || 0;
+              jumpTo(idx, true);
+              syncActiveState(idx);
+            });
+          })(list[k]);
+        }
       }
+      bindJumpControls(dots);
+      bindJumpControls(tabs);
 
       window.addEventListener('resize', function () {
         var activeDot = document.querySelector('.dot.active');
@@ -2107,8 +2389,13 @@ async function serveTeamPng(req, res, asAttachment) {
     try {
         const weekParam = req.query.week || '0';
         const teamParam = req.query.team || '';
-        const resolved = await resolveTeamForView(weekParam, teamParam);
-        if (!resolved || !resolved.team) {
+        const access = await resolveAndCheckTeamAccess(req, weekParam, teamParam);
+        if (access.locked) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            return res.status(403).send('⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ');
+        }
+        const resolved = access.resolved;
+        if (access.notFound || !resolved || !resolved.team) {
             return res.status(404).send('ไม่พบข้อมูลผังทีม');
         }
 

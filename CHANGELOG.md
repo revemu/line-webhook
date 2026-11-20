@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.57] - 2026-11-20
+
+### Changed
+- **Friday 20:00 Access Lock & Mobile-Friendly Shell for `/webhook/teamview` (`routes/web.js`, `team_img.js`)**:
+  - Added Friday 20:00 (Bangkok time) roster lock enforcement (`isWeekRosterLocked`) to `GET /webhook/teamview`, `GET /webhook/teamimg/png`, and `GET /webhook/teamimg/download` via shared `resolveAndCheckTeamAccess` and `renderTeamViewLockedHtml` (`403` with `Cache-Control: no-store` before Friday 20:00 for public & `admin` users; past weeks and authenticated `root` remain allowed).
+  - Upgraded `/webhook/teamview` into a balanced mobile app layout using top team color pill switcher tabs (`.team-tabs`), CSS container-query responsive card sizing (`container-type: size`) so the `1080:1606` formation PNG fills the stage cleanly without wasted black bands, background neighbor-slide preloading after active PNG load, and a bottom thumb bar with pagination dots, save hint, and a dynamic `⬇ บันทึกรูป` button alongside long-press save (`-webkit-touch-callout: default`).
+  - Exported `getTeamHeaderColors` from `team_img.js` for consistent team pill dot colors.
+
+---
+
 ## [0.7.56] - 2026-11-20
 
 ### Changed

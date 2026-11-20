@@ -1044,6 +1044,7 @@ module.exports = {
   generateTeamFormationImages,
   computeFormationMetadataHash,
   isTeamImageCached,
+  getTeamHeaderColors,
   stripEmojis,
   fetchImageAsBase64
 };
