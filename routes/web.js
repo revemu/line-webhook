@@ -1850,7 +1850,7 @@ async function resolveTeamForView(weekParam, teamParam) {
     };
 }
 
-// Full-screen swipeable HTML/SVG + long-press-saveable PNG team formation viewer
+// Full-screen swipeable PNG-only team formation viewer (long-press saveable)
 router.get('/webhook/teamview', async (req, res) => {
     try {
         const weekParam = req.query.week || '0';
@@ -1870,28 +1870,9 @@ router.get('/webhook/teamview', async (req, res) => {
         let activeIndex = teamsList.findIndex(t => String(t.teamId) === activeId);
         if (activeIndex < 0) activeIndex = 0;
 
-        // Build all team SVGs concurrently using lightweight URLs for avatars/icons (zero base64 bloat)
-        const svgs = await Promise.all(
-            teamsList.map(t => teamImg.buildTeamFormationSvg(t, resolved.dateStr, resolved.timeRange, {
-                pitchOnly: false,
-                embedAvatars: false,
-                svgUid: String(t.teamId)
-            }))
-        );
-
         const slidesHtml = teamsList.map((t, idx) => {
             const tid = String(t.teamId);
             const cleanName = teamImg.stripEmojis(t.teamColor || `Team ${tid}`).replace(/^ทีม(สี)?\s*/i, '').trim() || `Team ${tid}`;
-            const responsiveSvg = svgs[idx].replace(
-                /<svg\b([^>]*)>/i,
-                (match, attrs) => {
-                    const cleaned = attrs
-                        .replace(/\swidth="[^"]*"/gi, '')
-                        .replace(/\sheight="[^"]*"/gi, '')
-                        .replace(/\sstyle="[^"]*"/gi, '');
-                    return `<svg${cleaned} style="width:100%;height:100%;display:block;">`;
-                }
-            );
             const pngSrc = `/webhook/teamimg/png?week=${encodeURIComponent(resolved.weekId)}&team=${encodeURIComponent(tid)}`;
             const isActiveSlide = idx === activeIndex;
             const imgAttrs = isActiveSlide
@@ -1899,8 +1880,8 @@ router.get('/webhook/teamview', async (req, res) => {
                 : `data-src="${pngSrc}"`;
             return `<section class="slide" data-team-id="${escapeHtmlText(tid)}" data-team-name="${escapeHtmlText(cleanName)}">
   <div class="card-frame">
-    ${responsiveSvg}
-    <img class="saveable-img" ${imgAttrs} alt="${escapeHtmlText(cleanName)}" decoding="async" onload="this.classList.add('ready')">
+    <div class="loader"><div class="spinner"></div><span>${escapeHtmlText(cleanName)}</span></div>
+    <img class="saveable-img" ${imgAttrs} alt="${escapeHtmlText(cleanName)}" decoding="async" onload="this.classList.add('ready');this.parentNode.classList.add('loaded');">
   </div>
 </section>`;
         }).join('');
@@ -1927,20 +1908,6 @@ router.get('/webhook/teamview', async (req, res) => {
   <link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg">
   <title>${escapeHtmlText(pageTitle)}</title>
   <style>
-    @font-face {
-      font-family: 'Sarabun';
-      src: url('/webhook/fonts/Sarabun-Regular.ttf') format('truetype');
-      font-weight: 400;
-      font-style: normal;
-      font-display: swap;
-    }
-    @font-face {
-      font-family: 'Sarabun';
-      src: url('/webhook/fonts/Sarabun-Bold.ttf') format('truetype');
-      font-weight: 700;
-      font-style: normal;
-      font-display: swap;
-    }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
@@ -1950,7 +1917,7 @@ router.get('/webhook/teamview', async (req, res) => {
       overflow: hidden;
       background: #05070D;
       color: #F8FAFC;
-      font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       -webkit-font-smoothing: antialiased;
     }
     .carousel {
@@ -1978,12 +1945,37 @@ router.get('/webhook/teamview', async (req, res) => {
     }
     .card-frame {
       position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       width: min(calc(100vw - 12px), calc((100dvh - 28px - env(safe-area-inset-bottom, 0px)) * 1080 / 1642));
       height: min(calc(100dvh - 28px - env(safe-area-inset-bottom, 0px)), calc((100vw - 12px) * 1642 / 1080));
       border-radius: 14px;
       overflow: hidden;
       background: #0B0F19;
       box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+    }
+    .loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: #94A3B8;
+      font-size: 13px;
+      letter-spacing: 0.2px;
+      pointer-events: none;
+    }
+    .card-frame.loaded .loader { display: none; }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(56, 189, 248, 0.2);
+      border-top-color: #38BDF8;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
     .saveable-img {
       position: absolute;

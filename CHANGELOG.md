@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.55] - 2026-11-20
+
+### Changed
+- **Ultra-Light PNG-Only Swipe Carousel in `/webhook/teamview` (`routes/web.js`)**:
+  - Removed redundant inline `<svg>` generation, `@font-face` CSS font loads, and 20+ browser avatar/icon fetches from `/webhook/teamview`, shrinking HTML payload to `~7.5 KB` for 3 teams.
+  - Replaced the SVG preview layer inside `.card-frame` with a lightweight CSS loading spinner placeholder while loading the single full `1.5x` PNG (`Header + % Badge + Pitch + Players + MVP Bar` via `/webhook/teamimg/png`), preserving full-screen `100dvh` horizontal swipe, pagination dots, lazy-loading on swipe, and long-press Save Image.
+
+---
+
 ## [0.7.54] - 2026-11-20
 
 ### Changed
