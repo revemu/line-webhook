@@ -4,6 +4,14 @@
 
 ---
 
+## [0.7.58] - 2026-11-20
+
+### Changed
+- **Clarify Pre-Draw Notice on `/webhook/teamview` (`routes/web.js`)**:
+  - Updated the pre-Friday-20:00 notice screen from a padlock/`ยังไม่เปิดให้เข้าชมผังทีม` style to a clean `⚽ ยังไม่ได้สุ่มทีมสัปดาห์นี้` + `ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ` message so it clearly communicates teams have not been randomized yet.
+
+---
+
 ## [0.7.57] - 2026-11-20
 
 ### Changed

@@ -1865,7 +1865,7 @@ function renderTeamViewLockedHtml() {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg">
-  <title>ยังไม่เปิดให้เข้าชมผังทีม</title>
+  <title>ยังไม่ได้สุ่มทีมสัปดาห์นี้</title>
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -1881,53 +1881,47 @@ function renderTeamViewLockedHtml() {
       justify-content: center;
       padding: 20px;
     }
-    .lock-card {
+    .status-card {
       width: 100%;
-      max-width: 380px;
+      max-width: 360px;
       background: #0B0F19;
-      border: 1px solid rgba(245, 158, 11, 0.35);
+      border: 1px solid rgba(56, 189, 248, 0.25);
       border-radius: 20px;
       padding: 28px 22px;
       text-align: center;
       box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
     }
-    .lock-icon {
-      width: 60px;
-      height: 60px;
+    .status-icon {
+      width: 58px;
+      height: 58px;
       margin: 0 auto 14px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 28px;
-      background: rgba(245, 158, 11, 0.14);
-      border: 1px solid rgba(245, 158, 11, 0.45);
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
     }
     h1 {
       margin: 0 0 8px;
       font-size: 18px;
       font-weight: 700;
-      color: #FDE68A;
+      color: #F8FAFC;
     }
     p {
       margin: 0;
       font-size: 14px;
       line-height: 1.55;
-      color: #CBD5E1;
-    }
-    .sub {
-      margin-top: 10px;
-      font-size: 12px;
-      color: #64748B;
+      color: #94A3B8;
     }
   </style>
 </head>
 <body>
-  <div class="lock-card">
-    <div class="lock-icon">🔒</div>
-    <h1>ยังไม่เปิดให้เข้าชมผังทีม</h1>
-    <p>⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ</p>
-    <p class="sub">กลับมาเปิดลิงก์นี้อีกครั้งหลังเวลา 20:00 น. วันศุกร์</p>
+  <div class="status-card">
+    <div class="status-icon">⚽</div>
+    <h1>ยังไม่ได้สุ่มทีมสัปดาห์นี้</h1>
+    <p>ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ</p>
   </div>
 </body>
 </html>`;
@@ -2392,7 +2386,7 @@ async function serveTeamPng(req, res, asAttachment) {
         const access = await resolveAndCheckTeamAccess(req, weekParam, teamParam);
         if (access.locked) {
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-            return res.status(403).send('⚠️ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ');
+            return res.status(403).send('ยังไม่ได้สุ่มทีมสัปดาห์นี้ ระบบจะทำการสุ่มทีมในวันศุกร์ เวลา 20:00 น. ครับ');
         }
         const resolved = access.resolved;
         if (access.notFound || !resolved || !resolved.team) {
