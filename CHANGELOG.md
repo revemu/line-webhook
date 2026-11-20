@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.50] - 2026-11-20
+
+### Added & Changed
+- **Cached Yearly Team Color Selection % in `/teamweek` (`query.js`, `flex.js`)**:
+  - Added two-tier yearly color stats cache (`yearlyColorStatsCache` in RAM + `color_year_stats_<year>` in `app_settings_tbl`) via `refreshYearlyColorStatsCache` and `getYearlyColorStatsCached` in `query.js`.
+  - Cache updates automatically whenever weekly colors are created or re-rolled (`addTeamColorWeek` / `newWeek` / `updateMaxNumberWeek` / `rerollTeamColors`), including 2026 `Green` → `Yellow` aggregation.
+  - Updated `getTeamFormationData` in `query.js` and `buildFormationFlex` in `flex.js` to display each team's yearly selection percentage badge (e.g., `24.1%`) in the `/teamweek` Flex card header without affecting Team of the Week cards or exported images.
+
+---
+
 ## [0.7.49] - 2026-11-20
 
 ### Added & Changed

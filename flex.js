@@ -5908,6 +5908,28 @@ function buildFormationFlex(formationsData, theme, dateStr = '', timeRange = '',
                 flex: 0,
                 margin: 'sm'
               },
+              ...(!isTotw && team.colorUsagePct !== null && team.colorUsagePct !== undefined ? [{
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: headerTheme.badgeBg,
+                cornerRadius: 'sm',
+                paddingStart: '5px',
+                paddingEnd: '5px',
+                paddingTop: '1px',
+                paddingBottom: '1px',
+                margin: 'xs',
+                flex: 0,
+                contents: [
+                  {
+                    type: 'text',
+                    text: `${team.colorUsagePct}%`,
+                    size: 'xxs',
+                    color: headerTheme.badgeText,
+                    weight: 'bold',
+                    align: 'center'
+                  }
+                ]
+              }] : []),
               {
                 type: 'box',
                 layout: 'vertical',

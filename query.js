@@ -517,6 +517,83 @@ async function getYearlyColorUsageCounts(targetYear, excludeWeekId = null) {
   return usageCounts;
 }
 
+const yearlyColorStatsCache = new Map();
+
+function normalizeCalendarYear(rawYear) {
+  let y = Number(rawYear) || new Date().getFullYear();
+  if (y > 2400) y -= 543;
+  return y;
+}
+
+function buildYearlyColorStatsPayload(usageCounts, year) {
+  const normalizedYear = normalizeCalendarYear(year);
+  const counts = {};
+  let totalSlots = 0;
+
+  for (const [rawKey, rawCnt] of Object.entries(usageCounts || {})) {
+    const key = String(rawKey || '').trim().toLowerCase();
+    const cnt = Number(rawCnt || 0);
+    if (!key || cnt <= 0) continue;
+    counts[key] = (counts[key] || 0) + cnt;
+    totalSlots += cnt;
+  }
+
+  const percentages = {};
+  if (totalSlots > 0) {
+    for (const [key, cnt] of Object.entries(counts)) {
+      percentages[key] = Number(((cnt / totalSlots) * 100).toFixed(1));
+    }
+  }
+
+  return {
+    year: normalizedYear,
+    totalSlots,
+    counts,
+    percentages,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function refreshYearlyColorStatsCache(targetYear = new Date().getFullYear()) {
+  const year = normalizeCalendarYear(targetYear);
+  const usageCounts = await getYearlyColorUsageCounts(year, null);
+  const payload = buildYearlyColorStatsPayload(usageCounts, year);
+  yearlyColorStatsCache.set(year, payload);
+
+  try {
+    await setSetting(`color_year_stats_${year}`, JSON.stringify(payload), {
+      category: 'cache',
+      description: `Cached yearly team color selection stats for ${year}`
+    });
+  } catch (err) {
+    logger.warn(`[ColorStatsCache] Failed to persist color_year_stats_${year}:`, err.message);
+  }
+
+  return payload;
+}
+
+async function getYearlyColorStatsCached(targetYear = new Date().getFullYear()) {
+  const year = normalizeCalendarYear(targetYear);
+  if (yearlyColorStatsCache.has(year)) {
+    return yearlyColorStatsCache.get(year);
+  }
+
+  try {
+    const raw = await getSetting(`color_year_stats_${year}`, null);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.counts && parsed.percentages) {
+        yearlyColorStatsCache.set(year, parsed);
+        return parsed;
+      }
+    }
+  } catch (err) {
+    logger.warn(`[ColorStatsCache] Failed to parse cached color_year_stats_${year}:`, err.message);
+  }
+
+  return await refreshYearlyColorStatsCache(year);
+}
+
 async function addTeamColorWeek(count = 3, targetWeekId = null) {
   const weekCtx = await resolveTargetWeekForColors(targetWeekId);
   if (!weekCtx) return;
@@ -545,6 +622,10 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
 
     for (let i = 0; i < selectedColors.length; i++) {
       await newTeamColorWeek(selectedColors[i], existingCount + i + 1, week_id);
+    }
+
+    if (selectedColors.length > 0) {
+      await refreshYearlyColorStatsCache(targetYear);
     }
   } else {
     //logger.info("Team color week already exist!");
@@ -646,6 +727,8 @@ async function rerollTeamColors(targetWeekId = null) {
     const key = c.trim().toLowerCase();
     afterCounts[key] = (afterCounts[key] || 0) + 1;
   }
+
+  await refreshYearlyColorStatsCache(targetYear);
 
   const poolUsageSummary = poolColors.map(c => `${c}=${afterCounts[c.trim().toLowerCase()] || 0}`);
 
@@ -7445,10 +7528,16 @@ async function getTeamFormationData(param = '', groupId = null, options = {}) {
   const weekId = week[0].id;
   const dateStr = week[0].date ? await getFormatDate(week[0].date, 'short') : '';
   const timeRange = week[0].time_range || '';
-  const matchYear = week[0].date ? new Date(week[0].date).getFullYear() : new Date().getFullYear();
+  const rawYear = week[0].date ? new Date(week[0].date).getFullYear() : new Date().getFullYear();
+  const matchYear = normalizeCalendarYear(rawYear);
 
   const teamColors = await getTeamColorWeek(weekId);
   if (!teamColors || teamColors.length === 0) return null;
+
+  let colorStats = null;
+  try {
+    colorStats = await getYearlyColorStatsCached(matchYear);
+  } catch (e) {}
 
   let teamsToRender = teamColors;
   if (teamArg && teamArg.toLowerCase() !== 'all') {
@@ -7652,10 +7741,18 @@ async function getTeamFormationData(param = '', groupId = null, options = {}) {
     const allocation = allocateFormationSlots(members || [], isTeam8Player, posLimitsMap);
     totalTacticsDuration += (Date.now() - tTacticsStart);
 
+    const aliasMap = YEARLY_COLOR_USAGE_ALIASES[matchYear] || {};
+    const rawColorKey = String(team.color || '').trim().toLowerCase();
+    const canonicalColorKey = aliasMap[rawColorKey] || rawColorKey;
+    const colorUsagePct = (colorStats && colorStats.percentages && colorStats.percentages[canonicalColorKey] !== undefined)
+      ? colorStats.percentages[canonicalColorKey]
+      : null;
+
     formationsData.push({
       teamId: team.id,
       teamColor: team.color,
       colorCode: team.code,
+      colorUsagePct,
       url: team.url,
       formationName: allocation.formationName,
       slots: allocation.slots,
@@ -9279,6 +9376,8 @@ module.exports = {
   addTeamColorWeek,
   rerollTeamColors,
   getYearlyColorUsageCounts,
+  getYearlyColorStatsCached,
+  refreshYearlyColorStatsCache,
   selectLeastUsedColors,
   addTeamMemberWeek,
   getMemberWeek2,
