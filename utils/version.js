@@ -102,15 +102,22 @@ function getAssetVersion(targetFilePath = null) {
 
     try {
         if (fs.existsSync(publicDir)) {
-            const files = fs.readdirSync(publicDir);
-            for (const file of files) {
-                if (file.startsWith('.')) continue;
-                const fullPath = path.join(publicDir, file);
-                const mtime = getFileMtime(fullPath);
-                if (mtime > maxMtime) {
-                    maxMtime = mtime;
+            const scanDir = (dirPath) => {
+                const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+                for (const entry of entries) {
+                    if (entry.name.startsWith('.')) continue;
+                    const fullPath = path.join(dirPath, entry.name);
+                    if (entry.isDirectory()) {
+                        if (entry.name !== 'vendor') scanDir(fullPath);
+                        continue;
+                    }
+                    const mtime = getFileMtime(fullPath);
+                    if (mtime > maxMtime) {
+                        maxMtime = mtime;
+                    }
                 }
-            }
+            };
+            scanDir(publicDir);
         }
     } catch {
         // Fallback
@@ -151,11 +158,13 @@ function renderVersionedHtml(filePath, req = null) {
 
     let rawHtml = fs.readFileSync(filePath, 'utf8');
 
-    // 1. Replace style.css and favicon.svg links with auto-busting assetVersion
+    // 1. Replace style.css, favicon.svg, and js/http.js links with auto-busting assetVersion
     const cssReplacement = `href="${prefix}/style.css?v=${assetVersion}"`;
     rawHtml = rawHtml.replace(/href=["'][^"']*style\.css(?:\?v=[^"']*)?["']/g, cssReplacement);
     const iconReplacement = `href="${prefix}/favicon.svg?v=${assetVersion}"`;
     rawHtml = rawHtml.replace(/href=["'][^"']*favicon\.svg(?:\?v=[^"']*)?["']/g, iconReplacement);
+    const httpReplacement = `src="${prefix}/js/http.js?v=${assetVersion}"`;
+    rawHtml = rawHtml.replace(/src=["'][^"']*js\/http\.js(?:\?v=[^"']*)?["']/g, httpReplacement);
 
     // 2. Prepare dynamic version config script
     const versionScript = `

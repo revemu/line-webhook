@@ -7,9 +7,6 @@
 	<title>เข้าสู่ระบบ - Soccer Bot Manager</title>
 	<link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg">
 	<link rel="shortcut icon" href="/webhook/favicon.svg">
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="/webhook/style.css">
 	<script>
 		(function () {
@@ -28,11 +25,8 @@
 
 <body>
 	<div id="login-app" class="container">
-		<!-- Theme Toggle Button -->
-		<div class="theme-toggle" @click="toggleTheme"
-			:title="isDarkTheme ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
-			<span v-if="isDarkTheme">☀️</span>
-			<span v-else>🌙</span>
+		<div id="themeToggle" class="theme-toggle" role="button" tabindex="0" title="Switch to Light Mode">
+			<span id="themeIcon">☀️</span>
 		</div>
 
 		<div class="login-wrapper">
@@ -41,127 +35,161 @@
 					<div class="login-logo">⚽</div>
 					<h1 class="login-title" style="display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
 						Soccer Bot Manager
-						<span class="app-version-badge" style="font-size: 0.7rem;">v{{ appVersion }}</span>
+						<span id="appVersionBadge" class="app-version-badge" style="font-size: 0.7rem;">v0.7</span>
 					</h1>
 					<p class="login-subtitle">กรุณาเข้าสู่ระบบเพื่อเข้าใช้งานระบบจัดการ</p>
 				</div>
 
-				<div v-if="errorMessage" class="login-error">
+				<div id="loginError" class="login-error" style="display: none;">
 					<span>⚠️</span>
-					<span>{{ errorMessage }}</span>
+					<span id="loginErrorText"></span>
 				</div>
 
-				<form @submit.prevent="handleLogin">
+				<form id="loginForm">
 					<div class="login-form-group">
 						<label class="login-label" for="username">ชื่อผู้ใช้ (Username)</label>
-						<input id="username" type="text" v-model="username" class="login-input"
+						<input id="username" type="text" class="login-input"
 							placeholder="กรอกชื่อผู้ใช้" required autocomplete="username" autofocus>
 					</div>
 
 					<div class="login-form-group">
 						<label class="login-label" for="password">รหัสผ่าน (Password)</label>
-						<input id="password" type="password" v-model="password" class="login-input"
+						<input id="password" type="password" class="login-input"
 							placeholder="กรอกรหัสผ่าน" required autocomplete="current-password">
 					</div>
 
-					<button type="submit" class="login-button" :disabled="loading" style="margin-top: 1.5rem;">
-						<span v-if="loading">⏳ กำลังเข้าสู่ระบบ...</span>
-						<span v-else>🔐 เข้าสู่ระบบ</span>
-					</button>
+					<button id="submitBtn" type="submit" class="login-button" style="margin-top: 1.5rem;">🔐 เข้าสู่ระบบ</button>
 				</form>
 			</div>
 		</div>
 	</div>
 
-	<!-- Scripts -->
-	<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
 	<script>
-		new Vue({
-			el: '#login-app',
-			data: {
-				appVersion: (window.__APP_VERSION__ || '0.6.5'),
-				assetVersion: (window.__ASSET_VERSION__ || ''),
-				username: '',
-				password: '',
-				errorMessage: '',
-				loading: false,
-				isDarkTheme: true
-			},
-			mounted() {
-				// Load theme preference
-				const savedTheme = localStorage.getItem('theme');
-				this.isDarkTheme = savedTheme ? (savedTheme === 'dark') : true;
-				this.applyTheme(this.isDarkTheme);
+		(function () {
+			var versionBadge = document.getElementById('appVersionBadge');
+			if (versionBadge) {
+				versionBadge.textContent = 'v' + (window.__APP_VERSION__ || '0.7');
+			}
 
-				// Check if already logged in
-				axios.get('/webhook/auth/me')
-					.then(res => {
-						if (res.data && res.data.authenticated) {
-							const urlParams = new URLSearchParams(window.location.search);
-							const redirect = urlParams.get('redirect');
-							if (redirect && redirect.startsWith('/webhook/')) {
-								if (redirect.includes('position') && res.data.user.role !== 'root') {
-									window.location.href = '/webhook/match';
-								} else {
-									window.location.href = redirect;
-								}
-							} else {
-								window.location.href = res.data.user.role === 'root' ? '/webhook/position' : '/webhook/match';
-							}
-						}
-					})
-					.catch(() => {});
-			},
-			methods: {
-				handleLogin() {
-					this.errorMessage = '';
-					this.loading = true;
+			var themeToggle = document.getElementById('themeToggle');
+			var themeIcon = document.getElementById('themeIcon');
+			var savedTheme = localStorage.getItem('theme');
+			var isDarkTheme = savedTheme ? (savedTheme === 'dark') : true;
 
-					const urlParams = new URLSearchParams(window.location.search);
-					const redirect = urlParams.get('redirect');
-
-					axios.post('/webhook/login', {
-						username: this.username,
-						password: this.password,
-						redirect: redirect
-					})
-					.then(res => {
-						this.loading = false;
-						if (res.data && res.data.success) {
-							window.location.href = res.data.redirect || '/webhook/match';
-						} else {
-							this.errorMessage = res.data.error || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
-						}
-					})
-					.catch(err => {
-						this.loading = false;
-						if (err.response && err.response.data && err.response.data.error) {
-							this.errorMessage = err.response.data.error;
-						} else {
-							this.errorMessage = 'เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง';
-						}
-					});
-				},
-				toggleTheme() {
-					this.isDarkTheme = !this.isDarkTheme;
-					this.applyTheme(this.isDarkTheme);
-				},
-				applyTheme(isDark) {
-					if (isDark) {
-						document.documentElement.setAttribute('data-theme', 'dark');
-						document.documentElement.classList.add('dark-theme');
-						document.body.classList.add('dark-theme');
-						localStorage.setItem('theme', 'dark');
-					} else {
-						document.documentElement.setAttribute('data-theme', 'light');
-						document.documentElement.classList.remove('dark-theme');
-						document.body.classList.remove('dark-theme');
-						localStorage.setItem('theme', 'light');
-					}
+			function applyTheme(isDark) {
+				if (isDark) {
+					document.documentElement.setAttribute('data-theme', 'dark');
+					document.documentElement.classList.add('dark-theme');
+					document.body.classList.add('dark-theme');
+					localStorage.setItem('theme', 'dark');
+					if (themeIcon) themeIcon.textContent = '☀️';
+					if (themeToggle) themeToggle.title = 'Switch to Light Mode';
+				} else {
+					document.documentElement.setAttribute('data-theme', 'light');
+					document.documentElement.classList.remove('dark-theme');
+					document.body.classList.remove('dark-theme');
+					localStorage.setItem('theme', 'light');
+					if (themeIcon) themeIcon.textContent = '🌙';
+					if (themeToggle) themeToggle.title = 'Switch to Dark Mode';
 				}
 			}
-		});
+			applyTheme(isDarkTheme);
+
+			if (themeToggle) {
+				themeToggle.addEventListener('click', function () {
+					isDarkTheme = !isDarkTheme;
+					applyTheme(isDarkTheme);
+				});
+			}
+
+			var urlParams = new URLSearchParams(window.location.search);
+			var redirect = urlParams.get('redirect');
+
+			fetch('/webhook/auth/me', {
+				credentials: 'same-origin',
+				headers: { 'X-Requested-With': 'XMLHttpRequest' }
+			})
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					if (data && data.authenticated) {
+						if (redirect && redirect.indexOf('/webhook/') === 0) {
+							if (redirect.indexOf('position') !== -1 && data.user && data.user.role !== 'root') {
+								window.location.href = '/webhook/match';
+							} else {
+								window.location.href = redirect;
+							}
+						} else {
+							window.location.href = (data.user && data.user.role === 'root') ? '/webhook/position' : '/webhook/match';
+						}
+					}
+				})
+				.catch(function () {});
+
+			var form = document.getElementById('loginForm');
+			var usernameEl = document.getElementById('username');
+			var passwordEl = document.getElementById('password');
+			var submitBtn = document.getElementById('submitBtn');
+			var errorBox = document.getElementById('loginError');
+			var errorText = document.getElementById('loginErrorText');
+
+			function setError(msg) {
+				if (!errorBox || !errorText) return;
+				if (msg) {
+					errorText.textContent = msg;
+					errorBox.style.display = '';
+				} else {
+					errorText.textContent = '';
+					errorBox.style.display = 'none';
+				}
+			}
+
+			function setLoading(isLoading) {
+				if (!submitBtn) return;
+				submitBtn.disabled = isLoading;
+				submitBtn.textContent = isLoading ? '⏳ กำลังเข้าสู่ระบบ...' : '🔐 เข้าสู่ระบบ';
+			}
+
+			if (form) {
+				form.addEventListener('submit', function (e) {
+					e.preventDefault();
+					setError('');
+					setLoading(true);
+
+					fetch('/webhook/login', {
+						method: 'POST',
+						credentials: 'same-origin',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-Requested-With': 'XMLHttpRequest'
+						},
+						body: JSON.stringify({
+							username: usernameEl ? usernameEl.value : '',
+							password: passwordEl ? passwordEl.value : '',
+							redirect: redirect
+						})
+					})
+						.then(function (res) {
+							return res.json().then(function (data) {
+								return { ok: res.ok, data: data };
+							}).catch(function () {
+								return { ok: res.ok, data: null };
+							});
+						})
+						.then(function (result) {
+							setLoading(false);
+							if (result.ok && result.data && result.data.success) {
+								window.location.href = result.data.redirect || '/webhook/match';
+							} else {
+								setError((result.data && result.data.error) || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+							}
+						})
+						.catch(function () {
+							setLoading(false);
+							setError('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง');
+						});
+				});
+			}
+		})();
 	</script>
 </body>
 

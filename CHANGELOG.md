@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.60] - 2026-11-21
+
+### Changed
+- **Eliminate External JS/Font CDNs (`public/login.shtml`, `public/position.shtml`, `public/update.shtml`, `public/js/http.js`, `public/vendor/vue.min.js`, `index.js`, `utils/version.js`)**:
+  - Replaced external `axios.min.js` CDN with a zero-dependency native `fetch()` adapter (`public/js/http.js`, ~1.5 KB) supporting `defaults.headers`, `AbortController` timeout, `FormData`/JSON bodies, and `interceptors.response`.
+  - Converted `public/login.shtml` to pure Vanilla JS with zero Vue/Axios/font dependencies.
+  - Self-hosted minified production `Vue.js v2.7.16` (`public/vendor/vue.min.js`, 107,679 bytes, served at `/webhook/vendor` with 30-day immutable browser cache in `index.js`) for `position.shtml` and `update.shtml`, removing external `cdn.jsdelivr.net`, `cdnjs.cloudflare.com`, and `fonts.googleapis.com` links across all dashboard pages.
+  - Updated `utils/version.js` to scan `public/js/` and auto-version `/webhook/js/http.js?v=...` alongside `style.css` and `favicon.svg`.
+
+---
+
 ## [0.7.59] - 2026-11-20
 
 ### Changed

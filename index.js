@@ -128,6 +128,7 @@ app.use(['/webhook/assets', '/assets'], express.static(path.join(__dirname, 'ass
 app.use(webRouter);
 
 // Serve Soccer Bot Web Dashboard static assets (public folder) under /webhook
+app.use('/webhook/vendor', express.static(path.join(__dirname, 'public', 'vendor'), { maxAge: '30d', immutable: true }));
 app.use('/webhook', express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 

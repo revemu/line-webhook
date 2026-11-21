@@ -7,9 +7,6 @@
 	<title>Position Manager - Soccer Bot</title>
 	<link rel="icon" type="image/svg+xml" href="/webhook/favicon.svg">
 	<link rel="shortcut icon" href="/webhook/favicon.svg">
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="style.css?v=0.7.26">
 	<script>
 		(function () {
@@ -1733,8 +1730,8 @@
 	</div>
 
 	<!-- Scripts -->
-	<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+	<script src="/webhook/vendor/vue.min.js?v=2.7.16"></script>
+	<script src="/webhook/js/http.js"></script>
 	<script>
 		new Vue({
 			el: '#position-app',
