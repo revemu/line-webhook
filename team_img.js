@@ -1,15 +1,20 @@
 const { renderAsync } = require('@resvg/resvg-js');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
-const axios = require('axios');
 const db = require('./query');
 const logger = require('./utils/logger');
 const { getFormatDate, getSlashDate } = require('./utils/date');
 const { hasRamImage, cacheAndPersistAsync } = require('./utils/ramImageCache');
+const {
+  AVATAR_CACHE_DIR: avatarCacheDir,
+  getAvatarDiskCachePath,
+  resolveWebAvatarUrl: resolveBrowserAvatarUrl,
+  fetchImageAsBase64,
+  getCachedBase64
+} = require('./utils/avatarCache');
 
 const teamImgDir = path.join(__dirname, 'img', 'team');
-const avatarCacheDir = path.join(__dirname, 'img', 'avatars');
 const fontPathSarabun = path.join(__dirname, 'fonts', 'Sarabun-Regular.ttf');
 const fontPathSarabunBold = path.join(__dirname, 'fonts', 'Sarabun-Bold.ttf');
 const fontPathKaohom = path.join(__dirname, 'fonts', 'LKKaohom.ttf');
@@ -18,9 +23,6 @@ const RENDER_SCALE = 1.5;
 // Ensure output directories exist
 if (!fs.existsSync(teamImgDir)) {
   fs.mkdirSync(teamImgDir, { recursive: true });
-}
-if (!fs.existsSync(avatarCacheDir)) {
-  fs.mkdirSync(avatarCacheDir, { recursive: true });
 }
 
 // Pre-load custom Goal & Assist icons as Base64 Data URIs (resvg requires data: URIs for <image> tags)
@@ -53,92 +55,6 @@ const CROWN_PATHS = `
   <path style="fill:#FFD630;" d="M113.742,172.59c9.726,0,17.639,7.912,17.639,17.639s-7.912,17.639-17.639,17.639 s-17.639-7.912-17.639-17.639S104.016,172.59,113.742,172.59z M256,129.401v35.276c-9.726,0-17.639-7.912-17.639-17.639 C238.361,137.313,246.275,129.401,256,129.401z M169.952,136.984c9.726,0,17.639,7.912,17.639,17.639 c0,9.726-7.912,17.639-17.639,17.639c-9.726,0-17.639-7.912-17.639-17.639C152.314,144.897,160.227,136.984,169.952,136.984z"/>
 `;
 
-
-/**
- * Helper to get local disk cache path for a profile picture URL.
- */
-function getAvatarDiskCachePath(url) {
-  const hash = crypto.createHash('md5').update(url).digest('hex');
-  return path.join(avatarCacheDir, `${hash}.jpg`);
-}
-
-function resolveBrowserAvatarUrl(url) {
-  if (!url || typeof url !== 'string' || !url.trim().startsWith('http')) return null;
-  const secureUrl = url.trim().replace(/^http:\/\//i, 'https://');
-  const hash = crypto.createHash('md5').update(secureUrl).digest('hex');
-  const diskPath = path.join(avatarCacheDir, `${hash}.jpg`);
-  try {
-    if (fs.existsSync(diskPath) && fs.statSync(diskPath).size > 50) {
-      return `/webhook/img/avatars/${hash}.jpg`;
-    }
-  } catch (_) { }
-  return secureUrl;
-}
-
-/**
- * Fetches an image URL and converts it into a base64 Data URI with local disk caching.
- * resvg (used by svg2img) only supports data: URIs in <image> tags — not file:// URIs.
- */
-const avatarCache = new Map(); // url -> base64 data URI
-async function fetchImageAsBase64(url, timeoutMs = 6000) {
-  if (!url || typeof url !== 'string' || !url.trim().startsWith('http')) return null;
-  let secureUrl = url.trim();
-  if (secureUrl.startsWith('http://')) {
-    secureUrl = secureUrl.replace(/^http:\/\//i, 'https://');
-  }
-
-  // 1. In-memory cache
-  if (avatarCache.has(secureUrl)) {
-    return avatarCache.get(secureUrl);
-  }
-
-  // 2. Local disk cache — read bytes and encode to base64 (no network needed)
-  const diskPath = getAvatarDiskCachePath(secureUrl);
-  try {
-    if (fs.existsSync(diskPath)) {
-      const buffer = fs.readFileSync(diskPath);
-      if (buffer && buffer.length > 50) {
-        const dataUri = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-        avatarCache.set(secureUrl, dataUri);
-        return dataUri;
-      } else {
-        try { fs.unlinkSync(diskPath); } catch (e) { }
-      }
-    }
-  } catch (diskErr) {
-    logger.warn(`[AvatarCache] Disk read error (${diskPath}):`, diskErr.message);
-  }
-
-  // 3. Remote download — save to disk cache, then return base64 data URI
-  try {
-    const response = await axios.get(secureUrl, {
-      responseType: 'arraybuffer',
-      timeout: timeoutMs,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-      }
-    });
-    if (response.data && response.data.length > 50) {
-      const contentType = response.headers['content-type'] || 'image/jpeg';
-      const buffer = Buffer.from(response.data);
-
-      // Save to disk cache for future reuse
-      try {
-        fs.writeFileSync(diskPath, buffer);
-      } catch (writeErr) {
-        logger.warn(`[AvatarCache] Disk write error (${diskPath}):`, writeErr.message);
-      }
-
-      const dataUri = `data:${contentType};base64,${buffer.toString('base64')}`;
-      avatarCache.set(secureUrl, dataUri);
-      return dataUri;
-    }
-  } catch (err) {
-    logger.warn(`[AvatarCache] Failed to download avatar (${secureUrl}):`, err.message);
-  }
-  return null;
-}
 
 /**
  * Strips raw emojis and special unicode symbols to prevent resvg tofu boxes
@@ -381,7 +297,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
     const rawPic = player.picture_url || player.pictureUrl;
     const playerPicUrl = rawPic ? rawPic.trim().replace(/^http:\/\//i, 'https://') : null;
     const avatarHref = embedAssets
-      ? (player.avatarDataUri || (playerPicUrl ? avatarCache.get(playerPicUrl) : null))
+      ? (player.avatarDataUri || (playerPicUrl ? getCachedBase64(playerPicUrl) : null))
       : resolveBrowserAvatarUrl(rawPic);
 
     const avatarSvg = avatarHref ? `
@@ -671,7 +587,7 @@ async function buildTeamFormationSvg(team, dateStr = '', timeRange = '', options
       const rawMomPic = momPlayer.picture_url || momPlayer.pictureUrl;
       const momPicUrl = rawMomPic ? rawMomPic.trim().replace(/^http:\/\//i, 'https://') : null;
       const momAvatarHref = embedAssets
-        ? (momPlayer.avatarDataUri || (momPicUrl ? avatarCache.get(momPicUrl) : null))
+        ? (momPlayer.avatarDataUri || (momPicUrl ? getCachedBase64(momPicUrl) : null))
         : resolveBrowserAvatarUrl(rawMomPic);
       const momAvatarSvg = momAvatarHref ? `
         <image href="${escapeXml(momAvatarHref)}" xlink:href="${escapeXml(momAvatarHref)}" x="36" y="37" width="88" height="88" preserveAspectRatio="xMidYMid slice" clip-path="url(#${momClipId})"/>

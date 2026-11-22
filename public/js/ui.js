@@ -170,6 +170,28 @@
 			'</button></div></form></div></div>';
 	}
 
+	// Global capture fallback for broken/expired avatar <img> elements
+	if (typeof document !== 'undefined' && document.addEventListener) {
+		document.addEventListener('error', function (e) {
+			var target = e && e.target;
+			if (!target || target.tagName !== 'IMG') return;
+			if (target.dataset && target.dataset.avatarFallbackDone) return;
+			if (target.dataset) target.dataset.avatarFallbackDone = '1';
+			var alt = (target.getAttribute && target.getAttribute('alt')) || '?';
+			var initial = String(alt).trim().charAt(0).toUpperCase() || '?';
+			if (target.parentNode && target.closest &&
+				target.closest('.toast-avatar, .spotlight-avatar, .player-card-avatar, .loan-player-avatar, .pitch-player-avatar-circle, .pitch-circle-avatar, .pitch-player-avatar, .unassigned-avatar')) {
+				target.style.display = 'none';
+				if (!target.parentNode.querySelector('.avatar-char')) {
+					var span = document.createElement('span');
+					span.className = 'avatar-char';
+					span.textContent = initial;
+					target.parentNode.appendChild(span);
+				}
+			}
+		}, true);
+	}
+
 	global.ui = {
 		escapeHtml: escapeHtml,
 		getContrastColor: getContrastColor,

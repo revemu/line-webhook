@@ -1000,9 +1000,9 @@
 
 		teamSummaryEl.style.display = 'block';
 		var leaderStats = (state.info && state.info.leader_stats) || {};
-		var mvps = leaderStats.weekMvps || [];
-		var topScorers = leaderStats.weekTopScorers || [];
-		var topAssists = leaderStats.weekTopAssists || [];
+		var mvps = leaderStats.mvps || leaderStats.weekMvps || [];
+		var topScorers = leaderStats.top_scorers || leaderStats.weekTopScorers || [];
+		var topAssists = leaderStats.top_assists || leaderStats.weekTopAssists || [];
 		var totw = leaderStats.totw || [];
 
 		var mvpIdSet = {};
@@ -1102,16 +1102,17 @@
 
 	function buildSpotlightItem(cls, badgeText, p, scoreText) {
 		var pName = getDisplayName(p);
+		var pTeamColor = p.teamName || p.team_color || p.color || '-';
 		var av = p.picture_url
 			? '<img src="' + esc(p.picture_url) + '" alt="' + esc(pName) + '">'
 			: esc(getInitials(p));
 		return '<div class="leader-spotlight-item ' + cls + '">' +
 			'<div class="spotlight-badge">' + badgeText + '</div>' +
 			'<div class="spotlight-player">' +
-			'<div class="spotlight-avatar" style="border-color:' + esc(teamHex(p.team_color || p.color)) + ';">' + av + '</div>' +
+			'<div class="spotlight-avatar" style="border-color:' + esc(teamHex(pTeamColor)) + ';">' + av + '</div>' +
 			'<div class="spotlight-info">' +
 			'<div class="spotlight-name">' + esc(pName) + '</div>' +
-			'<div class="spotlight-team">' + esc(getPosCode(p) || '-') + ' • ' + esc(p.team_color || p.color || '-') + '</div>' +
+			'<div class="spotlight-team">' + esc(getPosCode(p) || '-') + ' • ' + esc(pTeamColor) + '</div>' +
 			'</div>' +
 			'<div class="spotlight-score">' + esc(scoreText) + '</div>' +
 			'</div>' +

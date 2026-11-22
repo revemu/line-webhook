@@ -11,6 +11,7 @@ const db = require('../query');
 const logger = require('../utils/logger');
 const { getAppVersion, getAssetVersion, sendVersionedHtml } = require('../utils/version');
 const { broadcastMatchEvent } = require('../utils/wsBroadcaster');
+const avatarCache = require('../utils/avatarCache');
 
 const router = express.Router();
 const upload = multer();
@@ -119,11 +120,33 @@ function cancelDebouncedRatingCalculation(weekId) {
     }
 }
 
+function resolveLeaderStatsAvatars(mapped) {
+    if (!mapped) return mapped;
+    return {
+        mvps: avatarCache.mapPlayerAvatars(mapped.mvps),
+        top_scorers: avatarCache.mapPlayerAvatars(mapped.top_scorers),
+        top_assists: avatarCache.mapPlayerAvatars(mapped.top_assists),
+        totw: avatarCache.mapPlayerAvatars(mapped.totw),
+        players: avatarCache.mapPlayerAvatars(mapped.players)
+    };
+}
+
+async function lookupMemberAvatarUrlByHash(hash) {
+    const rows = await doQuery("SELECT picture_url FROM member_tbl WHERE picture_url IS NOT NULL AND picture_url <> ''");
+    for (const r of rows) {
+        const norm = avatarCache.normalizeAvatarUrl(r.picture_url);
+        if (norm && avatarCache.getAvatarHash(norm) === hash) {
+            return norm;
+        }
+    }
+    return null;
+}
+
 async function getOrComputeLeaderStats(weekid, forceRefresh = false) {
     if (!weekid) return null;
     const key = String(weekid);
     if (!forceRefresh && leaderStatsCache[key] && leaderStatsCache[key].data) {
-        return leaderStatsCache[key].data;
+        return resolveLeaderStatsAvatars(leaderStatsCache[key].data);
     }
 
     const stats = await db.getWeekLeaderStats(weekid, null, forceRefresh);
@@ -200,7 +223,7 @@ async function getOrComputeLeaderStats(weekid, forceRefresh = false) {
     };
     logger.info(`[Ratings Cache] Calculated & cached leader stats for week ${weekid} (${mapped.players.length} players, ${mapped.totw.length} TOTW)`);
 
-    return mapped;
+    return resolveLeaderStatsAvatars(mapped);
 }
 
 // Middlewares for Web Routes (Scoped to router so /webhook is not affected)
@@ -657,6 +680,28 @@ router.get('/webhook/style.css', (req, res) => {
     res.sendFile(stylePath);
 });
 
+// Self-hosted resized player avatar thumbnail endpoint (downloads once -> 96x96 JPEG -> disk cache)
+router.get('/webhook/avatar/:file', async (req, res) => {
+    try {
+        const match = String(req.params.file || '').match(/^([a-f0-9]{32})\.jpg$/i);
+        if (!match) {
+            return res.status(400).end();
+        }
+        const hash = match[1].toLowerCase();
+        const buf = await avatarCache.getOrCreateThumbBuffer(hash, lookupMemberAvatarUrlByHash);
+        if (!buf) {
+            res.set('Cache-Control', 'no-store');
+            return res.status(404).end();
+        }
+        res.set('Content-Type', 'image/jpeg');
+        res.set('Cache-Control', 'public, max-age=2592000, immutable');
+        return res.send(buf);
+    } catch (error) {
+        logger.warn(`[Avatar Proxy Error]: ${error.message}`);
+        return res.status(500).end();
+    }
+});
+
 // Get last match week
 router.get('/webhook/get_info', requireAuth, async (req, res) => {
     try {
@@ -991,7 +1036,7 @@ router.post('/webhook/add_match', requireAuth, upload.none(), async (req, res) =
                 else if (statusid == 3) { icon = '🎯'; label = 'ASSIST!'; }
 
                 const pName = goalInfo?.alias || goalInfo?.name || 'ผู้เล่น';
-                const avatar = goalInfo?.picture_url || '';
+                const avatar = avatarCache.resolveWebAvatarUrl(goalInfo?.picture_url || '');
                 const initials = (pName || '?').charAt(0).toUpperCase();
 
                 const isSideA = Number(data.teamid) === Number(goalInfo?.team_a_id);
@@ -1059,7 +1104,7 @@ router.post('/webhook/add_match', requireAuth, upload.none(), async (req, res) =
                     const goalA = mRow?.team_a_goal ?? 0;
                     const goalB = mRow?.team_b_goal ?? 0;
                     const pName = mRow?.alias || mRow?.name || 'ผู้เล่น';
-                    const avatar = mRow?.picture_url || '';
+                    const avatar = avatarCache.resolveWebAvatarUrl(mRow?.picture_url || '');
                     const initials = (pName || '?').charAt(0).toUpperCase();
 
                     let label = 'ยกเลิกประตู';
@@ -1218,7 +1263,8 @@ async function queryTeamMembers(matchid) {
       AND match_stat_tbl.id = ${matchid}
     ORDER BY team_id`;
 
-    return await doQuery(sql);
+    const rows = await doQuery(sql);
+    return avatarCache.mapPlayerAvatars(rows);
 }
 
 async function queryRegisteredMembers(weekid) {
@@ -1237,7 +1283,8 @@ async function queryRegisteredMembers(weekid) {
     WHERE mtw.week_id = ${weekid}
     ORDER BY mtw.team_id, mtw.id`;
 
-    return await doQuery(sql);
+    const rows = await doQuery(sql);
+    return avatarCache.mapPlayerAvatars(rows);
 }
 
 async function queryMatchScorer(matchID) {
@@ -1253,7 +1300,8 @@ async function queryMatchScorer(matchID) {
     LEFT JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
     WHERE match_goal_tbl.match_id = ${matchID}`;
 
-    return await doQuery(sql);
+    const rows = await doQuery(sql);
+    return avatarCache.mapPlayerAvatars(rows);
 }
 
 async function queryWeekId(weeknum = 0) {
@@ -1358,7 +1406,7 @@ async function queryPositionPageData(weeknum = 0) {
     WHERE mtw.week_id = ${weekid}
     ORDER BY mtw.team_id, mtw.id`;
 
-    const members = await doQuery(membersSql);
+    const members = avatarCache.mapPlayerAvatars(await doQuery(membersSql));
 
     return {
         success: true,

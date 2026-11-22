@@ -120,6 +120,7 @@ async function handleEvent(event) {
 // Serve freshly rendered images directly from RAM on first hit, then fall through to static disk cache
 app.use(['/webhook/img/qr', '/img/qr'], serveRamImageMiddleware('qr'), express.static(path.join(__dirname, 'qr')));
 app.use(['/webhook/img/team', '/img/team'], serveRamImageMiddleware('team'), express.static(path.join(__dirname, 'img', 'team')));
+app.use(['/webhook/img/avatars/thumb', '/img/avatars/thumb'], express.static(path.join(__dirname, 'img', 'avatars', 'thumb'), { maxAge: '30d', immutable: true }));
 app.use(['/webhook/img', '/img'], express.static(path.join(__dirname, 'img')));
 app.use(['/webhook/fonts', '/fonts'], express.static(path.join(__dirname, 'fonts')));
 app.use(['/webhook/assets', '/assets'], express.static(path.join(__dirname, 'assets')));

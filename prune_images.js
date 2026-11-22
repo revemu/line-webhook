@@ -124,7 +124,7 @@ function pruneImages(options = {}) {
     });
   }
 
-  // 3. Avatar Disk Cache (img/avatars) - optional
+  // 3. Avatar Disk Cache (img/avatars & img/avatars/thumb) - optional
   let avatarStats = { scanned: 0, deleted: 0, bytesFreed: 0 };
   if (includeAvatars) {
     const avatarDir = path.join(__dirname, 'img', 'avatars');
@@ -136,6 +136,17 @@ function pruneImages(options = {}) {
       now,
       isDryRun
     });
+    const thumbStats = pruneDirectory({
+      dirPath: path.join(avatarDir, 'thumb'),
+      label: 'Avatar Thumb Cache',
+      fileFilter: (name) => name.endsWith('.jpg') || name.endsWith('.png'),
+      maxAgeMs,
+      now,
+      isDryRun
+    });
+    avatarStats.scanned += thumbStats.scanned;
+    avatarStats.deleted += thumbStats.deleted;
+    avatarStats.bytesFreed += thumbStats.bytesFreed;
   }
 
   const totalScanned = teamStats.scanned + qrStats.scanned + avatarStats.scanned;

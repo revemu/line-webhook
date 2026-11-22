@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.63] - 2026-11-22
+
+### Added
+- **Self-Hosted 96×96 Avatar Thumbnail Proxy & Disk Cache (`utils/avatarCache.js`, `routes/web.js`, `index.js`, `team_img.js`, `prune_images.js`, `public/js/ui.js`, `public/js/update.js`)**:
+  - Added shared `utils/avatarCache.js` managing both full-size avatar cache (`img/avatars/<md5>.jpg` used by `team_img.js` for crisp LINE `/formation` cards) and `96×96` cover-cropped JPEG thumbnails (`img/avatars/thumb/<md5>.jpg`, quality `78` via `jimp`) for Web Dashboard views.
+  - Added `GET /webhook/avatar/:hash.jpg` endpoint (verified against registered/DB `member_tbl.picture_url` URLs, with request deduplication and `30d, immutable` browser caching) and mounted static `/webhook/img/avatars/thumb` with 30-day immutable caching in `index.js`.
+  - Updated all dashboard data queries and WebSocket goal toasts in `routes/web.js` to serve self-hosted thumbnail URLs instead of external `sprofile.line-scdn.net` URLs (~200+ KB reduced to a few KB per avatar), and added global `<img>` error fallback to player initials in `public/js/ui.js`.
+  - Fixed `leader_stats` property mapping in `public/js/update.js` (`mvps`, `top_scorers`, `top_assists`, `teamName`) and included `img/avatars/thumb/` in `.gitignore` and `prune_images.js`.
+
+---
+
 ## [0.7.62] - 2026-11-22
 
 ### Fixed
