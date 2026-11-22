@@ -208,10 +208,10 @@
 
 	function getRatingClass(rating) {
 		var num = parseFloat(rating);
-		if (isNaN(num) || rating === '-' || rating === null || rating === undefined) return 'rating-none';
-		if (num >= 8.5) return 'rating-elite';
-		if (num >= 7.5) return 'rating-great';
-		if (num >= 6.8) return 'rating-good';
+		if (isNaN(num) || num <= 0 || rating === '-' || rating === null || rating === undefined) return 'rating-none';
+		if (num >= 7.0) return 'rating-elite';
+		if (num >= 6.0) return 'rating-great';
+		if (num >= 5.0) return 'rating-good';
 		return 'rating-avg';
 	}
 
@@ -556,13 +556,26 @@
 
 	function renderScoreBubbles(events) {
 		if (!events || !events.length) return '';
-		var html = '<div class="player-score-bubbles">';
+		var goals = [];
+		var assists = [];
+		var ogs = [];
 		for (var i = 0; i < events.length; i++) {
-			var ev = events[i];
-			var st = Number(ev.goal_status);
-			var cls = st === 2 ? 'is-og' : (st === 3 ? 'is-assist' : 'is-goal');
-			var sym = st === 2 ? 'OG' : (st === 3 ? '👟' : '⚽');
-			html += '<span class="score-bubble ' + cls + '" data-action="quick-remove-goal" data-goal-id="' + esc(ev.goal_id) + '" title="คลิกเพื่อลบเหตุการณ์นี้">' + sym + '</span>';
+			var st = Number(events[i].goal_status);
+			if (st === 2) ogs.push(events[i]);
+			else if (st === 3) assists.push(events[i]);
+			else goals.push(events[i]);
+		}
+		var rmCls = state.isManager ? ' is-removable' : '';
+		var rmX = state.isManager ? '<span class="bubble-remove-x">&times;</span>' : '';
+		var html = '<div class="player-score-bubbles">';
+		if (goals.length) {
+			html += '<button type="button" class="bubble-goal' + rmCls + '" data-action="quick-remove-goal" data-goal-id="' + esc(goals[goals.length - 1].goal_id) + '" title="ลบประตู (-1)"><span>⚽' + goals.length + '</span>' + rmX + '</button>';
+		}
+		if (assists.length) {
+			html += '<button type="button" class="bubble-assist' + rmCls + '" data-action="quick-remove-goal" data-goal-id="' + esc(assists[assists.length - 1].goal_id) + '" title="ลบแอสซิสต์ (-1)"><span>👟' + assists.length + '</span>' + rmX + '</button>';
+		}
+		if (ogs.length) {
+			html += '<button type="button" class="bubble-og' + rmCls + '" data-action="quick-remove-goal" data-goal-id="' + esc(ogs[ogs.length - 1].goal_id) + '" title="ลบ OG (-1)"><span>OG' + ogs.length + '</span>' + rmX + '</button>';
 		}
 		html += '</div>';
 		return html;
@@ -582,10 +595,12 @@
 			? '<button type="button" class="btn-unloan-node" data-action="unloan-player" data-match-id="' + esc(match.id) + '" data-player-id="' + esc(player.id) + '" title="คืนตัวกลับทีมเดิม">✕</button>'
 			: '';
 
-		return '<div class="pitch-player-node' + (isLoan ? ' is-loaned' : '') + '">' +
+		return '<div class="pitch-player-node' + (isLoan ? ' is-loan' : '') + '">' +
+			'<div class="pitch-player-avatar-wrap">' +
 			unloanBtn +
 			'<div class="pitch-player-avatar-circle" style="border-color:' + esc(tColor) + ';">' +
 			avatar +
+			'</div>' +
 			renderScoreBubbles(events) +
 			'</div>' +
 			'<div class="pitch-name-pill">' +
@@ -1119,8 +1134,22 @@
 			'</div>';
 	}
 
+	function getTopRatedPlayerId(players) {
+		var bestId = null;
+		var bestVal = 0;
+		for (var i = 0; i < (players || []).length; i++) {
+			var v = parseFloat(players[i].rating);
+			if (!isNaN(v) && v > bestVal) {
+				bestVal = v;
+				bestId = Number(players[i].id);
+			}
+		}
+		return bestId;
+	}
+
 	function buildSummaryColHtml(opts) {
 		var bodyHtml = '';
+		var topPlayerId = getTopRatedPlayerId(opts.players);
 		if (!opts.players || !opts.players.length) {
 			bodyHtml = '<div class="team-player-empty">ยังไม่มีรายชื่อผู้เล่น</div>';
 		} else if (opts.isPitchView) {
@@ -1133,17 +1162,26 @@
 					var rCls = getRatingClass(pl.rating);
 					var rVal = formatRating(pl.rating);
 					var pName = getDisplayName(pl);
+					var pTeamColor = pl.teamName || pl.team_color || pl.color || '';
+					var isTop = topPlayerId !== null && Number(pl.id) === topPlayerId;
 					var av = pl.picture_url
 						? '<img src="' + esc(pl.picture_url) + '" alt="' + esc(pName) + '">'
 						: '<span class="avatar-char">' + esc(getInitials(pl)) + '</span>';
 					bodyHtml +=
-						'<div class="mini-pitch-node">' +
-						'<div class="pitch-player-avatar-circle" style="border-color:' + esc(teamHex(pl.team_color || pl.color)) + ';">' +
+						'<div class="pitch-player-node mini-pitch-node">' +
+						'<div class="pitch-player-avatar-wrap">' +
+						'<div class="pitch-player-avatar-circle" style="border-color:' + esc(teamHex(pTeamColor)) + ';">' +
 						av +
-						(rVal !== '-' ? '<span class="mini-score-rating ' + rCls + '"><span class="badge-val">' + esc(rVal) + '</span></span>' : '') +
+						'</div>' +
+						'<div class="mini-score-rating ' + rCls + '" title="Live Rating">' +
+						'<span class="badge-icon">' + (isTop ? '👑' : '⭐') + '</span>' +
+						'<span class="badge-val">' + esc(rVal) + '</span>' +
+						'</div>' +
+						(isTop ? '<span class="mini-team-mvp-badge" title="Team MVP">👑</span>' : '') +
 						'</div>' +
 						'<div class="pitch-name-pill">' +
 						'<span class="pitch-pos-label">' + esc(getPosCode(pl) || 'MF') + '</span>' +
+						(opts.isTotw && pTeamColor ? '<span class="totw-team-mini-dot" style="background:' + esc(teamHex(pTeamColor)) + ';" title="ทีม ' + esc(pTeamColor) + '"></span>' : '') +
 						'<span class="pitch-name-text">' + esc(pName) + '</span>' +
 						'</div>' +
 						'</div>';
@@ -1158,19 +1196,23 @@
 				var name = getDisplayName(player);
 				var ratingCls = getRatingClass(player.rating);
 				var ratingText = formatRating(player.rating);
-				var isMvp = opts.mvpIdSet && opts.mvpIdSet[Number(player.id)];
+				var pTeamColor = player.teamName || player.team_color || player.color || '';
+				var isMvp = (topPlayerId !== null && Number(player.id) === topPlayerId) || (opts.mvpIdSet && opts.mvpIdSet[Number(player.id)]);
 				var avatar = player.picture_url
 					? '<img src="' + esc(player.picture_url) + '" alt="' + esc(name) + '">'
 					: esc(getInitials(player));
 				var statTags = '';
+				if (opts.isTotw && pTeamColor) {
+					statTags += '<span class="player-pos-tag" style="background:' + esc(teamHex(pTeamColor)) + ';color:' + esc(getContrast(pTeamColor)) + ';font-weight:700;">' + esc(pTeamColor) + '</span>';
+				}
 				if (player.goals > 0) statTags += '<span class="player-stat-tag goal-tag">⚽ ' + esc(player.goals) + '</span>';
 				if (player.assists > 0) statTags += '<span class="player-stat-tag assist-tag">👟 ' + esc(player.assists) + '</span>';
 				if (player.clean_sheets > 0) statTags += '<span class="player-stat-tag cs-tag">🧤 ' + esc(player.clean_sheets) + '</span>';
 
 				bodyHtml +=
 					'<div class="team-player-card">' +
-					'<span class="player-card-rank">' + (i + 1) + '</span>' +
-					'<div class="player-card-avatar" style="border-color:' + esc(teamHex(player.team_color || player.color)) + ';">' + avatar + '</div>' +
+					'<span class="player-card-rank">#' + (i + 1) + '</span>' +
+					'<div class="player-card-avatar" style="border-color:' + esc(teamHex(pTeamColor)) + ';">' + avatar + '</div>' +
 					'<div class="player-card-details">' +
 					'<div class="player-card-name-row">' +
 					'<span class="player-card-alias">' + esc(name) + '</span>' +
@@ -1181,7 +1223,7 @@
 					statTags +
 					'</div>' +
 					'</div>' +
-					'<span class="player-card-rating ' + ratingCls + '">' + esc(ratingText) + '</span>' +
+					'<span class="player-card-rating ' + ratingCls + '"><span class="rating-star">⭐</span><span>' + esc(ratingText) + '</span></span>' +
 					'</div>';
 			}
 			bodyHtml += '</div>';

@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.64] - 2026-11-22
+
+### Fixed
+- **Fix Clipped Rating Badges & Goal/Assist Bubbles on Pitch Avatars (`public/js/update.js`)**:
+  - Wrapped `.pitch-player-avatar-circle` + floating badges (`.mini-score-rating`, `.mini-team-mvp-badge`, and `.player-score-bubbles`) inside `.pitch-player-avatar-wrap` (`position: relative`) in both `buildSummaryColHtml` and `renderPitchPlayerNode`, preventing `.pitch-player-avatar-circle`'s `overflow: hidden` from clipping badges inside the circle.
+  - Restored grouped `.bubble-goal` / `.bubble-assist` / `.bubble-og` classes with `.bubble-remove-x`, TOTW `.totw-team-mini-dot`, `.mini-team-mvp-badge` + `👑/⭐` badge icons, and original `getRatingClass()` thresholds (`7.0 / 6.0 / 5.0`).
+
+---
+
 ## [0.7.63] - 2026-11-22
 
 ### Added
