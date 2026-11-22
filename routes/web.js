@@ -670,10 +670,10 @@ router.get('/webhook/style.css', (req, res) => {
     res.sendFile(stylePath);
 });
 
-// Self-hosted resized player avatar thumbnail endpoint (downloads once -> 96x96 JPEG -> disk cache)
+// Self-hosted resized player avatar thumbnail endpoint (downloads once -> 96x96 PNG via resvg -> disk cache)
 router.get('/webhook/avatar/:file', async (req, res) => {
     try {
-        const match = String(req.params.file || '').match(/^([a-f0-9]{32})\.jpg$/i);
+        const match = String(req.params.file || '').match(/^([a-f0-9]{32})\.(png|jpg)$/i);
         if (!match) {
             return res.status(400).end();
         }
@@ -683,7 +683,7 @@ router.get('/webhook/avatar/:file', async (req, res) => {
             res.set('Cache-Control', 'no-store');
             return res.status(404).end();
         }
-        res.set('Content-Type', 'image/jpeg');
+        res.set('Content-Type', avatarCache.detectImageMime(buf, 'image/png'));
         res.set('Cache-Control', 'public, max-age=2592000, immutable');
         return res.send(buf);
     } catch (error) {

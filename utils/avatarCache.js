@@ -2,14 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const axios = require('axios');
-const { Jimp } = require('jimp');
+const { renderAsync } = require('@resvg/resvg-js');
 const logger = require('./logger');
 
 const AVATAR_CACHE_DIR = path.join(__dirname, '..', 'img', 'avatars');
 const AVATAR_THUMB_DIR = path.join(AVATAR_CACHE_DIR, 'thumb');
 
 const THUMB_SIZE = 96;
-const THUMB_JPEG_QUALITY = 78;
 const MIN_IMAGE_BYTES = 50;
 const FAILED_TTL_MS = 5 * 60 * 1000;
 const MAX_URL_ENTRIES = 2000;
@@ -53,12 +52,29 @@ function getAvatarDiskCachePath(url) {
 	return path.join(AVATAR_CACHE_DIR, `${getAvatarHash(secureUrl)}.jpg`);
 }
 
-function getThumbDiskPathByHash(hash) {
-	return path.join(AVATAR_THUMB_DIR, `${hash}.jpg`);
+function getThumbDiskPathByHash(hash, ext = 'png') {
+	return path.join(AVATAR_THUMB_DIR, `${hash}.${ext}`);
 }
 
 function getFullDiskPathByHash(hash) {
 	return path.join(AVATAR_CACHE_DIR, `${hash}.jpg`);
+}
+
+function detectImageMime(buffer, fallback = 'image/jpeg') {
+	if (!buffer || buffer.length < 4) return fallback;
+	if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+		return 'image/png';
+	}
+	if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+		return 'image/jpeg';
+	}
+	if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+		return 'image/gif';
+	}
+	if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+		return 'image/webp';
+	}
+	return fallback;
 }
 
 function fileExistsWithMinBytes(filePath) {
@@ -103,10 +119,13 @@ function resolveWebAvatarUrl(rawUrl) {
 	}
 	const info = registerAvatarUrl(trimmed);
 	if (!info) return '';
-	if (fileExistsWithMinBytes(getThumbDiskPathByHash(info.hash))) {
+	if (fileExistsWithMinBytes(getThumbDiskPathByHash(info.hash, 'png'))) {
+		return `/webhook/img/avatars/thumb/${info.hash}.png`;
+	}
+	if (fileExistsWithMinBytes(getThumbDiskPathByHash(info.hash, 'jpg'))) {
 		return `/webhook/img/avatars/thumb/${info.hash}.jpg`;
 	}
-	return `/webhook/avatar/${info.hash}.jpg`;
+	return `/webhook/avatar/${info.hash}.png`;
 }
 
 /**
@@ -176,18 +195,21 @@ async function ensureFullAvatarBuffer(secureUrl, timeoutMs = 6000) {
 
 async function createThumbnailBuffer(fullBuffer) {
 	try {
-		const image = await Jimp.fromBuffer(fullBuffer);
-		image.cover({ w: THUMB_SIZE, h: THUMB_SIZE });
-		return await image.getBuffer('image/jpeg', { quality: THUMB_JPEG_QUALITY });
+		if (!fullBuffer || fullBuffer.length <= MIN_IMAGE_BYTES) return null;
+		const mime = detectImageMime(fullBuffer, 'image/jpeg');
+		const dataUri = `data:${mime};base64,${fullBuffer.toString('base64')}`;
+		const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${THUMB_SIZE}" height="${THUMB_SIZE}" viewBox="0 0 ${THUMB_SIZE} ${THUMB_SIZE}"><image href="${dataUri}" x="0" y="0" width="${THUMB_SIZE}" height="${THUMB_SIZE}" preserveAspectRatio="xMidYMid slice"/></svg>`;
+		const rendered = await renderAsync(svg, { font: { loadSystemFonts: false } });
+		return Buffer.from(rendered.asPng());
 	} catch (err) {
-		logger.warn(`[AvatarCache] Jimp thumbnail resize skipped: ${err.message}`);
+		logger.warn(`[AvatarCache] resvg thumbnail resize skipped: ${err.message}`);
 		return null;
 	}
 }
 
 /**
- * Serves or builds a 96x96 compressed JPEG thumbnail for the given 32-char MD5 avatar hash.
- * Uses local full-size disk cache first, then in-memory / DB-verified source URL (never arbitrary URLs).
+ * Serves or builds a 96x96 cover-cropped PNG thumbnail for the given 32-char MD5 avatar hash.
+ * Uses existing PNG/legacy JPEG thumb cache first, then full-size disk cache or DB-verified URL.
  */
 async function getOrCreateThumbBuffer(hash, lookupUrlByHash) {
 	if (!/^[a-f0-9]{32}$/i.test(hash)) return null;
@@ -196,10 +218,16 @@ async function getOrCreateThumbBuffer(hash, lookupUrlByHash) {
 	const failUntil = failedCache.get(cleanHash);
 	if (failUntil && Date.now() < failUntil) return null;
 
-	const thumbPath = getThumbDiskPathByHash(cleanHash);
-	if (fileExistsWithMinBytes(thumbPath)) {
+	const pngThumbPath = getThumbDiskPathByHash(cleanHash, 'png');
+	if (fileExistsWithMinBytes(pngThumbPath)) {
 		try {
-			return fs.readFileSync(thumbPath);
+			return fs.readFileSync(pngThumbPath);
+		} catch (_) { }
+	}
+	const legacyJpgThumbPath = getThumbDiskPathByHash(cleanHash, 'jpg');
+	if (fileExistsWithMinBytes(legacyJpgThumbPath)) {
+		try {
+			return fs.readFileSync(legacyJpgThumbPath);
 		} catch (_) { }
 	}
 
@@ -235,12 +263,14 @@ async function getOrCreateThumbBuffer(hash, lookupUrlByHash) {
 			}
 
 			const thumbBuffer = await createThumbnailBuffer(fullBuffer);
-			const outBuffer = (thumbBuffer && thumbBuffer.length > MIN_IMAGE_BYTES) ? thumbBuffer : fullBuffer;
+			const isPngThumb = Boolean(thumbBuffer && thumbBuffer.length > MIN_IMAGE_BYTES);
+			const outBuffer = isPngThumb ? thumbBuffer : fullBuffer;
+			const targetThumbPath = isPngThumb ? pngThumbPath : legacyJpgThumbPath;
 			if (outBuffer && outBuffer.length > MIN_IMAGE_BYTES) {
 				try {
-					writeFileAtomicSync(thumbPath, outBuffer);
+					writeFileAtomicSync(targetThumbPath, outBuffer);
 				} catch (writeErr) {
-					logger.warn(`[AvatarCache] Thumb write error (${thumbPath}):`, writeErr.message);
+					logger.warn(`[AvatarCache] Thumb write error (${targetThumbPath}):`, writeErr.message);
 				}
 				failedCache.delete(cleanHash);
 				return outBuffer;
@@ -289,6 +319,7 @@ module.exports = {
 	AVATAR_CACHE_DIR,
 	AVATAR_THUMB_DIR,
 	THUMB_SIZE,
+	detectImageMime,
 	normalizeAvatarUrl,
 	getAvatarHash,
 	getAvatarDiskCachePath,

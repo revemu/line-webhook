@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.68] - 2026-11-22
+
+### Changed & Optimized
+- **Replace `jimp` and `svg2img` with Shared `@resvg/resvg-js` (`utils/avatarCache.js`, `qr_gen.js`, `routes/web.js`, `package.json`)**:
+  - Updated `utils/avatarCache.js` (`createThumbnailBuffer`, `getOrCreateThumbBuffer`, `resolveWebAvatarUrl`) to resize `96×96` cover-cropped PNG thumbnails asynchronously via `@resvg/resvg-js` (`renderAsync`) while staying backward-compatible with previously cached `.jpg` thumbnails.
+  - Updated `GET /webhook/avatar/:file` in `routes/web.js` to support both `.png` and `.jpg` paths and serve magic-byte detected `Content-Type` via `avatarCache.detectImageMime()`.
+  - Migrated `qr_gen.js` from `svg2img` to `@resvg/resvg-js` `renderAsync`, avoiding blocking SVG rendering and a second native/JS renderer instance.
+  - Added `@resvg/resvg-js` directly to `package.json` dependencies, uninstalled `jimp` and `svg2img` (removing 134 redundant packages), and updated `scripts/bench-qr.js` to treat `jimp` as optional.
+
+---
+
 ## [0.7.67] - 2026-11-22
 
 ### Fixed & Added

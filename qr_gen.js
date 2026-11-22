@@ -6,7 +6,7 @@ if (!Array.prototype.toSorted) {
 }
 
 const { renderThaiQRPayment } = require('thai-qr-payment');
-const svg2img = require('svg2img');
+const { renderAsync } = require('@resvg/resvg-js');
 const fs = require('fs');
 const path = require('path');
 const logger = require('./utils/logger');
@@ -211,32 +211,23 @@ async function generateQrCode(amount, promptPayNumber = '0850705894', options = 
         }
       );
 
-      const outputHeight = customHeaderDataUri ? 455 : 473;
-      const imgOptions = { format: 'png', width: 400, height: outputHeight };
       const fontFiles = [];
       if (fs.existsSync(fontPathSarabun)) fontFiles.push(fontPathSarabun);
       if (fs.existsSync(fontPath)) fontFiles.push(fontPath);
-      if (fontFiles.length > 0) {
-        imgOptions.resvg = {
-          font: {
-            fontFiles,
-            loadSystemFonts: false,
-            defaultFontFamily: 'Sarabun',
-            sansSerifFamily: 'Sarabun'
-          }
-        };
-      }
+      const resvgOptions = {
+        fitTo: { mode: 'width', value: 400 },
+        font: {
+          fontFiles,
+          loadSystemFonts: false,
+          defaultFontFamily: 'Sarabun',
+          sansSerifFamily: 'Sarabun'
+        }
+      };
 
-      // Convert SVG to PNG in RAM, cache for instant first HTTP hit, and flush to disk in background
-      await new Promise((resolve, reject) => {
-        svg2img(svgString, imgOptions, function (error, buffer) {
-          if (error) {
-            return reject(error);
-          }
-          cacheAndPersistAsync('qr', filename, buffer, filePath, 'image/png');
-          resolve(filename);
-        });
-      });
+      // Convert SVG to PNG in RAM via resvg worker thread, cache for instant first HTTP hit, and persist in background
+      const rendered = await renderAsync(svgString, resvgOptions);
+      const buffer = rendered.asPng();
+      cacheAndPersistAsync('qr', filename, buffer, filePath, 'image/png');
 
       logger.info(`[QR-Gen] Generated fresh QR image for amount ${numAmount} (${promptPayNumber}): ${filename}`);
       return filename;

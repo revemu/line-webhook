@@ -15,7 +15,9 @@ const path = require('path');
 const util = require('util');
 const { exec, execFile } = require('child_process');
 const { performance } = require('perf_hooks');
-const { Jimp } = require('jimp');
+const { renderAsync } = require('@resvg/resvg-js');
+let Jimp = null;
+try { ({ Jimp } = require('jimp')); } catch (_) {}
 const jsQR = require('jsqr');
 const { readBarcodesFromImageFile, readBarcodesFromImageData, setZXingModuleOverrides } = require('zxing-wasm');
 const { resolveEphemeralTempDir } = require('../utils/ramImageCache');
@@ -128,14 +130,12 @@ async function resolveSampleTargets(explicitFiles, limit) {
   if (qrFiles.length > 0) {
     const smallPath = path.join(imgDir, qrFiles[0]);
     const smallBuf = fs.readFileSync(smallPath);
-    const qrImg = await Jimp.read(smallBuf);
-    const canvas = new Jimp({ width: 1080, height: 1920, color: 0xffffffff });
-    canvas.composite(qrImg, 400, 1300);
-    const slipLikeBuf = await canvas.getBuffer('image/jpeg', { quality: 85 });
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920"><rect width="1080" height="1920" fill="#ffffff"/><image href="data:image/png;base64,${smallBuf.toString('base64')}" x="340" y="1200" width="400" height="455"/></svg>`;
+    const slipLikeBuf = Buffer.from((await renderAsync(svg, { font: { loadSystemFonts: false } })).asPng());
 
     return [
       { label: `${qrFiles[0]} (small PNG)`, buffer: smallBuf, mimeType: 'image/png', source: smallPath },
-      { label: 'synthetic_slip_1080x1920.jpg', buffer: slipLikeBuf, mimeType: 'image/jpeg', source: 'memory' }
+      { label: 'synthetic_slip_1080x1920.png', buffer: slipLikeBuf, mimeType: 'image/png', source: 'memory' }
     ];
   }
 
@@ -213,26 +213,28 @@ function makeEngineRunners({ hasZbarimg, tempDir }) {
     }
   });
 
-  engines.push({
-    name: 'zxing-wasm (Jimp + ImageData)',
-    run: async (buf) => {
-      const j = await Jimp.read(buf);
-      const res = await readBarcodesFromImageData(
-        { data: new Uint8ClampedArray(j.bitmap.data), width: j.bitmap.width, height: j.bitmap.height },
-        { formats: ['QRCode'] }
-      );
-      return (res && res.length > 0) ? res[0].text : null;
-    }
-  });
+  if (Jimp) {
+    engines.push({
+      name: 'zxing-wasm (Jimp + ImageData)',
+      run: async (buf) => {
+        const j = await Jimp.read(buf);
+        const res = await readBarcodesFromImageData(
+          { data: new Uint8ClampedArray(j.bitmap.data), width: j.bitmap.width, height: j.bitmap.height },
+          { formats: ['QRCode'] }
+        );
+        return (res && res.length > 0) ? res[0].text : null;
+      }
+    });
 
-  engines.push({
-    name: 'jsQR (Jimp)',
-    run: async (buf) => {
-      const j = await Jimp.read(buf);
-      const code = jsQR(new Uint8ClampedArray(j.bitmap.data), j.bitmap.width, j.bitmap.height);
-      return (code && code.data) ? code.data : null;
-    }
-  });
+    engines.push({
+      name: 'jsQR (Jimp)',
+      run: async (buf) => {
+        const j = await Jimp.read(buf);
+        const code = jsQR(new Uint8ClampedArray(j.bitmap.data), j.bitmap.width, j.bitmap.height);
+        return (code && code.data) ? code.data : null;
+      }
+    });
+  }
 
   return engines;
 }
