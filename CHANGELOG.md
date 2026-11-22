@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.62] - 2026-11-22
+
+### Fixed
+- **Fix Blocked Overlay & Scoreboard Layout on `/webhook/match` and `/webhook/view` (`public/update.shtml`, `public/js/update.js`)**:
+  - Removed the static `class="pitch-modal-backdrop"` and inline `display: none` from `#pitchModalBackdrop` in `public/update.shtml`, and toggled both `className = 'pitch-modal-backdrop'` and `body.pitch-modal-open` cleanly in `renderPitchModalBackdrop()` — fixing the full-screen blurred overlay (`display: flex !important; z-index: 9990 !important` in `style.css`) that blocked clicks on initial load.
+  - Restored the original single-row `.scoreboard-main-row.scoreboard-selector-row` markup (unified `.scoreboard-select-display` + `.scoreboard-actions`) and `.match-pitch-markings` / `.pitch-half-formation.three-cols` tactical dual-pitch classes in `public/js/update.js`.
+
+---
+
 ## [0.7.61] - 2026-11-22
 
 ### Changed

@@ -423,8 +423,8 @@
 		var titleText = state.isManager ? '⚽ Score & Match Manager' : '🏆 Live Match Center';
 		var subtitleText = state.isManager ? 'บันทึกประตู แอสซิสต์ และจัดการการแข่งขันแบบ Real-time' : 'ติดตามผลสกอร์ ตารางคะแนน และสถิติผู้เล่นสด';
 		var versionPill = state.newVersionAvailable
-			? '<button type="button" class="update-badge-pill" data-action="reload-app" title="มีเวอร์ชันใหม่ คลิกเพื่อรีเฟรช">🚀 อัปเดต v' + esc(state.latestServerVersion) + '</button>'
-			: '<span class="version-badge">v' + esc(state.appVersion) + '</span>';
+			? '<span class="app-version-badge update-available" data-action="reload-app" style="cursor:pointer;" title="มีเวอร์ชันใหม่ คลิกเพื่อรีเฟรช">🚀 อัปเดต v' + esc(state.latestServerVersion) + '</span>'
+			: '<span class="app-version-badge">v' + esc(state.appVersion) + '</span>';
 
 		var viewerControls = '';
 		if (!state.isManager) {
@@ -526,7 +526,11 @@
 
 	function renderPitchModalBackdrop() {
 		if (!pitchBackdropEl) return;
-		pitchBackdropEl.style.display = (state.isManager && state.isPitchModal) ? 'block' : 'none';
+		var open = !!(state.isManager && state.isPitchModal);
+		pitchBackdropEl.className = open ? 'pitch-modal-backdrop' : '';
+		if (document.body && document.body.classList) {
+			document.body.classList.toggle('pitch-modal-open', open);
+		}
 	}
 
 	function renderRosterLocked() {
@@ -601,9 +605,9 @@
 		var col2 = getTeamTacticalCol(players, 'mf');
 		var col3 = getTeamTacticalCol(players, 'fw');
 		var cols = isSideB ? [col3, col2, col1] : [col1, col2, col3];
-		var html = '<div class="pitch-cols-grid">';
+		var html = '<div class="pitch-half-formation three-cols">';
 		for (var c = 0; c < cols.length; c++) {
-			html += '<div class="pitch-col">';
+			html += '<div class="pitch-form-col col-tactical-half">';
 			for (var i = 0; i < cols[c].length; i++) {
 				html += renderPitchPlayerNode(cols[c][i], match, teamId, false);
 			}
@@ -627,22 +631,29 @@
 		var colorB = teamHex(match.team_b_color);
 		var textA = getContrast(match.team_a_color);
 		var textB = getContrast(match.team_b_color);
-		var regA = getRegularTeamPlayers(match.team_a_id).length + getLoanPlayersForSide(match, match.team_a_id).length;
-		var regB = getRegularTeamPlayers(match.team_b_id).length + getLoanPlayersForSide(match, match.team_b_id).length;
+		var borderA = getBorder(match.team_a_color);
+		var borderB = getBorder(match.team_b_color);
+
+		var badgeStyleA = 'background:' + esc(colorA) + ';color:' + esc(textA) + ';border:1px solid ' + esc(borderA) + ';' +
+			(state.activePitchTab === 'teamA' ? 'outline:2.5px solid #ffffff;outline-offset:2px;box-shadow:0 0 12px rgba(255,255,255,0.45),0 4px 10px rgba(0,0,0,0.35);transform:scale(1.05);' : '') +
+			'opacity:' + ((state.activePitchTab === 'both' || state.activePitchTab === 'teamA') ? '1' : '0.55') + ';';
+		var badgeStyleB = 'background:' + esc(colorB) + ';color:' + esc(textB) + ';border:1px solid ' + esc(borderB) + ';' +
+			(state.activePitchTab === 'teamB' ? 'outline:2.5px solid #ffffff;outline-offset:2px;box-shadow:0 0 12px rgba(255,255,255,0.45),0 4px 10px rgba(0,0,0,0.35);transform:scale(1.05);' : '') +
+			'opacity:' + ((state.activePitchTab === 'both' || state.activePitchTab === 'teamB') ? '1' : '0.55') + ';';
 
 		var optionsHtml = '';
 		for (var i = 0; i < keys.length; i++) {
 			var m = getMatchByNum(keys[i]);
 			var sel = Number(m.match_num) === Number(match.match_num) ? ' selected' : '';
-			var stTag = m.is_finished ? 'FT' : (m.is_live ? 'LIVE' : 'SCHED');
-			optionsHtml += '<option value="' + esc(m.match_num) + '"' + sel + '>Match ' + esc(m.match_num) + ': ' + esc(m.team_a_color) + ' ' + esc(m.team_a_goal) + '-' + esc(m.team_b_goal) + ' ' + esc(m.team_b_color) + ' (' + stTag + ')</option>';
+			var stTag = m.is_finished ? ' (FT)' : (m.is_scheduled ? ' (รอแข่ง)' : '');
+			optionsHtml += '<option value="' + esc(m.match_num) + '"' + sel + '>Match ' + esc(m.match_num) + ' : ' + esc(m.team_a_color) + ' ' + esc(m.team_a_goal) + ' : ' + esc(m.team_b_goal) + ' ' + esc(m.team_b_color) + stTag + '</option>';
 		}
 
 		var finishOrReopenBtn = match.is_finished
-			? '<button type="button" class="btn-scoreboard-tool btn-reopen-match" data-action="reopen-match" data-match-id="' + esc(match.id) + '">↩️ แข่งต่อ</button>'
+			? '<button type="button" class="btn-scoreboard-tool btn-reopen-match" data-action="reopen-match" data-match-id="' + esc(match.id) + '" title="กลับมาแข่งขันต่อ / แก้ไขผล">↩️ แข่งต่อ</button>'
 			: (match.is_scheduled
-				? '<button type="button" class="btn-scoreboard-tool btn-start-match" data-action="start-match" data-match-id="' + esc(match.id) + '">▶️ เริ่มแข่ง</button>'
-				: '<button type="button" class="btn-scoreboard-tool btn-finish-match" data-action="finish-match" data-match-id="' + esc(match.id) + '">🏁 จบ Match</button>');
+				? '<button type="button" class="btn-scoreboard-tool btn-start-match" data-action="start-match" data-match-id="' + esc(match.id) + '" title="เริ่มการแข่งขันนี้">▶️ เริ่มแข่ง</button>'
+				: '<button type="button" class="btn-scoreboard-tool btn-finish-match" data-action="finish-match" data-match-id="' + esc(match.id) + '" title="จบแมตช์นี้แล้วขึ้นนัดถัดไป">🏁 จบ Match</button>');
 
 		var maxMatchNum = keys.length ? Number(keys[keys.length - 1]) : 0;
 		var canDelete = Number(match.match_num) === maxMatchNum;
@@ -650,50 +661,43 @@
 		stadiumScoreboardEl.innerHTML =
 			(state.isPitchModal ? '<button type="button" class="btn-pitch-modal-close" data-action="toggle-pitch-modal" title="ย่อหน้าต่าง">✕</button>' : '') +
 			'<div class="stadium-scoreboard">' +
-			'<div class="scoreboard-top-meta">' +
-			'<span>MATCH ' + esc(match.match_num) + ' / ' + esc(keys.length) + ' <span class="msd-status ' + statusClass + '">' + statusLabel + '</span></span>' +
-			'<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">' +
-			'<button type="button" class="scoreboard-dual-toggle' + (state.activePitchTab === 'both' ? ' is-active' : '') + '" data-action="set-pitch-tab" data-tab="both">🏟️ ดูสนามคู่</button>' +
-			'<button type="button" class="scoreboard-fs-toggle" data-action="toggle-pitch-modal">' + (state.isPitchModal ? '🗗 ย่อสนาม' : '🔍 ขยายสนาม') + '</button>' +
+			'<div class="scoreboard-top-meta" style="display:flex;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap;">' +
+			'<span>MATCH ' + esc(match.match_num) + ' / ' + esc(keys.length) + '</span>' +
+			'<span class="msd-status ' + statusClass + '">' + statusLabel + '</span>' +
+			(state.activePitchTab !== 'both' ? '<span class="scoreboard-dual-toggle" data-action="set-pitch-tab" data-tab="both" style="cursor:pointer;">⚔️ ดูสนามคู่</span>' : '') +
+			'<span class="scoreboard-dual-toggle scoreboard-fs-toggle" data-action="toggle-pitch-modal" style="cursor:pointer;">' + (state.isPitchModal ? '🗗 ย่อสนาม' : '🔍 ขยายสนาม') + '</span>' +
 			'</div>' +
-			'</div>' +
-			'<div class="scoreboard-main-row">' +
-			'<div class="scoreboard-selector-row">' +
-			'<button type="button" class="scoreboard-step-btn" data-action="step-match" data-dir="-1"' + prevDisabled + '>◀</button>' +
-			'<div class="scoreboard-select-wrapper">' +
-			'<select id="update-match-select" class="match-select" data-action="select-match-dropdown">' + optionsHtml + '</select>' +
+			'<div class="scoreboard-main-row scoreboard-selector-row">' +
+			'<button type="button" class="match-step-btn scoreboard-step-btn" data-action="step-match" data-dir="-1" title="แมตช์ก่อนหน้า"' + prevDisabled + '>◀</button>' +
+			'<div class="match-select-wrapper scoreboard-select-wrapper">' +
+			'<select id="update-match-select" class="match-select" data-action="select-match-dropdown" title="คลิกเพื่อเปลี่ยนแมตช์">' + optionsHtml + '</select>' +
 			'<div class="scoreboard-select-display">' +
-			'<span class="msd-match-num">M' + esc(match.match_num) + '</span>' +
-			'<span class="msd-team-badge" style="background:' + esc(colorA) + ';color:' + esc(textA) + ';">' + esc(match.team_a_color) + '</span>' +
-			'<span class="msd-score">' + esc(match.team_a_goal) + ' - ' + esc(match.team_b_goal) + '</span>' +
-			'<span class="msd-team-badge" style="background:' + esc(colorB) + ';color:' + esc(textB) + ';">' + esc(match.team_b_color) + '</span>' +
-			'<span class="msd-arrow">▼</span>' +
-			'</div>' +
-			'</div>' +
-			'<button type="button" class="scoreboard-step-btn" data-action="step-match" data-dir="1"' + nextDisabled + '>▶</button>' +
-			'</div>' +
-			'<div class="scoreboard-teams-bar" style="display:flex;align-items:center;justify-content:center;gap:0.85rem;margin-top:0.5rem;">' +
 			'<div class="scoreboard-team team-a">' +
-			'<button type="button" class="scoreboard-badge" style="background:' + esc(colorA) + ';color:' + esc(textA) + ';border:2px solid ' + esc(state.activePitchTab === 'teamA' ? '#10b981' : 'transparent') + ';" data-action="toggle-team-tab" data-side="teamA">' + esc(match.team_a_color) + '</button>' +
-			'<span class="scoreboard-team-count">' + esc(regA) + ' คน</span>' +
+			'<span class="scoreboard-badge' + (state.activePitchTab === 'teamA' ? ' is-selected' : '') + '" style="' + badgeStyleA + '" data-action="toggle-team-tab" data-side="teamA">' + esc(match.team_a_color) + '</span>' +
 			'</div>' +
+			'<div class="scoreboard-center">' +
 			'<div class="scoreboard-digits">' +
 			'<span class="scoreboard-digit-box">' + esc(match.team_a_goal) + '</span>' +
 			'<span class="scoreboard-colon">:</span>' +
 			'<span class="scoreboard-digit-box">' + esc(match.team_b_goal) + '</span>' +
 			'</div>' +
+			'</div>' +
 			'<div class="scoreboard-team team-b">' +
-			'<button type="button" class="scoreboard-badge" style="background:' + esc(colorB) + ';color:' + esc(textB) + ';border:2px solid ' + esc(state.activePitchTab === 'teamB' ? '#10b981' : 'transparent') + ';" data-action="toggle-team-tab" data-side="teamB">' + esc(match.team_b_color) + '</button>' +
-			'<span class="scoreboard-team-count">' + esc(regB) + ' คน</span>' +
+			'<span class="scoreboard-badge' + (state.activePitchTab === 'teamB' ? ' is-selected' : '') + '" style="' + badgeStyleB + '" data-action="toggle-team-tab" data-side="teamB">' + esc(match.team_b_color) + '</span>' +
+			'</div>' +
+			'<span class="scoreboard-select-arrow" aria-hidden="true">▼</span>' +
 			'</div>' +
 			'</div>' +
+			'<button type="button" class="match-step-btn scoreboard-step-btn" data-action="step-match" data-dir="1" title="แมตช์ถัดไป"' + nextDisabled + '>▶</button>' +
 			'</div>' +
 			'<div class="scoreboard-actions-row">' +
+			'<div class="scoreboard-actions">' +
 			finishOrReopenBtn +
 			'<button type="button" class="btn-scoreboard-tool" data-action="open-add-match-modal">➕ สร้าง Match</button>' +
 			'<button type="button" class="btn-scoreboard-tool" data-action="open-extend-modal">⏱️ ต่อเวลา</button>' +
 			'<button type="button" class="btn-scoreboard-tool" data-action="toggle-classic-form">📋 ' + (state.showClassicForm ? 'ซ่อนฟอร์ม' : 'ฟอร์ม') + '</button>' +
 			(canDelete ? '<button type="button" class="btn-scoreboard-tool btn-delete" data-action="open-delete-modal" data-match-num="' + esc(match.match_num) + '">🗑️ Match ' + esc(match.match_num) + '</button>' : '') +
+			'</div>' +
 			'</div>' +
 			'</div>';
 	}
@@ -801,13 +805,13 @@
 		// Horizontal Dual Pitch
 		var loansHtmlA = '';
 		if (loansA.length) {
-			loansHtmlA = '<div class="pitch-half-loan-section"><div class="pitch-half-loan-title">🤝 ยืมตัว (' + esc(loansA.length) + ')</div><div class="pitch-half-loan-list">';
+			loansHtmlA = '<div class="pitch-half-loan-section"><div class="pitch-half-loan-label">🤝 ยืมตัว (' + esc(loansA.length) + ')</div><div class="pitch-half-loan-players">';
 			for (var la = 0; la < loansA.length; la++) loansHtmlA += renderPitchPlayerNode(loansA[la], match, match.team_a_id, true);
 			loansHtmlA += '</div></div>';
 		}
 		var loansHtmlB = '';
 		if (loansB.length) {
-			loansHtmlB = '<div class="pitch-half-loan-section"><div class="pitch-half-loan-title">🤝 ยืมตัว (' + esc(loansB.length) + ')</div><div class="pitch-half-loan-list">';
+			loansHtmlB = '<div class="pitch-half-loan-section"><div class="pitch-half-loan-label">🤝 ยืมตัว (' + esc(loansB.length) + ')</div><div class="pitch-half-loan-players">';
 			for (var lb = 0; lb < loansB.length; lb++) loansHtmlB += renderPitchPlayerNode(loansB[lb], match, match.team_b_id, true);
 			loansHtmlB += '</div></div>';
 		}
@@ -815,12 +819,14 @@
 		stadiumPitchEl.innerHTML =
 			'<div class="match-pitch-wrapper">' +
 			'<div class="match-pitch">' +
-			'<div class="pitch-markings"><div class="pitch-half-line"></div><div class="pitch-center-circle"></div><div class="pitch-center-spot"></div></div>' +
+			'<div class="match-pitch-markings"><div class="mp-half-line"></div><div class="mp-center-circle"></div><div class="mp-center-spot"></div><div class="mp-penalty-left"></div><div class="mp-goal-left"></div><div class="mp-penalty-right"></div><div class="mp-goal-right"></div><div class="mp-corner-tl"></div><div class="mp-corner-tr"></div><div class="mp-corner-bl"></div><div class="mp-corner-br"></div></div>' +
 			'<div class="pitch-team-half team-a" data-drop-team-id="' + esc(match.team_a_id) + '">' +
+			'<div class="pitch-half-header"><span class="pitch-half-badge" style="background:' + esc(teamHex(match.team_a_color)) + ';color:' + esc(getContrast(match.team_a_color)) + ';">' + esc(match.team_a_color) + '</span></div>' +
 			renderHalfPitchNodes(playersA, match, match.team_a_id, false) +
 			loansHtmlA +
 			'</div>' +
 			'<div class="pitch-team-half team-b" data-drop-team-id="' + esc(match.team_b_id) + '">' +
+			'<div class="pitch-half-header"><span class="pitch-half-badge" style="background:' + esc(teamHex(match.team_b_color)) + ';color:' + esc(getContrast(match.team_b_color)) + ';">' + esc(match.team_b_color) + '</span></div>' +
 			renderHalfPitchNodes(playersB, match, match.team_b_id, true) +
 			loansHtmlB +
 			'</div>' +
