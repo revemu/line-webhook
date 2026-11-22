@@ -1,35 +1,10 @@
-/* Lightweight fetch-based HTTP client replacing external axios CDN */
+/* Zero-dependency native fetch HTTP helper */
 (function (global) {
 	'use strict';
 
-	var responseInterceptors = [];
-
-	var axiosShim = {
-		defaults: {
-			headers: {
-				common: {
-					'X-Requested-With': 'XMLHttpRequest'
-				}
-			},
-			timeout: 10000
-		},
-		interceptors: {
-			response: {
-				use: function (onFulfilled, onRejected) {
-					responseInterceptors.push([onFulfilled, onRejected]);
-					return responseInterceptors.length - 1;
-				}
-			}
-		}
-	};
-
-	function runResponsePipeline(promise) {
-		for (var i = 0; i < responseInterceptors.length; i++) {
-			var pair = responseInterceptors[i];
-			promise = promise.then(pair[0] || undefined, pair[1] || undefined);
-		}
-		return promise;
-	}
+	var DEFAULT_TIMEOUT = 10000;
+	var DEFAULT_HEADERS = { 'X-Requested-With': 'XMLHttpRequest' };
+	var responseHooks = [];
 
 	function parseBody(res) {
 		var ct = (res.headers.get('content-type') || '').toLowerCase();
@@ -48,8 +23,8 @@
 
 	function send(method, url, data, config) {
 		var cfg = config || {};
-		var headers = Object.assign({}, axiosShim.defaults.headers.common, cfg.headers || {});
-		var timeoutMs = typeof cfg.timeout === 'number' ? cfg.timeout : axiosShim.defaults.timeout;
+		var headers = Object.assign({}, DEFAULT_HEADERS, cfg.headers || {});
+		var timeoutMs = typeof cfg.timeout === 'number' ? cfg.timeout : DEFAULT_TIMEOUT;
 		var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
 		var timerId = null;
 
@@ -82,7 +57,7 @@
 			}
 		}
 
-		var corePromise = fetch(url, fetchOpts).then(
+		var promise = fetch(url, fetchOpts).then(
 			function (res) {
 				if (timerId) clearTimeout(timerId);
 				return parseBody(res).then(function (parsed) {
@@ -102,23 +77,30 @@
 			},
 			function (networkErr) {
 				if (timerId) clearTimeout(timerId);
+				if (networkErr && networkErr.name === 'AbortError') {
+					var tErr = new Error('Request timeout');
+					tErr.code = 'ECONNABORTED';
+					return Promise.reject(tErr);
+				}
 				return Promise.reject(networkErr);
 			}
 		);
 
-		return runResponsePipeline(corePromise);
+		for (var i = 0; i < responseHooks.length; i++) {
+			promise = promise.then(responseHooks[i].onOk || undefined, responseHooks[i].onErr || undefined);
+		}
+		return promise;
 	}
 
-	axiosShim.get = function (url, config) {
-		return send('GET', url, null, config);
+	global.http = {
+		get: function (url, config) {
+			return send('GET', url, null, config);
+		},
+		post: function (url, data, config) {
+			return send('POST', url, data, config);
+		},
+		onResponse: function (onOk, onErr) {
+			responseHooks.push({ onOk: onOk, onErr: onErr });
+		}
 	};
-	axiosShim.post = function (url, data, config) {
-		return send('POST', url, data, config);
-	};
-	axiosShim.request = function (config) {
-		var cfg = config || {};
-		return send((cfg.method || 'GET').toUpperCase(), cfg.url, cfg.data, cfg);
-	};
-
-	global.axios = axiosShim;
 })(window);

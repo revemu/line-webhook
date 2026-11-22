@@ -4,6 +4,19 @@
 
 ---
 
+## [0.7.61] - 2026-11-22
+
+### Changed
+- **Full Pure Vanilla JS Frontend Migration & Modular JS Separation (`public/login.shtml`, `public/position.shtml`, `public/update.shtml`, `public/js/*`, `public/style.css`, `utils/version.js`, `index.js`)**:
+  - Removed Vue 2 (`public/vendor/vue.min.js`) and `/webhook/vendor` static route completely — zero frameworks (`Vue`, `Axios`, `jQuery`) and zero external CDNs across all frontend dashboard views.
+  - Separated all client logic into dedicated Vanilla JS modules under `public/js/`:
+    - `public/js/http.js`: Clean native `fetch()` wrapper (`window.http = { get, post, onResponse }`) with 10s timeout, `FormData`/JSON body support, and response hook for session expiry detection.
+    - `public/js/ui.js`: Shared UI helper module (`window.ui`) providing HTML escaping, team colors/contrast helpers, theme toggle, logout/reload, and shared Week Picker / Change Password modals.
+    - `public/js/login.js`, `public/js/position.js`, `public/js/update.js`: Pure Vanilla JS page controllers for Login, Position Manager, Match Manager (`/webhook/match`), and Live Match Viewer (`/webhook/view`), preserving static search inputs, horizontal mobile carousel scroll, and non-destructive HTML5 drag-and-drop.
+  - Updated `utils/version.js` (`renderVersionedHtml`) to automatically inject `?v=<assetVersion>` cache-busting query strings onto all `/webhook/js/*.js` script tags.
+
+---
+
 ## [0.7.60] - 2026-11-21
 
 ### Changed
