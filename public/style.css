@@ -8686,3 +8686,253 @@ body.pitch-modal-open {
         transform: translateZ(0) !important;
     }
 }
+
+/* ==================== INLINE PITCH BUBBLES & SCORER SUMMARIES ==================== */
+.inline-pitch-node .player-score-bubbles {
+    left: calc(100% - 5px);
+    gap: 1px;
+}
+
+.inline-pitch-node .bubble-goal,
+.inline-pitch-node .bubble-assist,
+.inline-pitch-node .bubble-og {
+    font-size: 0.56rem;
+    padding: 1px 4px;
+    border-width: 1px;
+}
+
+.inline-match-events-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.55rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="light"] .inline-match-events-summary,
+body.light-theme .inline-match-events-summary {
+    background: rgba(243, 244, 246, 0.85);
+}
+
+.inline-events-side {
+    min-width: 0;
+}
+
+.inline-events-team-head {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+}
+
+.inline-events-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.inline-events-empty {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+}
+
+.inline-events-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.inline-event-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.inline-event-chip.is-goal {
+    background: rgba(34, 197, 94, 0.14);
+    border-color: rgba(34, 197, 94, 0.32);
+}
+
+.inline-event-chip.is-assist {
+    background: rgba(59, 130, 246, 0.14);
+    border-color: rgba(59, 130, 246, 0.32);
+}
+
+.inline-event-chip.is-og {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+[data-theme="light"] .inline-event-chip,
+body.light-theme .inline-event-chip {
+    background: #ffffff;
+    border-color: #d1d5db;
+}
+
+.event-pill-name {
+    font-weight: 700;
+    color: inherit;
+}
+
+.standings-scorers-section {
+    margin-top: 0.9rem;
+    padding-top: 0.85rem;
+    border-top: 1px dashed var(--border-color);
+}
+
+.standings-scorers-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.86rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 0.55rem;
+}
+
+.standings-scorers-count {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: rgba(99, 102, 241, 0.12);
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.standings-scorers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 0.45rem;
+}
+
+.standings-scorer-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.42rem 0.55rem;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.38);
+    border: 1px solid var(--border-color);
+    min-width: 0;
+}
+
+[data-theme="light"] .standings-scorer-item,
+body.light-theme .standings-scorer-item {
+    background: rgba(243, 244, 246, 0.9);
+}
+
+.scorer-rank-num {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    min-width: 20px;
+}
+
+.scorer-mini-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid #94a3b8;
+    background: #1e293b;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 800;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.scorer-mini-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.scorer-mini-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.scorer-mini-name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.scorer-team-pill {
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.scorer-mini-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.scorer-stat-badge {
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 999px;
+}
+
+.scorer-stat-badge.is-goal {
+    background: rgba(239, 68, 68, 0.18);
+    color: #f87171;
+}
+
+.scorer-stat-badge.is-assist {
+    background: rgba(59, 130, 246, 0.18);
+    color: #60a5fa;
+}
+
+[data-theme="light"] .scorer-stat-badge.is-goal,
+body.light-theme .scorer-stat-badge.is-goal {
+    color: #dc2626;
+}
+
+[data-theme="light"] .scorer-stat-badge.is-assist,
+body.light-theme .scorer-stat-badge.is-assist {
+    color: #2563eb;
+}
+
+@media (max-width: 640px) {
+    .inline-match-events-summary {
+        grid-template-columns: 1fr;
+    }
+    .standings-scorers-grid {
+        grid-template-columns: 1fr;
+    }
+}

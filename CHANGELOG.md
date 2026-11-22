@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.67] - 2026-11-22
+
+### Fixed & Added
+- **Restore Viewer Inline Soccer Pitch & Goal/Assist Names (`routes/web.js`, `public/js/update.js`, `public/style.css`)**:
+  - Updated `queryMatchScorer` in `routes/web.js` to join `team_color_week_tbl` and include `member_name`, `team_week_id`, and `color` alongside `name` and `team_id`, ordered chronologically (`match_goal_tbl.id ASC`).
+  - Added unified goal-event normalization helpers (`getGoalEventTeamId`, `getGoalEventName`, `getGoalEventColor`) in `public/js/update.js`, fixing blank event pills, missing team colors, timeline names, loan detection, and player score-bubble matching across both `/view` and `/match`.
+  - Restored the horizontal 2-half green soccer pitch (`.inline-soccer-pitch`, `.inline-pitch-half`, `.inline-tactical-cols`) in `renderInlinePitchCard()` with player avatars, tactical positions, loan tags (`ยืม`), in-match score bubbles (`⚽`/`👟`/`OG`), and a side-by-side team event summary strip.
+  - Added a weekly **⚽ สรุปคนยิงประตู & แอสซิสต์ประจำสัปดาห์** summary section inside `#standingsCard` (`renderStandingsCard` + `renderWeeklyScorersSummaryHtml`) below the league standings table.
+
+---
+
 ## [0.7.66] - 2026-11-22
 
 ### Changed & Fixed

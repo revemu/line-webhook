@@ -1280,15 +1280,20 @@ async function queryRegisteredMembers(weekid) {
 async function queryMatchScorer(matchID) {
     const sql = `
     SELECT COALESCE(member_tbl.alias, member_tbl.name) as name,
+           COALESCE(member_tbl.alias, member_tbl.name) as member_name,
            member_tbl.name as full_name,
            member_tbl.picture_url,
            match_goal_tbl.id AS goal_id, 
            match_goal_tbl.status as goal_status,
            match_goal_tbl.member_id,
-           match_goal_tbl.team_week_id as team_id
+           match_goal_tbl.team_week_id as team_id,
+           match_goal_tbl.team_week_id,
+           tcw.color
     FROM match_goal_tbl
     LEFT JOIN member_tbl ON match_goal_tbl.member_id = member_tbl.id
-    WHERE match_goal_tbl.match_id = ${matchID}`;
+    LEFT JOIN team_color_week_tbl tcw ON match_goal_tbl.team_week_id = tcw.id
+    WHERE match_goal_tbl.match_id = ${matchID}
+    ORDER BY match_goal_tbl.id ASC`;
 
     const rows = await doQuery(sql);
     return avatarCache.mapPlayerAvatars(rows);

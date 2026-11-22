@@ -258,6 +258,34 @@
 		return null;
 	}
 
+	function getGoalEventTeamId(ev) {
+		return Number((ev && (ev.team_week_id || ev.team_id)) || 0);
+	}
+
+	function getGoalEventName(ev) {
+		if (!ev) return 'Unknown';
+		if (ev.member_name || ev.name || ev.alias) {
+			return ev.member_name || ev.name || ev.alias;
+		}
+		var pl = ev.member_id ? getMemberById(ev.member_id) : null;
+		return pl ? getDisplayName(pl) : 'Unknown';
+	}
+
+	function getGoalEventColor(ev, match) {
+		if (!ev) return '';
+		if (ev.color) return ev.color;
+		var tid = getGoalEventTeamId(ev);
+		if (tid && state.info && state.info.team_week && state.info.team_week[tid]) {
+			return state.info.team_week[tid].name || '';
+		}
+		if (match) {
+			if (tid && tid === Number(match.team_a_id)) return match.team_a_color || '';
+			if (tid && tid === Number(match.team_b_id)) return match.team_b_color || '';
+		}
+		var pl = ev.member_id ? getMemberById(ev.member_id) : null;
+		return (pl && pl.color) || '';
+	}
+
 	function getGoalEventsForPlayer(match, memberId, teamId) {
 		var goals = (match && match.goal) || [];
 		var mid = Number(memberId);
@@ -265,7 +293,8 @@
 		var res = [];
 		for (var i = 0; i < goals.length; i++) {
 			var g = goals[i];
-			if (Number(g.member_id) === mid && (!tid || Number(g.team_week_id) === tid)) {
+			var gTid = getGoalEventTeamId(g);
+			if (Number(g.member_id) === mid && (!tid || !gTid || gTid === tid)) {
 				res.push(g);
 			}
 		}
@@ -322,16 +351,17 @@
 		var goals = match.goal || [];
 		for (var i = 0; i < goals.length; i++) {
 			var g = goals[i];
-			var gTeamId = Number(g.team_week_id);
+			var gTeamId = getGoalEventTeamId(g);
 			var gMid = Number(g.member_id);
 			if (gTeamId === tid && !regIds[gMid] && !seen[gMid]) {
+				var gName = getGoalEventName(g);
 				var m = getMemberById(gMid) || {
 					id: gMid,
-					alias: g.member_name || 'Guest',
-					name: g.member_name || 'Guest',
+					alias: gName,
+					name: gName,
 					picture_url: g.picture_url || '',
 					position_code: g.position_code || '',
-					color: g.color || ''
+					color: getGoalEventColor(g, match)
 				};
 				seen[gMid] = true;
 				result.push(m);
@@ -927,7 +957,7 @@
 		var evB = [];
 		for (var i = 0; i < match.goal.length; i++) {
 			var g = match.goal[i];
-			if (Number(g.team_week_id) === Number(match.team_a_id)) evA.push(g);
+			if (getGoalEventTeamId(g) === Number(match.team_a_id)) evA.push(g);
 			else evB.push(g);
 		}
 
@@ -943,7 +973,7 @@
 					var icon = st === 2 ? '🔴 OG' : (st === 3 ? '👟 AST' : '⚽ GOAL');
 					html +=
 						'<div class="timeline-event-item ' + cls + '">' +
-						'<span>' + icon + ' • ' + esc(ev.member_name) + '</span>' +
+						'<span>' + icon + ' • ' + esc(getGoalEventName(ev)) + '</span>' +
 						'<button type="button" class="btn-event-remove" data-action="quick-remove-goal" data-goal-id="' + esc(ev.goal_id) + '" title="ลบ">&times;</button>' +
 						'</div>';
 				}
@@ -1386,6 +1416,116 @@
 			'</div>';
 	}
 
+	function collectWeeklyScorersList() {
+		var leaderPlayers = (state.info && state.info.leader_stats && Array.isArray(state.info.leader_stats.players))
+			? state.info.leader_stats.players
+			: null;
+		var source = leaderPlayers && leaderPlayers.length
+			? leaderPlayers
+			: ((state.info && state.info.allmembers) || []);
+
+		var byId = {};
+		var list = [];
+		for (var i = 0; i < source.length; i++) {
+			var p = source[i];
+			if (!p || !p.id) continue;
+			var goals = Number(p.goals || 0);
+			var assists = Number(p.assists || 0);
+			var item = {
+				id: Number(p.id),
+				name: getDisplayName(p),
+				color: p.teamName || p.team_color || p.color || '',
+				picture_url: p.picture_url || '',
+				pos_code: getPosCode(p),
+				goals: goals,
+				assists: assists
+			};
+			byId[item.id] = item;
+			if (goals > 0 || assists > 0) list.push(item);
+		}
+
+		// Fallback: aggregate directly from match.goal if leader_stats/allmembers have zero counts
+		if (!list.length) {
+			var allMatches = getMatchesObj();
+			var keys = getMatchKeys();
+			var aggMap = {};
+			for (var k = 0; k < keys.length; k++) {
+				var m = allMatches[keys[k]];
+				var evs = (m && m.goal) || [];
+				for (var e = 0; e < evs.length; e++) {
+					var ev = evs[e];
+					var st = Number(ev.goal_status);
+					if (st !== 0 && st !== 1 && st !== 3) continue; // exclude OG (2) from top scorer leaderboard
+					var mid = Number(ev.member_id || 0);
+					if (!mid) continue;
+					if (!aggMap[mid]) {
+						var base = byId[mid] || getMemberById(mid);
+						aggMap[mid] = {
+							id: mid,
+							name: base ? (base.name || getDisplayName(base)) : getGoalEventName(ev),
+							color: (base && base.color) || getGoalEventColor(ev, m),
+							picture_url: (base && base.picture_url) || ev.picture_url || '',
+							pos_code: base ? (base.pos_code || getPosCode(base)) : '',
+							goals: 0,
+							assists: 0
+						};
+					}
+					if (st === 3) aggMap[mid].assists++;
+					else aggMap[mid].goals++;
+				}
+			}
+			Object.keys(aggMap).forEach(function (midKey) {
+				if (aggMap[midKey].goals > 0 || aggMap[midKey].assists > 0) {
+					list.push(aggMap[midKey]);
+				}
+			});
+		}
+
+		list.sort(function (a, b) {
+			if (b.goals !== a.goals) return b.goals - a.goals;
+			if (b.assists !== a.assists) return b.assists - a.assists;
+			return String(a.name || '').localeCompare(String(b.name || ''));
+		});
+		return list;
+	}
+
+	function renderWeeklyScorersSummaryHtml() {
+		var list = collectWeeklyScorersList();
+		if (!list.length) return '';
+
+		var chipsHtml = '';
+		for (var i = 0; i < list.length; i++) {
+			var p = list[i];
+			var tHex = teamHex(p.color);
+			var tContrast = getContrast(p.color);
+			var av = p.picture_url
+				? '<img src="' + esc(p.picture_url) + '" alt="' + esc(p.name) + '">'
+				: '<span>' + esc(String(p.name || '?').trim().charAt(0).toUpperCase()) + '</span>';
+			var statsHtml = '';
+			if (p.goals > 0) statsHtml += '<span class="scorer-stat-badge is-goal">⚽ ' + esc(p.goals) + '</span>';
+			if (p.assists > 0) statsHtml += '<span class="scorer-stat-badge is-assist">👟 ' + esc(p.assists) + '</span>';
+
+			chipsHtml +=
+				'<div class="standings-scorer-item">' +
+				'<span class="scorer-rank-num">#' + (i + 1) + '</span>' +
+				'<div class="scorer-mini-avatar" style="border-color:' + esc(tHex) + ';">' + av + '</div>' +
+				'<div class="scorer-mini-meta">' +
+				'<span class="scorer-mini-name">' + esc(p.name) + '</span>' +
+				(p.color ? '<span class="scorer-team-pill" style="background:' + esc(tHex) + ';color:' + esc(tContrast) + ';">' + esc(p.color) + '</span>' : '') +
+				'</div>' +
+				'<div class="scorer-mini-stats">' + statsHtml + '</div>' +
+				'</div>';
+		}
+
+		return '<div class="standings-scorers-section">' +
+			'<div class="standings-scorers-header">' +
+			'<span>⚽ สรุปคนยิงประตู &amp; แอสซิสต์ประจำสัปดาห์</span>' +
+			'<span class="standings-scorers-count">' + esc(list.length) + ' คน</span>' +
+			'</div>' +
+			'<div class="standings-scorers-grid">' + chipsHtml + '</div>' +
+			'</div>';
+	}
+
 	function renderStandingsCard() {
 		if (!standingsEl) return;
 		var table = (state.info && state.info.tableweek) || [];
@@ -1420,7 +1560,31 @@
 			'<thead><tr><th>#</th><th style="text-align:left;">ทีม</th><th>W</th><th>D</th><th>L</th><th>GD</th><th class="table-pts">PTS</th></tr></thead>' +
 			'<tbody>' + rowsHtml + '</tbody>' +
 			'</table>' +
-			'</div>';
+			'</div>' +
+			renderWeeklyScorersSummaryHtml();
+	}
+
+	function renderGoalEventPillHtml(ev, match, allowRemove) {
+		var isOg = Number(ev.goal_status) === 2;
+		var isAst = Number(ev.goal_status) === 3;
+		var evName = getGoalEventName(ev);
+		var evColor = getGoalEventColor(ev, match);
+		var evColorHex = teamHex(evColor);
+		var sym = isOg ? '🔴 OG' : (isAst ? '👟' : '⚽');
+		var memberObj = ev.member_id ? getMemberById(ev.member_id) : null;
+		var avatarUrl = ev.picture_url || (memberObj && memberObj.picture_url) || '';
+		var avatarHtml = avatarUrl
+			? '<img src="' + esc(avatarUrl) + '" class="event-pill-avatar" alt="' + esc(evName) + '" style="border-color:' + esc(evColorHex) + ';">'
+			: '<span style="width:7px;height:7px;border-radius:50%;background:' + esc(evColorHex) + ';display:inline-block;flex-shrink:0;"></span>';
+		var removeX = allowRemove
+			? '<button type="button" class="remove-x" data-action="quick-remove-goal" data-goal-id="' + esc(ev.goal_id) + '" title="ลบ">&times;</button>'
+			: '';
+		return '<span class="event-pill' + (isOg ? ' og' : (isAst ? ' assist' : '')) + '" style="border-left:3px solid ' + esc(evColorHex) + ';">' +
+			avatarHtml +
+			'<span class="event-pill-sym">' + sym + '</span>' +
+			'<span class="event-pill-name">' + esc(evName) + '</span>' +
+			removeX +
+			'</span>';
 	}
 
 	function renderMatchList() {
@@ -1464,17 +1628,16 @@
 
 			var goalPillsHtml = '';
 			if (!m.is_locked && m.goal && m.goal.length) {
+				// Sort goals & OGs before assists so scorers appear first
+				var sortedGoals = m.goal.slice().sort(function (a, b) {
+					var ra = Number(a.goal_status) === 3 ? 1 : 0;
+					var rb = Number(b.goal_status) === 3 ? 1 : 0;
+					if (ra !== rb) return ra - rb;
+					return Number(a.goal_id || 0) - Number(b.goal_id || 0);
+				});
 				goalPillsHtml = '<div class="match-events-pills" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.55rem;">';
-				for (var g = 0; g < m.goal.length; g++) {
-					var ev = m.goal[g];
-					var isOg = Number(ev.goal_status) === 2;
-					var isAst = Number(ev.goal_status) === 3;
-					var sym = isOg ? '🔴 OG' : (isAst ? '👟' : '⚽');
-					var teamDot = '<span style="width:7px;height:7px;border-radius:50%;background:' + esc(teamHex(ev.color)) + ';display:inline-block;"></span>';
-					var removeX = state.isManager
-						? '<button type="button" class="remove-x" data-action="quick-remove-goal" data-goal-id="' + esc(ev.goal_id) + '" title="ลบ">&times;</button>'
-						: '';
-					goalPillsHtml += '<span class="event-pill' + (isOg ? ' og' : '') + '">' + teamDot + ' ' + sym + ' ' + esc(ev.member_name) + removeX + '</span>';
+				for (var g = 0; g < sortedGoals.length; g++) {
+					goalPillsHtml += renderGoalEventPillHtml(sortedGoals[g], m, state.isManager);
 				}
 				goalPillsHtml += '</div>';
 			}
@@ -1513,34 +1676,115 @@
 		matchListEl.innerHTML = adminToolbar + cardsHtml;
 	}
 
-	function renderInlinePitchCard(match) {
-		var pA = getRegularTeamPlayers(match.team_a_id).concat(getLoanPlayersForSide(match, match.team_a_id));
-		var pB = getRegularTeamPlayers(match.team_b_id).concat(getLoanPlayersForSide(match, match.team_b_id));
+	function renderInlinePitchHalfHtml(match, teamId, colorName, isSideB) {
+		var regs = getRegularTeamPlayers(teamId);
+		var loans = getLoanPlayersForSide(match, teamId);
+		var loanIds = {};
+		for (var li = 0; li < loans.length; li++) loanIds[Number(loans[li].id)] = true;
+		var allPlayers = regs.concat(loans);
 
-		function colHtml(list, color) {
-			var h = '<div class="inline-pitch-team-col">';
-			h += '<div class="inline-team-title" style="background:' + esc(teamHex(color)) + ';color:' + esc(getContrast(color)) + ';"><span>' + esc(color) + '</span><span class="inline-team-count">' + esc(list.length) + ' คน</span></div>';
-			h += '<div class="inline-player-list">';
-			for (var i = 0; i < list.length; i++) {
-				var p = list[i];
-				h += '<div class="inline-pitch-node" style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;">' +
-					'<span class="player-pos-tag">' + esc(getPosCode(p) || '-') + '</span>' +
-					'<span>' + esc(getDisplayName(p)) + '</span>' +
+		var col1 = getTeamTacticalCol(allPlayers, 'gk_df');
+		var col2 = getTeamTacticalCol(allPlayers, 'mf');
+		var col3 = getTeamTacticalCol(allPlayers, 'fw');
+		var cols = isSideB ? [col3, col2, col1] : [col1, col2, col3];
+		var teamHexColor = teamHex(colorName);
+		var teamContrast = getContrast(colorName);
+
+		var colsHtml = '';
+		for (var c = 0; c < cols.length; c++) {
+			colsHtml += '<div class="inline-tactical-col">';
+			for (var i = 0; i < cols[c].length; i++) {
+				var p = cols[c][i];
+				var pName = getDisplayName(p);
+				var pos = getPosCode(p) || 'MF';
+				var posCls = getPosBadgeClass(pos);
+				var isLoan = Boolean(loanIds[Number(p.id)]);
+				var events = getGoalEventsForPlayer(match, p.id, teamId);
+				var bubblesHtml = renderScoreBubbles(events);
+				var avatarHtml = p.picture_url
+					? '<img src="' + esc(p.picture_url) + '" alt="' + esc(pName) + '">'
+					: '<span class="avatar-char">' + esc(getInitials(p)) + '</span>';
+
+				colsHtml +=
+					'<div class="pitch-player-node inline-pitch-node' + (isLoan ? ' is-loan' : '') + '">' +
+					'<div class="pitch-player-avatar-wrap">' +
+					'<div class="pitch-player-avatar-circle" style="border-color:' + esc(teamHexColor) + ';">' + avatarHtml + '</div>' +
+					bubblesHtml +
+					(isLoan ? '<span class="inline-loan-chip">ยืม</span>' : '') +
+					'</div>' +
+					'<div class="pitch-name-pill">' +
+					'<span class="pitch-pos-label ' + posCls + '">' + esc(pos) + '</span>' +
+					'<span class="pitch-name-text" title="' + esc(pName) + '">' + esc(pName) + '</span>' +
+					'</div>' +
 					'</div>';
 			}
-			h += '</div></div>';
+			colsHtml += '</div>';
+		}
+
+		return '<div class="inline-pitch-half ' + (isSideB ? 'inline-team-b' : 'inline-team-a') + '">' +
+			'<div class="inline-pitch-badge" style="background:' + esc(teamHexColor) + ';color:' + esc(teamContrast) + ';">' + esc(colorName) + ' (' + esc(allPlayers.length) + ')</div>' +
+			'<div class="inline-tactical-cols">' + colsHtml + '</div>' +
+			'</div>';
+	}
+
+	function renderInlineMatchEventsSummary(match) {
+		var goals = (match && match.goal) || [];
+		if (!goals.length) return '';
+
+		function summarizeSide(teamId, colorName) {
+			var sideEvents = [];
+			for (var i = 0; i < goals.length; i++) {
+				if (getGoalEventTeamId(goals[i]) === Number(teamId)) sideEvents.push(goals[i]);
+			}
+			var h = '<div class="inline-events-side">' +
+				'<div class="inline-events-team-head"><span class="inline-events-dot" style="background:' + esc(teamHex(colorName)) + ';"></span><span>' + esc(colorName) + '</span></div>';
+			if (!sideEvents.length) {
+				h += '<div class="inline-events-empty">—</div>';
+			} else {
+				h += '<div class="inline-events-list">';
+				for (var j = 0; j < sideEvents.length; j++) {
+					var ev = sideEvents[j];
+					var st = Number(ev.goal_status);
+					var tag = st === 2 ? '🔴 OG' : (st === 3 ? '👟' : '⚽');
+					h += '<span class="inline-event-chip' + (st === 2 ? ' is-og' : (st === 3 ? ' is-assist' : ' is-goal')) + '">' + tag + ' ' + esc(getGoalEventName(ev)) + '</span>';
+				}
+				h += '</div>';
+			}
+			h += '</div>';
 			return h;
 		}
 
+		return '<div class="inline-match-events-summary">' +
+			summarizeSide(match.team_a_id, match.team_a_color) +
+			summarizeSide(match.team_b_id, match.team_b_color) +
+			'</div>';
+	}
+
+	function renderInlinePitchCard(match) {
 		return '<div class="match-inline-pitch-card">' +
 			'<div class="inline-pitch-header">' +
-			'<span class="inline-pitch-vs-pill">🏟️ ' + esc(match.team_a_color) + ' vs ' + esc(match.team_b_color) + '</span>' +
+			'<div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">' +
+			'<span style="font-weight:800;font-size:0.84rem;">🏟️ ผังนักเตะ Match ' + esc(match.match_num) + '</span>' +
+			'<span class="inline-pitch-vs-pill">' + esc(match.team_a_color) + ' ' + esc(match.team_a_goal) + ' - ' + esc(match.team_b_goal) + ' ' + esc(match.team_b_color) + '</span>' +
+			'</div>' +
 			'<button type="button" class="btn-close-inline-pitch" data-action="toggle-inline-pitch" data-match-num="' + esc(match.match_num) + '">✕ ปิด</button>' +
 			'</div>' +
-			'<div class="inline-pitch-grid">' +
-			colHtml(pA, match.team_a_color) +
-			colHtml(pB, match.team_b_color) +
+			'<div class="inline-soccer-pitch-wrapper">' +
+			'<div class="inline-soccer-pitch">' +
+			'<div class="match-pitch-markings">' +
+			'<div class="mp-half-line"></div>' +
+			'<div class="mp-center-circle"></div>' +
+			'<div class="mp-center-spot"></div>' +
+			'<div class="mp-penalty-left"></div>' +
+			'<div class="mp-goal-left"></div>' +
+			'<div class="mp-penalty-right"></div>' +
+			'<div class="mp-goal-right"></div>' +
 			'</div>' +
+			renderInlinePitchHalfHtml(match, match.team_a_id, match.team_a_color, false) +
+			renderInlinePitchHalfHtml(match, match.team_b_id, match.team_b_color, true) +
+			'</div>' +
+			'</div>' +
+			renderInlineMatchEventsSummary(match) +
 			'</div>';
 	}
 
