@@ -1051,6 +1051,7 @@
 		}
 
 		var isPitchView = state.teamSummaryViewMode === 'pitch';
+		var teamFormations = (state.info && state.info.team_formations) || {};
 		var colsHtml = '';
 		var colCount = 0;
 
@@ -1064,6 +1065,7 @@
 				headerBg: 'linear-gradient(135deg, #b45309, #f59e0b)',
 				headerColor: '#ffffff',
 				players: totw,
+				formation: teamFormations.totw || null,
 				isPitchView: isPitchView,
 				mvpIdSet: mvpIdSet
 			});
@@ -1082,6 +1084,7 @@
 				headerBg: teamHex(team.name),
 				headerColor: getContrast(team.name),
 				players: roster,
+				formation: teamFormations[String(team.teamid)] || null,
 				isPitchView: isPitchView,
 				mvpIdSet: mvpIdSet
 			});
@@ -1134,61 +1137,206 @@
 			'</div>';
 	}
 
-	function getTopRatedPlayerId(players) {
-		var bestId = null;
+	function getTopRatedPlayer(players) {
+		var bestPlayer = null;
 		var bestVal = 0;
+		var bestGoals = -1;
+		var bestAssists = -1;
 		for (var i = 0; i < (players || []).length; i++) {
-			var v = parseFloat(players[i].rating);
-			if (!isNaN(v) && v > bestVal) {
+			var p = players[i];
+			if (!p) continue;
+			var v = parseFloat(p.rating);
+			var g = Number(p.goals || 0);
+			var a = Number(p.assists || 0);
+			if (!isNaN(v) && v > 0 && (v > bestVal || (v === bestVal && (g > bestGoals || (g === bestGoals && a > bestAssists))))) {
 				bestVal = v;
-				bestId = Number(players[i].id);
+				bestGoals = g;
+				bestAssists = a;
+				bestPlayer = p;
 			}
 		}
-		return bestId;
+		return bestPlayer;
+	}
+
+	function getPosBadgeClass(posCode) {
+		var code = String(posCode || '').toUpperCase();
+		if (code === 'GK') return 'pos-gk';
+		if (code === 'DF') return 'pos-df';
+		if (code === 'DW') return 'pos-dw';
+		if (code === 'DM') return 'pos-dm';
+		if (code === 'MF') return 'pos-mf';
+		if (code === 'AM') return 'pos-am';
+		if (code === 'CF') return 'pos-cf';
+		return '';
+	}
+
+	function buildFallbackFormationRows(players) {
+		var buckets = { CF: [], AM: [], MF: [], DM: [], DW: [], DF: [], GK: [] };
+		for (var i = 0; i < (players || []).length; i++) {
+			var p = players[i];
+			var code = getPosCode(p) || 'MF';
+			if (!buckets[code]) code = 'MF';
+			buckets[code].push({ primary: p, alternate: null });
+		}
+		var rows = [];
+		if (buckets.CF.length) rows.push({ role: 'CF', isFlank: false, slots: buckets.CF });
+		if (buckets.AM.length) rows.push({ role: 'AM', isFlank: false, slots: buckets.AM });
+		if (buckets.MF.length || (!buckets.CF.length && !buckets.AM.length)) {
+			rows.push({ role: 'MF', isFlank: false, slots: buckets.MF.length ? buckets.MF : [{ primary: null, alternate: null }] });
+		}
+		if (buckets.DM.length) rows.push({ role: 'DM', isFlank: false, slots: buckets.DM });
+		if (buckets.DW.length) rows.push({ role: 'DW', isFlank: true, slots: buckets.DW });
+		if (buckets.DF.length) rows.push({ role: 'DF', isFlank: false, slots: buckets.DF });
+		rows.push({ role: 'GK', isFlank: false, slots: buckets.GK.length ? buckets.GK : [{ primary: null, alternate: null }] });
+		return rows;
+	}
+
+	function getMiniPitchRatingClass(rating, isMom) {
+		if (isMom) return 'rating-mvp';
+		var num = parseFloat(rating);
+		if (isNaN(num) || num <= 0) return 'rating-none';
+		if (num >= 3.0) return 'rating-elite';
+		if (num >= 2.0) return 'rating-good';
+		return 'rating-avg';
+	}
+
+	function renderMiniFormationPlayerNode(pl, posCode, isAlt, isMom, isTotw) {
+		if (!pl) {
+			return '<div class="pitch-player-node mini-pitch-node">' +
+				'<div class="mini-empty-slot">' + esc(posCode || 'GK') + '</div>' +
+				'</div>';
+		}
+		var rVal = formatRating(pl.rating);
+		var rCls = getMiniPitchRatingClass(pl.rating, isMom);
+		var pName = getDisplayName(pl);
+		var pTeamColor = pl.teamName || pl.team_color || pl.color || '';
+		var role = String(posCode || getPosCode(pl) || 'MF').toUpperCase();
+		var posCls = getPosBadgeClass(role);
+		var goals = Number(pl.goals || 0);
+		var assists = Number(pl.assists || 0);
+		var av = pl.picture_url
+			? '<img src="' + esc(pl.picture_url) + '" alt="' + esc(pName) + '">'
+			: '<span class="avatar-char">' + esc(getInitials(pl)) + '</span>';
+
+		var ratingBadge = rVal !== '-'
+			? '<div class="mini-score-rating ' + rCls + '" title="Live Rating">' +
+			'<span class="badge-val">' + esc(rVal) + '</span>' +
+			(isMom ? '<span class="badge-icon" style="color:#fde047;">★</span>' : '') +
+			'</div>'
+			: '';
+
+		var goalBadge = goals > 0
+			? '<div class="mini-goal-badge" title="' + esc(goals) + ' ประตู">⚽' + (goals > 1 ? '<span class="mini-stat-count">' + esc(goals) + '</span>' : '') + '</div>'
+			: '';
+		var assistBadge = assists > 0
+			? '<div class="mini-assist-badge" title="' + esc(assists) + ' แอสซิสต์">👟' + (assists > 1 ? '<span class="mini-stat-count">' + esc(assists) + '</span>' : '') + '</div>'
+			: '';
+
+		return '<div class="pitch-player-node mini-pitch-node' + (isMom ? ' is-mvp' : '') + (isAlt ? ' is-alt' : '') + '">' +
+			'<div class="pitch-player-avatar-wrap">' +
+			(isMom ? '<span class="mini-pitch-crown" title="Team MVP">👑</span>' : '') +
+			'<div class="pitch-player-avatar-circle" style="border-color:' + esc(teamHex(pTeamColor)) + ';">' +
+			av +
+			'</div>' +
+			ratingBadge +
+			goalBadge +
+			assistBadge +
+			'</div>' +
+			'<div class="pitch-name-pill">' +
+			'<span class="pitch-pos-label ' + posCls + '">' + esc(role) + '</span>' +
+			(isTotw && pTeamColor ? '<span class="totw-team-mini-dot" style="background:' + esc(teamHex(pTeamColor)) + ';" title="ทีม ' + esc(pTeamColor) + '"></span>' : '') +
+			'<span class="pitch-name-text">' + esc(pName) + '</span>' +
+			'</div>' +
+			'</div>';
+	}
+
+	function renderTeamMvpFooter(topPlayer, isTotw) {
+		var label = isTotw ? 'WEEK MVP' : 'TEAM MVP';
+		if (!topPlayer) {
+			return '<div class="team-mvp-footer is-na">' +
+				'<div class="team-mvp-footer-left">' +
+				'<div class="team-mvp-footer-avatar">MVP</div>' +
+				'<div><div class="team-mvp-footer-title">' + label + ' <span>• n/a</span></div>' +
+				'<div class="team-mvp-footer-stats">รอผลการแข่งขัน</div></div>' +
+				'</div>' +
+				'<div class="team-mvp-footer-rating" style="border-color:#475569;color:#94a3b8;background:#1e293b;">n/a</div>' +
+				'</div>';
+		}
+		var name = getDisplayName(topPlayer);
+		var av = topPlayer.picture_url
+			? '<img src="' + esc(topPlayer.picture_url) + '" alt="' + esc(name) + '">'
+			: esc(getInitials(topPlayer));
+		var goals = Number(topPlayer.goals || 0);
+		var assists = Number(topPlayer.assists || 0);
+		var ratingText = formatRating(topPlayer.rating);
+		return '<div class="team-mvp-footer">' +
+			'<div class="team-mvp-footer-left">' +
+			'<div class="team-mvp-footer-avatar">' + av + '<span class="mini-pitch-crown" style="top:-10px;font-size:0.78rem;">👑</span></div>' +
+			'<div style="min-width:0;">' +
+			'<div class="team-mvp-footer-title">' + label + ' <span>• ' + esc(name) + '</span></div>' +
+			'<div class="team-mvp-footer-stats"><span>⚽ ' + esc(goals) + '</span><span>👟 ' + esc(assists) + '</span></div>' +
+			'</div>' +
+			'</div>' +
+			'<div class="team-mvp-footer-rating">★ ' + esc(ratingText) + '</div>' +
+			'</div>';
 	}
 
 	function buildSummaryColHtml(opts) {
 		var bodyHtml = '';
-		var topPlayerId = getTopRatedPlayerId(opts.players);
+		var formationPlayers = [];
+		if (opts.formation && Array.isArray(opts.formation.rows)) {
+			for (var fr = 0; fr < opts.formation.rows.length; fr++) {
+				var sls = opts.formation.rows[fr].slots || [];
+				for (var fs = 0; fs < sls.length; fs++) {
+					if (sls[fs] && sls[fs].primary) formationPlayers.push(sls[fs].primary);
+					if (sls[fs] && sls[fs].alternate) formationPlayers.push(sls[fs].alternate);
+				}
+			}
+		}
+		var statPool = formationPlayers.length ? formationPlayers : (opts.players || []);
+		var topPlayer = getTopRatedPlayer(statPool);
+		var topPlayerId = topPlayer ? Number(topPlayer.id) : null;
+
 		if (!opts.players || !opts.players.length) {
 			bodyHtml = '<div class="team-player-empty">ยังไม่มีรายชื่อผู้เล่น</div>';
 		} else if (opts.isPitchView) {
-			var rows = getTeamTacticalRows(opts.players);
-			bodyHtml = '<div class="team-pitch-vertical"><div class="team-pitch-tactical-layout">';
+			var rows = (opts.formation && Array.isArray(opts.formation.rows) && opts.formation.rows.length)
+				? opts.formation.rows
+				: buildFallbackFormationRows(opts.players);
+
+			var subbarHtml = opts.formation && opts.formation.formationName
+				? '<div class="team-formation-subbar"><span>👥 ' + esc(opts.formation.totalPlayers || opts.players.length) + ' คน</span><span>' + esc(opts.formation.formationName) + '</span></div>'
+				: '';
+
+			bodyHtml = subbarHtml +
+				'<div class="team-pitch-vertical">' +
+				'<div class="tv-pitch-markings">' +
+				'<div class="tv-half-line"></div><div class="tv-center-circle"></div><div class="tv-center-spot"></div>' +
+				'<div class="tv-penalty-top"></div><div class="tv-goal-top"></div>' +
+				'<div class="tv-penalty-bottom"></div><div class="tv-goal-bottom"></div>' +
+				'</div>' +
+				'<div class="team-pitch-tactical-layout">';
+
 			for (var r = 0; r < rows.length; r++) {
-				bodyHtml += '<div class="pitch-tactical-row">';
-				for (var j = 0; j < rows[r].length; j++) {
-					var pl = rows[r][j];
-					var rCls = getRatingClass(pl.rating);
-					var rVal = formatRating(pl.rating);
-					var pName = getDisplayName(pl);
-					var pTeamColor = pl.teamName || pl.team_color || pl.color || '';
-					var isTop = topPlayerId !== null && Number(pl.id) === topPlayerId;
-					var av = pl.picture_url
-						? '<img src="' + esc(pl.picture_url) + '" alt="' + esc(pName) + '">'
-						: '<span class="avatar-char">' + esc(getInitials(pl)) + '</span>';
-					bodyHtml +=
-						'<div class="pitch-player-node mini-pitch-node">' +
-						'<div class="pitch-player-avatar-wrap">' +
-						'<div class="pitch-player-avatar-circle" style="border-color:' + esc(teamHex(pTeamColor)) + ';">' +
-						av +
-						'</div>' +
-						'<div class="mini-score-rating ' + rCls + '" title="Live Rating">' +
-						'<span class="badge-icon">' + (isTop ? '👑' : '⭐') + '</span>' +
-						'<span class="badge-val">' + esc(rVal) + '</span>' +
-						'</div>' +
-						(isTop ? '<span class="mini-team-mvp-badge" title="Team MVP">👑</span>' : '') +
-						'</div>' +
-						'<div class="pitch-name-pill">' +
-						'<span class="pitch-pos-label">' + esc(getPosCode(pl) || 'MF') + '</span>' +
-						(opts.isTotw && pTeamColor ? '<span class="totw-team-mini-dot" style="background:' + esc(teamHex(pTeamColor)) + ';" title="ทีม ' + esc(pTeamColor) + '"></span>' : '') +
-						'<span class="pitch-name-text">' + esc(pName) + '</span>' +
-						'</div>' +
-						'</div>';
+				var rowObj = rows[r];
+				var slots = rowObj.slots || [];
+				bodyHtml += '<div class="pitch-tactical-row' + (rowObj.isFlank ? ' row-flank' : '') + '">';
+				for (var sIdx = 0; sIdx < slots.length; sIdx++) {
+					var slot = slots[sIdx] || { primary: null, alternate: null };
+					var isPrimaryMom = slot.primary && topPlayerId !== null && Number(slot.primary.id) === topPlayerId;
+					var isAltMom = slot.alternate && topPlayerId !== null && Number(slot.alternate.id) === topPlayerId;
+					if (slot.primary && slot.alternate) {
+						bodyHtml += '<div class="pitch-flank-pair">' +
+							renderMiniFormationPlayerNode(slot.primary, rowObj.role, false, isPrimaryMom, opts.isTotw) +
+							renderMiniFormationPlayerNode(slot.alternate, rowObj.role, true, isAltMom, opts.isTotw) +
+							'</div>';
+					} else {
+						bodyHtml += renderMiniFormationPlayerNode(slot.primary, rowObj.role, false, isPrimaryMom, opts.isTotw);
+					}
 				}
 				bodyHtml += '</div>';
 			}
-			bodyHtml += '</div></div>';
+			bodyHtml += '</div></div>' + renderTeamMvpFooter(topPlayer, opts.isTotw);
 		} else {
 			bodyHtml = '<div class="team-player-roster">';
 			for (var i = 0; i < opts.players.length; i++) {

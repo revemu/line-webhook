@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.65] - 2026-11-22
+
+### Added & Improved
+- **7-Layer Tactical `/teamview`-Style Pitch Cards on `/view` (`routes/web.js`, `public/js/update.js`, `public/style.css`)**:
+  - Updated `getLastMatchWeek` (`routes/web.js`) to include `team_formations` (`CF → AM → MF → DM → DW → DF → GK`, slot placeholders, alternate slots, and formation names using shared `db.allocateFormationSlots`), plus added `pos_code` to `leader_stats.top_scorers` and `leader_stats.top_assists`.
+  - Updated vertical team summary pitch cards (`.team-pitch-vertical`, `.tv-pitch-markings`) in `/view` to match `/teamview` visuals: formation sub-bar (`N คน • แผน ...`), full soccer field markings, 7 tactical strata with wide `DW` touchline flanks, empty dotted `GK` slot placeholders, MVP crown + gold ring + blue `★` rating pill, `⚽` (goals) and `👟` (assists) badges, 7 role badge colors, and bottom `TEAM MVP` / `WEEK MVP` summary footer bar.
+- **Auto-Include Team of the Week (`TOTW`) Tab on `/webhook/teamview` After Matches Finish (`routes/web.js`)**:
+  - Updated `resolveTeamForView` (`hasWeekFinishedAllMatches`) so `/webhook/teamview` automatically prepends the gold `TOTW` tab once `match_stat_tbl` has scheduled matches and zero remaining unfinished matches, keeping both TOTW and all team slides swipeable.
+
+---
+
 ## [0.7.64] - 2026-11-22
 
 ### Fixed

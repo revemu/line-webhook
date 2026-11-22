@@ -172,6 +172,7 @@ async function getOrComputeLeaderStats(weekid, forceRefresh = false) {
             picture_url: p.picture_url,
             team_id: p.team_id,
             teamName: p.teamName,
+            pos_code: p.pos?.code || p.pos_code || '',
             goals: p.goals || 0
         })),
         top_assists: (stats.topAssists || []).map(p => ({
@@ -181,6 +182,7 @@ async function getOrComputeLeaderStats(weekid, forceRefresh = false) {
             picture_url: p.picture_url,
             team_id: p.team_id,
             teamName: p.teamName,
+            pos_code: p.pos?.code || p.pos_code || '',
             assists: p.assists || 0
         })),
         totw: (stats.totw || []).map(p => ({
@@ -1274,7 +1276,7 @@ async function queryRegisteredMembers(weekid) {
            COALESCE(m.name, mtw.name) as name,
            COALESCE(m.alias, mtw.name) as alias, 
            mtw.team_id, tcw.color,
-           mtw.pos_id, m.picture_url,
+           mtw.pos_id, mtw.priority, m.rank, m.picture_url,
            p.code as pos_code, p.name as pos_name, p.icon as pos_icon
     FROM member_team_week_tbl mtw
     LEFT JOIN member_tbl m ON mtw.member_id = m.id
@@ -1718,7 +1720,117 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
         });
     }
 
+    // Attach tactical 7-layer formation layout (identical to /teamview & /formation)
+    data.team_formations = null;
+    if (!isLocked) {
+        try {
+            data.team_formations = await buildWebTeamFormations(data.allmembers, teamJson, data.leader_stats);
+        } catch (eForm) {
+            logger.warn(`Could not build team_formations for week ${weekid}: ${eForm.message}`);
+        }
+    }
+
     return data;
+}
+
+function formatCompactFormationPlayer(player, overrideRole) {
+    if (!player) return null;
+    return {
+        id: player.id || player.member_id,
+        alias: player.alias || player.name,
+        name: player.name || player.alias,
+        picture_url: avatarCache.resolveWebAvatarUrl(player.picture_url || ''),
+        pos_code: overrideRole || player.pos_code || 'MF',
+        teamName: player.teamName || player.color || '',
+        color: player.color || player.teamName || '',
+        rating: player.rating !== undefined && player.rating !== null ? player.rating : '-',
+        goals: Number(player.goals || 0),
+        assists: Number(player.assists || 0),
+        clean_sheets: Number(player.clean_sheets || 0)
+    };
+}
+
+function serializeTeamFormation(members, is8Player, posLimitsMap) {
+    const allocation = db.allocateFormationSlots(members || [], is8Player, posLimitsMap);
+    const slots = allocation.slots || {};
+    const hasCF = slots.CF && slots.CF.length > 0;
+    const hasAM = slots.AM && slots.AM.length > 0;
+    const hasDM = slots.DM && slots.DM.length > 0;
+
+    const pushRow = (rows, role, slotList, isFlank = false) => {
+        rows.push({
+            role,
+            isFlank,
+            slots: (slotList || []).map(s => ({
+                primary: formatCompactFormationPlayer(s && s.primary, role),
+                alternate: formatCompactFormationPlayer(s && s.alternate, role)
+            }))
+        });
+    };
+
+    const rows = [];
+    if (hasCF && hasAM) {
+        pushRow(rows, 'CF', slots.CF);
+        pushRow(rows, 'AM', slots.AM);
+    } else if (hasCF) {
+        pushRow(rows, 'CF', slots.CF);
+    } else if (hasAM) {
+        pushRow(rows, 'AM', slots.AM);
+    } else {
+        pushRow(rows, 'CF', [{ primary: null, alternate: null }]);
+    }
+
+    pushRow(rows, 'MF', (slots.MF && slots.MF.length > 0) ? slots.MF : [{ primary: null, alternate: null }]);
+    if (hasDM) pushRow(rows, 'DM', slots.DM);
+    pushRow(rows, 'DW', (slots.DW && slots.DW.length > 0) ? slots.DW : [{ primary: null, alternate: null }, { primary: null, alternate: null }], true);
+    pushRow(rows, 'DF', (slots.DF && slots.DF.length > 0) ? slots.DF : [{ primary: null, alternate: null }]);
+    pushRow(rows, 'GK', (slots.GK && slots.GK.length > 0) ? slots.GK : [{ primary: null, alternate: null }]);
+
+    return {
+        formationName: allocation.formationName || '',
+        totalPlayers: allocation.totalPlayers || (members || []).length,
+        rows
+    };
+}
+
+async function buildWebTeamFormations(allMembers, teamJson, leaderStats) {
+    const posRows = await db.getAllPositions();
+    const posLimitsMap = {};
+    (posRows || []).forEach(r => {
+        const code = String(r.code || '').toUpperCase();
+        if (!code) return;
+        posLimitsMap[code] = {
+            min: r.min !== null && r.min !== undefined ? Number(r.min) : undefined,
+            max: r.max !== null && r.max !== undefined ? Number(r.max) : undefined,
+            min_8: r.min_8 !== null && r.min_8 !== undefined ? Number(r.min_8) : undefined,
+            max_8: r.max_8 !== null && r.max_8 !== undefined ? Number(r.max_8) : undefined
+        };
+    });
+
+    const teamIds = Object.keys(teamJson || {});
+    let maxTeamSize = 0;
+    const byTeam = {};
+    teamIds.forEach(tid => { byTeam[tid] = []; });
+    (allMembers || []).forEach(m => {
+        const key = String(m.team_id || '');
+        if (byTeam[key]) byTeam[key].push(m);
+    });
+    teamIds.forEach(tid => {
+        if (byTeam[tid].length > maxTeamSize) maxTeamSize = byTeam[tid].length;
+    });
+    const is8PlayerWeek = maxTeamSize >= 8;
+
+    const result = {};
+    teamIds.forEach(tid => {
+        const list = byTeam[tid] || [];
+        result[tid] = serializeTeamFormation(list, list.length >= 8 || is8PlayerWeek, posLimitsMap);
+    });
+
+    if (leaderStats && Array.isArray(leaderStats.totw) && leaderStats.totw.length > 0) {
+        result.totw = serializeTeamFormation(leaderStats.totw, leaderStats.totw.length >= 8 || is8PlayerWeek, posLimitsMap);
+    }
+
+    return result;
 }
 
 async function updateMatchScore(matchid) {
@@ -1853,6 +1965,17 @@ function escapeHtmlText(str) {
         .replace(/'/g, '&#39;');
 }
 
+async function hasWeekFinishedAllMatches(weekId) {
+    if (!weekId) return false;
+    const rows = await doQuery(
+        "SELECT COUNT(*) AS total_cnt, SUM(CASE WHEN status IS NULL OR status <> 'finished' THEN 1 ELSE 0 END) AS remaining_cnt FROM match_stat_tbl WHERE week_id = ?",
+        [parseInt(weekId, 10)]
+    );
+    const total = rows && rows[0] ? Number(rows[0].total_cnt || 0) : 0;
+    const remaining = rows && rows[0] ? Number(rows[0].remaining_cnt || 0) : 0;
+    return total > 0 && remaining === 0;
+}
+
 async function resolveTeamForView(weekParam, teamParam) {
     const cleanWeek = String(weekParam || '0').trim() || '0';
     const cleanTeam = String(teamParam || '').trim();
@@ -1864,13 +1987,20 @@ async function resolveTeamForView(weekParam, teamParam) {
         const w = weekRows[0];
         const totwArr = await db.getTotwFormationData(w.id);
         if (!totwArr || totwArr.length === 0) return null;
+        let allTeams = totwArr;
+        if (await hasWeekFinishedAllMatches(w.id)) {
+            const teamData = await db.getTeamFormationData('', null, { weekId: w.id });
+            if (teamData && Array.isArray(teamData.formationsData) && teamData.formationsData.length > 0) {
+                allTeams = [totwArr[0], ...teamData.formationsData];
+            }
+        }
         const dateStr = w.date ? await db.getFormatDate(w.date, 'short') : '';
         return {
             weekId: w.id,
             dateStr,
             timeRange: w.time_range || '',
             team: totwArr[0],
-            allTeams: totwArr
+            allTeams
         };
     }
 
@@ -1879,10 +2009,22 @@ async function resolveTeamForView(weekParam, teamParam) {
         return null;
     }
 
-    let targetTeam = data.formationsData[0];
+    let allTeams = data.formationsData;
+    if (await hasWeekFinishedAllMatches(data.weekId)) {
+        try {
+            const totwArr = await db.getTotwFormationData(data.weekId);
+            if (totwArr && totwArr.length > 0) {
+                allTeams = [totwArr[0], ...data.formationsData];
+            }
+        } catch (eTotw) {
+            logger.warn(`[teamview TOTW] Failed to load TOTW for week ${data.weekId}: ${eTotw.message}`);
+        }
+    }
+
+    let targetTeam = allTeams[0];
     if (cleanTeam) {
         const lower = cleanTeam.toLowerCase();
-        const found = data.formationsData.find(t =>
+        const found = allTeams.find(t =>
             String(t.teamId) === cleanTeam ||
             String(t.teamColor || '').trim().toLowerCase() === lower
         );
@@ -1894,11 +2036,14 @@ async function resolveTeamForView(weekParam, teamParam) {
         dateStr: data.dateStr || '',
         timeRange: data.timeRange || '',
         team: targetTeam,
-        allTeams: data.formationsData
+        allTeams
     };
 }
 
-function getTeamTabDotStyle(teamColorName, teamImg) {
+function getTeamTabDotStyle(teamColorName, teamImg, teamId) {
+    if (String(teamId || '').toLowerCase() === 'totw') {
+        return 'background:#FACC15;box-shadow:0 0 6px rgba(250,204,21,0.7);';
+    }
     const colors = teamImg.getTeamHeaderColors(teamColorName);
     if (colors.bg === '#F1F5F9') return 'background:#F8FAFC;';
     if (colors.bg === '#EAB308') return 'background:#FACC15;';
@@ -2015,26 +2160,34 @@ router.get('/webhook/teamview', async (req, res) => {
         let activeIndex = teamsList.findIndex(t => String(t.teamId) === activeId);
         if (activeIndex < 0) activeIndex = 0;
 
-        const cleanActiveName = teamImg.stripEmojis(resolved.team.teamColor || `Team ${activeId}`)
-            .replace(/^ทีม(สี)?\s*/i, '')
-            .trim() || `Team ${activeId}`;
+        const cleanActiveName = String(resolved.team.teamId).toLowerCase() === 'totw'
+            ? 'TOTW'
+            : (teamImg.stripEmojis(resolved.team.teamColor || `Team ${activeId}`)
+                .replace(/^ทีม(สี)?\s*/i, '')
+                .trim() || `Team ${activeId}`);
 
         const tabsHtml = teamsList.length > 1
             ? `<nav class="topbar" aria-label="เลือกทีม"><div class="team-tabs" role="tablist">${teamsList.map((t, idx) => {
                 const tid = String(t.teamId);
-                const label = teamImg.stripEmojis(t.teamColor || `Team ${tid}`).replace(/^ทีม(สี)?\s*/i, '').trim() || `Team ${tid}`;
-                const dotStyle = getTeamTabDotStyle(t.teamColor, teamImg);
-                const pctHtml = (t.colorUsagePct !== null && t.colorUsagePct !== undefined)
+                const isTotwTab = tid.toLowerCase() === 'totw';
+                const label = isTotwTab
+                    ? 'TOTW'
+                    : (teamImg.stripEmojis(t.teamColor || `Team ${tid}`).replace(/^ทีม(สี)?\s*/i, '').trim() || `Team ${tid}`);
+                const dotStyle = getTeamTabDotStyle(t.teamColor, teamImg, tid);
+                const pctHtml = (!isTotwTab && t.colorUsagePct !== null && t.colorUsagePct !== undefined)
                     ? `<span class="tab-pct">${escapeHtmlText(t.colorUsagePct)}%</span>`
                     : '';
                 const isActive = idx === activeIndex;
                 return `<button type="button" role="tab" aria-selected="${isActive ? 'true' : 'false'}" class="team-tab${isActive ? ' active' : ''}" data-index="${idx}" data-team-id="${escapeHtmlText(tid)}"><span class="tab-dot" style="${dotStyle}"></span><span>${escapeHtmlText(label)}</span>${pctHtml}</button>`;
             }).join('')}</div></nav>`
-            : `<div class="topbar topbar-single"><span class="single-badge"><span class="tab-dot" style="${getTeamTabDotStyle(resolved.team.teamColor, teamImg)}"></span>${escapeHtmlText(cleanActiveName)}${resolved.dateStr ? ` • ${escapeHtmlText(resolved.dateStr)}` : ''}</span></div>`;
+            : `<div class="topbar topbar-single"><span class="single-badge"><span class="tab-dot" style="${getTeamTabDotStyle(resolved.team.teamColor, teamImg, resolved.team.teamId)}"></span>${escapeHtmlText(cleanActiveName)}${resolved.dateStr ? ` • ${escapeHtmlText(resolved.dateStr)}` : ''}</span></div>`;
 
         const slidesHtml = teamsList.map((t, idx) => {
             const tid = String(t.teamId);
-            const cleanName = teamImg.stripEmojis(t.teamColor || `Team ${tid}`).replace(/^ทีม(สี)?\s*/i, '').trim() || `Team ${tid}`;
+            const isTotwSlide = tid.toLowerCase() === 'totw';
+            const cleanName = isTotwSlide
+                ? 'Team of the Week'
+                : (teamImg.stripEmojis(t.teamColor || `Team ${tid}`).replace(/^ทีม(สี)?\s*/i, '').trim() || `Team ${tid}`);
             const pngSrc = `/webhook/teamimg/png?week=${encodeURIComponent(resolved.weekId)}&team=${encodeURIComponent(tid)}`;
             const isActiveSlide = idx === activeIndex;
             const imgAttrs = isActiveSlide
