@@ -12,6 +12,8 @@ const logger = require('../utils/logger');
 const { getAppVersion, getAssetVersion, sendVersionedHtml } = require('../utils/version');
 const { broadcastMatchEvent } = require('../utils/wsBroadcaster');
 const avatarCache = require('../utils/avatarCache');
+const { getWeekEndInfo } = require('../utils/date');
+const { getLeaderStatsCache, setLeaderStatsCache, invalidateLeaderStatsCache } = require('../utils/leaderCache');
 
 const router = express.Router();
 const upload = multer();
@@ -66,18 +68,7 @@ function getTeamColorHex(name) {
     return '#f59e0b';
 }
 
-// In-memory cache for week leader stats & player ratings (Persistent cache, invalidated only on match finish / updates)
-let leaderStatsCache = {};
-
-function invalidateLeaderStatsCache(weekId = null) {
-    if (weekId) {
-        delete leaderStatsCache[String(weekId)];
-        logger.info(`[Ratings Cache] Invalidated cache for week ${weekId}`);
-    } else {
-        leaderStatsCache = {};
-        logger.info(`[Ratings Cache] Invalidated cache for all weeks`);
-    }
-}
+// Shared week leader stats cache lives in utils/leaderCache.js so both LINE commands and web endpoints share invalidation.
 
 // In-memory debounce timers for rating calculation (10s quiet window after goal updates)
 let ratingDebounceTimers = {};
@@ -144,9 +135,9 @@ async function lookupMemberAvatarUrlByHash(hash) {
 
 async function getOrComputeLeaderStats(weekid, forceRefresh = false) {
     if (!weekid) return null;
-    const key = String(weekid);
-    if (!forceRefresh && leaderStatsCache[key] && leaderStatsCache[key].data) {
-        return resolveLeaderStatsAvatars(leaderStatsCache[key].data);
+    if (!forceRefresh) {
+        const cached = getLeaderStatsCache(weekid);
+        if (cached) return resolveLeaderStatsAvatars(cached);
     }
 
     const stats = await db.getWeekLeaderStats(weekid, null, forceRefresh);
@@ -219,10 +210,7 @@ async function getOrComputeLeaderStats(weekid, forceRefresh = false) {
         }))
     };
 
-    leaderStatsCache[key] = {
-        data: mapped,
-        cachedAt: Date.now()
-    };
+    setLeaderStatsCache(weekid, mapped);
     logger.info(`[Ratings Cache] Calculated & cached leader stats for week ${weekid} (${mapped.players.length} players, ${mapped.totw.length} TOTW)`);
 
     return resolveLeaderStatsAvatars(mapped);
@@ -1580,14 +1568,7 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     // Check if the week play time has ended
     let isWeekTimeEnded = false;
     try {
-        const timeRange = weekInfo.time_range || '17:30-20:00';
-        const endTimeStr = timeRange.split('-')[1]?.trim() || '20:00';
-        const [endH, endM] = endTimeStr.split(':').map(Number);
-
-        const endDateTime = new Date(`${weekInfo.date} ${endH || 20}:${endM || 0}:00 GMT+0700`);
-        if (!isNaN(endDateTime.getTime())) {
-            isWeekTimeEnded = Date.now() > endDateTime.getTime();
-        }
+        isWeekTimeEnded = getWeekEndInfo(weekInfo.raw_date || weekInfo.date, weekInfo.time_range).ended;
     } catch (e) {
         logger.warn(`Could not calculate isWeekTimeEnded: ${e.message}`);
     }
@@ -1965,15 +1946,17 @@ function escapeHtmlText(str) {
         .replace(/'/g, '&#39;');
 }
 
-async function hasWeekFinishedAllMatches(weekId) {
+async function shouldShowTotwInTeamView(weekId, dateVal, timeRange) {
     if (!weekId) return false;
     const rows = await doQuery(
-        "SELECT COUNT(*) AS total_cnt, SUM(CASE WHEN status IS NULL OR status <> 'finished' THEN 1 ELSE 0 END) AS remaining_cnt FROM match_stat_tbl WHERE week_id = ?",
+        "SELECT COUNT(*) AS total_cnt, SUM(CASE WHEN status = 'finished' THEN 1 ELSE 0 END) AS finished_cnt, SUM(CASE WHEN status IS NULL OR status <> 'finished' THEN 1 ELSE 0 END) AS remaining_cnt FROM match_stat_tbl WHERE week_id = ?",
         [parseInt(weekId, 10)]
     );
     const total = rows && rows[0] ? Number(rows[0].total_cnt || 0) : 0;
+    const finished = rows && rows[0] ? Number(rows[0].finished_cnt || 0) : 0;
     const remaining = rows && rows[0] ? Number(rows[0].remaining_cnt || 0) : 0;
-    return total > 0 && remaining === 0;
+    if (total > 0 && remaining === 0) return true;
+    return finished > 0 && getWeekEndInfo(dateVal, timeRange).ended;
 }
 
 async function resolveTeamForView(weekParam, teamParam) {
@@ -1988,7 +1971,7 @@ async function resolveTeamForView(weekParam, teamParam) {
         const totwArr = await db.getTotwFormationData(w.id);
         if (!totwArr || totwArr.length === 0) return null;
         let allTeams = totwArr;
-        if (await hasWeekFinishedAllMatches(w.id)) {
+        if (await shouldShowTotwInTeamView(w.id, w.date, w.time_range)) {
             const teamData = await db.getTeamFormationData('', null, { weekId: w.id });
             if (teamData && Array.isArray(teamData.formationsData) && teamData.formationsData.length > 0) {
                 allTeams = [totwArr[0], ...teamData.formationsData];
@@ -2010,7 +1993,7 @@ async function resolveTeamForView(weekParam, teamParam) {
     }
 
     let allTeams = data.formationsData;
-    if (await hasWeekFinishedAllMatches(data.weekId)) {
+    if (await shouldShowTotwInTeamView(data.weekId, data.dateStr, data.timeRange)) {
         try {
             const totwArr = await db.getTotwFormationData(data.weekId);
             if (totwArr && totwArr.length > 0) {
@@ -2213,7 +2196,7 @@ router.get('/webhook/teamview', async (req, res) => {
         const pageTitle = `${cleanActiveName}${resolved.dateStr ? ` • ${resolved.dateStr}` : ''}`;
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         return res.send(`<!DOCTYPE html>
 <html lang="th">
 <head>

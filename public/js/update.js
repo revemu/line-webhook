@@ -1061,7 +1061,7 @@
 			colsHtml += buildSummaryColHtml({
 				isTotw: true,
 				title: '🌟 TEAM OF THE WEEK',
-				recordText: 'Best XI',
+				recordText: 'Best ' + totw.length,
 				headerBg: 'linear-gradient(135deg, #b45309, #f59e0b)',
 				headerColor: '#ffffff',
 				players: totw,

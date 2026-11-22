@@ -4,6 +4,20 @@
 
 ---
 
+## [0.7.66] - 2026-11-22
+
+### Changed & Fixed
+- **Enforce Post-Play Time Gate & Auto-Finalize on `/matchweek` (`cmd.js`, `query.js`, `utils/date.js`, `utils/leaderCache.js`)**:
+  - Added shared `getWeekEndInfo()` in `utils/date.js` (`Asia/Bangkok` `GMT+0700`) and restricted `/matchweek` (`cmd.js`) so calling it before the week's scheduled end time replies cleanly without modifying matches.
+  - Added `finalizeWeekMatchesAndStandings()` in `query.js`: calling `/matchweek` after play ends automatically recalculates & finishes any lingering `in_progress` match, deletes unplayed `scheduled` matches, recalculates `table_week_tbl`, and invalidates the shared `utils/leaderCache.js` leader/rating cache.
+- **Set `/schedule` Minimum Changeover Break (`2` mins) & Real Match Durations (`query.js`, `cmd.js`)**:
+  - Updated `getScheduleText` to reserve `minBreak = 2` minutes per match slot when fitting full round-robin cycles (overridable via `break:N` / `b:N` / `พัก:N` in `/schedule`), defaulting 3-team sessions to `8` mins (+ `2m` break = `12` matches in 2h / `15` in 2.5h) and 4-team `<= 2.5h` sessions to `6` mins (+ `2m` break).
+- **Adjust TOTW Roster Cap (`6` or `7`) & Always Show TOTW on `/teamview` Post-Play (`query.js`, `routes/web.js`, `public/js/update.js`)**:
+  - Updated `selectTeamOfTheWeekPlayers` to select `6` players for 7-player teams and `7` players for 8-player teams (and replaced hardcoded `Best XI` label in `public/js/update.js` with dynamic `Best N`).
+  - Updated `/webhook/teamview` (`shouldShowTotwInTeamView` + `Cache-Control: no-store`) to show the `TOTW` tab automatically when either zero unfinished matches remain or finished matches exist past `time_range` end time.
+
+---
+
 ## [0.7.65] - 2026-11-22
 
 ### Added & Improved

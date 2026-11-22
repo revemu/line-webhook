@@ -198,6 +198,64 @@ function getNextSaturday() {
   return date;
 }
 
+/**
+ * Evaluates whether a match week's scheduled play window has ended in Asia/Bangkok (GMT+07:00).
+ * @param {Date|string} dateVal - Date value (YYYY-MM-DD, DD Mon YYYY, or Date)
+ * @param {string} [timeRange='17:30-20:00']
+ * @param {number} [nowMs=Date.now()]
+ * @returns {{ ended: boolean, endTimeStr: string, endDateTimeMs: number|null }}
+ */
+function getWeekEndInfo(dateVal, timeRange = '17:30-20:00', nowMs = Date.now()) {
+  const safeRange = String(timeRange || '17:30-20:00').replace(/\./g, ':');
+  const parts = safeRange.split('-').map(s => s.trim());
+  const startRaw = parts[0] || '17:30';
+  const endRaw = parts[1] || '20:00';
+
+  const parseHm = (str, defH, defM) => {
+    const m = String(str || '').match(/^(\d{1,2}):(\d{1,2})/);
+    if (!m) return { h: defH, m: defM };
+    return { h: Math.min(23, Math.max(0, Number(m[1]))), m: Math.min(59, Math.max(0, Number(m[2]))) };
+  };
+
+  const startHm = parseHm(startRaw, 17, 30);
+  const endHm = parseHm(endRaw, 20, 0);
+  const endTimeStr = `${String(endHm.h).padStart(2, '0')}:${String(endHm.m).padStart(2, '0')}`;
+
+  if (!dateVal) {
+    return { ended: false, endTimeStr, endDateTimeMs: null };
+  }
+
+  let y, monZero, d;
+  if (typeof dateVal === 'string') {
+    const iso = dateVal.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (iso) {
+      y = Number(iso[1]);
+      if (y >= 2400) y -= 543;
+      monZero = Number(iso[2]) - 1;
+      d = Number(iso[3]);
+    }
+  }
+  if (y === undefined) {
+    const parsed = parseDateInput(dateVal);
+    if (!parsed) return { ended: false, endTimeStr, endDateTimeMs: null };
+    y = parsed.getFullYear();
+    monZero = parsed.getMonth();
+    d = parsed.getDate();
+  }
+
+  // Convert Asia/Bangkok (UTC+07:00) calendar date + end time cleanly to UTC epoch ms
+  let endDateTimeMs = Date.UTC(y, monZero, d, endHm.h, endHm.m, 0) - (7 * 3600 * 1000);
+  if ((endHm.h * 60 + endHm.m) < (startHm.h * 60 + startHm.m)) {
+    endDateTimeMs += 24 * 3600 * 1000;
+  }
+
+  return {
+    ended: nowMs > endDateTimeMs,
+    endTimeStr,
+    endDateTimeMs
+  };
+}
+
 module.exports = {
   thaiMonths,
   thaiMonthsShort,
@@ -206,5 +264,6 @@ module.exports = {
   getShortDate,
   getSlashDate,
   getFormatDate,
-  getNextSaturday
+  getNextSaturday,
+  getWeekEndInfo
 };

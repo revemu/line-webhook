@@ -8,7 +8,7 @@ const axios = require('axios');
 const slipService = require('./slip');
 const slipVerifier = require('./scheduler/slipVerifier');
 const logger = require('./utils/logger');
-const { getNextSaturday } = require('./utils/date');
+const { getNextSaturday, getWeekEndInfo } = require('./utils/date');
 const { getLiveWebUrl } = require('./utils/url');
 
 const ADMIN_RESTRICTED_COMMANDS = new Set(['qr', 'qrpay', 'slip', 'sliplist', 'verify', 'prune', 'pruneimages', 'cleanup', '+donate', '-donate']);
@@ -894,9 +894,17 @@ const COMMAND_REGISTRY = {
         const { param, groupId } = context;
         const week = await db.queryWeekID(param);
         if (week && week.length > 0) {
-            const msgs = await db.getMatchWeek(week[0].id, groupId);
+            const w = week[0];
+            const endInfo = getWeekEndInfo(w.date, w.time_range);
+            if (!endInfo.ended) {
+                return [{
+                    type: 'text',
+                    text: `⏳ ยังไม่ถึงเวลาเลิกเตะ (${w.date} สิ้นสุด ${endInfo.endTimeStr} น.)\nกรุณาใช้คำสั่ง /matchweek หลังเวลาเลิกเตะครับ`
+                }];
+            }
+            const msgs = await db.getMatchWeek(w.id, groupId);
             if (msgs) return msgs;
-            return [{ type: 'text', text: `ยังไม่มีข้อมูลแมตช์ในสัปดาห์ ${week[0].date}` }];
+            return [{ type: 'text', text: `ยังไม่มีข้อมูลแมตช์ในสัปดาห์ ${w.date}` }];
         }
         return [{ type: 'text', text: param ? `ไม่พบข้อมูลสัปดาห์ "${param}"` : "ยังไม่มีข้อมูลสัปดาห์นี้" }];
     },
@@ -1230,6 +1238,7 @@ const COMMAND_REGISTRY = {
         let startTime = null;
         let endTime = null;
         let matchDuration = null;
+        let breakDuration = null;
         let targetTeamCount = null;
         let forceRegen = false;
 
@@ -1285,6 +1294,17 @@ const COMMAND_REGISTRY = {
                 }
             }
 
+            // 5.0 Explicit break duration formats (e.g. break:2, b:2, พัก:2)
+            const breakUnitMatch = arg.match(/^(?:b|break|rest|พัก)[:=](\d+(?:\.\d+)?)$/i);
+            if (breakUnitMatch) {
+                const bNum = parseFloat(breakUnitMatch[1]);
+                if (!isNaN(bNum) && bNum >= 0) {
+                    breakDuration = bNum;
+                    forceRegen = true;
+                    continue;
+                }
+            }
+
             // 5.1 Player count / maxweek formats (e.g. 32คน, 24คน, 32p, 32player, max:32, maxweek:32, quota:32)
             const maxPlayerMatch = arg.match(/^(\d+)\s*(คน|p|player|players)$/i) || arg.match(/^(?:max|maxweek|quota)[:=](\d+)$/i);
             if (maxPlayerMatch) {
@@ -1311,11 +1331,11 @@ const COMMAND_REGISTRY = {
             }
         }
 
-        if (startTime || endTime || matchDuration || targetTeamCount) {
+        if (startTime || endTime || matchDuration || breakDuration !== null || targetTeamCount) {
             forceRegen = true;
         }
 
-        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, null, null, endTime, forceRegen, targetTeamCount);
+        const [schedText, schedJson] = await db.getScheduleText(startTime, matchDuration, breakDuration, null, endTime, forceRegen, targetTeamCount);
         if (schedJson) {
             const scheduleFlex = { type: 'flex', altText: `⚽ ตารางแข่งขัน เสาร์ที่ ${schedJson.date}`, contents: flex.buildScheduleFlex(schedJson, theme) };
             if (schedJson.lockedByPlayedMatches) {

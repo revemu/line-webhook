@@ -5,7 +5,8 @@ const logger = require('./utils/logger');
 require('dotenv').config({ quiet: true });
 const flex = require('./flex');
 const lineClient = require('./lineClient');
-const { getFormatDate, getShortDate, getSlashDate, thaiMonthsShort, parseDateInput } = require('./utils/date');
+const { getFormatDate, getShortDate, getSlashDate, thaiMonthsShort, parseDateInput, getWeekEndInfo } = require('./utils/date');
+const { invalidateLeaderStatsCache } = require('./utils/leaderCache');
 const { pool, executeQuery } = require('./db/pool');
 const { resolveMemberDisplayInfo, fetchDisplayAssets } = require('./services/memberDisplay');
 const {
@@ -3535,7 +3536,7 @@ function selectTeamOfTheWeekPlayers(allPlayers, is8PlayerWeek, posLimitsMap) {
     selectedPosCounts[code] = (selectedPosCounts[code] || 0) + 1;
   };
 
-  const targetSize = is8PlayerWeek ? 8 : 7;
+  const targetSize = is8PlayerWeek ? 7 : 6;
 
   // 1. Mandatory positions (min) in priority order: GK, DW, DF, MF, DM, AM, CF
   const mandatoryPositions = ['GK', 'DW', 'DF', 'MF', 'DM', 'AM', 'CF'];
@@ -3644,11 +3645,149 @@ async function getTotwFormationData(week_id, groupId = null, precomputedLeaders 
   }];
 }
 
+async function recalculateMatchScore(matchId) {
+  const safeMatchId = parseInt(matchId, 10);
+  if (!safeMatchId) return;
+  const rows = await executeQuery(
+    `SELECT ms.team_a_id, ms.team_b_id,
+            COALESCE(SUM(CASE WHEN mg.team_week_id = ms.team_a_id AND mg.status <> 3 THEN 1 ELSE 0 END), 0) AS team_a_goal,
+            COALESCE(SUM(CASE WHEN mg.team_week_id = ms.team_b_id AND mg.status <> 3 THEN 1 ELSE 0 END), 0) AS team_b_goal
+     FROM match_stat_tbl ms
+     LEFT JOIN match_goal_tbl mg ON mg.match_id = ms.id
+     WHERE ms.id = ?
+     GROUP BY ms.id, ms.team_a_id, ms.team_b_id`,
+    [safeMatchId]
+  );
+  if (rows && rows.length > 0) {
+    const gA = Number(rows[0].team_a_goal || 0);
+    const gB = Number(rows[0].team_b_goal || 0);
+    await executeQuery(
+      "UPDATE match_stat_tbl SET team_a_goal = ?, team_b_goal = ? WHERE id = ?",
+      [gA, gB, safeMatchId]
+    );
+  }
+}
+
+async function recalculateTableWeek(weekId) {
+  const safeWeekId = parseInt(weekId, 10);
+  if (!safeWeekId) return { success: false };
+
+  const teamRows = await executeQuery("SELECT id FROM team_color_week_tbl WHERE week_id = ?", [safeWeekId]);
+  const stats = {};
+  for (const t of teamRows || []) {
+    stats[t.id] = { w: 0, d: 0, l: 0, g: 0, a: 0, pts: 0 };
+  }
+
+  const allMatches = await executeQuery("SELECT * FROM match_stat_tbl WHERE week_id = ?", [safeWeekId]);
+  const finishedMatches = (allMatches || []).filter(m => {
+    if (m.status !== undefined && m.status !== null) return m.status === 'finished';
+    return m.team_a_goal !== null && m.team_a_goal !== undefined;
+  });
+
+  for (const m of finishedMatches) {
+    const aId = m.team_a_id;
+    const bId = m.team_b_id;
+    const gA = Number(m.team_a_goal || 0);
+    const gB = Number(m.team_b_goal || 0);
+    if (stats[aId]) { stats[aId].g += gA; stats[aId].a += gB; }
+    if (stats[bId]) { stats[bId].g += gB; stats[bId].a += gA; }
+    if (gA === gB) {
+      if (stats[aId]) stats[aId].d++;
+      if (stats[bId]) stats[bId].d++;
+    } else if (gA > gB) {
+      if (stats[aId]) stats[aId].w++;
+      if (stats[bId]) stats[bId].l++;
+    } else {
+      if (stats[aId]) stats[aId].l++;
+      if (stats[bId]) stats[bId].w++;
+    }
+  }
+
+  for (const tidStr of Object.keys(stats)) {
+    const tid = Number(tidStr);
+    const r = stats[tid];
+    r.pts = (r.w * 3) + r.d;
+    const existing = await executeQuery(
+      "SELECT id FROM table_week_tbl WHERE team_week_id = ? AND week_id = ? LIMIT 1",
+      [tid, safeWeekId]
+    );
+    if (existing && existing.length > 0) {
+      await executeQuery(
+        "UPDATE table_week_tbl SET w = ?, d = ?, l = ?, g = ?, a = ?, pts = ? WHERE team_week_id = ? AND week_id = ?",
+        [r.w, r.d, r.l, r.g, r.a, r.pts, tid, safeWeekId]
+      );
+    } else {
+      await executeQuery(
+        "INSERT INTO table_week_tbl (team_week_id, week_id, w, d, l, g, a, pts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [tid, safeWeekId, r.w, r.d, r.l, r.g, r.a, r.pts]
+      );
+    }
+  }
+  return { success: true };
+}
+
+/**
+ * When /matchweek is called after play time ends:
+ * 1) Finish any remaining 'in_progress' match (scorekeepers often forget closing the final match)
+ * 2) Remove unplayed 'scheduled' matches so only actual played matches remain
+ * 3) Recalculate standings and invalidate cached leader stats
+ */
+async function finalizeWeekMatchesAndStandings(weekId) {
+  const safeWeekId = parseInt(weekId, 10);
+  if (!safeWeekId) return { changed: false, finishedCount: 0, deletedScheduledCount: 0 };
+
+  const inProgressRows = await executeQuery(
+    "SELECT id, match_num FROM match_stat_tbl WHERE week_id = ? AND status = 'in_progress' ORDER BY match_num ASC",
+    [safeWeekId]
+  );
+  const scheduledRows = await executeQuery(
+    "SELECT id, match_num FROM match_stat_tbl WHERE week_id = ? AND status = 'scheduled' ORDER BY match_num ASC",
+    [safeWeekId]
+  );
+
+  let finishedCount = 0;
+  for (const m of inProgressRows || []) {
+    await recalculateMatchScore(m.id);
+    await executeQuery("UPDATE match_stat_tbl SET status = 'finished' WHERE id = ?", [m.id]);
+    finishedCount++;
+  }
+
+  let deletedScheduledCount = 0;
+  if (scheduledRows && scheduledRows.length > 0) {
+    const schedIds = scheduledRows.map(r => Number(r.id)).filter(Boolean);
+    if (schedIds.length > 0) {
+      const ph = schedIds.map(() => '?').join(',');
+      await executeQuery(`DELETE FROM match_goal_tbl WHERE match_id IN (${ph})`, schedIds);
+      await executeQuery(`DELETE FROM match_stat_tbl WHERE id IN (${ph})`, schedIds);
+      deletedScheduledCount = schedIds.length;
+    }
+  }
+
+  const changed = finishedCount > 0 || deletedScheduledCount > 0;
+  if (changed) {
+    await recalculateTableWeek(safeWeekId);
+    invalidateLeaderStatsCache(safeWeekId);
+    logger.info(`[/matchweek Auto-Finalize] Week ${safeWeekId}: finished ${finishedCount} in-progress match(es), removed ${deletedScheduledCount} unplayed scheduled match(es).`);
+  }
+
+  return { changed, finishedCount, deletedScheduledCount };
+}
+
 async function getMatchWeek(week_id = 0, groupId = null) {
   const res = await queryWeekID(week_id);
   if (res && res.length > 0) {
     if (week_id == 0) {
       week_id = res[0].id;
+    }
+    const endInfo = getWeekEndInfo(res[0].date, res[0].time_range);
+    let forceLeaderRefresh = false;
+    if (endInfo.ended) {
+      try {
+        const finRes = await finalizeWeekMatchesAndStandings(week_id);
+        forceLeaderRefresh = Boolean(finRes && finRes.changed);
+      } catch (eFin) {
+        logger.warn(`[/matchweek Auto-Finalize Error]: ${eFin.message}`);
+      }
     }
     const assets = await fetchDisplayAssets();
     const theme = await getTheme();
@@ -3659,7 +3798,7 @@ async function getMatchWeek(week_id = 0, groupId = null) {
     const date_str = await getFormatDate(date);
     const team_colors = await getTeamColorWeek(week_id);
     const tableRows = await queryTableWeek(week_id);
-    const leaders = await getWeekLeaderStats(week_id, groupId);
+    const leaders = await getWeekLeaderStats(week_id, groupId, forceLeaderRefresh);
     const rawMatches = await queryMatchWeek(week_id);
     const matches = (rawMatches || []).filter(m => {
       if (m.status !== undefined && m.status !== null) {
@@ -5174,20 +5313,25 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
   // Dynamic match duration calculation based on team count and time range
   if (!matchMin || isNaN(Number(matchMin)) || Number(matchMin) <= 0) {
     if (numTeams >= 4) {
-      matchMin = calculatedTotalHours <= 2.5 ? 7 : 8;
+      matchMin = calculatedTotalHours <= 2.5 ? 6 : 7;
     } else {
-      // 3 teams
-      matchMin = 10;
+      // 3 teams: default 8 mins/match (+2 mins changeover = 10 mins/slot)
+      matchMin = 8;
     }
   } else {
     matchMin = parseInt(matchMin, 10);
   }
 
+  // Reserve minimum transition/changeover break between matches (default 2 mins/match)
+  const minBreak = (breakMin !== null && breakMin !== undefined && !isNaN(Number(breakMin)) && Number(breakMin) >= 0)
+    ? Number(breakMin)
+    : 2;
+
   // Ensure every team has an equal number of matches:
   // Each cycle of cycleLen matches gives every team an equal number of matches.
-  // Calculate how many full cycles fit into the available time.
-  const cyclePlayMinutes = cycleLen * matchMin;
-  let fullRounds = Math.floor(totalMinutes / cyclePlayMinutes);
+  // Calculate how many full cycles fit into the available time including minBreak per match.
+  const cycleSlotMinutes = cycleLen * (matchMin + minBreak);
+  let fullRounds = Math.floor(totalMinutes / cycleSlotMinutes);
   if (fullRounds < 1) fullRounds = 1;
 
   const maxMatches = fullRounds * cycleLen;
@@ -9318,6 +9462,10 @@ module.exports = {
   getTeamWeek,
   getMemberWeek,
   getMatchWeek,
+  recalculateMatchScore,
+  recalculateTableWeek,
+  finalizeWeekMatchesAndStandings,
+  getWeekEndInfo,
   getTableWeek,
   updateMember,
   updateMemberInfo,
