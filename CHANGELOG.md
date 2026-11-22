@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.69] - 2026-11-22
+
+### Changed & Improved
+- **Compact Player-Grouped Event Chips & Empty-Schedule UI (`public/js/update.js`, `public/style.css`)**:
+  - Added shared `groupMatchEventsByPlayer()` and `renderGroupedStatTagsHtml()` helpers in `public/js/update.js` so `renderMatchTimeline`, `renderMatchList`, and `renderInlineMatchEventsSummary` group goals (`⚽`), assists (`👟`), and own goals (`🔴 OG`) into a single compact wrap-around chip per player without redundant `GOAL` / `AST` text labels.
+  - Preserved per-stat quick-remove buttons (`×`) on Manager timeline & match cards for removing the latest event of that stat type.
+  - Updated `renderRosterLocked()` to hide the *"กำลังรอการสุ่มทีมประจำสัปดาห์"* card whenever the selected week has `0` scheduled matches (`!getMatchKeys().length`), showing only *"ยังไม่มีตารางการแข่งขันในสัปดาห์นี้"*.
+  - Simplified the authenticated user pill in `renderTopNav()` (`public/js/update.js`) to display just the username (e.g. `👤 admin` / `👑 root`) instead of the verbose `🛡️ ADMIN Match Admin` label.
+
+---
+
 ## [0.7.68] - 2026-11-22
 
 ### Changed & Optimized

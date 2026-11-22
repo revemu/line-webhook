@@ -8936,3 +8936,144 @@ body.light-theme .scorer-stat-badge.is-assist {
         grid-template-columns: 1fr;
     }
 }
+
+/* ==================== GROUPED PLAYER EVENT CHIPS (TIMELINE & MATCH PILLS) ==================== */
+.timeline-player-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.timeline-player-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.28rem 0.5rem;
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    max-width: 100%;
+}
+
+.timeline-player-chip.has-goal {
+    border-left: 3px solid #10b981;
+}
+
+.timeline-player-chip.has-assist {
+    border-left: 3px solid #3b82f6;
+}
+
+.timeline-player-chip.has-og {
+    border-left: 3px solid #ef4444;
+}
+
+.timeline-player-name {
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.timeline-player-stats,
+.event-pill-stats {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.timeline-stat-btn,
+.event-stat-badge,
+.inline-stat-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.18rem;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1.25;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+}
+
+.timeline-stat-btn.is-goal,
+.event-stat-badge.is-goal,
+.inline-stat-tag.is-goal {
+    background: rgba(16, 185, 129, 0.16);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #34d399;
+}
+
+.timeline-stat-btn.is-assist,
+.event-stat-badge.is-assist,
+.inline-stat-tag.is-assist {
+    background: rgba(59, 130, 246, 0.16);
+    border-color: rgba(59, 130, 246, 0.35);
+    color: #60a5fa;
+}
+
+.timeline-stat-btn.is-og,
+.event-stat-badge.is-og,
+.inline-stat-tag.is-og {
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(239, 68, 68, 0.38);
+    color: #f87171;
+}
+
+[data-theme="light"] .timeline-stat-btn.is-goal,
+[data-theme="light"] .event-stat-badge.is-goal,
+[data-theme="light"] .inline-stat-tag.is-goal,
+body.light-theme .timeline-stat-btn.is-goal,
+body.light-theme .event-stat-badge.is-goal,
+body.light-theme .inline-stat-tag.is-goal {
+    color: #059669;
+}
+
+[data-theme="light"] .timeline-stat-btn.is-assist,
+[data-theme="light"] .event-stat-badge.is-assist,
+[data-theme="light"] .inline-stat-tag.is-assist,
+body.light-theme .timeline-stat-btn.is-assist,
+body.light-theme .event-stat-badge.is-assist,
+body.light-theme .inline-stat-tag.is-assist {
+    color: #2563eb;
+}
+
+[data-theme="light"] .timeline-stat-btn.is-og,
+[data-theme="light"] .event-stat-badge.is-og,
+[data-theme="light"] .inline-stat-tag.is-og,
+body.light-theme .timeline-stat-btn.is-og,
+body.light-theme .event-stat-badge.is-og,
+body.light-theme .inline-stat-tag.is-og {
+    color: #dc2626;
+}
+
+.timeline-stat-btn.is-removable,
+.event-stat-badge.is-removable {
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.timeline-stat-btn.is-removable:hover,
+.event-stat-badge.is-removable:hover {
+    filter: brightness(1.15);
+    transform: translateY(-1px);
+}
+
+.grouped-stat-x {
+    font-size: 0.85rem;
+    line-height: 1;
+    opacity: 0.72;
+    margin-left: 1px;
+}
+
+.timeline-stat-btn.is-removable:hover .grouped-stat-x,
+.event-stat-badge.is-removable:hover .grouped-stat-x {
+    opacity: 1;
+    color: #ef4444;
+}

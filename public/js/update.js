@@ -501,10 +501,11 @@
 		var rightAuth = '';
 		if (state.currentUser) {
 			var roleCls = state.currentUser.role === 'root' ? 'root' : 'admin';
-			var roleBadge = state.currentUser.role === 'root' ? '👑 ROOT' : '🛡️ ADMIN';
+			var roleIcon = state.currentUser.role === 'root' ? '👑' : '👤';
+			var userLabel = state.currentUser.username || state.currentUser.name || 'user';
 			rightAuth =
 				'<div class="user-status-pill">' +
-				'<span class="user-role-badge ' + roleCls + '">' + esc(roleBadge) + ' ' + esc(state.currentUser.name || state.currentUser.username) + '</span>' +
+				'<span class="user-role-badge ' + roleCls + '">' + roleIcon + ' ' + esc(userLabel) + '</span>' +
 				'<button type="button" class="btn-action-pill" data-action="open-password-modal" title="เปลี่ยนรหัสผ่าน">🔑</button>' +
 				'<button type="button" class="btn-logout" data-action="logout" title="ออกจากระบบ">ออก</button>' +
 				'</div>';
@@ -565,7 +566,8 @@
 
 	function renderRosterLocked() {
 		if (!rosterLockedEl) return;
-		if (!state.info || !state.info.is_roster_locked) {
+		var hasMatches = getMatchKeys().length > 0;
+		if (!state.info || !state.info.is_roster_locked || !hasMatches) {
 			rosterLockedEl.style.display = 'none';
 			rosterLockedEl.innerHTML = '';
 			return;
@@ -944,6 +946,69 @@
 		}
 	}
 
+	function groupMatchEventsByPlayer(events, match) {
+		var list = events || [];
+		var order = [];
+		var map = {};
+		for (var i = 0; i < list.length; i++) {
+			var ev = list[i];
+			if (!ev) continue;
+			var tid = getGoalEventTeamId(ev);
+			var mid = Number(ev.member_id || 0);
+			var name = getGoalEventName(ev);
+			var key = tid + ':' + (mid || name);
+			if (!map[key]) {
+				var memberObj = mid ? getMemberById(mid) : null;
+				map[key] = {
+					member_id: mid,
+					team_id: tid,
+					name: name,
+					color: getGoalEventColor(ev, match),
+					picture_url: ev.picture_url || (memberObj && memberObj.picture_url) || '',
+					goals: [],
+					assists: [],
+					ogs: []
+				};
+				order.push(map[key]);
+			}
+			var st = Number(ev.goal_status);
+			if (st === 2) map[key].ogs.push(ev);
+			else if (st === 3) map[key].assists.push(ev);
+			else map[key].goals.push(ev);
+		}
+		// Sort scorers first, then assisters, keeping chronological tie-break
+		order.sort(function (a, b) {
+			var aScore = a.goals.length + a.ogs.length > 0 ? 0 : 1;
+			var bScore = b.goals.length + b.ogs.length > 0 ? 0 : 1;
+			if (aScore !== bScore) return aScore - bScore;
+			if (b.goals.length !== a.goals.length) return b.goals.length - a.goals.length;
+			return b.assists.length - a.assists.length;
+		});
+		return order;
+	}
+
+	function renderGroupedStatTagsHtml(group, allowRemove, chipClass) {
+		var html = '';
+		function appendTag(arr, icon, cls) {
+			if (!arr || !arr.length) return;
+			var lastId = arr[arr.length - 1].goal_id;
+			var countText = arr.length > 1 ? String(arr.length) : '';
+			if (allowRemove) {
+				html +=
+					'<button type="button" class="' + chipClass + ' ' + cls + ' is-removable" data-action="quick-remove-goal" data-goal-id="' + esc(lastId) + '" title="ลบ (-1)">' +
+					'<span>' + icon + countText + '</span>' +
+					'<span class="grouped-stat-x">&times;</span>' +
+					'</button>';
+			} else {
+				html += '<span class="' + chipClass + ' ' + cls + '">' + icon + countText + '</span>';
+			}
+		}
+		appendTag(group.goals, '⚽', 'is-goal');
+		appendTag(group.ogs, '🔴 OG', 'is-og');
+		appendTag(group.assists, '👟', 'is-assist');
+		return html;
+	}
+
 	function renderMatchTimeline(match) {
 		if (!matchTimelineEl) return;
 		if (!match || !match.goal || !match.goal.length) {
@@ -962,21 +1027,23 @@
 		}
 
 		function buildCol(events, colorName) {
-			var html = '<div class="timeline-team-col"><div class="timeline-team-title"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + esc(teamHex(colorName)) + ';"></span> ' + esc(colorName) + ' (' + esc(events.length) + ')</div>';
-			if (!events.length) {
+			var groups = groupMatchEventsByPlayer(events, match);
+			var dotColor = esc(teamHex(colorName));
+			var html = '<div class="timeline-team-col"><div class="timeline-team-title"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + dotColor + ';"></span> ' + esc(colorName) + ' (' + esc(events.length) + ')</div>';
+			if (!groups.length) {
 				html += '<span style="font-size:0.76rem;color:var(--text-muted);">—</span>';
 			} else {
-				for (var j = 0; j < events.length; j++) {
-					var ev = events[j];
-					var st = Number(ev.goal_status);
-					var cls = st === 2 ? 'is-og' : (st === 3 ? 'is-assist' : 'is-goal');
-					var icon = st === 2 ? '🔴 OG' : (st === 3 ? '👟 AST' : '⚽ GOAL');
+				html += '<div class="timeline-player-chips">';
+				for (var j = 0; j < groups.length; j++) {
+					var grp = groups[j];
+					var borderCls = grp.goals.length ? 'has-goal' : (grp.ogs.length ? 'has-og' : 'has-assist');
 					html +=
-						'<div class="timeline-event-item ' + cls + '">' +
-						'<span>' + icon + ' • ' + esc(getGoalEventName(ev)) + '</span>' +
-						'<button type="button" class="btn-event-remove" data-action="quick-remove-goal" data-goal-id="' + esc(ev.goal_id) + '" title="ลบ">&times;</button>' +
+						'<div class="timeline-player-chip ' + borderCls + '">' +
+						'<span class="timeline-player-name">' + esc(grp.name) + '</span>' +
+						'<span class="timeline-player-stats">' + renderGroupedStatTagsHtml(grp, true, 'timeline-stat-btn') + '</span>' +
 						'</div>';
 				}
+				html += '</div>';
 			}
 			html += '</div>';
 			return html;
@@ -984,7 +1051,7 @@
 
 		matchTimelineEl.innerHTML =
 			'<div class="match-timeline-card">' +
-			'<div class="match-timeline-header"><span>📝 ไทม์ไลน์เหตุการณ์ (Match ' + esc(match.match_num) + ')</span></div>' +
+			'<div class="match-timeline-header"><span>📝 เหตุการณ์ (Match ' + esc(match.match_num) + ')</span></div>' +
 			'<div class="match-timeline-grid">' +
 			buildCol(evA, match.team_a_color) +
 			buildCol(evB, match.team_b_color) +
@@ -1564,26 +1631,17 @@
 			renderWeeklyScorersSummaryHtml();
 	}
 
-	function renderGoalEventPillHtml(ev, match, allowRemove) {
-		var isOg = Number(ev.goal_status) === 2;
-		var isAst = Number(ev.goal_status) === 3;
-		var evName = getGoalEventName(ev);
-		var evColor = getGoalEventColor(ev, match);
-		var evColorHex = teamHex(evColor);
-		var sym = isOg ? '🔴 OG' : (isAst ? '👟' : '⚽');
-		var memberObj = ev.member_id ? getMemberById(ev.member_id) : null;
-		var avatarUrl = ev.picture_url || (memberObj && memberObj.picture_url) || '';
-		var avatarHtml = avatarUrl
-			? '<img src="' + esc(avatarUrl) + '" class="event-pill-avatar" alt="' + esc(evName) + '" style="border-color:' + esc(evColorHex) + ';">'
+	function renderGoalEventPillHtml(group, allowRemove) {
+		var evColorHex = teamHex(group.color);
+		var avatarHtml = group.picture_url
+			? '<img src="' + esc(group.picture_url) + '" class="event-pill-avatar" alt="' + esc(group.name) + '" style="border-color:' + esc(evColorHex) + ';">'
 			: '<span style="width:7px;height:7px;border-radius:50%;background:' + esc(evColorHex) + ';display:inline-block;flex-shrink:0;"></span>';
-		var removeX = allowRemove
-			? '<button type="button" class="remove-x" data-action="quick-remove-goal" data-goal-id="' + esc(ev.goal_id) + '" title="ลบ">&times;</button>'
-			: '';
-		return '<span class="event-pill' + (isOg ? ' og' : (isAst ? ' assist' : '')) + '" style="border-left:3px solid ' + esc(evColorHex) + ';">' +
+		var hasOg = group.ogs.length > 0 && !group.goals.length;
+		var onlyAssist = !group.goals.length && !group.ogs.length && group.assists.length > 0;
+		return '<span class="event-pill' + (hasOg ? ' og' : (onlyAssist ? ' assist' : '')) + '" style="border-left:3px solid ' + esc(evColorHex) + ';">' +
 			avatarHtml +
-			'<span class="event-pill-sym">' + sym + '</span>' +
-			'<span class="event-pill-name">' + esc(evName) + '</span>' +
-			removeX +
+			'<span class="event-pill-name">' + esc(group.name) + '</span>' +
+			'<span class="event-pill-stats">' + renderGroupedStatTagsHtml(group, allowRemove, 'event-stat-badge') + '</span>' +
 			'</span>';
 	}
 
@@ -1628,16 +1686,10 @@
 
 			var goalPillsHtml = '';
 			if (!m.is_locked && m.goal && m.goal.length) {
-				// Sort goals & OGs before assists so scorers appear first
-				var sortedGoals = m.goal.slice().sort(function (a, b) {
-					var ra = Number(a.goal_status) === 3 ? 1 : 0;
-					var rb = Number(b.goal_status) === 3 ? 1 : 0;
-					if (ra !== rb) return ra - rb;
-					return Number(a.goal_id || 0) - Number(b.goal_id || 0);
-				});
+				var groupedGoals = groupMatchEventsByPlayer(m.goal, m);
 				goalPillsHtml = '<div class="match-events-pills" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.55rem;">';
-				for (var g = 0; g < sortedGoals.length; g++) {
-					goalPillsHtml += renderGoalEventPillHtml(sortedGoals[g], m, state.isManager);
+				for (var g = 0; g < groupedGoals.length; g++) {
+					goalPillsHtml += renderGoalEventPillHtml(groupedGoals[g], state.isManager);
 				}
 				goalPillsHtml += '</div>';
 			}
@@ -1736,17 +1788,17 @@
 			for (var i = 0; i < goals.length; i++) {
 				if (getGoalEventTeamId(goals[i]) === Number(teamId)) sideEvents.push(goals[i]);
 			}
+			var groups = groupMatchEventsByPlayer(sideEvents, match);
 			var h = '<div class="inline-events-side">' +
 				'<div class="inline-events-team-head"><span class="inline-events-dot" style="background:' + esc(teamHex(colorName)) + ';"></span><span>' + esc(colorName) + '</span></div>';
-			if (!sideEvents.length) {
+			if (!groups.length) {
 				h += '<div class="inline-events-empty">—</div>';
 			} else {
 				h += '<div class="inline-events-list">';
-				for (var j = 0; j < sideEvents.length; j++) {
-					var ev = sideEvents[j];
-					var st = Number(ev.goal_status);
-					var tag = st === 2 ? '🔴 OG' : (st === 3 ? '👟' : '⚽');
-					h += '<span class="inline-event-chip' + (st === 2 ? ' is-og' : (st === 3 ? ' is-assist' : ' is-goal')) + '">' + tag + ' ' + esc(getGoalEventName(ev)) + '</span>';
+				for (var j = 0; j < groups.length; j++) {
+					var grp = groups[j];
+					var chipCls = grp.goals.length ? ' is-goal' : (grp.ogs.length ? ' is-og' : ' is-assist');
+					h += '<span class="inline-event-chip' + chipCls + '"><span>' + esc(grp.name) + '</span>' + renderGroupedStatTagsHtml(grp, false, 'inline-stat-tag') + '</span>';
 				}
 				h += '</div>';
 			}
