@@ -5173,9 +5173,9 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
   const week_id = week[0].id;
 
   // Determine desired team count:
-  // If targetTeamCount is explicitly provided (e.g. 3 or 4, or player count like 24 or 32), use it.
-  // Otherwise, automatically check the number of registered players for this week:
-  // If registered members > 24 (or week max > 24) -> 4 teams, otherwise -> 3 teams.
+  // 1. Explicit targetTeamCount parameter (e.g. 3 or 4 teams, or player count like 21/24/28/32)
+  // 2. Actual assigned teams from member_team_week_tbl (from /randomteam or manual team assignment)
+  // 3. Fallback: week quota (> 24 => 4 teams, otherwise 3 teams)
   let desiredTeamCount = null;
   if (targetTeamCount) {
     const parsedTarget = parseInt(targetTeamCount, 10);
@@ -5189,22 +5189,37 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
   }
 
   let registeredCount = 0;
+  let assignedTeamIds = [];
   try {
     const regRes = await executeQuery(
       "SELECT COUNT(*) as cnt FROM member_team_week_tbl WHERE week_id = ?",
       [week_id]
     );
     registeredCount = regRes?.[0]?.cnt || 0;
+
+    const assignedRows = await executeQuery(
+      `SELECT DISTINCT mtw.team_id
+       FROM member_team_week_tbl mtw
+       INNER JOIN team_color_week_tbl tcw ON mtw.team_id = tcw.id AND tcw.week_id = mtw.week_id
+       WHERE mtw.week_id = ? AND mtw.team_id > 0 AND mtw.team_id <> 100
+       ORDER BY mtw.team_id ASC`,
+      [week_id]
+    );
+    assignedTeamIds = (assignedRows || []).map(r => Number(r.team_id)).filter(n => n > 0);
   } catch (err) {
-    logger.error('[schedule] failed to query registered members count:', err.message);
+    logger.error('[schedule] failed to query registered/assigned teams:', err.message);
   }
 
   if (!desiredTeamCount) {
-    const maxQuota = (week[0] && week[0].max) ? Number(week[0].max) : 21;
-    if (maxQuota > 24 || (maxQuota >= 24 && registeredCount > 24)) {
-      desiredTeamCount = 4;
+    if (assignedTeamIds.length >= 2) {
+      desiredTeamCount = assignedTeamIds.length;
     } else {
-      desiredTeamCount = 3;
+      const maxQuota = (week[0] && week[0].max) ? Number(week[0].max) : 21;
+      if (maxQuota > 24 || (maxQuota >= 24 && registeredCount > 24)) {
+        desiredTeamCount = 4;
+      } else {
+        desiredTeamCount = 3;
+      }
     }
   }
 
@@ -5282,8 +5297,14 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
     endTimeStr = weekEndTime;
   }
 
-  // Pick exactly desiredTeamCount colors
-  const activeColors = team_colors.slice(0, desiredTeamCount);
+  // Pick exactly desiredTeamCount colors (prefer actual assigned teams when available)
+  const assignedTeamIdSet = new Set(assignedTeamIds);
+  const matchingAssigned = (!targetTeamCount && assignedTeamIdSet.size >= 2)
+    ? team_colors.filter(tc => assignedTeamIdSet.has(Number(tc.id)))
+    : [];
+  const activeColors = (matchingAssigned.length >= desiredTeamCount
+    ? matchingAssigned
+    : team_colors).slice(0, desiredTeamCount);
   const shuffledColors = shuffleArray([...activeColors]);
 
   // Build team list

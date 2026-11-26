@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.71] - 2026-11-26
+
+### Fixed & Improved
+- **Sync `/schedule` Team Count with Actual Assigned Teams (`query.js`)**:
+  - Updated `getScheduleText()` (`query.js`) to inspect actual distinct assigned teams (`member_team_week_tbl.team_id` joined with `team_color_week_tbl`) before falling back to `week.max` / registration count, and to select matching assigned team colors when generating matchups.
+  - Prevents scheduling mismatches when `/randomteam 4ทีม` runs on a `21`-max week (generating a 4-team schedule instead of omitting the 4th team) or when `3` teams are assigned on a higher-max week.
+
+---
+
 ## [0.7.70] - 2026-11-26
 
 ### Changed & Improved
