@@ -442,7 +442,7 @@ const YEARLY_COLOR_USAGE_ALIASES = {
 
 async function resolveTargetWeekForColors(targetWeekId = null) {
   let week_id;
-  let max_players = 24;
+  let max_players = 21;
   let targetYear = new Date().getFullYear();
   let dateStr = '';
 
@@ -454,7 +454,7 @@ async function resolveTargetWeekForColors(targetWeekId = null) {
     );
     if (weekRows && weekRows.length > 0) {
       week_id = weekRows[0].id;
-      max_players = weekRows[0].max || 24;
+      max_players = weekRows[0].max || 21;
       targetYear = Number(weekRows[0].year) || Number(weekRows[0].date_year) || new Date().getFullYear();
       dateStr = weekRows[0].date_str || '';
     } else {
@@ -466,7 +466,7 @@ async function resolveTargetWeekForColors(targetWeekId = null) {
     );
     if (!weekRows || weekRows.length === 0) return null;
     week_id = weekRows[0].id;
-    max_players = weekRows[0].max || 24;
+    max_players = weekRows[0].max || 21;
     targetYear = Number(weekRows[0].year) || Number(weekRows[0].date_year) || new Date().getFullYear();
     dateStr = weekRows[0].date_str || '';
   }
@@ -600,7 +600,7 @@ async function addTeamColorWeek(count = 3, targetWeekId = null) {
   if (!weekCtx) return;
 
   const { week_id, max_players, targetYear, registeredCount } = weekCtx;
-  const targetCount = (max_players > 24 || registeredCount > 24) ? 4 : count;
+  const targetCount = (max_players > 24 || (max_players >= 24 && registeredCount > 24)) ? 4 : count;
 
   const res = await executeQuery("SELECT * FROM team_color_week_tbl WHERE week_id = ?", [week_id]);
 
@@ -675,7 +675,7 @@ async function rerollTeamColors(targetWeekId = null) {
   existingRows = existingRows || [];
   const oldColors = existingRows.map(r => r.color).filter(Boolean);
 
-  let targetCount = (max_players > 24 || registeredCount > 24) ? 4 : 3;
+  let targetCount = (max_players > 24 || (max_players >= 24 && registeredCount > 24)) ? 4 : 3;
 
   if (existingRows.length > targetCount) {
     const excessIds = existingRows.slice(targetCount).map(r => r.id);
@@ -829,7 +829,7 @@ async function updateWeekTimeRange(timeRangeStr, targetWeekId = 0) {
   return { success: true, week_id, time_range: timeRangeStr };
 }
 
-async function newWeek(week_date, custom_time_range = null) {
+async function newWeek(week_date, custom_time_range = null, custom_max = null) {
   await ensureWeekTimeColumn();
   // Self-healing cleanup for any previous corrupted B.E. dates in week_tbl
   try {
@@ -844,11 +844,12 @@ async function newWeek(week_date, custom_time_range = null) {
   let new_week_num = week[0].number;
   let target_week_id = null;
   const time_range = custom_time_range || '17:30-20:00';
+  const default_max = (custom_max && Number(custom_max) > 0) ? Number(custom_max) : 21;
 
   if (last_week != date_str) {
     new_week_num = week[0].number + 1;
-    const insertQuery = "INSERT INTO week_tbl (number, date, location_id, year, max, cost, time_range) VALUES (?, ?, 2, ?, 24, 0, ?) RETURNING id";
-    const res = await executeQuery(insertQuery, [new_week_num, date_str, y, time_range]);
+    const insertQuery = "INSERT INTO week_tbl (number, date, location_id, year, max, cost, time_range) VALUES (?, ?, 2, ?, ?, 0, ?) RETURNING id";
+    const res = await executeQuery(insertQuery, [new_week_num, date_str, y, default_max, time_range]);
     const new_week_id = res.insertId;
     target_week_id = new_week_id;
 
@@ -890,10 +891,10 @@ async function newWeek(week_date, custom_time_range = null) {
       target_week_id = week[0].id;
     }
   }
-  await addTeamColorWeek(3, target_week_id);
+  await addTeamColorWeek(default_max > 24 ? 4 : 3, target_week_id);
 }
 
-async function updateMaxNumberWeek(max_number = 24) {
+async function updateMaxNumberWeek(max_number = 21) {
   const week = await queryWeekID();
   if (week.length > 0) {
     const week_id = week[0].id;
@@ -957,7 +958,7 @@ async function removeReserveMembers() {
   const teamColors = await getTeamColorWeek(week_id);
   const teamCount = (teamColors && teamColors.length > 0)
     ? teamColors.length
-    : ((max_players > 24 || registrations.length > 24) ? 4 : 3);
+    : ((max_players > 24 || (max_players >= 24 && registrations.length > 24)) ? 4 : 3);
   const max_goalies = Math.max(1, teamCount || 3);
 
   let nonGoalieCount = 0;
@@ -1051,7 +1052,7 @@ async function setWeekCost(totalCost) {
     return { success: false, message: 'ไม่พบข้อมูลสัปดาห์ปัจจุบัน' };
   }
   const week_id = week[0].id;
-  const max_players = week[0].max || 24;
+  const max_players = week[0].max || 21;
 
   // Query all members registered for this week in FIFO order
   const membersQuery = `
@@ -1070,7 +1071,7 @@ async function setWeekCost(totalCost) {
   const teamColors = await getTeamColorWeek(week_id);
   const teamCount = (teamColors && teamColors.length > 0)
     ? teamColors.length
-    : ((max_players > 24 || members.length > 24) ? 4 : 3);
+    : ((max_players > 24 || (max_players >= 24 && members.length > 24)) ? 4 : 3);
   const max_goalies = Math.max(1, teamCount || 3);
 
   // Separate field players and goalkeepers
@@ -4145,7 +4146,7 @@ async function getMemberWeek0(type = 0, isFlex = true, groupId = null, highlight
       const teamColors = await getTeamColorWeek(week_id);
       const teamCount = (teamColors && teamColors.length > 0)
         ? teamColors.length
-        : ((max_players > 24 || result.length > 24) ? 4 : 3);
+        : ((max_players > 24 || (max_players >= 24 && result.length > 24)) ? 4 : 3);
       const max_goalies = Math.max(1, teamCount || 3);
 
       if (isFlex) {
@@ -4281,7 +4282,7 @@ async function getMemberWeek(type = 0) {
 
   if (res.length > 0) {
     const week_id = res[0].id;
-    const max_players = res[0].max || 24;
+    const max_players = res[0].max || 21;
     query = `SELECT member_tbl.name, member_tbl.alias, member_tbl.team_id as member_team_id, member_team_week_tbl.team_id, member_team_week_tbl.team, member_team_week_tbl.pay, member_tbl.avoid_ids, member_tbl.id, member_tbl.donate FROM member_team_week_tbl INNER JOIN member_tbl ON member_tbl.id = member_team_week_tbl.member_id where member_team_week_tbl.week_id = ${week_id}`;
     if (type == 0) {
       header = "คนที่ยังไมได้จ่ายค่าสนาม";
@@ -4298,7 +4299,7 @@ async function getMemberWeek(type = 0) {
       const teamColors = await getTeamColorWeek(week_id);
       const teamCount = (teamColors && teamColors.length > 0)
         ? teamColors.length
-        : ((max_players > 24 || result.length > 24) ? 4 : 3);
+        : ((max_players > 24 || (max_players >= 24 && result.length > 24)) ? 4 : 3);
       const max_goalies = Math.max(1, teamCount || 3);
 
       header = `${header} เสาร์ที่ ${await getFormatDate(date, 'short')}\n\n`;
@@ -5199,8 +5200,8 @@ async function getScheduleText(startTimeStr = null, matchMin = null, breakMin = 
   }
 
   if (!desiredTeamCount) {
-    const maxQuota = (week[0] && week[0].max) ? Number(week[0].max) : 24;
-    if (registeredCount > 24 || maxQuota > 24) {
+    const maxQuota = (week[0] && week[0].max) ? Number(week[0].max) : 21;
+    if (maxQuota > 24 || (maxQuota >= 24 && registeredCount > 24)) {
       desiredTeamCount = 4;
     } else {
       desiredTeamCount = 3;
@@ -7962,11 +7963,13 @@ async function getTeamFormation(param = '', groupId = null) {
  * Randomize registered players for the week into balanced teams by position & rating,
  * ensuring priority players (member_tbl.priority = 1) for the same position are placed in separate teams.
  * Rules:
- *  - Registered members <= 24 -> 3 teams
- *  - Registered members > 24 -> 4 teams
- *  - Team sizes: 7 or 8 players depending on count
+/**
+ * Randomizes registered members of a week into balanced teams based on position & priority:
+ *  - Default team size: 7 players per team (e.g. 21 for 3 teams, 28 for 4 teams)
+ *  - Optional teamSize: 8 players per team (e.g. 24 for 3 teams, 32 for 4 teams)
+ *  - Registered shortfall (< target total): balances evenly across all K teams to keep team count intact
  */
-async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
+async function randomTeamByPosition(targetWeekId = 0, groupId = null, options = {}) {
   let weekId = targetWeekId;
   if (!weekId || weekId === 0) {
     const weekRes = await queryWeekID(0);
@@ -7980,12 +7983,25 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
   const matchDate = weekInfo?.[0]?.date ? new Date(weekInfo[0].date) : new Date();
   const matchYear = matchDate.getFullYear() > 2400 ? matchDate.getFullYear() - 543 : matchDate.getFullYear();
 
+  const requestedTeamSize = Number(options && options.teamSize);
+  const perTeam = (requestedTeamSize === 8) ? 8 : 7;
+  const explicitTeamCount = Number(options && options.teamCount);
+  const forceReset = Boolean(options && options.reset);
+
+  if (forceReset) {
+    await executeQuery(
+      "UPDATE member_team_week_tbl SET team_id = 0 WHERE week_id = ? AND (team_id IS NULL OR team_id <> 100)",
+      [weekId]
+    );
+    logger.info(`[randomteam] Reset existing team assignments for week ${weekId} (teamSize=${perTeam}).`);
+  }
+
   // 1. Fetch all registered members for this week
   const query = `
     SELECT 
       mtw.id as mtw_id,
       mtw.member_id,
-      mtw.team_id,
+      ${forceReset ? '0 as team_id,' : 'mtw.team_id,'}
       mtw.team as week_team,
       mtw.pos_id as week_pos_id,
       mtw.priority as week_priority,
@@ -8031,8 +8047,16 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     logger.info(`[randomteam] Excluded ${goalieMembers.length} goalkeeper(s) (team_id=100) from team assignment: ${goalieMembers.map(r => r.name).join(', ')}`);
   }
 
-  // Limit randomization strictly to outfield players within maxweek quota (FIFO by mtw.id ASC)
-  const maxPlayers = (weekInfo && weekInfo[0] && weekInfo[0].max) ? Number(weekInfo[0].max) : 24;
+  // Determine number of teams (K) and effective player cap (default 7 players/team, optional 8 players/team)
+  const rawWeekMax = (weekInfo && weekInfo[0] && weekInfo[0].max) ? Number(weekInfo[0].max) : 21;
+  const K = (explicitTeamCount >= 2 && explicitTeamCount <= 6)
+    ? explicitTeamCount
+    : (rawWeekMax > 24 ? 4 : 3);
+  const targetTotal = K * perTeam;
+  const maxPlayers = (requestedTeamSize === 8 || (explicitTeamCount >= 2 && explicitTeamCount <= 6))
+    ? targetTotal
+    : Math.min(rawWeekMax, targetTotal);
+
   const registeredMembers = outfieldRegistered.slice(0, maxPlayers);
   const reserveMembers = outfieldRegistered.slice(maxPlayers);
 
@@ -8044,14 +8068,12 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
         `UPDATE member_team_week_tbl SET team_id = 0 WHERE id IN (${reserveMtwIds.join(',')})`
       );
     }
-    logger.info(`[randomteam] Capped strictly at max ${maxPlayers}. ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
+    logger.info(`[randomteam] Capped strictly at max ${maxPlayers} (${K} teams x ${perTeam}). ${reserveMembers.length} reserve player(s) left unassigned: ${reserveMembers.map(r => r.name).join(', ')}`);
   }
 
   const N = registeredMembers.length;
-  // Rule: maxweek > 24 or registered outfield > 24 -> 4 teams, otherwise 3 teams
-  const K = (maxPlayers > 24 || N > 24) ? 4 : 3;
 
-  // Check if all players within maxweek quota already have teams assigned
+  // Check if all players within effective quota already have teams assigned
   const allHadTeam = registeredMembers.length > 0 && registeredMembers.every(m => Number(m.team_id) > 0);
   if (allHadTeam) {
     logger.info(`[randomteam] All ${registeredMembers.length} players (<= max ${maxPlayers}) already have teams. Skipping re-randomization.`);
@@ -8060,6 +8082,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
       alreadyAssigned: true,
       weekId,
       teamCount: K,
+      teamSize: perTeam,
       totalPlayers: N
     };
   }
@@ -8271,12 +8294,12 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     }
   };
 
-  // Helper to find best candidate teams with enough capacity for a group
+  // Helper to find best candidate teams with enough capacity for a group (keeps team sizes balanced when under-filled)
   const findCandidateTeamsForGroup = (groupLength) => {
     let candidateTeams = teams.filter(t => t.members.length + groupLength <= t.maxCapacity);
     if (candidateTeams.length === 0) {
-      // Fallback: teams with the most available room
-      candidateTeams = [...teams].sort((a, b) => (b.maxCapacity - b.members.length) - (a.maxCapacity - a.members.length));
+      const maxRoom = Math.max(...teams.map(t => t.maxCapacity - t.members.length));
+      candidateTeams = teams.filter(t => (t.maxCapacity - t.members.length) === maxRoom);
     }
     return candidateTeams;
   };
@@ -8493,6 +8516,48 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     }
   }
 
+  // =========================================================================
+  // Phase 6: Rebalance team sizes if any overflow / bound group created >1 difference
+  // Guarantees K balanced teams (maxLen - minLen <= 1) whenever solo players can move
+  // =========================================================================
+  if (N >= K && teams.length >= 2) {
+    const removePlayerFromTeam = (player, team) => {
+      const idx = team.members.indexOf(player);
+      if (idx === -1) return false;
+      team.members.splice(idx, 1);
+      const pos = team.positionCounts[player.posCode] !== undefined ? player.posCode : 'OTHER';
+      team.positionCounts[pos] = Math.max(0, (team.positionCounts[pos] || 0) - 1);
+      team.ratingSum -= player.rating;
+      return true;
+    };
+
+    for (let guard = 0; guard < N; guard++) {
+      const sorted = [...teams].sort((a, b) => b.members.length - a.members.length);
+      const largest = sorted[0];
+      const smallest = sorted[sorted.length - 1];
+      if (!largest || !smallest || (largest.members.length - smallest.members.length) <= 1) break;
+
+      const movableCandidates = largest.members.filter(m => {
+        const isPreassigned = !forceReset && Number(m.team_id) > 0 && Number(m.team_id) !== 100;
+        const isBound = !isNaN(Number(m.week_team)) && Number(m.week_team) > 0;
+        return !isPreassigned && !isBound;
+      });
+      if (movableCandidates.length === 0) break;
+
+      movableCandidates.sort((a, b) => {
+        const confDiff = countAvoidConflicts(smallest, a) - countAvoidConflicts(smallest, b);
+        if (confDiff !== 0) return confDiff;
+        const needDiff = (smallest.positionCounts[a.posCode] || 0) - (smallest.positionCounts[b.posCode] || 0);
+        if (needDiff !== 0) return needDiff;
+        return (b.positionCounts[b.posCode] || 0) - (a.positionCounts[a.posCode] || 0);
+      });
+
+      const chosen = movableCandidates[0];
+      if (!removePlayerFromTeam(chosen, largest)) break;
+      addPlayerToTeam(chosen, smallest);
+    }
+  }
+
   // 9. Allocate Tactical Formation Positions & Persist Team + Position Assignments into Database (member_team_week_tbl)
   const is8PlayerWeek = teams.some(t => t.members.length >= 8);
   for (const team of teams) {
@@ -8525,6 +8590,7 @@ async function randomTeamByPosition(targetWeekId = 0, groupId = null) {
     status: 'SUCCESS',
     weekId,
     teamCount: K,
+    teamSize: perTeam,
     totalPlayers: N,
     teams: teams.map(t => ({
       teamId: t.teamId,

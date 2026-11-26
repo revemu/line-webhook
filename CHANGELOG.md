@@ -4,6 +4,17 @@
 
 ---
 
+## [0.7.70] - 2026-11-26
+
+### Changed & Improved
+- **Default 7 Players Per Team & Balanced Shortfall Allocation in `/randomteam` (`query.js`, `cmd.js`)**:
+  - Updated `randomTeamByPosition` (`query.js`) to default to `teamSize = 7` players per team (e.g. `21` for 3 teams, `28` for 4 teams), reserving excess registrations beyond `K * perTeam` cleanly even on legacy `max=24` weeks unless option `8` is chosen.
+  - Added optional `teamSize` (`7`/`8`, `7คน`/`8คน`, `size:8`), explicit team count (`3ทีม`/`4ทีม`), and `reset`/`force`/`ใหม่` flag parsing in `/randomteam` (`cmd.js`), plus optional size/max flags in `/newweek`.
+  - Updated `newWeek()`, `updateMaxNumberWeek()`, and default weekly quota fallbacks (`query.js`, `cmd.js`) from `24` (`3×8`) to `21` (`3×7`), while keeping `max > 24` (`28`/`32`) for 4-team weeks without letting reserve signups flip a 3-team week to 4 teams.
+  - Hardened team-size balancing when player count is short of `K * perTeam` (fixed `findCandidateTeamsForGroup` overflow filtering and added Phase 6 rebalance pass guaranteeing `maxTeamSize - minTeamSize <= 1` across all `K` teams).
+
+---
+
 ## [0.7.69] - 2026-11-22
 
 ### Changed & Improved

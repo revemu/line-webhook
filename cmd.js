@@ -63,7 +63,7 @@ async function buildNewWeekInviteMsg(groupId = null) {
         const weekInfo = await db.queryWeekID(0);
         if (!weekInfo || weekInfo.length === 0) return null;
         const week = weekInfo[0];
-        const maxPlayers = Number(week.max) || 24;
+        const maxPlayers = Number(week.max) || 21;
         const date = new Date(week.date);
         const dateStr = await db.getFormatDate(date, 'short');
         const autoRegCount = await db.getAutoRegCount(groupId);
@@ -783,11 +783,53 @@ const COMMAND_REGISTRY = {
                 text: `ขออภัย คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (สำหรับบอททำการสุ่มทีม)`
             }];
         }
-        const week = await db.queryWeekID(param || 0);
+
+        // Parse optional flags: team size (default 7, optional 8), teamCount (3ทีม/4ทีม), reset, or week ID
+        const tokens = (param || '').trim().split(/\s+/).filter(Boolean);
+        let targetWeekParam = 0;
+        const randOptions = { teamSize: 7 };
+
+        for (const rawTok of tokens) {
+            const tok = rawTok.trim();
+            const lower = tok.toLowerCase();
+
+            if (['reset', 'force', 'regen', 'rebuild', 'ใหม่'].includes(lower)) {
+                randOptions.reset = true;
+                continue;
+            }
+            const sizeMatch = tok.match(/^(?:size|s|p|teamsize|ทีมละ)[:=]?([78])$/i) || tok.match(/^([78])\s*(?:คน|p|player|players)?$/i);
+            if (sizeMatch) {
+                randOptions.teamSize = parseInt(sizeMatch[1], 10);
+                continue;
+            }
+            const teamMatch = tok.match(/^(\d+)\s*(?:ทีม|t|team|teams)$/i) || tok.match(/^(?:team|teams|t)[:=](\d+)$/i);
+            if (teamMatch) {
+                const tCount = parseInt(teamMatch[1], 10);
+                if (!isNaN(tCount) && tCount >= 2 && tCount <= 6) {
+                    randOptions.teamCount = tCount;
+                    continue;
+                }
+            }
+            const weekMatch = tok.match(/^(?:w|week)[:=]?(\d+)$/i);
+            if (weekMatch) {
+                targetWeekParam = parseInt(weekMatch[1], 10);
+                continue;
+            }
+            if (/^\d+$/.test(tok)) {
+                const n = parseInt(tok, 10);
+                if (n === 7 || n === 8) {
+                    randOptions.teamSize = n;
+                } else {
+                    targetWeekParam = n;
+                }
+            }
+        }
+
+        const week = await db.queryWeekID(targetWeekParam || 0);
         if (!week || week.length === 0) {
             return [{ type: 'text', text: "ยังไม่มีข้อมูลสัปดาห์นี้" }];
         }
-        const randRes = await db.randomTeamByPosition(week[0].id, groupId);
+        const randRes = await db.randomTeamByPosition(week[0].id, groupId, randOptions);
         if (!randRes || randRes.status === 'NO_PLAYERS') {
             return [{ type: 'text', text: "ยังไม่มีผู้เล่นลงทะเบียนในสัปดาห์นี้" }];
         }
@@ -816,9 +858,9 @@ const COMMAND_REGISTRY = {
             }
         }
         if (randRes.alreadyAssigned) {
-            return [{ type: 'text', text: `ผู้เล่นทุกคนมีทีมแล้ว (${randRes.totalPlayers} คน)` }];
+            return [{ type: 'text', text: `ผู้เล่นทุกคนมีทีมแล้ว (${randRes.totalPlayers} คน)\n💡 หากต้องการสุ่มใหม่ พิมพ์ /randomteam reset (หรือ /randomteam 8 reset สำหรับทีมละ 8)` }];
         }
-        return [{ type: 'text', text: `✅ สุ่มทีมตามตำแหน่งสำเร็จ (${randRes.teamCount} ทีม, ${randRes.totalPlayers} คน)` }];
+        return [{ type: 'text', text: `✅ สุ่มทีมตามตำแหน่งสำเร็จ (${randRes.teamCount} ทีม, ${randRes.totalPlayers} คน, เป้าหมายทีมละ ${randRes.teamSize || randOptions.teamSize} คน)` }];
     },
     'teamweek1': async (context) => {
         const { param, groupId } = context;
@@ -1176,15 +1218,25 @@ const COMMAND_REGISTRY = {
         }
 
         let customTimeRange = null;
+        let customMax = null;
         if (param && param.trim() !== '') {
-            const timeMatch = param.trim().match(/(\d{1,2}[:.]\d{2}\s*-\s*\d{1,2}[:.]\d{2})/);
+            const rawParam = param.trim();
+            const timeMatch = rawParam.match(/(\d{1,2}[:.]\d{2}\s*-\s*\d{1,2}[:.]\d{2})/);
             if (timeMatch) {
                 customTimeRange = timeMatch[1].replace(/\./g, ':');
+            }
+            const cleaned = rawParam.replace(/(\d{1,2}[:.]\d{2}\s*-\s*\d{1,2}[:.]\d{2})/, '').trim();
+            const maxMatch = cleaned.match(/^(?:max|maxweek|quota)[:=]?(\d+)$/i) || cleaned.match(/^(\d{2})\s*(?:คน|p|player|players)?$/i);
+            const sizeMatch = cleaned.match(/^(?:size|ทีมละ)?([78])\s*(?:คน)?$/i);
+            if (maxMatch) {
+                customMax = parseInt(maxMatch[1], 10);
+            } else if (sizeMatch) {
+                customMax = parseInt(sizeMatch[1], 10) * 3;
             }
         }
 
         const next_sat = getNextSaturday();
-        await db.newWeek(next_sat, customTimeRange);
+        await db.newWeek(next_sat, customTimeRange, customMax);
 
         const messages = [];
 
