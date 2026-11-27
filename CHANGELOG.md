@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.72] - 2026-11-27
+
+### Fixed & Improved
+- **Fix Centered Roster-Lock Card & Remove Viewer Countdown Button (`public/update.shtml`, `public/js/update.js`, `public/style.css`)**:
+  - Restored missing `class="roster-locked-container"` on `#rosterLockedArea` in `public/update.shtml` so the pre-draw waiting notice renders properly centered inside a full-width card instead of floating bare on the left edge.
+  - Polished `.roster-locked-container` and `.roster-locked-badge` with a compact gradient-accented card and high-contrast time/player-count pills (`⏰` + `👥`) for both dark and light themes.
+  - Removed the visible `[● 🔄 Ns]` countdown refresh button from `renderHeader()` in `public/js/update.js` while keeping WebSocket and background auto-refresh active silently.
+
+---
+
 ## [0.7.71] - 2026-11-26
 
 ### Fixed & Improved

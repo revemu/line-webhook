@@ -459,15 +459,12 @@
 		var viewerControls = '';
 		if (!state.isManager) {
 			var hasJumpBtn = state.info && state.info.current_match_num && Number(state.selectedMatchNum) !== Number(state.info.current_match_num);
-			viewerControls =
-				'<div class="viewer-header-actions">' +
-				(hasJumpBtn ? '<button type="button" class="btn-jump-current-pill" data-action="jump-current-match">📍 คู่ปัจจุบัน (Match ' + esc(state.info.current_match_num) + ')</button>' : '') +
-				'<button type="button" class="viewer-refresh-btn" data-action="manual-refresh" title="รีเฟรชข้อมูลตอนนี้">' +
-				(state.wsConnected ? '<span class="pulse-mini-dot" title="Live WebSocket Connected"></span>' : '') +
-				'<span class="refresh-spin-icon' + (state.isRefreshing ? ' is-spinning' : '') + '">🔄</span>' +
-				'<span class="refresh-cd-text">' + esc(state.refreshCooldown) + 's</span>' +
-				'</button>' +
-				'</div>';
+			if (hasJumpBtn) {
+				viewerControls =
+					'<div class="viewer-header-actions">' +
+					'<button type="button" class="btn-jump-current-pill" data-action="jump-current-match">📍 คู่ปัจจุบัน (Match ' + esc(state.info.current_match_num) + ')</button>' +
+					'</div>';
+			}
 		}
 
 		headerEl.innerHTML =
@@ -579,9 +576,10 @@
 			'<div class="roster-locked-card">' +
 			'<div class="roster-locked-icon">⏳</div>' +
 			'<h3 class="roster-locked-title">กำลังรอการสุ่มทีมประจำสัปดาห์</h3>' +
-			'<p class="roster-locked-desc">' + esc(msg) + '</p>' +
+			'<p class="roster-locked-desc">รายชื่อทีมและผังสนามจะเปิดแสดงอัตโนมัติหลังสุ่มทีม</p>' +
 			'<div class="roster-locked-badge">' +
-			'<span>👥 ลงชื่อแล้ว ' + esc(playerCount) + ' คน</span>' +
+			'<span class="roster-pill-time">⏰ ' + esc(msg.replace(/^ระบบจะทำการสุ่มทีม/, 'สุ่มทีม')) + '</span>' +
+			'<span class="roster-pill-count">👥 ลงชื่อแล้ว ' + esc(playerCount) + ' คน</span>' +
 			'</div>' +
 			'</div>';
 	}

@@ -28,7 +28,7 @@
 
         <div id="pitchModalBackdrop"></div>
 
-        <div id="rosterLockedArea" style="display: none;"></div>
+        <div id="rosterLockedArea" class="roster-locked-container" style="display: none;"></div>
 
         <div id="stadiumCardWrap" style="display: none;">
             <div id="stadiumScoreboardArea"></div>
