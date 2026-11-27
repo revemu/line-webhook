@@ -1093,6 +1093,22 @@
 			'</div>';
 	}
 
+	function areAllMatchesFinished() {
+		if (state.info && typeof state.info.is_all_matches_finished === 'boolean') {
+			return state.info.is_all_matches_finished;
+		}
+		var keys = getMatchKeys();
+		if (!keys.length) return false;
+		var all = getMatchesObj();
+		for (var i = 0; i < keys.length; i++) {
+			var m = all[keys[i]];
+			if (!m || (!m.is_finished && m.db_status !== 'finished' && Number(m.status) !== 1)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	function renderTeamSummaryCard() {
 		if (!teamSummaryEl) return;
 		var keys = getMatchKeys();
@@ -1109,11 +1125,12 @@
 		var prevScrollLeft = prevGrid ? prevGrid.scrollLeft : 0;
 
 		teamSummaryEl.style.display = 'block';
+		var showFinalStats = areAllMatchesFinished();
 		var leaderStats = (state.info && state.info.leader_stats) || {};
-		var mvps = leaderStats.mvps || leaderStats.weekMvps || [];
-		var topScorers = leaderStats.top_scorers || leaderStats.weekTopScorers || [];
-		var topAssists = leaderStats.top_assists || leaderStats.weekTopAssists || [];
-		var totw = leaderStats.totw || [];
+		var mvps = showFinalStats ? (leaderStats.mvps || leaderStats.weekMvps || []) : [];
+		var topScorers = showFinalStats ? (leaderStats.top_scorers || leaderStats.weekTopScorers || []) : [];
+		var topAssists = showFinalStats ? (leaderStats.top_assists || leaderStats.weekTopAssists || []) : [];
+		var totw = showFinalStats ? (leaderStats.totw || []) : [];
 
 		var mvpIdSet = {};
 		for (var m = 0; m < mvps.length; m++) {
@@ -1151,7 +1168,7 @@
 		var colCount = 0;
 
 		// Prepend TOTW card if available
-		if (totw.length > 0) {
+		if (showFinalStats && totw.length > 0) {
 			colCount++;
 			colsHtml += buildSummaryColHtml({
 				isTotw: true,
@@ -1162,6 +1179,7 @@
 				players: totw,
 				formation: teamFormations.totw || null,
 				isPitchView: isPitchView,
+				showRatings: showFinalStats,
 				mvpIdSet: mvpIdSet
 			});
 		}
@@ -1181,6 +1199,7 @@
 				players: roster,
 				formation: teamFormations[String(team.teamid)] || null,
 				isPitchView: isPitchView,
+				showRatings: showFinalStats,
 				mvpIdSet: mvpIdSet
 			});
 		}
@@ -1295,13 +1314,15 @@
 		return 'rating-avg';
 	}
 
-	function renderMiniFormationPlayerNode(pl, posCode, isAlt, isMom, isTotw) {
+	function renderMiniFormationPlayerNode(pl, posCode, isAlt, isMom, isTotw, showRatings) {
 		if (!pl) {
 			return '<div class="pitch-player-node mini-pitch-node">' +
 				'<div class="mini-empty-slot">' + esc(posCode || 'GK') + '</div>' +
 				'</div>';
 		}
 		var rVal = formatRating(pl.rating);
+		var rNum = parseFloat(pl.rating);
+		var hasValidRating = Boolean(showRatings) && rVal !== '-' && !isNaN(rNum) && rNum > 0;
 		var rCls = getMiniPitchRatingClass(pl.rating, isMom);
 		var pName = getDisplayName(pl);
 		var pTeamColor = pl.teamName || pl.team_color || pl.color || '';
@@ -1313,7 +1334,7 @@
 			? '<img src="' + esc(pl.picture_url) + '" alt="' + esc(pName) + '">'
 			: '<span class="avatar-char">' + esc(getInitials(pl)) + '</span>';
 
-		var ratingBadge = rVal !== '-'
+		var ratingBadge = hasValidRating
 			? '<div class="mini-score-rating ' + rCls + '" title="Live Rating">' +
 			'<span class="badge-val">' + esc(rVal) + '</span>' +
 			(isMom ? '<span class="badge-icon" style="color:#fde047;">★</span>' : '') +
@@ -1378,6 +1399,7 @@
 
 	function buildSummaryColHtml(opts) {
 		var bodyHtml = '';
+		var showRatings = Boolean(opts.showRatings);
 		var formationPlayers = [];
 		if (opts.formation && Array.isArray(opts.formation.rows)) {
 			for (var fr = 0; fr < opts.formation.rows.length; fr++) {
@@ -1389,7 +1411,7 @@
 			}
 		}
 		var statPool = formationPlayers.length ? formationPlayers : (opts.players || []);
-		var topPlayer = getTopRatedPlayer(statPool);
+		var topPlayer = showRatings ? getTopRatedPlayer(statPool) : null;
 		var topPlayerId = topPlayer ? Number(topPlayer.id) : null;
 
 		if (!opts.players || !opts.players.length) {
@@ -1418,20 +1440,20 @@
 				bodyHtml += '<div class="pitch-tactical-row' + (rowObj.isFlank ? ' row-flank' : '') + '">';
 				for (var sIdx = 0; sIdx < slots.length; sIdx++) {
 					var slot = slots[sIdx] || { primary: null, alternate: null };
-					var isPrimaryMom = slot.primary && topPlayerId !== null && Number(slot.primary.id) === topPlayerId;
-					var isAltMom = slot.alternate && topPlayerId !== null && Number(slot.alternate.id) === topPlayerId;
+					var isPrimaryMom = showRatings && slot.primary && topPlayerId !== null && Number(slot.primary.id) === topPlayerId;
+					var isAltMom = showRatings && slot.alternate && topPlayerId !== null && Number(slot.alternate.id) === topPlayerId;
 					if (slot.primary && slot.alternate) {
 						bodyHtml += '<div class="pitch-flank-pair">' +
-							renderMiniFormationPlayerNode(slot.primary, rowObj.role, false, isPrimaryMom, opts.isTotw) +
-							renderMiniFormationPlayerNode(slot.alternate, rowObj.role, true, isAltMom, opts.isTotw) +
+							renderMiniFormationPlayerNode(slot.primary, rowObj.role, false, isPrimaryMom, opts.isTotw, showRatings) +
+							renderMiniFormationPlayerNode(slot.alternate, rowObj.role, true, isAltMom, opts.isTotw, showRatings) +
 							'</div>';
 					} else {
-						bodyHtml += renderMiniFormationPlayerNode(slot.primary, rowObj.role, false, isPrimaryMom, opts.isTotw);
+						bodyHtml += renderMiniFormationPlayerNode(slot.primary, rowObj.role, false, isPrimaryMom, opts.isTotw, showRatings);
 					}
 				}
 				bodyHtml += '</div>';
 			}
-			bodyHtml += '</div></div>' + renderTeamMvpFooter(topPlayer, opts.isTotw);
+			bodyHtml += '</div></div>' + (showRatings ? renderTeamMvpFooter(topPlayer, opts.isTotw) : '');
 		} else {
 			bodyHtml = '<div class="team-player-roster">';
 			for (var i = 0; i < opts.players.length; i++) {
@@ -1439,8 +1461,10 @@
 				var name = getDisplayName(player);
 				var ratingCls = getRatingClass(player.rating);
 				var ratingText = formatRating(player.rating);
+				var ratingNum = parseFloat(player.rating);
+				var hasValidListRating = showRatings && ratingText !== '-' && !isNaN(ratingNum) && ratingNum > 0;
 				var pTeamColor = player.teamName || player.team_color || player.color || '';
-				var isMvp = (topPlayerId !== null && Number(player.id) === topPlayerId) || (opts.mvpIdSet && opts.mvpIdSet[Number(player.id)]);
+				var isMvp = showRatings && ((topPlayerId !== null && Number(player.id) === topPlayerId) || (opts.mvpIdSet && opts.mvpIdSet[Number(player.id)]));
 				var avatar = player.picture_url
 					? '<img src="' + esc(player.picture_url) + '" alt="' + esc(name) + '">'
 					: esc(getInitials(player));
@@ -1466,7 +1490,7 @@
 					statTags +
 					'</div>' +
 					'</div>' +
-					'<span class="player-card-rating ' + ratingCls + '"><span class="rating-star">⭐</span><span>' + esc(ratingText) + '</span></span>' +
+					(hasValidListRating ? '<span class="player-card-rating ' + ratingCls + '"><span class="rating-star">⭐</span><span>' + esc(ratingText) + '</span></span>' : '') +
 					'</div>';
 			}
 			bodyHtml += '</div>';

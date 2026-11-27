@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.75] - 2026-11-27
+
+### Fixed
+- **Gate TOTW, Player Ratings, MVP, and Top Leader Awards Until All Week Matches Finish (`routes/web.js`, `public/js/update.js`)**:
+  - Updated `getLastMatchWeek()` in `routes/web.js` to compute `is_all_matches_finished` across all scheduled/played matches for the week; until every match is `finished`, `leader_stats` omits `mvps`, `top_scorers`, `top_assists`, and `totw`, omits `team_formations.totw`, and sets player `rating` to `'-'` while preserving live `goals`, `assists`, and `clean_sheets`.
+  - Updated `shouldShowTotwInTeamView()` and `resolveTeamForView()` in `routes/web.js` so `/webhook/teamview` strictly requires all matches in the week to have `status = 'finished'` (`total > 0 && remaining === 0`), blocking premature `?team=totw` access.
+  - Updated `renderTeamSummaryCard()`, `renderMiniFormationPlayerNode()`, and `buildSummaryColHtml()` in `public/js/update.js` with `areAllMatchesFinished()` guards to suppress the `🌟 TEAM OF THE WEEK` card, leader spotlight (`MVP OF THE WEEK` / `TOP SCORER` / `TOP ASSIST`), `👑 MVP` badges/footers, and `0.0` / intermediate rating pills in both Pitch and List views until all matches finish.
+
+---
+
 ## [0.7.74] - 2026-11-27
 
 ### Fixed

@@ -1650,7 +1650,11 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
         };
     }
 
+    const allMatchValues = Object.values(allMatchData);
+    const allMatchesFinished = allMatchValues.length > 0 && allMatchValues.every(m => Boolean(m.is_finished));
+
     data.is_week_ended = isWeekTimeEnded;
+    data.is_all_matches_finished = allMatchesFinished;
     data.all_match = allMatchData;
 
     if (isLocked) {
@@ -1681,16 +1685,34 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
     data.asset_version = getAssetVersion();
 
     // Real-time Leader & Rating stats for week (Served from persistent cache unless updated)
+    // Hide TOTW, MVP, Top Scorer/Assist, and Ratings until every match in the week is finished.
     data.leader_stats = null;
     if (!isLocked && allMatches.length > 0) {
         try {
-            data.leader_stats = await getOrComputeLeaderStats(weekid, false);
+            const rawLeaderStats = await getOrComputeLeaderStats(weekid, false);
+            if (rawLeaderStats) {
+                if (allMatchesFinished) {
+                    data.leader_stats = rawLeaderStats;
+                } else {
+                    data.leader_stats = {
+                        mvps: [],
+                        top_scorers: [],
+                        top_assists: [],
+                        totw: [],
+                        players: (rawLeaderStats.players || []).map(p => ({
+                            ...p,
+                            rating: '-',
+                            raw_score: '0.00'
+                        }))
+                    };
+                }
+            }
         } catch (e) {
             logger.warn(`Could not compute leader_stats for week ${weekid}: ${e.message}`);
         }
     }
 
-    // Enrich allmembers with rating & stats if available
+    // Enrich allmembers with goals/assists/clean_sheets live, but keep rating hidden ('-') until all matches finish
     if (data.leader_stats && data.leader_stats.players && data.allmembers) {
         const pMap = {};
         data.leader_stats.players.forEach(p => { pMap[p.id] = p; });
@@ -1698,7 +1720,7 @@ async function getLastMatchWeek(weeknum = 0, currentUser = null) {
             const stat = pMap[m.id];
             return {
                 ...m,
-                rating: stat ? stat.rating : '-',
+                rating: (allMatchesFinished && stat) ? stat.rating : '-',
                 goals: stat ? stat.goals : 0,
                 assists: stat ? stat.assists : 0,
                 clean_sheets: stat ? stat.clean_sheets : 0
@@ -1954,14 +1976,12 @@ function escapeHtmlText(str) {
 async function shouldShowTotwInTeamView(weekId, dateVal, timeRange) {
     if (!weekId) return false;
     const rows = await doQuery(
-        "SELECT COUNT(*) AS total_cnt, SUM(CASE WHEN status = 'finished' THEN 1 ELSE 0 END) AS finished_cnt, SUM(CASE WHEN status IS NULL OR status <> 'finished' THEN 1 ELSE 0 END) AS remaining_cnt FROM match_stat_tbl WHERE week_id = ?",
+        "SELECT COUNT(*) AS total_cnt, SUM(CASE WHEN status IS NULL OR status <> 'finished' THEN 1 ELSE 0 END) AS remaining_cnt FROM match_stat_tbl WHERE week_id = ?",
         [parseInt(weekId, 10)]
     );
     const total = rows && rows[0] ? Number(rows[0].total_cnt || 0) : 0;
-    const finished = rows && rows[0] ? Number(rows[0].finished_cnt || 0) : 0;
     const remaining = rows && rows[0] ? Number(rows[0].remaining_cnt || 0) : 0;
-    if (total > 0 && remaining === 0) return true;
-    return finished > 0 && getWeekEndInfo(dateVal, timeRange).ended;
+    return total > 0 && remaining === 0;
 }
 
 async function resolveTeamForView(weekParam, teamParam) {
@@ -1973,14 +1993,13 @@ async function resolveTeamForView(weekParam, teamParam) {
         const weekRows = await db.queryWeekID(cleanWeek);
         if (!weekRows || weekRows.length === 0) return null;
         const w = weekRows[0];
+        if (!(await shouldShowTotwInTeamView(w.id, w.date, w.time_range))) return null;
         const totwArr = await db.getTotwFormationData(w.id);
         if (!totwArr || totwArr.length === 0) return null;
         let allTeams = totwArr;
-        if (await shouldShowTotwInTeamView(w.id, w.date, w.time_range)) {
-            const teamData = await db.getTeamFormationData('', null, { weekId: w.id });
-            if (teamData && Array.isArray(teamData.formationsData) && teamData.formationsData.length > 0) {
-                allTeams = [totwArr[0], ...teamData.formationsData];
-            }
+        const teamData = await db.getTeamFormationData('', null, { weekId: w.id });
+        if (teamData && Array.isArray(teamData.formationsData) && teamData.formationsData.length > 0) {
+            allTeams = [totwArr[0], ...teamData.formationsData];
         }
         const dateStr = w.date ? await db.getFormatDate(w.date, 'short') : '';
         return {
