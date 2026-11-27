@@ -143,6 +143,22 @@ async function recordSlipVerifyAttempt(id, errorMessage = null, forceAttempts = 
 }
 
 /**
+ * Resets all queued 'noticed' slips to 'api_expired' when EasySlip API expires or quota/auth fails,
+ * preventing background sweeps from re-verifying them repeatedly.
+ */
+async function resetNoticedSlipsOnApiExpired(errorMessage = null) {
+  try {
+    await ensureSlipLogSchema();
+    const trimmedError = errorMessage ? String(errorMessage).substring(0, 250) : 'API expired / quota exceeded';
+    const sql = `UPDATE slip_log SET status = 'api_expired', last_verify_at = CURRENT_TIMESTAMP, last_verify_error = ? WHERE status = 'noticed'`;
+    return await executeQuery(sql, [trimmedError]);
+  } catch (err) {
+    logger.error("Error resetting noticed slips on API expiry:", err);
+    return null;
+  }
+}
+
+/**
  * Fetches queued noticed slips eligible for background EasySlip verification.
  */
 async function getPendingSlipsForVerify({ maxAttempts = 8, maxAgeHours = 168, limit = 10 } = {}) {
@@ -213,6 +229,7 @@ module.exports = {
   markSlipVerified,
   deleteSlipLog,
   recordSlipVerifyAttempt,
+  resetNoticedSlipsOnApiExpired,
   getPendingSlipsForVerify,
   getNoticedSlips,
   getSlipById

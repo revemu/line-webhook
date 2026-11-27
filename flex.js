@@ -3519,6 +3519,11 @@ function buildSlipListFlex(slips, theme) {
       statusText = 'ไม่เกี่ยวกับค่าสนาม 📝';
       statusColor = colors.textMuted;
       showVerifyButton = false;
+    } else if (slip.status === 'api_expired') {
+      headerTitle = '🔑 API หมดอายุ/เกินโควตา';
+      statusText = 'API หมดอายุ (ข้ามตรวจอัตโนมัติ)';
+      statusColor = colors.textMuted;
+      showVerifyButton = false;
     }
 
     const bodyContents = [

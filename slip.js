@@ -43,6 +43,30 @@ function isBankSlipQRCode(qrCode) {
     return parseBankSlipQRCode(qrCode).isValid;
 }
 
+function extractEasySlipError(easySlipRes) {
+    if (!easySlipRes || typeof easySlipRes !== 'object') return null;
+    const nested = (easySlipRes.error && typeof easySlipRes.error === 'object') ? easySlipRes.error : {};
+    const status = Number(nested.status || nested.statusCode || easySlipRes.httpStatus || easySlipRes.status || 0);
+    const code = nested.code || easySlipRes.code || '';
+    const message = nested.message || easySlipRes.message || '';
+    if (!status && !code && !message) return null;
+    return { status, code, message };
+}
+
+/**
+ * Detects EasySlip API expiration, invalid/revoked key, unauthorized, or exhausted quota/credit errors.
+ * @param {Object|null} error
+ * @returns {boolean}
+ */
+function isApiExpiredOrQuotaError(error) {
+    if (!error || typeof error !== 'object') return false;
+    const status = Number(error.status || error.statusCode || error.httpStatus || 0);
+    if (status === 401 || status === 402 || status === 403) return true;
+    const code = String(error.code || '').toLowerCase();
+    const message = String(error.message || '').toLowerCase();
+    return /expire|quota|credit|unauthorized|forbidden|invalid.?key|application|package|subscription|insufficient|limit.?exceeded/.test(`${code} ${message}`);
+}
+
 /**
  * Verify bank slip via EasySlip API v2 using QR Code payload.
  * @param {string} payload - QR Code payload string.
@@ -61,9 +85,12 @@ async function verifyEasySlipByPayload(payload) {
         });
         return response.data;
     } catch (error) {
-        if (error.response && error.response.data) {
-            logger.error('[EasySlip] Payload verification response:', error.response.data);
-            return error.response.data;
+        if (error.response) {
+            logger.error('[EasySlip] Payload verification response:', error.response.data || error.response.status);
+            const raw = error.response.data;
+            return (raw && typeof raw === 'object')
+                ? { ...raw, httpStatus: error.response.status }
+                : { message: String(raw || error.message), httpStatus: error.response.status };
         }
         logger.error('[EasySlip] Payload verification error:', error.message);
         return null;
@@ -88,9 +115,12 @@ async function verifyEasySlipByImage(imageBuffer) {
         });
         return response.data;
     } catch (error) {
-        if (error.response && error.response.data) {
-            logger.error('[EasySlip] Image verification response:', error.response.data);
-            return error.response.data;
+        if (error.response) {
+            logger.error('[EasySlip] Image verification response:', error.response.data || error.response.status);
+            const raw = error.response.data;
+            return (raw && typeof raw === 'object')
+                ? { ...raw, httpStatus: error.response.status }
+                : { message: String(raw || error.message), httpStatus: error.response.status };
         }
         logger.error('[EasySlip] Image verification error:', error.message);
         return null;
@@ -179,7 +209,7 @@ async function verifySlipPayload(payload, defaultSenderName = '') {
         success: false,
         slipData: null,
         details: null,
-        error: easySlipRes ? easySlipRes.error : null,
+        error: extractEasySlipError(easySlipRes),
         response: easySlipRes
     };
 }
@@ -284,6 +314,7 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
     let isSlipValid = false;
     let slipData = null;
     let isDuplicate = false;
+    let isApiExpired = false;
     let cachedSlipId = null;
 
     // 1. DB Cache Check Timer
@@ -310,8 +341,10 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
                 isSlipValid = true;
                 isDuplicate = true;
             } else {
-                if (easySlipRes && easySlipRes.error) {
-                    logger.warn(`[EasySlip] Re-verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
+                const apiErr = extractEasySlipError(easySlipRes);
+                if (apiErr) {
+                    logger.warn(`[EasySlip] Re-verification failed: ${apiErr.code || apiErr.status} - ${apiErr.message}`);
+                    if (isApiExpiredOrQuotaError(apiErr)) isApiExpired = true;
                 }
                 isSlipValid = true;
                 isDuplicate = true;
@@ -326,8 +359,10 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
             slipData = easySlipRes.data;
             isSlipValid = true;
         } else {
-            if (easySlipRes && easySlipRes.error) {
-                logger.warn(`[EasySlip] Verification failed: ${easySlipRes.error.code} - ${easySlipRes.error.message}`);
+            const apiErr = extractEasySlipError(easySlipRes);
+            if (apiErr) {
+                logger.warn(`[EasySlip] Verification failed: ${apiErr.code || apiErr.status} - ${apiErr.message}`);
+                if (isApiExpiredOrQuotaError(apiErr)) isApiExpired = true;
             }
             if (!isSlipValid) {
                 if (isBankSlipQRCode(qrCode)) {
@@ -364,7 +399,8 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
         weekCost: activeWeekCost,
         formatDateFn: getFormatDate
     });
-    const { details, slipToMe, logStatus, header, shouldClearDebt } = processed;
+    const { details, slipToMe, header, shouldClearDebt } = processed;
+    const logStatus = (processed.logStatus === 'noticed' && isApiExpired) ? 'api_expired' : processed.logStatus;
     if (details) {
         logger.debug('[EasySlip] Recipient:', details.recipient);
         logger.debug('[EasySlip] Recipient TH:', details.recipient_th);
@@ -390,6 +426,8 @@ async function processPaymentSlip({ event, member, imageBuffer, qrCode, db, repl
             } catch (e) {
                 logger.debug('[slip] Could not notify scheduler of noticed slip:', e.message);
             }
+        } else if (logStatus === 'api_expired') {
+            logger.info('[slip] EasySlip API expired/quota exceeded; logged slip directly as api_expired without queuing retry.');
         }
     }
     const tSave = Date.now() - tSaveStart;
@@ -564,6 +602,8 @@ module.exports = {
     EASYSLIP_API_KEY,
     parseBankSlipQRCode,
     isBankSlipQRCode,
+    extractEasySlipError,
+    isApiExpiredOrQuotaError,
     verifyEasySlipByPayload,
     verifyEasySlipByImage,
     parseSlipDetails,

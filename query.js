@@ -31,6 +31,7 @@ const {
   markSlipVerified,
   deleteSlipLog,
   recordSlipVerifyAttempt,
+  resetNoticedSlipsOnApiExpired,
   getPendingSlipsForVerify,
   getNoticedSlips,
   getSlipById
@@ -9618,6 +9619,7 @@ module.exports = {
   markSlipVerified,
   deleteSlipLog,
   recordSlipVerifyAttempt,
+  resetNoticedSlipsOnApiExpired,
   getPendingSlipsForVerify,
   ensureAppSettingsTable,
   getSetting,

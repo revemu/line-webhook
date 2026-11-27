@@ -52,13 +52,13 @@ function isSlipDueForVerify(slip, nowMs, force = false, retryDelaysSeconds = DEF
  * @param {Object|null} error
  * @returns {boolean}
  */
-function isQuotaOrAuthError(error) {
+function isRateLimitError(error) {
   if (!error || typeof error !== 'object') return false;
+  const status = Number(error.status || error.statusCode || error.httpStatus || 0);
+  if (status === 429) return true;
   const code = String(error.code || '').toLowerCase();
   const message = String(error.message || '').toLowerCase();
-  const status = Number(error.status || error.statusCode || 0);
-  if (status === 401 || status === 402 || status === 429) return true;
-  return /quota|limit|unauthorized|forbidden|too_many|credit/.test(`${code} ${message}`);
+  return /too_many|rate.?limit/.test(`${code} ${message}`);
 }
 
 /**
@@ -134,8 +134,18 @@ async function verifySingleSlip(slip, activeWeekCost, cfg) {
     };
   }
 
-  if (isQuotaOrAuthError(verifyResult.error)) {
-    const errText = `${verifyResult.error?.code || ''} ${verifyResult.error?.message || 'Quota/Auth error'}`.trim();
+  if (slipService.isApiExpiredOrQuotaError(verifyResult.error)) {
+    const errText = `${verifyResult.error?.code || verifyResult.error?.status || ''} ${verifyResult.error?.message || 'API expired / quota exceeded'}`.trim();
+    return {
+      outcome: 'api_expired',
+      slipId: slip.id,
+      senderName: slip.sender_name,
+      error: errText
+    };
+  }
+
+  if (isRateLimitError(verifyResult.error)) {
+    const errText = `${verifyResult.error?.code || ''} ${verifyResult.error?.message || 'Rate limit error'}`.trim();
     return {
       outcome: 'paused',
       slipId: slip.id,
@@ -226,10 +236,17 @@ async function runPendingSlipVerification({ force = false } = {}) {
         summary.failed++;
         logger.info(`[SlipVerifier] Slip #${slip.id} (${slip.sender_name}) deleted from slip_log (not a bank slip Mini-QR)`);
         continue;
+      } else if (res.outcome === 'api_expired') {
+        summary.checked--;
+        summary.apiExpired = true;
+        summary.deferred = 0;
+        await db.resetNoticedSlipsOnApiExpired(res.error);
+        logger.warn(`[SlipVerifier] EasySlip API expired/quota exceeded (${res.error}); reset noticed slip status to api_expired and stopped retries.`);
+        break;
       } else if (res.outcome === 'paused') {
         summary.checked--;
         summary.deferred += (dueSlips.length - i);
-        logger.warn(`[SlipVerifier] Pausing sweep due to EasySlip quota/auth error: ${res.error}`);
+        logger.warn(`[SlipVerifier] Pausing sweep due to EasySlip rate-limit error: ${res.error}`);
         break;
       } else {
         summary.failed++;
@@ -241,10 +258,10 @@ async function runPendingSlipVerification({ force = false } = {}) {
       }
     }
 
-    const hasRetryableResult = summary.results.some(
+    const hasRetryableResult = !summary.apiExpired && summary.results.some(
       r => r.outcome === 'paused' || (r.outcome === 'failed' && r.attempts < cfg.maxAttempts)
     );
-    summary.hasPending = (candidates.length >= cfg.batchLimit) || summary.deferred > 0 || hasRetryableResult;
+    summary.hasPending = !summary.apiExpired && ((candidates.length >= cfg.batchLimit) || summary.deferred > 0 || hasRetryableResult);
 
     logger.info(`[SlipVerifier] Sweep finished: checked=${summary.checked}, verified=${summary.verified}, failed=${summary.failed}, deferred=${summary.deferred}, hasPending=${summary.hasPending}`);
     return summary;

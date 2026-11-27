@@ -4,6 +4,16 @@
 
 ---
 
+## [0.7.74] - 2026-11-27
+
+### Fixed
+- **Reset Slip Status When EasySlip API Expires or Quota Ends (`slip.js`, `services/slipLog.js`, `scheduler/slipVerifier.js`, `query.js`, `flex.js`)**:
+  - Added shared `extractEasySlipError()` and `isApiExpiredOrQuotaError()` helpers in `slip.js` (catching HTTP `401`/`402`/`403` and expiration/quota/unauthorized/subscription error codes/messages).
+  - Added `resetNoticedSlipsOnApiExpired()` in `services/slipLog.js` (re-exported by `query.js`): when `scheduler/slipVerifier.js` encounters an API expiry/quota error, it resets all queued `status = 'noticed'` slips to `status = 'api_expired'`, sets `hasPending = false`, and immediately stops retrying.
+  - Updated `processPaymentSlip` in `slip.js` so slips accepted via bank Mini-QR fallback while EasySlip is expired/out of quota are logged directly as `api_expired` without waking the retry verifier, and added `api_expired` status formatting in `flex.js`.
+
+---
+
 ## [0.7.73] - 2026-11-27
 
 ### Fixed
