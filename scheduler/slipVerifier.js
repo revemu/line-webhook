@@ -2,7 +2,6 @@ const fs = require('fs').promises;
 const path = require('path');
 const db = require('../query');
 const slipService = require('../slip');
-const lineClient = require('../lineClient');
 const logger = require('../utils/logger');
 const { getFormatDate } = require('../utils/date');
 
@@ -74,39 +73,6 @@ function isPermanentVerifyError(error) {
 }
 
 /**
- * Resolves the target LINE group ID for background verification notifications.
- * @returns {Promise<string|null>}
- */
-async function resolveNotifyGroupId() {
-  try {
-    const rawGroupId = await db.getActiveGroupId();
-    if (!rawGroupId) return null;
-    return await db.resolveLineGroupId(rawGroupId);
-  } catch (err) {
-    logger.warn('[SlipVerifier] Failed to resolve notification groupId:', err.message);
-    return null;
-  }
-}
-
-/**
- * Pushes verification notification messages to LINE in safe chunks of up to 5 messages.
- * @param {Array<Object>} messages
- */
-async function pushNotifications(messages) {
-  if (!messages || messages.length === 0) return;
-  const targetGroupId = await resolveNotifyGroupId();
-  if (!targetGroupId) {
-    logger.warn('[SlipVerifier] Skipping LINE notification: no active groupId found.');
-    return;
-  }
-
-  for (let i = 0; i < messages.length; i += 5) {
-    const chunk = messages.slice(i, i + 5);
-    await lineClient.pushMessage(targetGroupId, chunk);
-  }
-}
-
-/**
  * Verifies a single pending slip against EasySlip, updates slip_log, and returns outcome details.
  * @param {Object} slip
  * @param {number} activeWeekCost
@@ -156,16 +122,6 @@ async function verifySingleSlip(slip, activeWeekCost, cfg) {
     await db.markSlipVerified(slip.id, processed.logStatus, verifyResult.slipData);
 
     const isCleanSuccess = processed.slipToMe && processed.shouldClearDebt;
-    let notifyText = null;
-    if (isCleanSuccess && cfg.notifySuccess) {
-      const d = processed.details;
-      notifyText = `✅ ตรวจสอบสลิป #${slip.id} (${slip.sender_name}) ย้อนหลังสำเร็จ\n`
-        + `💰 ยอดเงิน: ${d.amountStr} บาท\n`
-        + `💸 จาก: ${d.senderName}${d.senderBank ? ` - ${d.senderBank}` : ''}\n`
-        + `💵 ให้กับ: ${d.recipientName}`;
-    } else if (!isCleanSuccess) {
-      notifyText = `⚠️ ตรวจสอบสลิป #${slip.id} (${slip.sender_name}) ย้อนหลังพบข้อสังเกต\n${processed.header.trim()}`;
-    }
 
     return {
       outcome: 'verified',
@@ -174,8 +130,7 @@ async function verifySingleSlip(slip, activeWeekCost, cfg) {
       logStatus: processed.logStatus,
       amount: processed.details?.amountStr || null,
       slipToMe: processed.slipToMe,
-      shouldClearDebt: processed.shouldClearDebt,
-      notifyText
+      shouldClearDebt: processed.shouldClearDebt
     };
   }
 
@@ -196,29 +151,23 @@ async function verifySingleSlip(slip, activeWeekCost, cfg) {
   const isPermanent = isPermanentVerifyError(verifyResult.error);
   const nextAttempts = isPermanent ? cfg.maxAttempts : (Number(slip.verify_attempts) || 0) + 1;
   await db.recordSlipVerifyAttempt(slip.id, errText, isPermanent ? cfg.maxAttempts : null);
-  let notifyText = null;
-  if (nextAttempts >= cfg.maxAttempts) {
-    notifyText = `⚠️ สลิป #${slip.id} (${slip.sender_name}) ตรวจสอบผ่าน EasySlip ไม่สำเร็จหลังลอง ${nextAttempts} ครั้ง\nสาเหตุล่าสุด: ${errText}`;
-  }
 
   return {
     outcome: 'failed',
     slipId: slip.id,
     senderName: slip.sender_name,
     attempts: nextAttempts,
-    error: errText,
-    notifyText
+    error: errText
   };
 }
 
 /**
- * Sweeps pending 'noticed' slips and verifies due records against EasySlip API using DB configuration.
+ * Sweeps pending 'noticed' slips and verifies due records against EasySlip API silently (DB-only, no LINE notifications).
  * @param {Object} [options={}]
  * @param {boolean} [options.force=false] - Ignore enabled flag and backoff window when triggered manually
- * @param {boolean} [options.notify=true] - Push LINE notifications on verification results
  * @returns {Promise<Object>} Summary of the verification sweep
  */
-async function runPendingSlipVerification({ force = false, notify = true } = {}) {
+async function runPendingSlipVerification({ force = false } = {}) {
   if (isVerifying) {
     logger.debug('[SlipVerifier] Previous verification sweep still running, skipping.');
     return { skipped: true, checked: 0, verified: 0, failed: 0, deferred: 0, results: [] };
@@ -263,8 +212,6 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
       ? Number(weekInfoList[0].cost)
       : 0;
 
-    const notifyMessages = [];
-
     for (let i = 0; i < dueSlips.length; i++) {
       const slip = dueSlips[i];
       summary.checked++;
@@ -275,9 +222,6 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
       if (res.outcome === 'verified') {
         summary.verified++;
         logger.info(`[SlipVerifier] Slip #${slip.id} (${slip.sender_name}) verified -> status=${res.logStatus}, amount=${res.amount || '-'}`);
-        if (res.notifyText) {
-          notifyMessages.push({ type: 'text', text: res.notifyText });
-        }
       } else if (res.outcome === 'invalid_qr') {
         summary.failed++;
         logger.info(`[SlipVerifier] Slip #${slip.id} (${slip.sender_name}) deleted from slip_log (not a bank slip Mini-QR)`);
@@ -290,18 +234,11 @@ async function runPendingSlipVerification({ force = false, notify = true } = {})
       } else {
         summary.failed++;
         logger.debug(`[SlipVerifier] Slip #${slip.id} attempt ${res.attempts}/${cfg.maxAttempts} failed: ${res.error}`);
-        if (res.notifyText) {
-          notifyMessages.push({ type: 'text', text: res.notifyText });
-        }
       }
 
       if (i < dueSlips.length - 1) {
         await sleep(INTER_REQUEST_DELAY_MS);
       }
-    }
-
-    if (notify && notifyMessages.length > 0) {
-      await pushNotifications(notifyMessages);
     }
 
     const hasRetryableResult = summary.results.some(

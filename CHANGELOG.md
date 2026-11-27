@@ -4,6 +4,15 @@
 
 ---
 
+## [0.7.73] - 2026-11-27
+
+### Fixed
+- **Disable LINE Push Notifications in Background Slip Verifier (`scheduler/slipVerifier.js`, `services/appSettings.js`, `migrations/app_settings_tbl.sql`)**:
+  - Removed `lineClient.pushMessage` / `pushNotifications()` from `scheduler/slipVerifier.js` so background EasySlip verification updates `slip_log` and member debt silently in PostgreSQL without consuming LINE group Push quota (`63 × N`).
+  - Updated default `slip_verify_notify_success` to `'0'` in `services/appSettings.js` and `migrations/app_settings_tbl.sql`.
+
+---
+
 ## [0.7.72] - 2026-11-27
 
 ### Fixed & Improved

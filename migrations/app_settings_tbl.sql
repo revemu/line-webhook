@@ -19,5 +19,5 @@ VALUES
   ('slip_verify_max_attempts', '8', 'slip_verify', 'Maximum EasySlip verification retry attempts per slip'),
   ('slip_verify_max_age_hours', '168', 'slip_verify', 'Maximum slip age in hours to keep retrying verification (168 = 1 week)'),
   ('slip_verify_batch_limit', '10', 'slip_verify', 'Maximum number of slips checked per scheduler sweep'),
-  ('slip_verify_notify_success', '1', 'slip_verify', 'Push LINE notification when delayed slip verifies cleanly (1=on, 0=off)'),
+  ('slip_verify_notify_success', '0', 'slip_verify', 'Push LINE notification when delayed slip verifies cleanly (1=on, 0=off)'),
   ('slip_verify_retry_delays', '120,300,600,900,1800,3600,7200,14400', 'slip_verify', 'Comma-separated retry backoff delays in seconds per attempt');
